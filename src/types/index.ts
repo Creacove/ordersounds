@@ -38,11 +38,11 @@ export interface Beat {
 
 export interface Playlist {
   id: string;
-  name: string; // Changed from 'title' to 'name' to match the code
-  owner_id: string; // Changed from 'user_id' to 'owner_id' to match the database
+  name: string; 
+  owner_id: string;
   cover_image?: string;
   is_public: boolean;
-  beats?: string[]; // Add this field since it's referenced in the code
+  beats: string[]; // Array of beat IDs
   created_at: string;
   updated_at?: string;
 }

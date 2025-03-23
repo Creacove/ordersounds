@@ -1,24 +1,25 @@
-import { useState, useEffect } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
+
+import { useState, useEffect, useCallback } from "react";
+import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useBeats } from "@/hooks/useBeats";
 import { PlusCircle, Music, Heart, ListMusic } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserPlaylists, createPlaylist } from "@/lib/playlistService";
-import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Playlist } from "@/types";
+import { EmptyState } from "@/components/library/EmptyState";
+import { PlaylistCard } from "@/components/library/PlaylistCard";
+import { CreatePlaylistForm } from "@/components/library/CreatePlaylistForm";
 
 export default function Library() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { getUserFavoriteBeats, getUserPurchasedBeats, toggleFavorite, isLoading } = useBeats();
-  const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
@@ -57,16 +58,19 @@ export default function Library() {
     setLoadingPlaylists(false);
   };
 
-  const handleCreatePlaylist = async () => {
+  // Wrap toggleFavorite to handle the Promise
+  const handleToggleFavorite = useCallback((id: string) => {
+    toggleFavorite(id);
+    return favoriteBeats.some(beat => beat.id === id);
+  }, [toggleFavorite, favoriteBeats]);
+
+  const handleCreatePlaylist = async (playlistName: string) => {
     if (!user) return;
     
-    if (newPlaylistName.trim()) {
-      const playlist = await createPlaylist(user.id, newPlaylistName);
-      if (playlist) {
-        setPlaylists([...playlists, playlist]);
-        setNewPlaylistName("");
-        setIsCreatingPlaylist(false);
-      }
+    const playlist = await createPlaylist(user.id, playlistName);
+    if (playlist) {
+      setPlaylists([...playlists, playlist]);
+      setIsCreatingPlaylist(false);
     }
   };
   
@@ -82,14 +86,9 @@ export default function Library() {
     navigate(`/playlists?id=${playlistId}`);
   };
 
-  const handleToggleFavorite = (id: string): boolean => {
-    toggleFavorite(id);
-    return !favoriteBeats.some(beat => beat.id === id);
-  };
-
   if (!user) {
     return (
-      <MainLayout>
+      <MainLayoutWithPlayer>
         <div className="container py-12 text-center">
           <h1 className="text-2xl font-bold mb-4">Sign in to access your library</h1>
           <p className="text-muted-foreground mb-6">
@@ -99,7 +98,7 @@ export default function Library() {
             <a href="/login">Sign In</a>
           </Button>
         </div>
-      </MainLayout>
+      </MainLayoutWithPlayer>
     );
   }
 
@@ -138,18 +137,13 @@ export default function Library() {
                 ))}
               </div>
             ) : purchasedBeats.length === 0 ? (
-              <div className="text-center p-12 bg-card rounded-lg">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-                  <Music className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No purchased beats yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Your purchased beats will appear here after you complete a purchase.
-                </p>
-                <Button asChild>
-                  <a href="/">Browse the marketplace</a>
-                </Button>
-              </div>
+              <EmptyState
+                icon={Music}
+                title="No purchased beats yet"
+                description="Your purchased beats will appear here after you complete a purchase."
+                actionLabel="Browse the marketplace"
+                actionHref="/"
+              />
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {purchasedBeats.map((beat) => (
@@ -157,7 +151,7 @@ export default function Library() {
                     key={beat.id} 
                     beat={beat} 
                     isPurchased={true}
-                    onToggleFavorite={toggleFavorite}
+                    onToggleFavorite={handleToggleFavorite}
                     isFavorite={favoriteBeats.some(b => b.id === beat.id)}
                   />
                 ))}
@@ -177,18 +171,13 @@ export default function Library() {
                 ))}
               </div>
             ) : favoriteBeats.length === 0 ? (
-              <div className="text-center p-12 bg-card rounded-lg">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-                  <Heart className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No favorite beats yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Favorite beats you like and they will appear here for easy access.
-                </p>
-                <Button asChild>
-                  <a href="/">Start exploring</a>
-                </Button>
-              </div>
+              <EmptyState
+                icon={Heart}
+                title="No favorite beats yet"
+                description="Favorite beats you like and they will appear here for easy access."
+                actionLabel="Start exploring"
+                actionHref="/"
+              />
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {favoriteBeats.map((beat) => (
@@ -218,24 +207,10 @@ export default function Library() {
             </div>
 
             {isCreatingPlaylist && (
-              <div className="mb-6 p-4 bg-card rounded-lg animate-slide-down">
-                <h3 className="text-sm font-medium mb-2">Create new playlist</h3>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Playlist name"
-                    value={newPlaylistName}
-                    onChange={(e) => setNewPlaylistName(e.target.value)}
-                    className="flex-grow"
-                  />
-                  <Button onClick={handleCreatePlaylist}>Create</Button>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => setIsCreatingPlaylist(false)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
+              <CreatePlaylistForm
+                onSubmit={handleCreatePlaylist}
+                onCancel={() => setIsCreatingPlaylist(false)}
+              />
             )}
 
             {loadingPlaylists ? (
@@ -249,34 +224,21 @@ export default function Library() {
                 ))}
               </div>
             ) : playlists.length === 0 ? (
-              <div className="text-center p-12 bg-card rounded-lg">
-                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
-                  <ListMusic className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">No playlists yet</h3>
-                <p className="text-muted-foreground mb-4">
-                  Create playlists to organize your favorite beats.
-                </p>
-                <Button onClick={() => setIsCreatingPlaylist(true)}>
-                  Create your first playlist
-                </Button>
-              </div>
+              <EmptyState
+                icon={ListMusic}
+                title="No playlists yet"
+                description="Create playlists to organize your favorite beats."
+                actionLabel="Create your first playlist"
+                onAction={() => setIsCreatingPlaylist(true)}
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {playlists.map((playlist) => (
-                  <div 
-                    key={playlist.id} 
-                    className="bg-card rounded-lg p-4 hover:bg-card/80 transition-colors cursor-pointer"
-                    onClick={() => handleViewPlaylist(playlist.id)}
-                  >
-                    <div className="aspect-square rounded-md bg-muted mb-3 flex items-center justify-center">
-                      <ListMusic className="h-10 w-10 text-muted-foreground" />
-                    </div>
-                    <h3 className="font-medium">{playlist.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {playlist.beats?.length || 0} {(playlist.beats?.length || 0) === 1 ? 'beat' : 'beats'}
-                    </p>
-                  </div>
+                  <PlaylistCard
+                    key={playlist.id}
+                    playlist={playlist}
+                    onClick={handleViewPlaylist}
+                  />
                 ))}
               </div>
             )}

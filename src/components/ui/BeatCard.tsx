@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -22,7 +23,7 @@ interface BeatCardProps {
   beat: Beat;
   onPlay?: (id: string) => void;
   onAddToCart?: (beat: Beat) => void;
-  onToggleFavorite?: (id: string) => boolean;
+  onToggleFavorite?: (id: string) => void; // Changed return type to void
   isFavorite?: boolean;
   isPurchased?: boolean;
   isInCart?: boolean;
