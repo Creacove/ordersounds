@@ -1,23 +1,24 @@
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
+import { useBeats } from "@/hooks/useBeats";
 import { Button } from "@/components/ui/button";
-import { BeatCard } from "@/components/ui/BeatCard";
+import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, TrashIcon, AlertCircle } from "lucide-react";
+import { ShoppingCart, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { PriceTag } from "@/components/ui/PriceTag";
 import { toast } from "sonner";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
   const { user, currency } = useAuth();
+  const { toggleFavorite, isFavorite } = useBeats();
   const navigate = useNavigate();
   
   const handleRemoveItem = (beatId: string) => {
     removeFromCart(beatId);
+    toast.success("Item removed from cart");
   };
   
   const handleCheckout = () => {
@@ -29,7 +30,7 @@ export default function Cart() {
     navigate('/');
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     document.title = "Shopping Cart | Creacove";
   }, []);
 
@@ -54,7 +55,7 @@ export default function Cart() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container py-8">
+      <div className="container py-8 pb-32 md:pb-8">
         <div className="flex items-center mb-6">
           <ShoppingCart className="mr-2 h-6 w-6" />
           <h1 className="text-2xl font-bold">Your Cart</h1>
@@ -74,47 +75,16 @@ export default function Cart() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {cartItems.map((item) => (
-                  <div key={item.beat.id} className="bg-card rounded-lg shadow-sm p-4">
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      <div className="w-full sm:w-1/3 md:w-1/4">
-                        <BeatCard 
-                          beat={item.beat} 
-                          isInCart={true}
-                          className="shadow-none border-0"
-                        />
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div>
-                          <h3 className="font-semibold text-lg">{item.beat.title}</h3>
-                          <p className="text-muted-foreground">
-                            Producer: {item.beat.producer_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {item.beat.genre} · {item.beat.bpm} BPM
-                          </p>
-                        </div>
-                        <div className="flex justify-between items-center mt-4">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleRemoveItem(item.beat.id)}
-                            className="text-destructive hover:text-destructive/90 p-0 h-auto"
-                          >
-                            Remove
-                          </Button>
-                          <div className="font-medium">
-                            {currency === 'NGN' ? (
-                              <span>₦{item.beat.price_local.toLocaleString()}</span>
-                            ) : (
-                              <span>${item.beat.price_diaspora.toLocaleString()}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <BeatListItem 
+                    key={item.beat.id}
+                    beat={item.beat}
+                    isInCart={true}
+                    isFavorite={isFavorite(item.beat.id)}
+                    onRemove={handleRemoveItem}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 ))}
               </div>
               

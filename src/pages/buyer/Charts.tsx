@@ -6,9 +6,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Music, Heart, ShoppingCart } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useCart } from "@/context/CartContext";
+import { toast } from "sonner";
+import { usePlayer } from "@/context/PlayerContext";
 
 export default function Charts() {
   const { beats, isLoading, toggleFavorite, isFavorite } = useBeats();
+  const { addToCart, isInCart } = useCart();
+  const { playBeat } = usePlayer();
   
   useEffect(() => {
     document.title = "Charts | Creacove";
@@ -20,6 +26,19 @@ export default function Charts() {
       (b.favorites_count + b.purchase_count) - (a.favorites_count + a.purchase_count)
     )
     .slice(0, 20); // Top 20
+
+  const handleAddToCart = (beat) => {
+    if (!isInCart(beat.id)) {
+      addToCart(beat);
+      toast.success(`Added "${beat.title}" to cart`);
+    } else {
+      toast.info("This beat is already in your cart");
+    }
+  };
+
+  const handlePlayBeat = (beat) => {
+    playBeat(beat);
+  };
 
   return (
     <MainLayout>
@@ -52,7 +71,7 @@ export default function Charts() {
                     <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded overflow-hidden">
+                        <div className="w-10 h-10 rounded overflow-hidden cursor-pointer" onClick={() => handlePlayBeat(beat)}>
                           <img 
                             src={beat.cover_image_url || "https://placehold.co/40x40"} 
                             alt={beat.title}
@@ -72,18 +91,30 @@ export default function Charts() {
                       <div className="flex justify-end gap-2">
                         <button 
                           onClick={() => toggleFavorite(beat.id)}
-                          className={`p-1.5 rounded-full ${
-                            isFavorite(beat.id) 
-                              ? "bg-red-500/10 text-red-500" 
+                          className={cn(
+                            "p-1.5 rounded-full",
+                            isFavorite(beat.id)
+                              ? "bg-purple-500/10 text-purple-500" 
                               : "bg-muted text-muted-foreground hover:text-primary"
-                          }`}
+                          )}
                         >
-                          <Heart size={16} />
+                          <Heart size={16} fill={isFavorite(beat.id) ? "currentColor" : "none"} />
                         </button>
-                        <button className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-primary">
+                        <button 
+                          className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-primary"
+                          onClick={() => handlePlayBeat(beat)}
+                        >
                           <Music size={16} />
                         </button>
-                        <button className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-primary">
+                        <button 
+                          className={cn(
+                            "p-1.5 rounded-full",
+                            isInCart(beat.id)
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground hover:text-primary"
+                          )}
+                          onClick={() => handleAddToCart(beat)}
+                        >
                           <ShoppingCart size={16} />
                         </button>
                       </div>

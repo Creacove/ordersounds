@@ -1,13 +1,13 @@
 
 import { useEffect, useState } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useBeats } from "@/hooks/useBeats";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Badge } from "@/components/ui/badge";
 
 export default function Genres() {
-  const { beats, isLoading } = useBeats();
+  const { beats, isLoading, toggleFavorite, isFavorite } = useBeats();
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   
   useEffect(() => {
@@ -23,7 +23,7 @@ export default function Genres() {
     : beats;
 
   return (
-    <MainLayout>
+    <MainLayoutWithPlayer>
       <div className="container py-8">
         <h1 className="text-3xl font-bold mb-8">Explore by Genre</h1>
         
@@ -62,11 +62,16 @@ export default function Genres() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredBeats.map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
+              <BeatCard 
+                key={beat.id} 
+                beat={beat} 
+                isFavorite={isFavorite(beat.id)}
+                onToggleFavorite={toggleFavorite}
+              />
             ))}
           </div>
         )}
       </div>
-    </MainLayout>
+    </MainLayoutWithPlayer>
   );
 }

@@ -22,6 +22,7 @@ import {
 import { getUserPlaylists, addBeatToPlaylist } from '@/lib/playlistService';
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface BeatCardProps {
   beat: Beat;
@@ -174,52 +175,76 @@ export function BeatCard({
 
         <div className="flex items-center gap-2 pt-2">
           {!isPurchased && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleAddToCart}
-              disabled={isInCart}
-              className={cn(
-                "h-8 w-8 rounded-md",
-                isInCart
-                  ? "bg-primary/10 text-primary"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-              )}
-              title={isInCart ? "In Cart" : "Add to Cart"}
-            >
-              <ShoppingCart size={16} />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleAddToCart}
+                    disabled={isInCart}
+                    className={cn(
+                      "h-8 w-8 rounded-md",
+                      isInCart
+                        ? "bg-primary/10 text-primary"
+                        : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                    )}
+                  >
+                    <ShoppingCart size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isInCart ? "In Cart" : "Add to Cart"}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {isInCart && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={goToCart}
-              className="h-8 w-8 rounded-md bg-primary/20 text-primary hover:bg-primary/30"
-              title="Go to Cart"
-            >
-              <ShoppingCart size={16} />
-            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={goToCart}
+                    className="h-8 w-8 rounded-md bg-primary/20 text-primary hover:bg-primary/30"
+                  >
+                    <ShoppingCart size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Go to Cart
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {user && (
             <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleToggleFavorite}
-                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                className={cn(
-                  "h-8 w-8 rounded-md transition-colors",
-                  isFavorite
-                    ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                )}
-                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-              >
-                <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleToggleFavorite}
+                      aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                      className={cn(
+                        "h-8 w-8 rounded-md transition-colors",
+                        isFavorite
+                          ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
+                          : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                      )}
+                    >
+                      <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {isFavorite ? "Remove from favorites" : "Add to favorites"}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
