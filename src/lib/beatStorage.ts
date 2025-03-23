@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat } from '@/types';
@@ -20,7 +21,7 @@ export const uploadBeat = async (
     role: string;
     percentage: number;
   }>
-) => Promise<{success: boolean, beatId?: string, error?: string}> => {
+): Promise<{success: boolean; beatId?: string; error?: string}> => {
   try {
     // Step 1: Upload all files to storage
     const [coverImageUrl, previewUrl, fullTrackUrl] = await Promise.all([
