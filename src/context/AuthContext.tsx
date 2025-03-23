@@ -3,7 +3,8 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@/types';
-import { supabase, mapSupabaseUser } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
+import { mapSupabaseUser } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -25,7 +26,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for existing session
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log("Auth state changed:", event, session);
+        if (event === 'SIGNED_IN' && session) {
+          try {
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+            if (userData.user && !userError) {
+              const mappedUser = mapSupabaseUser(userData.user);
+              setUser(mappedUser);
+              setCurrency(mappedUser.default_currency || 'NGN');
+            }
+          } catch (error) {
+            console.error("Error processing sign in:", error);
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setCurrency('NGN');
+        }
+      }
+    );
+
+    // THEN check for existing session
     const checkSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
@@ -35,6 +58,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         if (data?.session) {
+          console.log("Found existing session:", data.session);
           const { data: userData, error: userError } = await supabase.auth.getUser();
           
           if (userError) {
@@ -44,8 +68,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           if (userData.user) {
             const mappedUser = mapSupabaseUser(userData.user);
             setUser(mappedUser);
-            
-            // Set currency based on user's country
             setCurrency(mappedUser.default_currency || 'NGN');
           }
         }
@@ -58,40 +80,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     checkSession();
 
-    // Set up auth state listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const { data, error } = await supabase.auth.getUser();
-        if (data.user && !error) {
-          const mappedUser = mapSupabaseUser(data.user);
-          setUser(mappedUser);
-          setCurrency(mappedUser.default_currency || 'NGN');
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setCurrency('NGN');
-      }
-    });
-
     return () => {
-      authListener?.subscription.unsubscribe();
+      subscription.unsubscribe();
     };
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      console.log("Attempting login with:", email);
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        console.error("Login error:", error);
         toast.error(error.message);
         throw error;
       }
 
       if (data?.user) {
+        console.log("Login successful:", data.user);
         const mappedUser = mapSupabaseUser(data.user);
         setUser(mappedUser);
         setCurrency(mappedUser.default_currency || 'NGN');
@@ -114,6 +124,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signup = async (email: string, password: string, name: string, role: 'buyer' | 'producer') => {
     setIsLoading(true);
     try {
+      console.log("Attempting signup with:", { email, name, role });
+      
+      // Step 1: Sign up with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -127,17 +140,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
+        console.error("Signup auth error:", error);
         toast.error(error.message);
         throw error;
       }
 
+      console.log("Auth signup successful:", data);
+      
       if (data?.user) {
-        const mappedUser = mapSupabaseUser(data.user);
-        setUser(mappedUser);
-        setCurrency(mappedUser.default_currency || 'NGN');
-        toast.success('Account created successfully');
-        
-        // Create user record in the users table
+        // Step 2: Create user record in the users table
         const { error: profileError } = await supabase
           .from('users')
           .insert({
@@ -145,14 +156,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             full_name: name,
             email: email,
             role: role,
-            password_hash: 'managed-by-supabase', // Supabase handles the actual hashing
+            password_hash: 'managed-by-supabase', // Supabase Auth handles the actual hashing
           });
 
         if (profileError) {
           console.error('Error creating user profile:', profileError);
-          toast.error('Could not complete profile setup');
+          toast.error('Could not complete profile setup, but auth account was created');
+        } else {
+          console.log("User profile created successfully");
         }
 
+        const mappedUser = mapSupabaseUser(data.user);
+        setUser(mappedUser);
+        setCurrency(mappedUser.default_currency || 'NGN');
+        toast.success('Account created successfully');
+        
         // Redirect based on role
         if (role === 'producer') {
           navigate('/producer/dashboard');

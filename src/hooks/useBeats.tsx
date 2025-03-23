@@ -1,8 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export function useBeats() {
@@ -26,7 +25,7 @@ export function useBeats() {
             id,
             title,
             producer_id,
-            users!beats_producer_id_fkey (
+            users (
               full_name,
               stage_name
             ),
@@ -53,26 +52,33 @@ export function useBeats() {
 
         if (beatsData) {
           // Transform data to match Beat type
-          const transformedBeats: Beat[] = beatsData.map(beat => ({
-            id: beat.id,
-            title: beat.title,
-            producer_id: beat.producer_id,
-            producer_name: beat.users.stage_name || beat.users.full_name,
-            cover_image_url: beat.cover_image,
-            preview_url: beat.audio_preview,
-            full_track_url: beat.audio_file,
-            price_local: beat.price_local,
-            price_diaspora: beat.price_diaspora,
-            genre: beat.genre,
-            track_type: beat.track_type,
-            bpm: beat.bpm,
-            tags: beat.tags || [],
-            description: beat.description,
-            created_at: beat.upload_date,
-            favorites_count: beat.favorites_count,
-            purchase_count: beat.purchase_count,
-            status: beat.status,
-          }));
+          const transformedBeats: Beat[] = beatsData.map(beat => {
+            // Get the producer data safely
+            const userData = beat.users;
+            const producerName = userData && userData.stage_name ? userData.stage_name : 
+                                userData && userData.full_name ? userData.full_name : 'Unknown Producer';
+            
+            return {
+              id: beat.id,
+              title: beat.title,
+              producer_id: beat.producer_id,
+              producer_name: producerName,
+              cover_image_url: beat.cover_image,
+              preview_url: beat.audio_preview,
+              full_track_url: beat.audio_file,
+              price_local: beat.price_local,
+              price_diaspora: beat.price_diaspora,
+              genre: beat.genre,
+              track_type: beat.track_type,
+              bpm: beat.bpm,
+              tags: beat.tags || [],
+              description: beat.description,
+              created_at: beat.upload_date,
+              favorites_count: beat.favorites_count,
+              purchase_count: beat.purchase_count,
+              status: beat.status,
+            };
+          });
           
           setBeats(transformedBeats);
           
@@ -215,7 +221,6 @@ export function useBeats() {
     return beats.filter(beat => beat.producer_id === producerId);
   };
 
-  // Search functionality
   const searchBeats = (query: string) => {
     const lowerQuery = query.toLowerCase();
     return beats.filter(beat => 
