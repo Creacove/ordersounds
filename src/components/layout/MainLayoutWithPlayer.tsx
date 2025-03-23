@@ -7,9 +7,13 @@ import { PersistentPlayer } from '@/components/player/PersistentPlayer';
 
 interface MainLayoutProps {
   children: React.ReactNode;
+  hideSidebar?: boolean;
 }
 
-export const MainLayoutWithPlayer: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayoutWithPlayer: React.FC<MainLayoutProps> = ({ 
+  children, 
+  hideSidebar = false 
+}) => {
   const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -21,10 +25,10 @@ export const MainLayoutWithPlayer: React.FC<MainLayoutProps> = ({ children }) =>
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Topbar setSidebarOpen={setSidebarOpen} />
+      <Topbar setSidebarOpen={setSidebarOpen} hideLogo={!hideSidebar} />
       
       <div className="flex flex-1">
-        <Sidebar />
+        {!hideSidebar && <Sidebar />}
         
         <main className="flex-1 p-4">
           {children}
@@ -35,3 +39,5 @@ export const MainLayoutWithPlayer: React.FC<MainLayoutProps> = ({ children }) =>
     </div>
   );
 };
+
+export default MainLayoutWithPlayer;

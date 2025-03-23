@@ -6,9 +6,10 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MainLayoutProps {
   children: React.ReactNode;
+  hideSidebar?: boolean;
 }
 
-export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayout: React.FC<MainLayoutProps> = ({ children, hideSidebar = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
@@ -20,10 +21,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="h-screen flex flex-col">
-      <Topbar setSidebarOpen={setSidebarOpen} />
+      <Topbar setSidebarOpen={setSidebarOpen} hideLogo={!hideSidebar} />
       
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        {!hideSidebar && <Sidebar />}
         
         <main className="flex-1 overflow-y-auto">
           {children}

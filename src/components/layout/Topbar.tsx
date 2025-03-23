@@ -19,7 +19,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-export const Topbar = ({ setSidebarOpen }: { setSidebarOpen: (open: boolean) => void }) => {
+interface TopbarProps {
+  setSidebarOpen: (value: boolean) => void;
+  hideLogo?: boolean;
+}
+
+export const Topbar = ({ setSidebarOpen, hideLogo = false }: TopbarProps) => {
   const { user } = useAuth();
   const { cartItems } = useCart();
   const navigate = useNavigate();
@@ -27,7 +32,7 @@ export const Topbar = ({ setSidebarOpen }: { setSidebarOpen: (open: boolean) => 
   
   // Handler for mobile menu
   const toggleMobileMenu = () => {
-    setSidebarOpen(prev => !prev);
+    setSidebarOpen((prev: boolean) => !prev);
   };
 
   // Navigate to search page
@@ -66,10 +71,12 @@ export const Topbar = ({ setSidebarOpen }: { setSidebarOpen: (open: boolean) => 
               <span className="sr-only">Menu</span>
             </Button>
           )}
-          <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-            <Headphones className="h-6 w-6 text-primary" />
-            <span className="hidden sm:inline">OrderSOUNDS</span>
-          </Link>
+          {!hideLogo && (
+            <Link to="/" className="flex items-center gap-2 font-bold text-xl">
+              <Headphones className="h-6 w-6 text-primary" />
+              <span className="hidden sm:inline">OrderSOUNDS</span>
+            </Link>
+          )}
         </div>
 
         {/* Center section - Search */}
