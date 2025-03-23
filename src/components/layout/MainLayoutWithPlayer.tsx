@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Topbar } from './Topbar';
 import Sidebar from './Sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { MusicPlayer } from '@/components/player/MusicPlayer';
+import { PersistentPlayer } from '@/components/player/PersistentPlayer';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -30,7 +31,7 @@ export const MainLayoutWithPlayer: React.FC<MainLayoutProps> = ({ children }) =>
         </main>
       </div>
 
-      <MusicPlayer />
+      <PersistentPlayer />
     </div>
   );
 };

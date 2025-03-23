@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Topbar } from "./Topbar";
 import Sidebar from "./Sidebar";
@@ -7,7 +8,7 @@ interface MainLayoutProps {
   children: React.ReactNode;
 }
 
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isMobile = useIsMobile();
 
