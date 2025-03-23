@@ -125,7 +125,8 @@ export function PersistentPlayer() {
             </TooltipProvider>
           </div>
           
-          <div className="flex items-center gap-1 md:gap-2 w-full max-w-lg">
+          {/* Hide time bar on mobile */}
+          <div className={cn("flex items-center gap-1 md:gap-2 w-full max-w-lg", isMobile ? "hidden" : "flex")}>
             <span className="text-xs text-muted-foreground w-8 md:w-10 text-right hidden xs:block">
               {formatTime(currentTime)}
             </span>
