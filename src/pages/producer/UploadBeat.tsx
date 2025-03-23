@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -12,12 +11,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Upload, X, Plus, FileAudio, Image, Play, Pause, Info } from "lucide-react";
+import { Upload, X, Plus, FileAudio, Image, Play, Pause, Info, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { uploadBeat } from "@/lib/beatStorage";
 
 export default function UploadBeat() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("details");
   const [isPlaying, setIsPlaying] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -26,6 +28,7 @@ export default function UploadBeat() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Beat details form state
   const [beatDetails, setBeatDetails] = useState({
@@ -165,6 +168,16 @@ export default function UploadBeat() {
       return false;
     }
     
+    if (!beatDetails.genre) {
+      toast.error("Genre is required");
+      return false;
+    }
+    
+    if (!beatDetails.trackType) {
+      toast.error("Track type is required");
+      return false;
+    }
+    
     // Validate sum of collaborator percentages is 100%
     const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
     if (totalPercentage !== 100) {
@@ -175,16 +188,106 @@ export default function UploadBeat() {
     return true;
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!validateForm()) return;
+    if (!user) {
+      toast.error("You must be logged in to publish a beat");
+      return;
+    }
     
-    toast.success("Beat published successfully!");
-    // In a real app, this would call a Supabase function to upload and create the beat
+    setIsSubmitting(true);
+    
+    try {
+      // Prepare the beat data
+      const beatData = {
+        title: beatDetails.title,
+        description: beatDetails.description || "",
+        genre: beatDetails.genre,
+        track_type: beatDetails.trackType,
+        bpm: beatDetails.bpm,
+        tags: tags,
+        price_local: beatDetails.priceLocal,
+        price_diaspora: beatDetails.priceDiaspora,
+        status: "published" as const,
+      };
+      
+      if (!uploadedFile || !previewFile || !imageFile) {
+        throw new Error("Missing required files");
+      }
+      
+      const result = await uploadBeat(
+        beatData,
+        uploadedFile,
+        previewFile,
+        imageFile,
+        user.id,
+        user.producer_name || user.name,
+        collaborators
+      );
+      
+      if (result.success) {
+        toast.success("Beat published successfully!");
+        navigate("/producer/beats");
+      } else {
+        throw new Error(result.error || "Failed to upload beat");
+      }
+    } catch (error) {
+      console.error("Error publishing beat:", error);
+      toast.error(error instanceof Error ? error.message : "Error publishing beat");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleSaveDraft = () => {
-    toast.success("Beat saved as draft");
-    // In a real app, this would save to Supabase with status="draft"
+  const handleSaveDraft = async () => {
+    if (!validateForm()) return;
+    if (!user) {
+      toast.error("You must be logged in to save a beat");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Prepare the beat data for draft
+      const beatData = {
+        title: beatDetails.title,
+        description: beatDetails.description || "",
+        genre: beatDetails.genre,
+        track_type: beatDetails.trackType,
+        bpm: beatDetails.bpm,
+        tags: tags,
+        price_local: beatDetails.priceLocal,
+        price_diaspora: beatDetails.priceDiaspora,
+        status: "draft" as const,
+      };
+      
+      if (!uploadedFile || !previewFile || !imageFile) {
+        throw new Error("Missing required files");
+      }
+      
+      const result = await uploadBeat(
+        beatData,
+        uploadedFile,
+        previewFile,
+        imageFile,
+        user.id,
+        user.producer_name || user.name,
+        collaborators
+      );
+      
+      if (result.success) {
+        toast.success("Beat saved as draft");
+        navigate("/producer/beats");
+      } else {
+        throw new Error(result.error || "Failed to save beat");
+      }
+    } catch (error) {
+      console.error("Error saving beat draft:", error);
+      toast.error(error instanceof Error ? error.message : "Error saving beat");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const nextTab = () => {
@@ -747,23 +850,41 @@ export default function UploadBeat() {
             <CardFooter className="flex justify-between p-6 border-t bg-card">
               <div>
                 {activeTab !== "details" && (
-                  <Button variant="outline" onClick={prevTab}>
+                  <Button variant="outline" onClick={prevTab} disabled={isSubmitting}>
                     Previous
                   </Button>
                 )}
               </div>
               
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSaveDraft}>
-                  Save as Draft
+                <Button 
+                  variant="outline" 
+                  onClick={handleSaveDraft} 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save as Draft"
+                  )}
                 </Button>
                 {activeTab !== "royalties" ? (
-                  <Button onClick={nextTab}>
+                  <Button onClick={nextTab} disabled={isSubmitting}>
                     Continue
                   </Button>
                 ) : (
-                  <Button onClick={handlePublish}>
-                    Publish Beat
+                  <Button onClick={handlePublish} disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Publishing...
+                      </>
+                    ) : (
+                      "Publish Beat"
+                    )}
                   </Button>
                 )}
               </div>
