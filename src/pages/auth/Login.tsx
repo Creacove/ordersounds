@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -5,15 +6,10 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { InfoIcon } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { toast } from "sonner";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showConfirmationAlert, setShowConfirmationAlert] = useState(false);
   const [errors, setErrors] = useState({
     email: "",
     password: ""
@@ -49,35 +45,9 @@ export default function Login() {
     if (validateForm()) {
       try {
         await login(email, password);
-      } catch (error: any) {
-        if (error.message?.includes("confirm your account")) {
-          setShowConfirmationAlert(true);
-        }
+      } catch (error) {
+        console.error("Login error:", error);
       }
-    }
-  };
-
-  const handleSendConfirmationEmail = async () => {
-    if (email) {
-      try {
-        const { error } = await supabase.auth.resend({
-          type: 'signup',
-          email,
-        });
-        
-        if (error) {
-          throw error;
-        }
-        
-        toast.success("Confirmation email sent. Please check your inbox.");
-      } catch (error: any) {
-        toast.error(error.message || "Failed to send confirmation email");
-      }
-    } else {
-      setErrors({
-        ...errors,
-        email: "Please enter your email address"
-      });
     }
   };
 
@@ -126,22 +96,6 @@ export default function Login() {
                 Enter your email to sign in to your account
               </p>
             </div>
-            
-            {showConfirmationAlert && (
-              <Alert className="border-amber-500 bg-amber-50 dark:bg-amber-900/20">
-                <InfoIcon className="h-4 w-4 text-amber-500" />
-                <AlertDescription className="text-amber-800 dark:text-amber-300">
-                  Your email needs to be confirmed. Please check your inbox or{" "}
-                  <button 
-                    onClick={handleSendConfirmationEmail}
-                    className="underline font-medium hover:text-amber-600"
-                  >
-                    click here
-                  </button>{" "}
-                  to resend the confirmation email.
-                </AlertDescription>
-              </Alert>
-            )}
             
             <div className="grid gap-6">
               <form onSubmit={handleSubmit}>

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { toast } from "sonner";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -65,7 +66,11 @@ export default function Signup() {
     e.preventDefault();
     
     if (validateForm()) {
-      await signup(email, password, name, role);
+      try {
+        await signup(email, password, name, role);
+      } catch (error: any) {
+        toast.error(error.message || "Failed to sign up");
+      }
     }
   };
 

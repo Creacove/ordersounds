@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@/types';
@@ -19,40 +18,33 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     try {
       console.log("Attempting login with:", email);
       
-      // First, try to sign in
+      // Direct sign in attempt
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
-        // Special handling for the "Email not confirmed" error
+        // If the error is "Email not confirmed", force update the user to treat it as confirmed
         if (error.message === "Email not confirmed" || error.code === "email_not_confirmed") {
-          console.log("Email not confirmed, attempting to auto-confirm and retry login");
+          console.log("Email not confirmed, attempting to sign up again...");
           
-          // Try to force confirm the email with a workaround
-          const { data: sessionData, error: updateError } = await supabase.auth.updateUser({
-            data: { email_confirmed: true }
+          // Force sign up the user again without confirmation requirement
+          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { 
+                email_confirmed: true 
+              }
+            }
           });
           
-          if (updateError) {
-            console.log("Failed to auto-confirm, sending confirmation email:", updateError);
-            
-            // If the update fails, try to resend the confirmation email
-            const { error: resendError } = await supabase.auth.resend({
-              type: 'signup',
-              email,
-            });
-            
-            if (resendError) {
-              throw resendError;
-            }
-            
-            toast.error("Your email is not confirmed. A new confirmation email has been sent.");
-            throw new Error("Please check your email and confirm your account before logging in.");
+          if (signUpError) {
+            throw signUpError;
           }
           
-          // If we successfully updated the user, try to log in again
+          // If sign-up successful, try to log in right away
           const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -77,12 +69,12 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
             
             return;
           }
+        } else {
+          // Handle other errors
+          console.error("Login error:", error);
+          toast.error(error.message || 'Failed to log in');
+          throw error;
         }
-        
-        // Handle other errors
-        console.error("Login error:", error);
-        toast.error(error.message || 'Failed to log in');
-        throw error;
       }
 
       if (data?.user) {
@@ -126,7 +118,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         return;
       }
       
-      // Step 1: Sign up with Supabase Auth
+      // Skip email confirmation by setting email_confirmed to true
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -135,8 +127,8 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
             full_name: name,
             role: role,
             country: 'Nigeria', // Default, can be updated in profile settings
+            email_confirmed: true, // Bypass email confirmation
           },
-          emailRedirectTo: window.location.origin,
         }
       });
 
@@ -149,7 +141,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       console.log("Auth signup successful:", data);
       
       if (data?.user) {
-        // Step 2: Create user record in the users table
+        // Create user record in the users table
         const { error: profileError } = await supabase
           .from('users')
           .insert([
@@ -169,17 +161,31 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
           console.log("User profile created successfully");
         }
 
-        const mappedUser = mapSupabaseUser(data.user);
-        setUser(mappedUser);
-        setCurrency(mappedUser.default_currency || 'NGN');
-        
-        toast.success('Account created successfully! Please check your email to confirm your registration.');
-        
-        // Redirect based on role
-        if (role === 'producer') {
-          navigate('/producer/dashboard');
-        } else {
-          navigate('/');
+        // Sign in immediately after successful signup
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (signInError) {
+          console.error("Auto sign-in error:", signInError);
+          toast.error("Account created but couldn't log you in automatically.");
+          navigate('/login');
+          return;
+        }
+
+        if (signInData?.user) {
+          const mappedUser = mapSupabaseUser(signInData.user);
+          setUser(mappedUser);
+          setCurrency(mappedUser.default_currency || 'NGN');
+          toast.success('Account created successfully! You are now logged in.');
+          
+          // Redirect based on role
+          if (role === 'producer') {
+            navigate('/producer/dashboard');
+          } else {
+            navigate('/');
+          }
         }
       }
     } catch (error: any) {
