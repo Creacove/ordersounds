@@ -1,6 +1,5 @@
 
 import { createContext, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { User } from '@/types';
 import { useAuthState } from '@/hooks/auth/useAuthState';
 import { useAuthMethods } from '@/hooks/auth/useAuthMethods';
