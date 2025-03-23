@@ -31,10 +31,26 @@ export const useAuthState = () => {
             }
           } catch (error) {
             console.error("Error processing sign in:", error);
+          } finally {
+            setIsLoading(false);
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           setCurrency('NGN');
+          setIsLoading(false);
+        } else if (event === 'USER_UPDATED') {
+          try {
+            const { data: userData, error: userError } = await supabase.auth.getUser();
+            if (userData.user && !userError) {
+              const mappedUser = mapSupabaseUser(userData.user);
+              setUser(mappedUser);
+              setCurrency(mappedUser.default_currency || 'NGN');
+            }
+          } catch (error) {
+            console.error("Error processing user update:", error);
+          } finally {
+            setIsLoading(false);
+          }
         }
       }
     );

@@ -44,8 +44,9 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
           navigate('/');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
+      toast.error(error.message || 'Failed to log in');
     } finally {
       setIsLoading(false);
     }
@@ -56,6 +57,19 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     try {
       console.log("Attempting signup with:", { email, name, role });
       
+      // Check if user already exists
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', email)
+        .maybeSingle();
+        
+      if (existingUser) {
+        toast.error('A user with this email already exists');
+        setIsLoading(false);
+        return;
+      }
+      
       // Step 1: Sign up with Supabase Auth
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -65,7 +79,8 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
             full_name: name,
             role: role,
             country: 'Nigeria', // Default, can be updated in profile settings
-          }
+          },
+          emailRedirectTo: window.location.origin,
         }
       });
 
@@ -81,13 +96,15 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         // Step 2: Create user record in the users table
         const { error: profileError } = await supabase
           .from('users')
-          .insert({
-            id: data.user.id,
-            full_name: name,
-            email: email,
-            role: role,
-            password_hash: 'managed-by-supabase', // Supabase Auth handles the actual hashing
-          });
+          .insert([
+            {
+              id: data.user.id,
+              full_name: name,
+              email: email,
+              role: role,
+              password_hash: 'managed-by-supabase', // Supabase Auth handles the actual hashing
+            }
+          ]);
 
         if (profileError) {
           console.error('Error creating user profile:', profileError);
@@ -99,7 +116,8 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         const mappedUser = mapSupabaseUser(data.user);
         setUser(mappedUser);
         setCurrency(mappedUser.default_currency || 'NGN');
-        toast.success('Account created successfully');
+        
+        toast.success('Account created successfully! Please check your email to confirm your registration.');
         
         // Redirect based on role
         if (role === 'producer') {
@@ -108,9 +126,9 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
           navigate('/');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error('Failed to create account');
+      toast.error(error.message || 'Failed to create account');
     } finally {
       setIsLoading(false);
     }
@@ -127,9 +145,9 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       setUser(null);
       toast.success('Logged out successfully');
       navigate('/login');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Logout error:', error);
-      toast.error('Failed to logout');
+      toast.error(error.message || 'Failed to logout');
     }
   };
 
@@ -144,6 +162,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
           bio: data.bio,
           country: data.country,
           profile_picture: data.avatar_url,
+          default_currency: data.default_currency,
         }
       });
 
@@ -152,8 +171,6 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       }
 
       // Update users table - need current user for this
-      // This assumes setUser has been called with the current user previously
-      // This is safe because this function would only be called by a logged-in user
       const currentUser = await supabase.auth.getUser();
       if (!currentUser.data.user) {
         throw new Error('No user found');
@@ -190,9 +207,9 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       }
       
       toast.success('Profile updated successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Profile update error:', error);
-      toast.error('Failed to update profile');
+      toast.error(error.message || 'Failed to update profile');
     } finally {
       setIsLoading(false);
     }

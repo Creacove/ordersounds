@@ -15,6 +15,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 export const mapSupabaseUser = (user: any): User => {
+  // Make sure all required fields exist with default values if needed
   return {
     id: user.id,
     email: user.email || '',
@@ -26,6 +27,6 @@ export const mapSupabaseUser = (user: any): User => {
     updated_at: user.updated_at,
     country: user.user_metadata?.country || '',
     producer_name: user.user_metadata?.stage_name || '',
-    default_currency: user.user_metadata?.country === 'Nigeria' ? 'NGN' : 'USD',
+    default_currency: user.user_metadata?.default_currency || (user.user_metadata?.country === 'Nigeria' ? 'NGN' : 'USD'),
   };
 };

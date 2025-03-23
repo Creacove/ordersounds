@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, ShoppingCart, User, Bell, LogOut, Settings, MessageSquare, LogIn, UserPlus } from "lucide-react";
@@ -43,7 +42,6 @@ export function Topbar() {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-lg">
       <div className="flex h-16 items-center px-4 md:px-6">
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-2 mr-4">
           <div className="flex items-center gap-1">
             <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center overflow-hidden">
@@ -63,7 +61,6 @@ export function Topbar() {
           </div>
         </Link>
 
-        {/* Currency Switch */}
         <button 
           className="hidden sm:flex items-center gap-1 px-3 py-1.5 rounded-full bg-secondary hover:bg-secondary/80 text-sm font-medium transition-colors mr-4"
           onClick={toggleCurrency}
@@ -73,7 +70,6 @@ export function Topbar() {
           </span>
         </button>
 
-        {/* Search Bar */}
         <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md mx-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -88,14 +84,12 @@ export function Topbar() {
         </form>
 
         <div className="flex items-center gap-2 md:gap-4 ml-auto">
-          {/* Auth Status Indicator */}
           <div className="hidden md:flex items-center mr-2">
             <Badge variant={user ? "default" : "secondary"} className="px-2 py-1">
               {isLoading ? "Loading..." : user ? "Signed In" : "Signed Out"}
             </Badge>
           </div>
           
-          {/* Cart Icon */}
           {user && (
             <Link to="/cart" className="relative flex items-center">
               <Button variant="ghost" size="icon" className="relative hover:bg-purple-500/10 hover:text-purple-500 transition-colors">
@@ -112,7 +106,6 @@ export function Topbar() {
             </Link>
           )}
 
-          {/* Auth Buttons or User Menu */}
           {!user ? (
             <div className="flex items-center gap-2">
               <Link to="/signup">
@@ -196,3 +189,4 @@ export function Topbar() {
       </div>
     </header>
   );
+}
