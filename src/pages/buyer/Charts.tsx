@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { useCart } from "@/context/CartContext";
 import { toast } from "sonner";
 import { usePlayer } from "@/context/PlayerContext";
+import { BeatListItem } from "@/components/ui/BeatListItem";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Charts() {
   const { beats, isLoading, toggleFavorite, isFavorite } = useBeats();
@@ -17,7 +19,7 @@ export default function Charts() {
   const { playBeat } = usePlayer();
   
   useEffect(() => {
-    document.title = "Charts | Creacove";
+    document.title = "Charts | OrderSOUNDS";
   }, []);
 
   // Sort beats by popularity (favorites + purchases)
@@ -52,78 +54,106 @@ export default function Charts() {
             ))}
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead>Track</TableHead>
-                  <TableHead>Producer</TableHead>
-                  <TableHead>Genre</TableHead>
-                  <TableHead className="text-center">Favorites</TableHead>
-                  <TableHead className="text-center">Purchases</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {chartBeats.map((beat, index) => (
-                  <TableRow key={beat.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{index + 1}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded overflow-hidden cursor-pointer" onClick={() => handlePlayBeat(beat)}>
-                          <img 
-                            src={beat.cover_image_url || "https://placehold.co/40x40"} 
-                            alt={beat.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <span className="font-medium">{beat.title}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{beat.producer_name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{beat.genre}</Badge>
-                    </TableCell>
-                    <TableCell className="text-center">{beat.favorites_count}</TableCell>
-                    <TableCell className="text-center">{beat.purchase_count}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => toggleFavorite(beat.id)}
-                          className={cn(
-                            "p-1.5 rounded-full",
-                            isFavorite(beat.id)
-                              ? "bg-purple-500/10 text-purple-500" 
-                              : "bg-muted text-muted-foreground hover:text-primary"
-                          )}
-                        >
-                          <Heart size={16} fill={isFavorite(beat.id) ? "currentColor" : "none"} />
-                        </button>
-                        <button 
-                          className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-primary"
-                          onClick={() => handlePlayBeat(beat)}
-                        >
-                          <Music size={16} />
-                        </button>
-                        <button 
-                          className={cn(
-                            "p-1.5 rounded-full",
-                            isInCart(beat.id)
-                              ? "bg-primary/10 text-primary"
-                              : "bg-muted text-muted-foreground hover:text-primary"
-                          )}
-                          onClick={() => handleAddToCart(beat)}
-                        >
-                          <ShoppingCart size={16} />
-                        </button>
-                      </div>
-                    </TableCell>
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead>Track</TableHead>
+                    <TableHead>Producer</TableHead>
+                    <TableHead>Genre</TableHead>
+                    <TableHead className="text-center">Favorites</TableHead>
+                    <TableHead className="text-center">Purchases</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {chartBeats.map((beat, index) => (
+                    <TableRow key={beat.id} className="hover:bg-muted/50">
+                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded overflow-hidden cursor-pointer" onClick={() => handlePlayBeat(beat)}>
+                            <img 
+                              src={beat.cover_image_url || "https://placehold.co/40x40"} 
+                              alt={beat.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <span className="font-medium">{beat.title}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{beat.producer_name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{beat.genre}</Badge>
+                      </TableCell>
+                      <TableCell className="text-center">{beat.favorites_count}</TableCell>
+                      <TableCell className="text-center">{beat.purchase_count}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => toggleFavorite(beat.id)}
+                            className={cn(
+                              "p-1.5 rounded-full",
+                              isFavorite(beat.id)
+                                ? "bg-purple-500/10 text-purple-500" 
+                                : "bg-muted text-muted-foreground hover:text-primary"
+                            )}
+                          >
+                            <Heart size={16} fill={isFavorite(beat.id) ? "currentColor" : "none"} />
+                          </button>
+                          <button 
+                            className="p-1.5 rounded-full bg-muted text-muted-foreground hover:text-primary"
+                            onClick={() => handlePlayBeat(beat)}
+                          >
+                            <Music size={16} />
+                          </button>
+                          <button 
+                            className={cn(
+                              "p-1.5 rounded-full",
+                              isInCart(beat.id)
+                                ? "bg-primary/10 text-primary"
+                                : "bg-muted text-muted-foreground hover:text-primary"
+                            )}
+                            onClick={() => handleAddToCart(beat)}
+                          >
+                            <ShoppingCart size={16} />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile List View */}
+            <div className="md:hidden space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Top 20 Beats</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {chartBeats.map((beat, index) => (
+                    <div key={beat.id} className="border-b last:border-0 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-bold text-sm bg-muted w-6 h-6 rounded-full flex items-center justify-center">{index + 1}</span>
+                        <Badge variant="outline" className="ml-auto">{beat.genre}</Badge>
+                      </div>
+                      <BeatListItem 
+                        beat={beat} 
+                        isFavorite={isFavorite(beat.id)}
+                        isInCart={isInCart(beat.id)}
+                        onToggleFavorite={toggleFavorite}
+                      />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </>
         )}
       </div>
     </MainLayout>

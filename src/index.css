@@ -119,6 +119,16 @@
   @apply bg-muted-foreground;
 }
 
+/* Hide scrollbars but keep functionality */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Glass effect */
 .glass {
   @apply bg-black/30 backdrop-blur-md border border-white/10;
@@ -155,4 +165,11 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
 .ripple {
   @apply absolute rounded-full bg-white/20 animate-ripple;
   transform-origin: center;
+}
+
+/* Mobile-specific styles */
+@media (max-width: 768px) {
+  .content-with-bottom-nav {
+    padding-bottom: 5rem;
+  }
 }

@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -9,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
@@ -31,7 +33,7 @@ export default function Cart() {
   };
 
   useEffect(() => {
-    document.title = "Shopping Cart | Creacove";
+    document.title = "Shopping Cart | OrderSOUNDS";
   }, []);
 
   if (!user) {
@@ -100,12 +102,28 @@ export default function Cart() {
             </div>
             
             <div className="lg:col-span-1">
-              <div className="bg-card rounded-lg shadow-sm p-6 sticky top-24">
-                <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
-                
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal ({cartItems.length} items)</span>
+              <Card className="sticky top-24">
+                <CardHeader>
+                  <CardTitle>Order Summary</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal ({cartItems.length} items)</span>
+                      <span>
+                        {currency === 'NGN' ? (
+                          <span>₦{totalAmount.toLocaleString()}</span>
+                        ) : (
+                          <span>${totalAmount.toLocaleString()}</span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <Separator className="my-4" />
+                  
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Total</span>
                     <span>
                       {currency === 'NGN' ? (
                         <span>₦{totalAmount.toLocaleString()}</span>
@@ -114,37 +132,25 @@ export default function Cart() {
                       )}
                     </span>
                   </div>
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <div className="flex justify-between font-semibold text-lg mb-6">
-                  <span>Total</span>
-                  <span>
-                    {currency === 'NGN' ? (
-                      <span>₦{totalAmount.toLocaleString()}</span>
-                    ) : (
-                      <span>${totalAmount.toLocaleString()}</span>
-                    )}
-                  </span>
-                </div>
-                
-                <Button 
-                  className="w-full mb-3" 
-                  size="lg"
-                  onClick={handleCheckout}
-                >
-                  Proceed to Checkout
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleContinueShopping}
-                >
-                  Continue Shopping
-                </Button>
-              </div>
+                </CardContent>
+                <CardFooter className="flex flex-col space-y-2">
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={handleCheckout}
+                  >
+                    Proceed to Checkout
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleContinueShopping}
+                  >
+                    Continue Shopping
+                  </Button>
+                </CardFooter>
+              </Card>
             </div>
           </div>
         )}

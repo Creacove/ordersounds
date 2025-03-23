@@ -8,6 +8,7 @@ import { Play, Pause, Heart, Trash2, MoreVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -61,9 +62,9 @@ export function BeatListItem({
   };
 
   return (
-    <div className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors">
       {/* Thumbnail with play button */}
-      <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-md">
+      <div className="relative h-16 w-full sm:w-16 flex-shrink-0 overflow-hidden rounded-md">
         <img 
           src={beat.cover_image_url || '/placeholder.svg'} 
           alt={beat.title}
@@ -92,16 +93,17 @@ export function BeatListItem({
       </div>
       
       {/* Action buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 mt-2 sm:mt-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={handleToggleFavorite}
-          className={`rounded-full ${
+          className={cn(
+            "rounded-full sm:ml-2",
             isFavorite 
               ? "text-purple-500 bg-purple-500/10 hover:bg-purple-500/20" 
               : "text-muted-foreground hover:text-foreground"
-          }`}
+          )}
         >
           <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
         </Button>

@@ -47,12 +47,13 @@ export function BeatCard({
 }: BeatCardProps) {
   const { user } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
-  const { addToCart } = useCart();
+  const { addToCart, isInCart: checkIsInCart } = useCart();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const navigate = useNavigate();
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
+  const inCart = isInCart || (checkIsInCart && checkIsInCart(beat.id));
 
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -70,7 +71,7 @@ export function BeatCard({
     if (onAddToCart) {
       onAddToCart(beat);
     } 
-    else if (!isInCart) {
+    else if (!inCart) {
       addToCart(beat);
       toast.success(`Added "${beat.title}" to cart`);
     }
@@ -87,7 +88,6 @@ export function BeatCard({
     
     if (onToggleFavorite) {
       onToggleFavorite(beat.id);
-      toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
     }
   };
   
@@ -182,10 +182,10 @@ export function BeatCard({
                     variant="ghost"
                     size="icon"
                     onClick={handleAddToCart}
-                    disabled={isInCart}
+                    disabled={inCart}
                     className={cn(
                       "h-8 w-8 rounded-md",
-                      isInCart
+                      inCart
                         ? "bg-primary/10 text-primary"
                         : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
                     )}
@@ -194,13 +194,13 @@ export function BeatCard({
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {isInCart ? "In Cart" : "Add to Cart"}
+                  {inCart ? "In Cart" : "Add to Cart"}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
 
-          {isInCart && (
+          {inCart && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
