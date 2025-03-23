@@ -1,136 +1,9 @@
 
 import { useState, useEffect } from 'react';
-import { Beat, FavoriteBeat } from '@/types';
+import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-
-// Mock data for beats
-const mockBeats: Beat[] = [
-  {
-    id: '1',
-    title: 'Afrobeat 9ja Mix beat',
-    producer_id: '2',
-    producer_name: 'Heritage beatz',
-    cover_image_url: '/lovable-uploads/42048ddf-a40e-48ed-997b-31730be27e54.png',
-    preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    full_track_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    price_local: 10000, // NGN
-    price_diaspora: 25, // USD
-    genre: 'Afrobeat',
-    track_type: 'Mix',
-    bpm: 105,
-    tags: ['afrobeat', 'nigeria', 'dancing'],
-    description: 'A vibrant afrobeat mix with classic Nigerian rhythm patterns.',
-    created_at: '2023-05-15T10:30:00Z',
-    favorites_count: 124,
-    purchase_count: 45,
-    status: 'published',
-    is_featured: true
-  },
-  {
-    id: '2',
-    title: 'Lagos Nights',
-    producer_id: '2',
-    producer_name: 'Heritage beatz',
-    cover_image_url: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=2070&auto=format&fit=crop',
-    preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    full_track_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    price_local: 8500,
-    price_diaspora: 20,
-    genre: 'Afrobeat',
-    track_type: 'Single',
-    bpm: 98,
-    tags: ['lagos', 'nightlife', 'chill'],
-    created_at: '2023-06-20T14:45:00Z',
-    favorites_count: 89,
-    purchase_count: 32,
-    status: 'published'
-  },
-  {
-    id: '3',
-    title: 'Amapiano Fusion',
-    producer_id: '3',
-    producer_name: 'DJ Maphorisa',
-    cover_image_url: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?q=80&w=2070&auto=format&fit=crop',
-    preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    full_track_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    price_local: 12000,
-    price_diaspora: 30,
-    genre: 'Amapiano',
-    track_type: 'Mix',
-    bpm: 108,
-    tags: ['amapiano', 'south africa', 'dance'],
-    created_at: '2023-04-10T09:15:00Z',
-    favorites_count: 210,
-    purchase_count: 85,
-    status: 'published'
-  },
-  {
-    id: '4',
-    title: 'Highlife Classics',
-    producer_id: '4',
-    producer_name: 'Kel P',
-    cover_image_url: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=2070&auto=format&fit=crop',
-    preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    full_track_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    price_local: 9500,
-    price_diaspora: 22,
-    genre: 'Highlife',
-    track_type: 'Single',
-    bpm: 92,
-    tags: ['highlife', 'ghana', 'classic'],
-    created_at: '2023-07-05T11:20:00Z',
-    favorites_count: 76,
-    purchase_count: 28,
-    status: 'published'
-  },
-  {
-    id: '5',
-    title: 'Afro-House Rhythm',
-    producer_id: '5',
-    producer_name: 'Kabza De Small',
-    cover_image_url: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=2070&auto=format&fit=crop',
-    preview_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    full_track_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    price_local: 11000,
-    price_diaspora: 27,
-    genre: 'Afro-House',
-    track_type: 'Mix',
-    bpm: 120,
-    tags: ['afro-house', 'electronic', 'dance'],
-    created_at: '2023-03-25T16:50:00Z',
-    favorites_count: 145,
-    purchase_count: 60,
-    status: 'published'
-  }
-];
-
-// Mock data for user's favorites
-const mockFavorites: FavoriteBeat[] = [
-  {
-    user_id: '1',
-    beat_id: '1',
-    added_at: '2023-06-15T10:30:00Z'
-  },
-  {
-    user_id: '1',
-    beat_id: '3',
-    added_at: '2023-07-20T14:45:00Z'
-  }
-];
-
-// Mock data for purchased beats
-const mockPurchasedBeats = [
-  {
-    user_id: '1',
-    beat_id: '2',
-    purchased_at: '2023-08-10T09:15:00Z'
-  },
-  {
-    user_id: '1',
-    beat_id: '4',
-    purchased_at: '2023-09-05T11:20:00Z'
-  }
-];
+import { supabase } from '@/lib/supabase';
+import { toast } from 'sonner';
 
 export function useBeats() {
   const [beats, setBeats] = useState<Beat[]>([]);
@@ -146,41 +19,110 @@ export function useBeats() {
     const fetchBeats = async () => {
       setIsLoading(true);
       try {
-        // In a real app, this would fetch from Supabase
-        await new Promise(resolve => setTimeout(resolve, 800)); // Simulate loading
+        // Fetch all published beats
+        const { data: beatsData, error: beatsError } = await supabase
+          .from('beats')
+          .select(`
+            id,
+            title,
+            producer_id,
+            users!beats_producer_id_fkey (
+              full_name,
+              stage_name
+            ),
+            cover_image,
+            audio_preview,
+            audio_file,
+            price_local,
+            price_diaspora,
+            genre,
+            track_type,
+            bpm,
+            tags,
+            description,
+            upload_date,
+            favorites_count,
+            purchase_count,
+            status
+          `)
+          .eq('status', 'published');
         
-        // Set all beats
-        setBeats(mockBeats);
-        
-        // Set trending beats (sorted by favorites_count)
-        const sortedByTrending = [...mockBeats].sort((a, b) => b.favorites_count - a.favorites_count);
-        setTrendingBeats(sortedByTrending);
-        
-        // Set new beats (sorted by created_at)
-        const sortedByNew = [...mockBeats].sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setNewBeats(sortedByNew);
-        
-        // Set featured beat
-        const featured = mockBeats.find(beat => beat.is_featured);
-        setFeaturedBeat(featured || sortedByTrending[0]);
-        
-        // Set user favorites if user is logged in
-        if (user) {
-          const favoriteIds = mockFavorites
-            .filter(fav => fav.user_id === user.id)
-            .map(fav => fav.beat_id);
-          setUserFavorites(favoriteIds);
+        if (beatsError) {
+          throw beatsError;
+        }
+
+        if (beatsData) {
+          // Transform data to match Beat type
+          const transformedBeats: Beat[] = beatsData.map(beat => ({
+            id: beat.id,
+            title: beat.title,
+            producer_id: beat.producer_id,
+            producer_name: beat.users.stage_name || beat.users.full_name,
+            cover_image_url: beat.cover_image,
+            preview_url: beat.audio_preview,
+            full_track_url: beat.audio_file,
+            price_local: beat.price_local,
+            price_diaspora: beat.price_diaspora,
+            genre: beat.genre,
+            track_type: beat.track_type,
+            bpm: beat.bpm,
+            tags: beat.tags || [],
+            description: beat.description,
+            created_at: beat.upload_date,
+            favorites_count: beat.favorites_count,
+            purchase_count: beat.purchase_count,
+            status: beat.status,
+          }));
           
-          // Set purchased beats
-          const purchasedIds = mockPurchasedBeats
-            .filter(purchase => purchase.user_id === user.id)
-            .map(purchase => purchase.beat_id);
-          setPurchasedBeats(purchasedIds);
+          setBeats(transformedBeats);
+          
+          // Set trending beats (sorted by favorites_count)
+          const sortedByTrending = [...transformedBeats].sort((a, b) => b.favorites_count - a.favorites_count);
+          setTrendingBeats(sortedByTrending);
+          
+          // Set new beats (sorted by created_at)
+          const sortedByNew = [...transformedBeats].sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setNewBeats(sortedByNew);
+          
+          // Set featured beat (first trending one for now)
+          setFeaturedBeat(sortedByTrending[0] || null);
+        }
+        
+        // Fetch user favorites if user is logged in
+        if (user) {
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('favorites')
+            .eq('id', user.id)
+            .single();
+          
+          if (!userError && userData) {
+            // Parse favorites from JSONB array
+            try {
+              const favorites = userData.favorites || [];
+              setUserFavorites(favorites);
+            } catch (e) {
+              console.error('Error parsing favorites:', e);
+              setUserFavorites([]);
+            }
+          }
+          
+          // Fetch purchased beats
+          const { data: purchasedData, error: purchasedError } = await supabase
+            .from('user_purchased_beats')
+            .select('beat_id')
+            .eq('user_id', user.id);
+          
+          if (!purchasedError && purchasedData) {
+            const purchasedIds = purchasedData.map(item => item.beat_id);
+            setPurchasedBeats(purchasedIds);
+          }
         }
       } catch (error) {
         console.error('Error fetching beats:', error);
+        toast.error('Failed to load beats');
       } finally {
         setIsLoading(false);
       }
@@ -191,40 +133,68 @@ export function useBeats() {
 
   const toggleFavorite = async (beatId: string) => {
     if (!user) {
+      toast.error('Please log in to favorite beats');
       return false;
     }
 
     try {
       // Check if beat is already in favorites
       const isFavorite = userFavorites.includes(beatId);
+      let newFavorites: string[];
       
       if (isFavorite) {
         // Remove from favorites
-        setUserFavorites(prev => prev.filter(id => id !== beatId));
-        // Update beat favorites count
-        setBeats(prev => 
-          prev.map(beat => 
-            beat.id === beatId 
-              ? { ...beat, favorites_count: beat.favorites_count - 1 } 
-              : beat
-          )
-        );
+        newFavorites = userFavorites.filter(id => id !== beatId);
       } else {
         // Add to favorites
-        setUserFavorites(prev => [...prev, beatId]);
-        // Update beat favorites count
-        setBeats(prev => 
-          prev.map(beat => 
-            beat.id === beatId 
-              ? { ...beat, favorites_count: beat.favorites_count + 1 } 
-              : beat
-          )
-        );
+        newFavorites = [...userFavorites, beatId];
       }
+      
+      // Update favorites in database
+      const { error } = await supabase
+        .from('users')
+        .update({ favorites: newFavorites })
+        .eq('id', user.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      // Update beat favorites count
+      const updateOperation = isFavorite 
+        ? { favorites_count: beats.find(b => b.id === beatId)?.favorites_count! - 1 }
+        : { favorites_count: beats.find(b => b.id === beatId)?.favorites_count! + 1 };
+        
+      const { error: beatError } = await supabase
+        .from('beats')
+        .update(updateOperation)
+        .eq('id', beatId);
+        
+      if (beatError) {
+        throw beatError;
+      }
+      
+      // Update local state
+      setUserFavorites(newFavorites);
+      
+      // Update beats with new favorite count
+      setBeats(prev => 
+        prev.map(beat => 
+          beat.id === beatId 
+            ? { 
+                ...beat, 
+                favorites_count: isFavorite 
+                  ? beat.favorites_count - 1 
+                  : beat.favorites_count + 1 
+              } 
+            : beat
+        )
+      );
       
       return !isFavorite;
     } catch (error) {
       console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorites');
       return false;
     }
   };

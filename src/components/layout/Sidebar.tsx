@@ -117,6 +117,7 @@ export function Sidebar() {
                   : "text-sidebar-foreground",
                 isCollapsed ? "justify-center" : ""
               )}
+              aria-current={isActive ? "page" : undefined}
             >
               <Icon size={18} />
               {!isCollapsed && <span>{item.title}</span>}

@@ -3,38 +3,14 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@/types';
-
-// Mock supabase client
-// In a real implementation, this would be replaced with actual Supabase integration
-const mockUser: User = {
-  id: '1',
-  email: 'user@example.com',
-  role: 'buyer',
-  name: 'John Doe',
-  created_at: new Date().toISOString(),
-  avatar_url: 'https://i.pravatar.cc/150?img=1',
-  country: 'Nigeria',
-  default_currency: 'NGN'
-};
-
-const mockProducer: User = {
-  id: '2',
-  email: 'producer@example.com',
-  role: 'producer',
-  name: 'Jane Smith',
-  producer_name: 'Heritage beatz',
-  created_at: new Date().toISOString(),
-  avatar_url: 'https://i.pravatar.cc/150?img=2',
-  country: 'United States',
-  default_currency: 'USD'
-};
+import { supabase, mapSupabaseUser } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   currency: 'NGN' | 'USD';
   setCurrency: (currency: 'NGN' | 'USD') => void;
-  login: (email: string, password: string, role?: 'buyer' | 'producer') => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, role: 'buyer' | 'producer') => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
@@ -52,10 +28,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Check for existing session
     const checkSession = async () => {
       try {
-        // Mock session check
-        const savedUser = localStorage.getItem('user');
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data?.session) {
+          const { data: userData, error: userError } = await supabase.auth.getUser();
+          
+          if (userError) {
+            throw userError;
+          }
+          
+          if (userData.user) {
+            const mappedUser = mapSupabaseUser(userData.user);
+            setUser(mappedUser);
+            
+            // Set currency based on user's country
+            setCurrency(mappedUser.default_currency || 'NGN');
+          }
         }
       } catch (error) {
         console.error('Session check error:', error);
@@ -65,39 +57,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     checkSession();
+
+    // Set up auth state listener
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const { data, error } = await supabase.auth.getUser();
+        if (data.user && !error) {
+          const mappedUser = mapSupabaseUser(data.user);
+          setUser(mappedUser);
+          setCurrency(mappedUser.default_currency || 'NGN');
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setCurrency('NGN');
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
 
-  useEffect(() => {
-    // Set default currency based on user country if available
-    if (user && user.default_currency) {
-      setCurrency(user.default_currency);
-    }
-  }, [user]);
-
-  // Mock authentication methods
-  const login = async (email: string, password: string, role?: 'buyer' | 'producer') => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate authentication delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // In a real implementation, this would validate against Supabase
-      if (email === 'user@example.com' && password === 'password') {
-        setUser(mockUser);
-        localStorage.setItem('user', JSON.stringify(mockUser));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
+      if (data?.user) {
+        const mappedUser = mapSupabaseUser(data.user);
+        setUser(mappedUser);
+        setCurrency(mappedUser.default_currency || 'NGN');
         toast.success('Login successful');
-        navigate('/');
-      } else if (email === 'producer@example.com' && password === 'password') {
-        setUser(mockProducer);
-        localStorage.setItem('user', JSON.stringify(mockProducer));
-        toast.success('Login successful');
-        navigate('/producer/dashboard');
-      } else {
-        toast.error('Invalid credentials');
+        
+        // Redirect based on role
+        if (mappedUser.role === 'producer') {
+          navigate('/producer/dashboard');
+        } else {
+          navigate('/');
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('Failed to login');
     } finally {
       setIsLoading(false);
     }
@@ -106,24 +114,52 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signup = async (email: string, password: string, name: string, role: 'buyer' | 'producer') => {
     setIsLoading(true);
     try {
-      // Simulate signup delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock signup (in a real app, this would create a user in Supabase)
-      const newUser: User = {
-        id: '3',
+      const { data, error } = await supabase.auth.signUp({
         email,
-        name,
-        role,
-        created_at: new Date().toISOString(),
-        country: 'Nigeria',
-        default_currency: 'NGN'
-      };
-      
-      setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
-      toast.success('Account created successfully');
-      navigate(role === 'buyer' ? '/' : '/producer/dashboard');
+        password,
+        options: {
+          data: {
+            full_name: name,
+            role: role,
+            country: 'Nigeria', // Default, can be updated in profile settings
+          }
+        }
+      });
+
+      if (error) {
+        toast.error(error.message);
+        throw error;
+      }
+
+      if (data?.user) {
+        const mappedUser = mapSupabaseUser(data.user);
+        setUser(mappedUser);
+        setCurrency(mappedUser.default_currency || 'NGN');
+        toast.success('Account created successfully');
+        
+        // Create user record in the users table
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            full_name: name,
+            email: email,
+            role: role,
+            password_hash: 'managed-by-supabase', // Supabase handles the actual hashing
+          });
+
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
+          toast.error('Could not complete profile setup');
+        }
+
+        // Redirect based on role
+        if (role === 'producer') {
+          navigate('/producer/dashboard');
+        } else {
+          navigate('/');
+        }
+      }
     } catch (error) {
       console.error('Signup error:', error);
       toast.error('Failed to create account');
@@ -134,8 +170,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      // In a real app, this would call supabase.auth.signOut()
-      localStorage.removeItem('user');
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
       setUser(null);
       toast.success('Logged out successfully');
       navigate('/login');
@@ -146,12 +186,49 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const updateProfile = async (data: Partial<User>) => {
+    if (!user) return;
+    
     setIsLoading(true);
     try {
-      // Mock profile update
-      const updatedUser = { ...user, ...data };
-      setUser(updatedUser as User);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      // Update user metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          full_name: data.name,
+          stage_name: data.producer_name,
+          bio: data.bio,
+          country: data.country,
+          profile_picture: data.avatar_url,
+        }
+      });
+
+      if (authError) {
+        throw authError;
+      }
+
+      // Update users table
+      const { error: profileError } = await supabase
+        .from('users')
+        .update({
+          full_name: data.name,
+          stage_name: data.producer_name,
+          bio: data.bio,
+          country: data.country,
+          profile_picture: data.avatar_url,
+        })
+        .eq('id', user.id);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      // Update local state
+      setUser({ ...user, ...data });
+      
+      // Update currency if country changed
+      if (data.default_currency) {
+        setCurrency(data.default_currency);
+      }
+      
       toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Profile update error:', error);

@@ -12,12 +12,61 @@ export default function Signup() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<"buyer" | "producer">("buyer");
+  const [errors, setErrors] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: ""
+  });
   const { signup, isLoading } = useAuth();
+
+  const validateForm = () => {
+    let valid = true;
+    const newErrors = {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: ""
+    };
+
+    if (!name.trim()) {
+      newErrors.name = "Name is required";
+      valid = false;
+    }
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Email is invalid";
+      valid = false;
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+      valid = false;
+    } else if (password.length < 6) {
+      newErrors.password = "Password must be at least 6 characters";
+      valid = false;
+    }
+
+    if (password !== confirmPassword) {
+      newErrors.confirmPassword = "Passwords do not match";
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    return valid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signup(email, password, name, role);
+    
+    if (validateForm()) {
+      await signup(email, password, name, role);
+    }
   };
 
   return (
@@ -81,6 +130,9 @@ export default function Signup() {
                       onChange={(e) => setName(e.target.value)}
                       required
                     />
+                    {errors.name && (
+                      <p className="text-xs text-red-500">{errors.name}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="email">Email</Label>
@@ -96,6 +148,9 @@ export default function Signup() {
                       onChange={(e) => setEmail(e.target.value)}
                       required
                     />
+                    {errors.email && (
+                      <p className="text-xs text-red-500">{errors.email}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="password">Password</Label>
@@ -103,17 +158,36 @@ export default function Signup() {
                       id="password"
                       type="password"
                       autoCapitalize="none"
-                      autoComplete="password"
+                      autoComplete="new-password"
                       disabled={isLoading}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
                     />
+                    {errors.password && (
+                      <p className="text-xs text-red-500">{errors.password}</p>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      autoCapitalize="none"
+                      autoComplete="new-password"
+                      disabled={isLoading}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
+                    {errors.confirmPassword && (
+                      <p className="text-xs text-red-500">{errors.confirmPassword}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
                     <Label>I am a:</Label>
                     <RadioGroup 
-                      defaultValue={role} 
+                      value={role} 
                       onValueChange={(value) => setRole(value as "buyer" | "producer")}
                       className="flex gap-4"
                     >

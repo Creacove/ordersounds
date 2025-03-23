@@ -5,26 +5,46 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { Label } from "@/components/ui/label";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState({
+    email: "",
+    password: ""
+  });
   const { login, isLoading } = useAuth();
+
+  const validateForm = () => {
+    let valid = true;
+    const newErrors = {
+      email: "",
+      password: ""
+    };
+
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Email is invalid";
+      valid = false;
+    }
+
+    if (!password) {
+      newErrors.password = "Password is required";
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    return valid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await login(email, password);
-  };
-
-  // Helper hint for demo purposes
-  const loginHint = () => {
-    setEmail("user@example.com");
-    setPassword("password");
-  };
-
-  const loginAsProducer = () => {
-    setEmail("producer@example.com");
-    setPassword("password");
+    if (validateForm()) {
+      await login(email, password);
+    }
   };
 
   return (
@@ -76,9 +96,7 @@ export default function Login() {
               <form onSubmit={handleSubmit}>
                 <div className="grid gap-4">
                   <div className="grid gap-2">
-                    <label htmlFor="email" className="text-sm font-medium leading-none">
-                      Email
-                    </label>
+                    <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
                       placeholder="name@example.com"
@@ -90,22 +108,26 @@ export default function Login() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                     />
+                    {errors.email && (
+                      <p className="text-xs text-red-500">{errors.email}</p>
+                    )}
                   </div>
                   <div className="grid gap-2">
-                    <label htmlFor="password" className="text-sm font-medium leading-none">
-                      Password
-                    </label>
+                    <Label htmlFor="password">Password</Label>
                     <Input
                       id="password"
                       type="password"
                       autoCapitalize="none"
-                      autoComplete="password"
+                      autoComplete="current-password"
                       disabled={isLoading}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                     />
+                    {errors.password && (
+                      <p className="text-xs text-red-500">{errors.password}</p>
+                    )}
                   </div>
-                  <Button disabled={isLoading}>
+                  <Button type="submit" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
                 </div>
@@ -116,16 +138,13 @@ export default function Login() {
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
-                    Demo Accounts
+                    Or
                   </span>
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={loginHint} className="w-full">
-                  Buyer Demo
-                </Button>
-                <Button variant="outline" onClick={loginAsProducer} className="w-full">
-                  Producer Demo
+                <Button variant="outline" className="w-full">
+                  Sign in with Google
                 </Button>
               </div>
             </div>
