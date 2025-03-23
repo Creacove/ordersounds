@@ -1,25 +1,29 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Play, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MainLayout } from "@/components/layout/MainLayout";
+import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { AudioPlayer } from "@/components/ui/AudioPlayer";
 import { useBeats } from "@/hooks/useBeats";
+import { usePlayer } from "@/context/PlayerContext";
 import { cn } from "@/lib/utils";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const { playBeat } = usePlayer();
 
   const handlePlayFeatured = () => {
+    if (featuredBeat) {
+      playBeat(featuredBeat);
+    }
     setIsPlaying(!isPlaying);
   };
 
   return (
-    <MainLayout>
+    <MainLayoutWithPlayer>
       <div className="min-h-screen">
         {/* Hero section with featured beat */}
         {featuredBeat && (
@@ -72,13 +76,6 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            
-            {/* Audio player */}
-            {isPlaying && (
-              <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-md">
-                <AudioPlayer src={featuredBeat.preview_url} />
-              </div>
-            )}
           </section>
         )}
 
@@ -210,6 +207,6 @@ export default function Home() {
           </section>
         </div>
       </div>
-    </MainLayout>
+    </MainLayoutWithPlayer>
   );
 }

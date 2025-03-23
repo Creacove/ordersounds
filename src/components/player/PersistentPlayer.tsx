@@ -34,9 +34,9 @@ export function PersistentPlayer() {
     clearQueue
   } = usePlayer();
 
-  // Player is always rendered but hidden if no beat is selected
+  // Even when no beat is selected, we render a hidden player to maintain the layout
   if (!currentBeat) {
-    return <div className="h-0 overflow-hidden" />; // Take no space but always render
+    return <div className="fixed bottom-0 left-0 right-0 h-0 z-50" />; // Take no space but ensure it's in the DOM
   }
 
   const formatTime = (time: number) => {
@@ -53,11 +53,11 @@ export function PersistentPlayer() {
       : Volume2;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex items-center z-40">
-      <div className="container mx-auto flex items-center gap-4">
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-3 md:p-4 flex items-center z-50 shadow-lg">
+      <div className="container mx-auto flex items-center gap-2 md:gap-4">
         {/* Beat info */}
-        <div className="flex items-center gap-3 w-1/4">
-          <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0">
+        <div className="flex items-center gap-2 md:gap-3 w-1/4 min-w-[100px]">
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded overflow-hidden flex-shrink-0">
             <img 
               src={currentBeat.cover_image_url || '/placeholder.svg'}
               alt={currentBeat.title}
@@ -65,24 +65,24 @@ export function PersistentPlayer() {
             />
           </div>
           <div className="overflow-hidden">
-            <p className="font-medium text-sm truncate">{currentBeat.title}</p>
-            <p className="text-xs text-muted-foreground truncate">{currentBeat.producer_name}</p>
+            <p className="font-medium text-xs md:text-sm truncate">{currentBeat.title}</p>
+            <p className="text-xs text-muted-foreground truncate hidden sm:block">{currentBeat.producer_name}</p>
           </div>
         </div>
         
         {/* Player controls */}
         <div className="flex flex-col items-center flex-grow">
-          <div className="flex items-center gap-4 mb-2">
+          <div className="flex items-center gap-2 md:gap-4 mb-1 md:mb-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8"
+                    className="h-7 w-7 md:h-8 md:w-8"
                     onClick={previousTrack}
                   >
-                    <SkipBack size={18} />
+                    <SkipBack size={16} className="md:size-18" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Previous</TooltipContent>
@@ -92,10 +92,10 @@ export function PersistentPlayer() {
             <Button 
               variant="default" 
               size="icon" 
-              className="h-10 w-10 rounded-full bg-primary" 
+              className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-primary" 
               onClick={togglePlay}
             >
-              {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+              {isPlaying ? <Pause size={18} className="md:size-20" /> : <Play size={18} className="md:size-20" />}
             </Button>
             
             <TooltipProvider>
@@ -104,11 +104,11 @@ export function PersistentPlayer() {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8"
+                    className="h-7 w-7 md:h-8 md:w-8"
                     onClick={nextTrack}
                     disabled={queue.length === 0}
                   >
-                    <SkipForward size={18} />
+                    <SkipForward size={16} className="md:size-18" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Next</TooltipContent>
@@ -116,8 +116,8 @@ export function PersistentPlayer() {
             </TooltipProvider>
           </div>
           
-          <div className="flex items-center gap-2 w-full max-w-lg">
-            <span className="text-xs text-muted-foreground w-10 text-right">
+          <div className="flex items-center gap-1 md:gap-2 w-full max-w-lg">
+            <span className="text-xs text-muted-foreground w-8 md:w-10 text-right hidden xs:block">
               {formatTime(currentTime)}
             </span>
             
@@ -136,25 +136,25 @@ export function PersistentPlayer() {
               />
             </div>
             
-            <span className="text-xs text-muted-foreground w-10">
+            <span className="text-xs text-muted-foreground w-8 md:w-10 hidden xs:block">
               {formatTime(duration)}
             </span>
           </div>
         </div>
         
         {/* Volume and queue */}
-        <div className="flex items-center gap-4 w-1/6">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 md:gap-4 w-1/6 min-w-[80px] justify-end">
+          <div className="flex items-center gap-1 md:gap-2 sm:w-20 hidden sm:flex">
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8" 
+              className="h-7 w-7 md:h-8 md:w-8" 
               onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
             >
-              <VolumeIcon size={18} />
+              <VolumeIcon size={16} className="md:size-18" />
             </Button>
             
-            <div className="relative w-20 h-1 bg-muted rounded-full">
+            <div className="relative w-full h-1 bg-muted rounded-full">
               <div 
                 className="absolute top-0 left-0 h-full bg-primary rounded-full"
                 style={{ width: `${volume * 100}%` }}
@@ -177,11 +177,11 @@ export function PersistentPlayer() {
                 variant="ghost" 
                 size="icon" 
                 className={cn(
-                  "h-8 w-8",
+                  "h-7 w-7 md:h-8 md:w-8",
                   queue.length > 0 && "text-primary"
                 )}
               >
-                <ListMusic size={18} />
+                <ListMusic size={16} className="md:size-18" />
                 {queue.length > 0 && (
                   <span className="absolute -top-1 -right-1 text-[10px] font-bold bg-primary text-white w-4 h-4 rounded-full flex items-center justify-center">
                     {queue.length}
@@ -189,7 +189,7 @@ export function PersistentPlayer() {
                 )}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-80 p-0" align="end">
+            <PopoverContent className="w-72 md:w-80 p-0" align="end">
               <div className="p-2 border-b border-border flex justify-between items-center">
                 <h4 className="font-medium text-sm">Queue ({queue.length})</h4>
                 {queue.length > 0 && (

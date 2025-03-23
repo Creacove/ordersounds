@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Playlist } from '@/types';
 import { ListMusic } from 'lucide-react';
@@ -29,12 +30,19 @@ export function PlaylistCard({ playlist, onClick }: PlaylistCardProps) {
       );
     }
     
+    // Check if beats is an array of strings (IDs) or Beat objects
     const beatsToShow = playlist.beats.slice(0, 4);
     
     if (beatsToShow.length === 1) {
+      // Handle both string IDs and Beat objects
+      const firstBeat = beatsToShow[0];
+      const imageUrl = typeof firstBeat === 'string' 
+        ? '/placeholder.svg'  // If it's just a string ID
+        : (firstBeat.cover_image_url || '/placeholder.svg');
+      
       return (
         <img 
-          src={beatsToShow[0].cover_image_url || '/placeholder.svg'} 
+          src={imageUrl} 
           alt={playlist.name} 
           className="h-full w-full object-cover"
         />
@@ -43,18 +51,29 @@ export function PlaylistCard({ playlist, onClick }: PlaylistCardProps) {
     
     return (
       <div className="grid grid-cols-2 gap-1 h-full w-full">
-        {beatsToShow.map((beat, index) => (
-          <div key={index} className="aspect-square overflow-hidden">
-            <img 
-              src={beat.cover_image_url || '/placeholder.svg'} 
-              alt={beat.title} 
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/placeholder.svg';
-              }}
-            />
-          </div>
-        ))}
+        {beatsToShow.map((beat, index) => {
+          // Handle both string IDs and Beat objects
+          const imageUrl = typeof beat === 'string'
+            ? '/placeholder.svg'  // If it's just a string ID
+            : (beat.cover_image_url || '/placeholder.svg');
+          
+          const altText = typeof beat === 'string'
+            ? `Track ${index + 1}`
+            : beat.title;
+            
+          return (
+            <div key={index} className="aspect-square overflow-hidden">
+              <img 
+                src={imageUrl}
+                alt={altText}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/placeholder.svg';
+                }}
+              />
+            </div>
+          );
+        })}
         {Array.from({ length: 4 - beatsToShow.length }).map((_, index) => (
           <div key={`empty-${index}`} className="bg-muted aspect-square" />
         ))}
