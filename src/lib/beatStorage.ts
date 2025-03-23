@@ -18,6 +18,8 @@ export const uploadBeat = async (
     price_local: number;
     price_diaspora: number;
     status: 'draft' | 'published';
+    license_type?: string;
+    license_terms?: string;
   },
   fullTrackFile: File,
   previewFile: File,
@@ -64,7 +66,9 @@ export const uploadBeat = async (
         audio_file: fullTrackUrl,
         favorites_count: 0,
         purchase_count: 0,
-        plays: 0
+        plays: 0,
+        license_type: beatInfo.license_type,
+        license_terms: beatInfo.license_terms
       })
       .select('id')
       .single();

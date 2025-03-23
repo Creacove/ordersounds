@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -11,11 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
-import { Upload, X, Plus, FileAudio, Image, Play, Pause, Info, Loader2 } from "lucide-react";
+import { Upload, X, Plus, FileAudio, Image, Play, Pause, Info, Loader2, FileKey } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { uploadBeat } from "@/lib/beatStorage";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from "@/components/ui/form";
+import { useForm } from "react-hook-form";
 
 export default function UploadBeat() {
   const { user } = useAuth();
@@ -40,11 +44,41 @@ export default function UploadBeat() {
     priceLocal: 10000, // NGN
     priceDiaspora: 25, // USD
     status: "draft" as "draft" | "published",
+    licenseType: "basic", // Default license type
+    licenseTerms: ""
   });
 
   const [collaborators, setCollaborators] = useState([
     { id: 1, name: user?.name || "", email: user?.email || "", role: "Producer", percentage: 100 }
   ]);
+
+  // License options
+  const licenseOptions = [
+    {
+      value: "basic",
+      label: "Basic License",
+      description: "Non-exclusive rights, limited distribution (up to 5,000 streams/sales).",
+      terms: "This is a non-exclusive license granting the right to use the beat for one single commercial release with up to 5,000 streams/downloads/sales. No broadcasting rights for radio, TV, or similar platforms. Credit must be given to the producer."
+    },
+    {
+      value: "premium",
+      label: "Premium License",
+      description: "Non-exclusive rights, unlimited distribution, some broadcasting rights.",
+      terms: "This is a non-exclusive license granting the right to use the beat for one single commercial release with unlimited streams/downloads/sales. Includes limited broadcasting rights (for online videos, podcasts). Credit must be given to the producer."
+    },
+    {
+      value: "exclusive",
+      label: "Exclusive License",
+      description: "Full ownership transfer, all rights to the beat (limited to one buyer).",
+      terms: "This is an exclusive license transferring full ownership rights to the beat. The producer retains credits as the original creator but transfers all commercial exploitation rights to the buyer. The beat will be removed from all marketplaces after purchase."
+    },
+    {
+      value: "custom",
+      label: "Custom License",
+      description: "Define your own terms and conditions.",
+      terms: ""
+    }
+  ];
 
   const handleBeatChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -142,6 +176,16 @@ export default function UploadBeat() {
     );
   };
 
+  const handleLicenseTypeChange = (value: string) => {
+    const selectedLicense = licenseOptions.find(option => option.value === value);
+    
+    setBeatDetails({
+      ...beatDetails,
+      licenseType: value,
+      licenseTerms: value !== 'custom' && selectedLicense ? selectedLicense.terms : beatDetails.licenseTerms
+    });
+  };
+
   const validateForm = () => {
     if (!beatDetails.title) {
       toast.error("Beat title is required");
@@ -170,6 +214,16 @@ export default function UploadBeat() {
     
     if (!beatDetails.trackType) {
       toast.error("Track type is required");
+      return false;
+    }
+    
+    if (!beatDetails.licenseType) {
+      toast.error("License type is required");
+      return false;
+    }
+    
+    if (beatDetails.licenseType === "custom" && !beatDetails.licenseTerms) {
+      toast.error("Custom license terms are required");
       return false;
     }
     
@@ -202,6 +256,8 @@ export default function UploadBeat() {
         price_local: beatDetails.priceLocal,
         price_diaspora: beatDetails.priceDiaspora,
         status: "published" as const,
+        license_type: beatDetails.licenseType,
+        license_terms: beatDetails.licenseTerms
       };
       
       if (!uploadedFile || !previewFile || !imageFile) {
@@ -252,6 +308,8 @@ export default function UploadBeat() {
         price_local: beatDetails.priceLocal,
         price_diaspora: beatDetails.priceDiaspora,
         status: "draft" as const,
+        license_type: beatDetails.licenseType,
+        license_terms: beatDetails.licenseTerms
       };
       
       if (!uploadedFile || !previewFile || !imageFile) {
@@ -284,56 +342,64 @@ export default function UploadBeat() {
 
   const nextTab = () => {
     if (activeTab === "details") setActiveTab("files");
-    else if (activeTab === "files") setActiveTab("pricing");
+    else if (activeTab === "files") setActiveTab("licensing");
+    else if (activeTab === "licensing") setActiveTab("pricing");
     else if (activeTab === "pricing") setActiveTab("royalties");
   };
 
   const prevTab = () => {
     if (activeTab === "royalties") setActiveTab("pricing");
-    else if (activeTab === "pricing") setActiveTab("files");
+    else if (activeTab === "pricing") setActiveTab("licensing");
+    else if (activeTab === "licensing") setActiveTab("files");
     else if (activeTab === "files") setActiveTab("details");
   };
 
   return (
     <MainLayout>
-      <div className="container py-8 max-w-4xl">
+      <div className="container py-4 sm:py-8 max-w-full sm:max-w-4xl px-2 sm:px-6">
         <Card className="overflow-hidden">
-          <CardHeader className="bg-card">
-            <CardTitle>Upload a New Beat</CardTitle>
-            <CardDescription>
+          <CardHeader className="bg-card p-4 sm:p-6">
+            <CardTitle className="text-xl sm:text-2xl">Upload a New Beat</CardTitle>
+            <CardDescription className="text-sm">
               Fill in the details below to upload your beat to the marketplace
             </CardDescription>
           </CardHeader>
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start p-0 bg-transparent border-b rounded-none">
+            <TabsList className="w-full justify-start p-0 bg-transparent border-b rounded-none overflow-x-auto flex-nowrap">
               <TabsTrigger 
                 value="details" 
-                className="rounded-none flex-1 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
               >
-                1. Beat Details
+                1. Details
               </TabsTrigger>
               <TabsTrigger 
                 value="files" 
-                className="rounded-none flex-1 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
               >
-                2. Files & Media
+                2. Files
+              </TabsTrigger>
+              <TabsTrigger 
+                value="licensing" 
+                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
+              >
+                3. Licensing
               </TabsTrigger>
               <TabsTrigger 
                 value="pricing" 
-                className="rounded-none flex-1 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
               >
-                3. Pricing
+                4. Pricing
               </TabsTrigger>
               <TabsTrigger 
                 value="royalties" 
-                className="rounded-none flex-1 data-[state=active]:border-b-2 data-[state=active]:border-primary"
+                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
               >
-                4. Royalty Splits
+                5. Royalties
               </TabsTrigger>
             </TabsList>
 
-            <CardContent className="p-6">
+            <CardContent className="p-4 sm:p-6">
               <TabsContent value="details" className="mt-0 animate-fade-in">
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4">
@@ -356,11 +422,11 @@ export default function UploadBeat() {
                         value={beatDetails.description}
                         onChange={handleBeatChange}
                         placeholder="Describe your beat... What inspired you?" 
-                        rows={4}
+                        rows={3}
                       />
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="genre">Genre *</Label>
                         <Select 
@@ -402,7 +468,7 @@ export default function UploadBeat() {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="bpm">BPM</Label>
                         <div className="flex items-center gap-4">
@@ -475,14 +541,14 @@ export default function UploadBeat() {
               </TabsContent>
 
               <TabsContent value="files" className="mt-0 animate-fade-in">
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
-                    <h3 className="text-lg font-medium mb-1">Cover Image *</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
+                    <h3 className="text-base sm:text-lg font-medium mb-1">Cover Image *</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-4">
                       Upload a high quality square image (recommended size: 1000x1000px)
                     </p>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div 
                         className={`border-2 border-dashed rounded-lg p-4 text-center ${
                           imagePreview ? "border-primary/50" : "border-muted hover:border-muted-foreground/50"
@@ -502,8 +568,8 @@ export default function UploadBeat() {
                           </div>
                         ) : (
                           <div className="flex flex-col items-center justify-center py-4">
-                            <Image className="h-12 w-12 text-muted-foreground mb-2" />
-                            <p className="text-sm font-medium">Drag and drop or click to upload</p>
+                            <Image className="h-10 w-10 text-muted-foreground mb-2" />
+                            <p className="text-sm font-medium">Click to upload</p>
                             <p className="text-xs text-muted-foreground mt-1">JPG, PNG or GIF, max 5MB</p>
                           </div>
                         )}
@@ -526,9 +592,9 @@ export default function UploadBeat() {
                           >
                             {uploadedFile ? (
                               <>
-                                <FileAudio className="h-8 w-8 text-primary" />
+                                <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                                 <div className="flex-1 overflow-hidden">
-                                  <p className="text-sm font-medium truncate">{uploadedFile.name}</p>
+                                  <p className="text-xs sm:text-sm font-medium truncate">{uploadedFile.name}</p>
                                   <p className="text-xs text-muted-foreground">
                                     {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
                                   </p>
@@ -536,24 +602,29 @@ export default function UploadBeat() {
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
-                                  onClick={() => setUploadedFile(null)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setUploadedFile(null);
+                                  }}
                                 >
                                   <X size={16} />
                                 </Button>
                               </>
                             ) : (
                               <>
-                                <FileAudio className="h-8 w-8 text-muted-foreground" />
+                                <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium">Upload full track</p>
+                                  <p className="text-xs sm:text-sm font-medium">Upload full track</p>
                                   <p className="text-xs text-muted-foreground">MP3, WAV (max 50MB)</p>
                                 </div>
                                 <Button 
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => document.getElementById("fullTrack")?.click()}
+                                  className="px-2 sm:px-3"
                                 >
-                                  Upload
+                                  <span className="hidden sm:inline">Upload</span>
+                                  <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
                                 </Button>
                                 <input 
                                   id="fullTrack" 
@@ -577,13 +648,13 @@ export default function UploadBeat() {
                             {previewFile ? (
                               <>
                                 <button
-                                  className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
+                                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
                                   onClick={() => setIsPlaying(!isPlaying)}
                                 >
-                                  {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                                  {isPlaying ? <Pause size={14} /> : <Play size={14} />}
                                 </button>
                                 <div className="flex-1 overflow-hidden">
-                                  <p className="text-sm font-medium truncate">{previewFile.name}</p>
+                                  <p className="text-xs sm:text-sm font-medium truncate">{previewFile.name}</p>
                                   <p className="text-xs text-muted-foreground">
                                     {(previewFile.size / (1024 * 1024)).toFixed(2)} MB
                                   </p>
@@ -591,24 +662,29 @@ export default function UploadBeat() {
                                 <Button 
                                   variant="ghost" 
                                   size="sm"
-                                  onClick={() => setPreviewFile(null)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewFile(null);
+                                  }}
                                 >
                                   <X size={16} />
                                 </Button>
                               </>
                             ) : (
                               <>
-                                <FileAudio className="h-8 w-8 text-muted-foreground" />
+                                <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                                 <div className="flex-1">
-                                  <p className="text-sm font-medium">Upload preview</p>
+                                  <p className="text-xs sm:text-sm font-medium">Upload preview</p>
                                   <p className="text-xs text-muted-foreground">30-60 sec preview</p>
                                 </div>
                                 <Button 
                                   variant="outline" 
                                   size="sm"
                                   onClick={() => document.getElementById("previewTrack")?.click()}
+                                  className="px-2 sm:px-3"
                                 >
-                                  Upload
+                                  <span className="hidden sm:inline">Upload</span>
+                                  <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
                                 </Button>
                                 <input 
                                   id="previewTrack" 
@@ -627,8 +703,61 @@ export default function UploadBeat() {
                 </div>
               </TabsContent>
 
+              <TabsContent value="licensing" className="mt-0 animate-fade-in">
+                <div className="space-y-4">
+                  <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
+                    <FileKey className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium">License Options</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Select a license type for your beat. This determines how buyers can use your beat and what rights they acquire.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <RadioGroup 
+                    value={beatDetails.licenseType} 
+                    onValueChange={handleLicenseTypeChange}
+                    className="space-y-3"
+                  >
+                    {licenseOptions.map((option) => (
+                      <div key={option.value} className="flex items-start space-x-2">
+                        <RadioGroupItem value={option.value} id={`license-${option.value}`} className="mt-1" />
+                        <div className="grid gap-1.5 leading-none w-full">
+                          <Label htmlFor={`license-${option.value}`} className="font-medium">{option.label}</Label>
+                          <p className="text-sm text-muted-foreground">{option.description}</p>
+                          {option.value === beatDetails.licenseType && option.value !== 'custom' && (
+                            <div className="mt-2 p-3 bg-muted/50 rounded-md text-xs">
+                              <p>{option.terms}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                  
+                  {beatDetails.licenseType === 'custom' && (
+                    <div className="mt-4">
+                      <Label htmlFor="licenseTerms">Custom License Terms *</Label>
+                      <Textarea 
+                        id="licenseTerms" 
+                        name="licenseTerms"
+                        value={beatDetails.licenseTerms}
+                        onChange={handleBeatChange}
+                        placeholder="Describe the terms and conditions of your custom license..." 
+                        rows={6}
+                        className="mt-1.5"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        Be clear and specific about usage rights, limitations, and attribution requirements.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
               <TabsContent value="pricing" className="mt-0 animate-fade-in">
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
                     <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
                     <div>
@@ -640,7 +769,7 @@ export default function UploadBeat() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
                       <Label htmlFor="priceLocal">Local Price (NGN) *</Label>
                       <div className="flex items-center mt-1.5">
@@ -685,7 +814,7 @@ export default function UploadBeat() {
                   <Separator />
                   
                   <div>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-2 sm:mb-4">
                       <div>
                         <Label htmlFor="status">Beat Status</Label>
                         <p className="text-xs text-muted-foreground">
@@ -693,7 +822,7 @@ export default function UploadBeat() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">Draft</span>
+                        <span className="text-xs sm:text-sm">Draft</span>
                         <Switch 
                           id="status"
                           checked={beatDetails.status === "published"}
@@ -704,7 +833,7 @@ export default function UploadBeat() {
                             })
                           }
                         />
-                        <span className="text-sm">Published</span>
+                        <span className="text-xs sm:text-sm">Published</span>
                       </div>
                     </div>
                   </div>
@@ -712,7 +841,7 @@ export default function UploadBeat() {
               </TabsContent>
 
               <TabsContent value="royalties" className="mt-0 animate-fade-in">
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
                     <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
                     <div>
@@ -726,9 +855,9 @@ export default function UploadBeat() {
                   
                   <div className="space-y-4">
                     {collaborators.map((collaborator, index) => (
-                      <div key={collaborator.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <h4 className="text-sm font-medium">
+                      <div key={collaborator.id} className="border rounded-lg p-3 sm:p-4">
+                        <div className="flex items-center justify-between mb-2 sm:mb-3">
+                          <h4 className="text-xs sm:text-sm font-medium">
                             {index === 0 ? 'Primary Producer' : `Collaborator ${index}`}
                           </h4>
                           {index > 0 && (
@@ -742,37 +871,39 @@ export default function UploadBeat() {
                           )}
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
                           <div>
-                            <Label htmlFor={`name-${collaborator.id}`}>Name</Label>
+                            <Label htmlFor={`name-${collaborator.id}`} className="text-xs">Name</Label>
                             <Input
                               id={`name-${collaborator.id}`}
                               value={collaborator.name}
                               onChange={(e) => handleCollaboratorChange(collaborator.id, 'name', e.target.value)}
                               disabled={index === 0}
+                              className="mt-1 text-sm"
                             />
                           </div>
                           <div>
-                            <Label htmlFor={`email-${collaborator.id}`}>Email</Label>
+                            <Label htmlFor={`email-${collaborator.id}`} className="text-xs">Email</Label>
                             <Input
                               id={`email-${collaborator.id}`}
                               type="email"
                               value={collaborator.email}
                               onChange={(e) => handleCollaboratorChange(collaborator.id, 'email', e.target.value)}
                               disabled={index === 0}
+                              className="mt-1 text-sm"
                             />
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                           <div>
-                            <Label htmlFor={`role-${collaborator.id}`}>Role</Label>
+                            <Label htmlFor={`role-${collaborator.id}`} className="text-xs">Role</Label>
                             <Select
                               value={collaborator.role}
                               onValueChange={(value) => handleCollaboratorChange(collaborator.id, 'role', value)}
                               disabled={index === 0}
                             >
-                              <SelectTrigger id={`role-${collaborator.id}`}>
+                              <SelectTrigger id={`role-${collaborator.id}`} className="mt-1 text-sm">
                                 <SelectValue placeholder="Select role" />
                               </SelectTrigger>
                               <SelectContent>
@@ -785,10 +916,10 @@ export default function UploadBeat() {
                             </Select>
                           </div>
                           <div>
-                            <Label htmlFor={`percentage-${collaborator.id}`}>
+                            <Label htmlFor={`percentage-${collaborator.id}`} className="text-xs">
                               Percentage (%)
                             </Label>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 mt-1">
                               <Slider
                                 id={`percentage-${collaborator.id}`}
                                 min={0}
@@ -798,7 +929,7 @@ export default function UploadBeat() {
                                 onValueChange={(value) => handleCollaboratorChange(collaborator.id, 'percentage', value[0])}
                                 className="flex-1"
                               />
-                              <span className="w-12 text-center font-medium">
+                              <span className="w-12 text-center font-medium text-sm">
                                 {collaborator.percentage}%
                               </span>
                             </div>
@@ -822,14 +953,14 @@ export default function UploadBeat() {
                     <div className="space-y-2">
                       {collaborators.map((collaborator) => (
                         <div key={collaborator.id} className="flex items-center justify-between">
-                          <span className="text-sm">{collaborator.name || 'Unnamed'}</span>
-                          <span className="text-sm font-medium">{collaborator.percentage}%</span>
+                          <span className="text-xs sm:text-sm">{collaborator.name || 'Unnamed'}</span>
+                          <span className="text-xs sm:text-sm font-medium">{collaborator.percentage}%</span>
                         </div>
                       ))}
                       <Separator />
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Total</span>
-                        <span className="text-sm font-bold">
+                        <span className="text-xs sm:text-sm font-medium">Total</span>
+                        <span className="text-xs sm:text-sm font-bold">
                           {collaborators.reduce((sum, c) => sum + c.percentage, 0)}%
                         </span>
                       </div>
@@ -839,10 +970,10 @@ export default function UploadBeat() {
               </TabsContent>
             </CardContent>
 
-            <CardFooter className="flex justify-between p-6 border-t bg-card">
+            <CardFooter className="flex justify-between p-4 sm:p-6 border-t bg-card">
               <div>
                 {activeTab !== "details" && (
-                  <Button variant="outline" onClick={prevTab} disabled={isSubmitting}>
+                  <Button variant="outline" onClick={prevTab} disabled={isSubmitting} className="text-xs sm:text-sm px-2 sm:px-4">
                     Previous
                   </Button>
                 )}
@@ -853,10 +984,11 @@ export default function UploadBeat() {
                   variant="outline" 
                   onClick={handleSaveDraft} 
                   disabled={isSubmitting}
+                  className="text-xs sm:text-sm px-2 sm:px-4"
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                       Saving...
                     </>
                   ) : (
@@ -864,14 +996,14 @@ export default function UploadBeat() {
                   )}
                 </Button>
                 {activeTab !== "royalties" ? (
-                  <Button onClick={nextTab} disabled={isSubmitting}>
+                  <Button onClick={nextTab} disabled={isSubmitting} className="text-xs sm:text-sm px-2 sm:px-4">
                     Continue
                   </Button>
                 ) : (
-                  <Button onClick={handlePublish} disabled={isSubmitting}>
+                  <Button onClick={handlePublish} disabled={isSubmitting} className="text-xs sm:text-sm px-2 sm:px-4">
                     {isSubmitting ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                         Publishing...
                       </>
                     ) : (
