@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -58,6 +59,9 @@ export function useBeats() {
             const producerName = userData && userData.stage_name ? userData.stage_name : 
                                 userData && userData.full_name ? userData.full_name : 'Unknown Producer';
             
+            // Force the status to be either 'draft' or 'published' to satisfy the type
+            const status = beat.status === 'published' ? 'published' : 'draft';
+            
             return {
               id: beat.id,
               title: beat.title,
@@ -76,7 +80,7 @@ export function useBeats() {
               created_at: beat.upload_date,
               favorites_count: beat.favorites_count,
               purchase_count: beat.purchase_count,
-              status: beat.status,
+              status: status, // Cast to the correct type
             };
           });
           
@@ -105,9 +109,26 @@ export function useBeats() {
             .single();
           
           if (!userError && userData) {
-            // Parse favorites from JSONB array
+            // Ensure favorites is an array of strings
             try {
-              const favorites = userData.favorites || [];
+              let favorites: string[] = [];
+              
+              if (userData.favorites) {
+                // If it's already an array, use it
+                if (Array.isArray(userData.favorites)) {
+                  favorites = userData.favorites as string[];
+                } 
+                // If it's a JSON string, parse it
+                else if (typeof userData.favorites === 'object') {
+                  const favArray = Array.isArray(userData.favorites) 
+                    ? userData.favorites 
+                    : Object.values(userData.favorites || {});
+                  
+                  // Filter to ensure only strings are included
+                  favorites = favArray.filter(id => typeof id === 'string') as string[];
+                }
+              }
+              
               setUserFavorites(favorites);
             } catch (e) {
               console.error('Error parsing favorites:', e);
