@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat } from '@/types';
@@ -21,7 +20,7 @@ export const uploadBeat = async (
     role: string;
     percentage: number;
   }>
-): Promise<{success: boolean, beatId?: string, error?: string}> {
+) => Promise<{success: boolean, beatId?: string, error?: string}> => {
   try {
     // Step 1: Upload all files to storage
     const [coverImageUrl, previewUrl, fullTrackUrl] = await Promise.all([
@@ -31,7 +30,7 @@ export const uploadBeat = async (
     ]);
 
     // Step 2: Insert beat record into database
-    const { data: beatData, error: beatError } = await supabase
+    const { data: beatRecord, error: beatError } = await supabase
       .from('beats')
       .insert({
         producer_id: producerId,
@@ -58,7 +57,7 @@ export const uploadBeat = async (
       throw new Error(`Error inserting beat: ${beatError.message}`);
     }
 
-    const beatId = beatData.id;
+    const beatId = beatRecord.id;
 
     // Step 3: Insert royalty splits if there are collaborators
     if (collaborators.length > 0) {
@@ -89,7 +88,7 @@ export const uploadBeat = async (
       error: error instanceof Error ? error.message : 'Unknown error during beat upload' 
     };
   }
-}
+};
 
 /**
  * Gets all beats produced by a specific user
