@@ -310,8 +310,20 @@ export function Sidebar() {
                             isCollapsed ? "justify-center" : ""
                           )}
                         >
-                          <item.icon size={18} className={location.pathname === item.href ? "text-purple-500" : ""} />
-                          {!isCollapsed && <span>{item.title}</span>}
+                          <item.icon 
+                            size={18} 
+                            className={cn(
+                              "transition-colors",
+                              location.pathname === item.href ? "text-purple-500" : "text-muted-foreground"
+                            )} 
+                          />
+                          {!isCollapsed && (
+                            <span className={cn(
+                              location.pathname === item.href ? "text-purple-500 font-medium" : "text-muted-foreground"
+                            )}>
+                              {item.title}
+                            </span>
+                          )}
                         </NavLink>
                       </TooltipTrigger>
                       {isCollapsed && (
@@ -412,8 +424,10 @@ export function Sidebar() {
                           )}
                           onClick={() => setIsOpen(false)}
                         >
-                          <item.icon size={18} />
-                          <span>{item.title}</span>
+                          <item.icon size={18} className={location.pathname === item.href ? "text-purple-500" : ""} />
+                          <span className={location.pathname === item.href ? "text-purple-500 font-medium" : ""}>
+                            {item.title}
+                          </span>
                         </NavLink>
                       )
                     ))}
