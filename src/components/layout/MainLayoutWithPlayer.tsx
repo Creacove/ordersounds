@@ -1,50 +1,36 @@
+import React, { useState, useEffect } from 'react';
+import { Topbar } from './Topbar';
+import Sidebar from './Sidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MusicPlayer } from '@/components/player/MusicPlayer';
 
-import React, { PropsWithChildren, useEffect } from "react";
-import { cn } from "@/lib/utils";
-import { Topbar } from "./Topbar";
-import { Sidebar } from "./Sidebar";
-import { PersistentPlayer } from "@/components/player/PersistentPlayer";
-import { usePlayer } from "@/context/PlayerContext";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { useLocation } from "react-router-dom";
-
-interface MainLayoutWithPlayerProps extends PropsWithChildren {
-  className?: string;
+interface MainLayoutProps {
+  children: React.ReactNode;
 }
 
-export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlayerProps) {
-  const { currentBeat } = usePlayer();
+export const MainLayoutWithPlayer: React.FC<MainLayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
-  const hasPlayer = !!currentBeat;
-  const location = useLocation();
-  
-  // Smooth scroll to top on route change
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [location.pathname]);
-  
+    if (!isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile]);
+
   return (
-    <div className={cn(
-      "flex min-h-screen flex-col w-full",
-      hasPlayer && isMobile ? "pb-32" : "",
-      className
-    )}>
-      <Topbar />
+    <div className="min-h-screen flex flex-col">
+      <Topbar setSidebarOpen={setSidebarOpen} />
       
       <div className="flex flex-1">
         <Sidebar />
         
-        <main className={cn(
-          "flex-1 pl-0 md:pl-[70px] transition-all duration-300 w-full", 
-          isMobile ? "" : "lg:pl-[240px]",
-          hasPlayer && isMobile ? "pb-24" : "",
-          "animate-fade-in"
-        )}>
+        <main className="flex-1 p-4">
           {children}
         </main>
       </div>
-      
-      <PersistentPlayer />
+
+      <MusicPlayer />
     </div>
   );
-}
+};

@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { NavLink, useLocation, Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { 
   Home, 
   TrendingUp, 
@@ -8,15 +7,14 @@ import {
   List, 
   Library, 
   Heart, 
-  LayoutGrid,
+  LayoutGrid, 
   ChevronRight,
   ChevronLeft,
-  PanelLeft, 
-  Music,
-  LayoutDashboard,
-  Upload,
-  DollarSign,
-  Settings,
+  Music, 
+  LayoutDashboard, 
+  Upload, 
+  DollarSign, 
+  Settings, 
   Disc,
   Grip,
   ShoppingCart,
@@ -27,327 +25,50 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { usePlayer } from "@/context/PlayerContext";
-import { useCart } from "@/context/CartContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
-// Define interface for mobile menu items
-interface MobileMenuItem {
-  icon: React.ReactNode;
-  label: string;
-  to: string;
-  id: string;
-  badge?: number | null;
-  action?: () => void;
-}
+const sidebarLinks = [
+  { name: "Home", path: "/", icon: Home },
+  { name: "Trending", path: "/trending", icon: TrendingUp },
+  { name: "New Releases", path: "/new", icon: Clock },
+  { name: "Browse", path: "/browse", icon: LayoutGrid },
+  { name: "Search", path: "/search", icon: Search },
+];
 
-export function Sidebar() {
+const producerLinks = [
+  { name: "Dashboard", path: "/producer/dashboard", icon: LayoutDashboard },
+  { name: "My Beats", path: "/producer/beats", icon: Music },
+  { name: "Upload", path: "/producer/upload", icon: Upload },
+  { name: "Sales", path: "/producer/sales", icon: DollarSign },
+  { name: "Settings", path: "/producer/settings", icon: Settings },
+];
+
+const Sidebar = () => {
+  const [isOpen, setIsOpen] = useState(true);
   const { user, logout } = useAuth();
-  const { itemCount } = useCart();
   const location = useLocation();
-  const { isPlaying, currentBeat } = usePlayer();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeBottomTab, setActiveBottomTab] = useState("");
-
-  useEffect(() => {
-    if (!isMobile) {
-      setIsCollapsed(false);
-    } else {
-      setIsCollapsed(true);
-    }
-  }, [isMobile]);
-
+  
   useEffect(() => {
     if (isMobile) {
       setIsOpen(false);
-    }
-    
-    // Set active bottom tab based on current path
-    const path = location.pathname;
-    if (path === "/") setActiveBottomTab("home");
-    else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
-    else if (path === "/trending") setActiveBottomTab("trending");
-    else if (path === "/favorites") setActiveBottomTab("favorites");
-    else if (path === "/cart") setActiveBottomTab("cart");
-    else if (path.includes("/producer/")) setActiveBottomTab("producer");
-    else if (path.includes("/my-playlists") || path.includes("/purchased")) setActiveBottomTab("more");
-    else setActiveBottomTab("");
-  }, [location.pathname, isMobile]);
-
-  const handleSignOut = () => {
-    logout && logout();
-  };
-
-  const toggleSidebar = () => {
-    if (isMobile) {
-      setIsOpen(!isOpen);
     } else {
-      setIsCollapsed(!isCollapsed);
+      setIsOpen(true);
     }
-  };
+  }, [isMobile]);
 
-  // Buyer navigation links
-  const buyerLinks = [
-    { 
-      title: "Explore Beats", 
-      items: [
-        { title: "Home", icon: Home, href: "/" },
-        { title: "Trending", icon: TrendingUp, href: "/trending" },
-        { title: "New", icon: Clock, href: "/new" },
-        { title: "Playlists", icon: List, href: "/playlists" },
-        { title: "Genres", icon: Disc, href: "/genres" },
-        { title: "Search", icon: Search, href: "/search" },
-      ]
-    },
-    { 
-      title: "Library", 
-      items: [
-        { title: "Favorites", icon: Heart, href: "/favorites" },
-        { title: "My Playlists", icon: LayoutGrid, href: "/my-playlists" },
-        { title: "Purchased", icon: Music, href: "/purchased" },
-      ]
-    }
-  ];
-
-  // Producer navigation links
-  const producerLinks = [
-    { 
-      title: "Producer", 
-      items: [
-        { title: "Dashboard", icon: LayoutDashboard, href: "/producer/dashboard" },
-        { title: "My Beats", icon: Music, href: "/producer/beats" },
-        { title: "Upload Beat", icon: Upload, href: "/producer/upload" },
-        { title: "Settings", icon: Settings, href: "/producer/settings" },
-      ]
-    }
-  ];
-
-  // Choose navigation based on user role
-  const navigationLinks = user?.role === "producer" 
-    ? [...producerLinks, ...buyerLinks]  // If producer, show both producer and buyer links
-    : buyerLinks;  // If not producer (or not logged in), show only buyer links
-
-  const SidebarItem = ({ item }: { item: { title: string; icon: React.ElementType; href: string } }) => {
-    const isActive = location.pathname === item.href;
-    const Icon = item.icon;
-
-    return (
-      <TooltipProvider delayDuration={isCollapsed ? 100 : 1000}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavLink
-              to={item.href}
-              className={({ isActive }) => cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                "hover:bg-purple-500/20 hover:text-purple-500",
-                isActive 
-                  ? "bg-purple-500/10 text-purple-500 font-medium" 
-                  : "text-muted-foreground",
-                isCollapsed ? "justify-center" : ""
-              )}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <Icon size={18} className={isActive ? "text-purple-500" : ""} />
-              {!isCollapsed && <span>{item.title}</span>}
-            </NavLink>
-          </TooltipTrigger>
-          {isCollapsed && (
-            <TooltipContent side="right">
-              {item.title}
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
-    );
-  };
-
-  // Desktop sidebar
-  const DesktopSidebar = () => (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-[70px]" : "w-[240px]"
-      )}
-    >
-      <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-        {/* Section for each navigation group */}
-        {navigationLinks.map((section, index) => (
-          <div key={index} className="mb-6">
-            {!isCollapsed && (
-              <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
-                {section.title}
-              </h2>
-            )}
-            <nav className="flex flex-col gap-1">
-              {section.items.map((item, idx) => (
-                <SidebarItem key={idx} item={item} />
-              ))}
-            </nav>
-          </div>
-        ))}
-      </div>
-
-      {/* Collapse button */}
-      <div className="flex items-center justify-center p-4 border-t">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
-          onClick={toggleSidebar}
-        >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </Button>
-      </div>
-    </aside>
-  );
-
-  // Mobile bottom navigation with role-specific options
-  const MobileBottomNav = () => {
-    // Primary mobile menu items based on user role
-    let mobileMenuItems: MobileMenuItem[] = [];
-    
-    if (user?.role === "producer") {
-      // Producer-specific mobile menu
-      mobileMenuItems = [
-        { icon: <LayoutDashboard size={20} />, label: "Dashboard", to: "/producer/dashboard", id: "producer" },
-        { icon: <Music size={20} />, label: "My Beats", to: "/producer/beats", id: "beats" },
-        { icon: <Upload size={20} />, label: "Upload", to: "/producer/upload", id: "upload" },
-        { icon: <Home size={20} />, label: "Explore", to: "/", id: "home" },
-        { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
-      ];
-    } else {
-      // Buyer mobile menu - fixed items to prevent blinking
-      mobileMenuItems = [
-        { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
-        { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
-        { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
-        { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
-        { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
-      ];
-    }
-
-    return (
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
-        <div className="flex justify-around">
-          {mobileMenuItems.map((item, idx) => {
-            const isActive = activeBottomTab === item.id;
-            
-            if (item.action) {
-              return (
-                <button
-                  key={idx}
-                  onClick={item.action}
-                  className={cn(
-                    "flex flex-col items-center justify-center py-1 px-2 relative",
-                    isActive ? "text-purple-500" : "text-muted-foreground"
-                  )}
-                >
-                  <div className={cn(
-                    "relative p-1.5 rounded-full transition-colors",
-                    isActive ? "bg-purple-500/20" : ""
-                  )}>
-                    {item.icon}
-                  </div>
-                  <span className={cn(
-                    "text-xs mt-0.5",
-                    isActive ? "text-purple-500 font-medium" : ""
-                  )}>
-                    {item.label}
-                  </span>
-                </button>
-              );
-            }
-            
-            return (
-              <Link
-                key={idx}
-                to={item.to}
-                className={cn(
-                  "flex flex-col items-center justify-center py-1 px-2 relative",
-                  isActive ? "text-purple-500" : "text-muted-foreground"
-                )}
-              >
-                <div className={cn(
-                  "relative p-1.5 rounded-full transition-colors",
-                  isActive ? "bg-purple-500/20" : ""
-                )}>
-                  {item.icon}
-                  {item.badge && (
-                    <Badge 
-                      variant="destructive" 
-                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
-                    >
-                      {item.badge > 9 ? '9+' : item.badge}
-                    </Badge>
-                  )}
-                </div>
-                <span className={cn(
-                  "text-xs mt-0.5",
-                  isActive ? "text-purple-500 font-medium" : ""
-                )}>
-                  {item.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-    );
-  };
-
-  // Generate mobile menu content based on user role
-  const getMobileMenuContent = () => {
-    // Base sections for all users
-    const sections = [];
-    
-    // Add different primary sections based on user role
-    if (user?.role === "producer") {
-      // For producers, prioritize producer functions first
-      sections.push({
-        title: "Producer",
-        items: [
-          { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
-          { icon: Music, title: "My Beats", href: "/producer/beats" },
-          { icon: Upload, title: "Upload Beat", href: "/producer/upload" },
-          { icon: Settings, title: "Settings", href: "/producer/settings" },
-        ]
-      });
-      
-      // Add relevant buyer functions secondary (simplified)
-      sections.push({
-        title: "Marketplace",
-        items: [
-          { icon: Home, title: "Explore", href: "/" },
-          { icon: TrendingUp, title: "Trending", href: "/trending" },
-          { icon: Heart, title: "Favorites", href: "/favorites" },
-          { icon: ShoppingCart, title: "Cart", href: "/cart" },
-        ]
-      });
-    } else {
-      // Regular buyer navigation
-      navigationLinks.forEach(section => {
-        sections.push(section);
-      });
-    }
-    
-    // Add user section for all users
-    if (user) {
-      sections.push({
-        title: "Account",
-        items: [
-          { icon: User, title: "Profile", href: user.role === "producer" ? `/producer/${user.id}` : `/buyer/${user.id}` },
-          { icon: Settings, title: "Settings", href: "/settings" },
-          { icon: LogOut, title: "Sign Out", href: "#", onClick: handleSignOut },
-        ]
-      });
-    }
-    
-    return sections;
+  const isActive = (path: string) => {
+    return location.pathname === path;
   };
 
   return (
@@ -355,89 +76,192 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
+          className="fixed inset-0 bg-black/50 z-40"
           onClick={() => setIsOpen(false)}
         />
       )}
-
-      {/* Mobile sidebar (slides in from left) */}
-      {isMobile && (
-        <>
-          <aside
-            className={cn(
-              "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out w-[80%] max-w-[300px]",
-              isOpen ? "translate-x-0" : "-translate-x-full"
-            )}
-          >
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="font-medium">
-                {user?.role === "producer" ? "Producer Menu" : "OrderSOUNDS Menu"}
-              </h2>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
-                onClick={() => setIsOpen(false)}
-              >
-                <ChevronLeft size={16} />
-              </Button>
+      
+      {/* Sidebar */}
+      <aside 
+        className={cn(
+          "h-screen bg-card border-r flex-shrink-0 overflow-hidden transition-all duration-300 flex flex-col z-50",
+          isOpen ? "w-64" : "w-0",
+          isMobile ? "fixed left-0" : "sticky top-0"
+        )}
+      >
+        {/* Sidebar content */}
+        <div className="p-4 flex justify-between items-center border-b">
+          <Link to="/" className="flex items-center gap-2 font-semibold">
+            <Music className="h-6 w-6 text-primary" />
+            {isOpen && <span>OrderSOUNDS</span>}
+          </Link>
+        </div>
+        
+        {/* Main Navigation */}
+        <div className="flex-1 overflow-y-auto py-4">
+          {/* Main Navigation Links */}
+          <div className="px-3 mb-6">
+            <div className="text-xs uppercase text-muted-foreground px-2 mb-2">
+              {isOpen ? "Discover" : ""}
             </div>
-            
-            <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-              {getMobileMenuContent().map((section, index) => (
-                <div key={index} className="mb-6">
-                  <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
-                    {section.title}
-                  </h2>
-                  <nav className="flex flex-col gap-1">
-                    {section.items.map((item, idx) => (
-                      item.onClick ? (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            item.onClick && item.onClick();
-                            setIsOpen(false);
-                          }}
-                          className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 text-left",
-                            "hover:bg-purple-500/20 hover:text-purple-500",
-                            "text-muted-foreground"
-                          )}
-                        >
-                          <item.icon size={18} />
-                          <span>{item.title}</span>
-                        </button>
-                      ) : (
-                        <NavLink
-                          key={idx}
-                          to={item.href}
-                          className={({ isActive }) => cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                            "hover:bg-purple-500/20 hover:text-purple-500",
-                            isActive 
-                              ? "bg-purple-500/10 text-purple-500 font-medium" 
-                              : "text-muted-foreground"
-                          )}
-                          onClick={() => setIsOpen(false)}
-                        >
-                          <item.icon size={18} />
-                          <span>{item.title}</span>
-                        </NavLink>
-                      )
-                    ))}
-                  </nav>
-                </div>
+            <nav>
+              {sidebarLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={cn(
+                    "flex items-center gap-3 px-2 py-2 my-1 rounded-md text-sm",
+                    isActive(link.path) 
+                      ? "bg-primary/10 text-primary font-medium" 
+                      : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  <link.icon size={20} />
+                  {isOpen && <span>{link.name}</span>}
+                </Link>
               ))}
-            </div>
-          </aside>
+            </nav>
+          </div>
           
-          {/* Bottom navigation for mobile */}
-          <MobileBottomNav />
-        </>
-      )}
-
-      {/* Desktop sidebar */}
-      {!isMobile && <DesktopSidebar />}
+          {/* Library Section */}
+          <div className="px-3 mb-6">
+            <div className="text-xs uppercase text-muted-foreground px-2 mb-2">
+              {isOpen ? "Library" : ""}
+            </div>
+            <nav>
+              <Link
+                to="/purchased"
+                className={cn(
+                  "flex items-center gap-3 px-2 py-2 my-1 rounded-md text-sm",
+                  isActive("/purchased") 
+                    ? "bg-primary/10 text-primary font-medium" 
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Music size={20} />
+                {isOpen && <span>Purchased</span>}
+              </Link>
+              <Link
+                to="/favorites"
+                className={cn(
+                  "flex items-center gap-3 px-2 py-2 my-1 rounded-md text-sm",
+                  isActive("/favorites") 
+                    ? "bg-primary/10 text-primary font-medium" 
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <Heart size={20} />
+                {isOpen && <span>Favorites</span>}
+              </Link>
+              <Link
+                to="/my-playlists"
+                className={cn(
+                  "flex items-center gap-3 px-2 py-2 my-1 rounded-md text-sm",
+                  isActive("/my-playlists") 
+                    ? "bg-primary/10 text-primary font-medium" 
+                    : "text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <List size={20} />
+                {isOpen && <span>Playlists</span>}
+              </Link>
+            </nav>
+          </div>
+          
+          {/* Producer Section (conditional) */}
+          {user?.role === "producer" && (
+            <div className="px-3 mb-6">
+              <div className="text-xs uppercase text-muted-foreground px-2 mb-2">
+                {isOpen ? "Producer" : ""}
+              </div>
+              <nav>
+                {producerLinks.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    className={cn(
+                      "flex items-center gap-3 px-2 py-2 my-1 rounded-md text-sm",
+                      isActive(link.path) 
+                        ? "bg-primary/10 text-primary font-medium" 
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    <link.icon size={20} />
+                    {isOpen && <span>{link.name}</span>}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          )}
+        </div>
+        
+        {/* User section at bottom */}
+        {user ? (
+          <div className="p-4 border-t mt-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full flex items-center justify-start p-2 h-auto">
+                  <Avatar className="h-8 w-8 mr-2">
+                    <AvatarImage src={user.avatar_url || ""} />
+                    <AvatarFallback>{user.name?.charAt(0) || user.email?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  {isOpen && (
+                    <>
+                      <div className="flex-1 text-left">
+                        <p className="text-sm font-medium leading-none">{user.name || "User"}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      </div>
+                      <MoreHorizontal size={18} className="text-muted-foreground" />
+                    </>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/profile">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/settings">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={logout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ) : (
+          <div className="p-4 border-t mt-auto flex flex-col gap-2">
+            {isOpen ? (
+              <>
+                <Button asChild size="sm" className="w-full">
+                  <Link to="/login">Log in</Link>
+                </Button>
+                <Button asChild variant="outline" size="sm" className="w-full">
+                  <Link to="/signup">Sign up</Link>
+                </Button>
+              </>
+            ) : (
+              <Button asChild size="icon" variant="ghost">
+                <Link to="/login">
+                  <User size={20} />
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
+      </aside>
     </>
   );
-}
+};
+
+export default Sidebar;
