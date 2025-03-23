@@ -11,6 +11,7 @@ interface CartContextType {
   clearCart: () => void;
   totalAmount: number;
   itemCount: number;
+  isInCart: (beatId: string) => boolean; // Add the isInCart method
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -71,6 +72,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Add the isInCart method implementation
+  const isInCart = (beatId: string): boolean => {
+    return cartItems.some(item => item.beat.id === beatId);
+  };
+
   // Calculate total based on selected currency
   const totalAmount = cartItems.reduce((sum, item) => {
     const price = currency === 'NGN' ? item.beat.price_local : item.beat.price_diaspora;
@@ -86,6 +92,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         clearCart,
         totalAmount,
         itemCount: cartItems.length,
+        isInCart, // Add the isInCart method to the context value
       }}
     >
       {children}
