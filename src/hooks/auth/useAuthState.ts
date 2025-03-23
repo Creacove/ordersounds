@@ -32,7 +32,8 @@ export const useAuthState = () => {
           } finally {
             setIsLoading(false);
           }
-        } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+        } else if (event === 'SIGNED_OUT') {
+          // Removed the invalid "USER_DELETED" event type
           setUser(null);
           setCurrency('NGN');
           setIsLoading(false);
