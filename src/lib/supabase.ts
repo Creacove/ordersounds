@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User } from '@/types';
 
@@ -13,8 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     storage: localStorage,
     flowType: 'implicit',  // Disable email confirmation
-    detectSessionInUrl: false, // Don't look for the session in the URL
-    autoConfirmEmailOnSignup: true // Try to auto-confirm emails (though this depends on Supabase settings)
+    detectSessionInUrl: false // Don't look for the session in the URL
   }
 });
 
