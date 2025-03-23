@@ -11,7 +11,6 @@ import {
   LayoutGrid,
   ChevronRight,
   ChevronLeft,
-  PanelLeft, 
   Music,
   LayoutDashboard,
   Upload,
@@ -91,120 +90,73 @@ export function Sidebar() {
     }
   };
 
-  // Buyer navigation links
-  const buyerLinks = [
-    { 
-      title: "Explore Beats", 
-      items: [
-        { title: "Home", icon: Home, href: "/" },
-        { title: "Trending", icon: TrendingUp, href: "/trending" },
-        { title: "New", icon: Clock, href: "/new" },
-        { title: "Playlists", icon: List, href: "/playlists" },
-        { title: "Genres", icon: Disc, href: "/genres" },
-        { title: "Search", icon: Search, href: "/search" },
-      ]
-    },
-    { 
-      title: "Library", 
-      items: [
-        { title: "Favorites", icon: Heart, href: "/favorites" },
-        { title: "My Playlists", icon: LayoutGrid, href: "/my-playlists" },
-        { title: "Purchased", icon: Music, href: "/purchased" },
-      ]
+  // Generate mobile menu content based on user role
+  const getSidebarContent = () => {
+    // Base sections for all users
+    const sections = [];
+    
+    // Add different primary sections based on user role
+    if (user?.role === "producer") {
+      // For producers, prioritize producer functions first
+      sections.push({
+        title: "Producer",
+        items: [
+          { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
+          { icon: Music, title: "My Beats", href: "/producer/beats" },
+          { icon: Upload, title: "Upload Beat", href: "/producer/upload" },
+          { icon: Settings, title: "Settings", href: "/producer/settings" },
+        ]
+      });
+      
+      // Add relevant buyer functions secondary (simplified)
+      sections.push({
+        title: "Marketplace",
+        items: [
+          { icon: Home, title: "Explore", href: "/" },
+          { icon: TrendingUp, title: "Trending", href: "/trending" },
+          { icon: Heart, title: "Favorites", href: "/favorites" },
+          { icon: ShoppingCart, title: "Cart", href: "/cart" },
+        ]
+      });
+    } else {
+      // Regular buyer navigation - Explore section
+      sections.push({ 
+        title: "Explore Beats", 
+        items: [
+          { icon: Home, title: "Home", href: "/" },
+          { icon: TrendingUp, title: "Trending", href: "/trending" },
+          { icon: Clock, title: "New", href: "/new" },
+          { icon: List, title: "Playlists", href: "/playlists" },
+          { icon: Disc, title: "Genres", href: "/genres" },
+          { icon: Search, title: "Search", href: "/search" },
+        ]
+      });
+      
+      // Library section
+      sections.push({ 
+        title: "Library", 
+        items: [
+          { icon: Heart, title: "Favorites", href: "/favorites" },
+          { icon: LayoutGrid, title: "My Playlists", href: "/my-playlists" },
+          { icon: Music, title: "Purchased", href: "/purchased" },
+        ]
+      });
     }
-  ];
-
-  // Producer navigation links
-  const producerLinks = [
-    { 
-      title: "Producer", 
-      items: [
-        { title: "Dashboard", icon: LayoutDashboard, href: "/producer/dashboard" },
-        { title: "My Beats", icon: Music, href: "/producer/beats" },
-        { title: "Upload Beat", icon: Upload, href: "/producer/upload" },
-        { title: "Settings", icon: Settings, href: "/producer/settings" },
-      ]
+    
+    // Add user section for all users
+    if (user) {
+      sections.push({
+        title: "Account",
+        items: [
+          { icon: User, title: "Profile", href: user.role === "producer" ? `/producer/${user.id}` : `/buyer/${user.id}` },
+          { icon: Settings, title: "Settings", href: "/settings" },
+          { icon: LogOut, title: "Sign Out", href: "#", onClick: handleSignOut },
+        ]
+      });
     }
-  ];
-
-  // Choose navigation based on user role
-  const navigationLinks = user?.role === "producer" 
-    ? [...producerLinks, ...buyerLinks]  // If producer, show both producer and buyer links
-    : buyerLinks;  // If not producer (or not logged in), show only buyer links
-
-  const SidebarItem = ({ item }: { item: { title: string; icon: React.ElementType; href: string } }) => {
-    const isActive = location.pathname === item.href;
-    const Icon = item.icon;
-
-    return (
-      <TooltipProvider delayDuration={isCollapsed ? 100 : 1000}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavLink
-              to={item.href}
-              className={({ isActive }) => cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                "hover:bg-purple-500/20 hover:text-purple-500",
-                isActive 
-                  ? "bg-purple-500/10 text-purple-500 font-medium" 
-                  : "text-muted-foreground",
-                isCollapsed ? "justify-center" : ""
-              )}
-              aria-current={isActive ? "page" : undefined}
-            >
-              <Icon size={18} className={isActive ? "text-purple-500" : ""} />
-              {!isCollapsed && <span>{item.title}</span>}
-            </NavLink>
-          </TooltipTrigger>
-          {isCollapsed && (
-            <TooltipContent side="right">
-              {item.title}
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
-    );
+    
+    return sections;
   };
-
-  // Desktop sidebar
-  const DesktopSidebar = () => (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-[70px]" : "w-[240px]"
-      )}
-    >
-      <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-        {/* Section for each navigation group */}
-        {navigationLinks.map((section, index) => (
-          <div key={index} className="mb-6">
-            {!isCollapsed && (
-              <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
-                {section.title}
-              </h2>
-            )}
-            <nav className="flex flex-col gap-1">
-              {section.items.map((item, idx) => (
-                <SidebarItem key={idx} item={item} />
-              ))}
-            </nav>
-          </div>
-        ))}
-      </div>
-
-      {/* Collapse button */}
-      <div className="flex items-center justify-center p-4 border-t">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
-          onClick={toggleSidebar}
-        >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </Button>
-      </div>
-    </aside>
-  );
 
   // Mobile bottom navigation with role-specific options
   const MobileBottomNav = () => {
@@ -300,55 +252,95 @@ export function Sidebar() {
     );
   };
 
-  // Generate mobile menu content based on user role
-  const getMobileMenuContent = () => {
-    // Base sections for all users
-    const sections = [];
-    
-    // Add different primary sections based on user role
-    if (user?.role === "producer") {
-      // For producers, prioritize producer functions first
-      sections.push({
-        title: "Producer",
-        items: [
-          { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
-          { icon: Music, title: "My Beats", href: "/producer/beats" },
-          { icon: Upload, title: "Upload Beat", href: "/producer/upload" },
-          { icon: Settings, title: "Settings", href: "/producer/settings" },
-        ]
-      });
-      
-      // Add relevant buyer functions secondary (simplified)
-      sections.push({
-        title: "Marketplace",
-        items: [
-          { icon: Home, title: "Explore", href: "/" },
-          { icon: TrendingUp, title: "Trending", href: "/trending" },
-          { icon: Heart, title: "Favorites", href: "/favorites" },
-          { icon: ShoppingCart, title: "Cart", href: "/cart" },
-        ]
-      });
-    } else {
-      // Regular buyer navigation
-      navigationLinks.forEach(section => {
-        sections.push(section);
-      });
-    }
-    
-    // Add user section for all users
-    if (user) {
-      sections.push({
-        title: "Account",
-        items: [
-          { icon: User, title: "Profile", href: user.role === "producer" ? `/producer/${user.id}` : `/buyer/${user.id}` },
-          { icon: Settings, title: "Settings", href: "/settings" },
-          { icon: LogOut, title: "Sign Out", href: "#", onClick: handleSignOut },
-        ]
-      });
-    }
-    
-    return sections;
-  };
+  // Desktop sidebar using the same content structure as mobile
+  const DesktopSidebar = () => (
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out",
+        isCollapsed ? "w-[70px]" : "w-[240px]"
+      )}
+    >
+      <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
+        {/* Use the same content structure as mobile */}
+        {getSidebarContent().map((section, index) => (
+          <div key={index} className="mb-6">
+            {!isCollapsed && (
+              <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
+                {section.title}
+              </h2>
+            )}
+            <nav className="flex flex-col gap-1">
+              {section.items.map((item, idx) => (
+                item.onClick ? (
+                  <TooltipProvider delayDuration={isCollapsed ? 100 : 1000} key={idx}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={item.onClick}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 text-left",
+                            "hover:bg-purple-500/20 hover:text-purple-500",
+                            "text-muted-foreground",
+                            isCollapsed ? "justify-center" : ""
+                          )}
+                        >
+                          <item.icon size={18} />
+                          {!isCollapsed && <span>{item.title}</span>}
+                        </button>
+                      </TooltipTrigger>
+                      {isCollapsed && (
+                        <TooltipContent side="right">
+                          {item.title}
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <TooltipProvider delayDuration={isCollapsed ? 100 : 1000} key={idx}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <NavLink
+                          to={item.href}
+                          className={({ isActive }) => cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                            "hover:bg-purple-500/20 hover:text-purple-500",
+                            isActive 
+                              ? "bg-purple-500/10 text-purple-500 font-medium" 
+                              : "text-muted-foreground",
+                            isCollapsed ? "justify-center" : ""
+                          )}
+                        >
+                          <item.icon size={18} className={location.pathname === item.href ? "text-purple-500" : ""} />
+                          {!isCollapsed && <span>{item.title}</span>}
+                        </NavLink>
+                      </TooltipTrigger>
+                      {isCollapsed && (
+                        <TooltipContent side="right">
+                          {item.title}
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+                  </TooltipProvider>
+                )
+              ))}
+            </nav>
+          </div>
+        ))}
+      </div>
+
+      {/* Collapse button */}
+      <div className="flex items-center justify-center p-4 border-t">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
+          onClick={toggleSidebar}
+        >
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </Button>
+      </div>
+    </aside>
+  );
 
   return (
     <>
@@ -384,7 +376,7 @@ export function Sidebar() {
             </div>
             
             <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-              {getMobileMenuContent().map((section, index) => (
+              {getSidebarContent().map((section, index) => (
                 <div key={index} className="mb-6">
                   <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
                     {section.title}
@@ -441,3 +433,4 @@ export function Sidebar() {
     </>
   );
 }
+
