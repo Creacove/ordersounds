@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Playlist } from '@/types';
+import { Playlist, Beat } from '@/types';
 import { ListMusic } from 'lucide-react';
 
 interface PlaylistCardProps {
@@ -38,7 +38,7 @@ export function PlaylistCard({ playlist, onClick }: PlaylistCardProps) {
       const firstBeat = beatsToShow[0];
       const imageUrl = typeof firstBeat === 'string' 
         ? '/placeholder.svg'  // If it's just a string ID
-        : (firstBeat.cover_image_url || '/placeholder.svg');
+        : ((firstBeat as unknown as Beat).cover_image_url || '/placeholder.svg');
       
       return (
         <img 
@@ -55,11 +55,11 @@ export function PlaylistCard({ playlist, onClick }: PlaylistCardProps) {
           // Handle both string IDs and Beat objects
           const imageUrl = typeof beat === 'string'
             ? '/placeholder.svg'  // If it's just a string ID
-            : (beat.cover_image_url || '/placeholder.svg');
+            : ((beat as unknown as Beat).cover_image_url || '/placeholder.svg');
           
           const altText = typeof beat === 'string'
             ? `Track ${index + 1}`
-            : beat.title;
+            : (beat as unknown as Beat).title;
             
           return (
             <div key={index} className="aspect-square overflow-hidden">
