@@ -5,6 +5,8 @@ import { useBeats } from "@/hooks/useBeats";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 interface Producer {
   id: string;
@@ -73,12 +75,9 @@ export default function Producers() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <a 
-                    href={`/producer/${producer.id}`} 
-                    className="text-sm text-purple-500 hover:underline"
-                  >
-                    View profile
-                  </a>
+                  <Button asChild variant="link" className="text-sm text-purple-500 hover:underline p-0">
+                    <Link to={`/producer/${producer.id}`}>View profile</Link>
+                  </Button>
                 </CardContent>
               </Card>
             ))}

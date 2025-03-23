@@ -23,6 +23,8 @@ import Charts from "./pages/buyer/Charts";
 import Orders from "./pages/buyer/Orders";
 import Settings from "./pages/user/Settings";
 import Contact from "./pages/Contact";
+import BuyerProfile from "./pages/buyer/BuyerProfile";
+import ProducerProfile from "./pages/producer/ProducerProfile";
 
 // Producer pages
 import ProducerDashboard from "./pages/producer/Dashboard";
@@ -52,6 +54,10 @@ const App = () => (
                 <Route path="/producers" element={<Producers />} />
                 <Route path="/charts" element={<Charts />} />
                 <Route path="/contact" element={<Contact />} />
+                
+                {/* Profile Routes */}
+                <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
+                <Route path="/producer/:producerId" element={<ProducerProfile />} />
                 
                 {/* Library Routes */}
                 <Route path="/favorites" element={<Library />} />
