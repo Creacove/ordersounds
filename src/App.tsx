@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
+import { PlayerProvider } from "@/context/PlayerContext";
 
 // Pages
 import Index from "./pages/buyer/Home";
@@ -21,6 +22,7 @@ import Producers from "./pages/buyer/Producers";
 import Charts from "./pages/buyer/Charts";
 import Orders from "./pages/buyer/Orders";
 import Settings from "./pages/user/Settings";
+import Contact from "./pages/Contact";
 
 // Producer pages
 import ProducerDashboard from "./pages/producer/Dashboard";
@@ -37,39 +39,42 @@ const App = () => (
       <TooltipProvider>
         <AuthProvider>
           <CartProvider>
-            <Toaster />
-            <Sonner />
-            <Routes>
-              {/* Buyer Routes */}
-              <Route path="/" element={<Index />} />
-              <Route path="/trending" element={<Trending />} />
-              <Route path="/new" element={<New />} />
-              <Route path="/playlists" element={<Playlists />} />
-              <Route path="/genres" element={<Genres />} />
-              <Route path="/producers" element={<Producers />} />
-              <Route path="/charts" element={<Charts />} />
-              
-              {/* Library Routes */}
-              <Route path="/favorites" element={<Library />} />
-              <Route path="/purchased" element={<Library />} />
-              <Route path="/my-playlists" element={<Library />} />
-              <Route path="/orders" element={<Orders />} />
-              
-              {/* Auth Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/settings" element={<Settings />} />
-              
-              {/* Producer Routes */}
-              <Route path="/producer/dashboard" element={<ProducerDashboard />} />
-              <Route path="/producer/upload" element={<UploadBeat />} />
-              <Route path="/producer/beats" element={<ProducerBeats />} />
-              <Route path="/producer/royalties" element={<Royalties />} />
-              <Route path="/producer/settings" element={<ProducerSettings />} />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <PlayerProvider>
+              <Toaster />
+              <Sonner />
+              <Routes>
+                {/* Buyer Routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/trending" element={<Trending />} />
+                <Route path="/new" element={<New />} />
+                <Route path="/playlists" element={<Playlists />} />
+                <Route path="/genres" element={<Genres />} />
+                <Route path="/producers" element={<Producers />} />
+                <Route path="/charts" element={<Charts />} />
+                <Route path="/contact" element={<Contact />} />
+                
+                {/* Library Routes */}
+                <Route path="/favorites" element={<Library />} />
+                <Route path="/purchased" element={<Library />} />
+                <Route path="/my-playlists" element={<Library />} />
+                <Route path="/orders" element={<Orders />} />
+                
+                {/* Auth Routes */}
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/settings" element={<Settings />} />
+                
+                {/* Producer Routes */}
+                <Route path="/producer/dashboard" element={<ProducerDashboard />} />
+                <Route path="/producer/upload" element={<UploadBeat />} />
+                <Route path="/producer/beats" element={<ProducerBeats />} />
+                <Route path="/producer/royalties" element={<Royalties />} />
+                <Route path="/producer/settings" element={<ProducerSettings />} />
+                
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </PlayerProvider>
           </CartProvider>
         </AuthProvider>
       </TooltipProvider>

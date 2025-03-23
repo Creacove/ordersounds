@@ -1,39 +1,106 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useBeats } from "@/hooks/useBeats";
 import { PlusCircle, Music, Heart, ListMusic } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useNavigate, useLocation } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
+import { getUserPlaylists, createPlaylist } from "@/lib/playlistService";
+import { PersistentPlayer } from "@/components/player/PersistentPlayer";
+import { Playlist } from "@/types";
 
 export default function Library() {
-  const { getUserFavoriteBeats, getUserPurchasedBeats, isLoading } = useBeats();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { getUserFavoriteBeats, getUserPurchasedBeats, toggleFavorite, isLoading } = useBeats();
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(true);
 
   const favoriteBeats = getUserFavoriteBeats();
   const purchasedBeats = getUserPurchasedBeats();
+  
+  // Get tab from URL path
+  const getDefaultTab = () => {
+    if (location.pathname === "/favorites") return "favorites";
+    if (location.pathname === "/purchased") return "purchased";
+    if (location.pathname === "/my-playlists") return "playlists";
+    return "purchased";
+  };
+  
+  const [activeTab, setActiveTab] = useState(getDefaultTab());
+  
+  useEffect(() => {
+    // Update the tab when the URL changes
+    setActiveTab(getDefaultTab());
+  }, [location.pathname]);
+  
+  useEffect(() => {
+    loadPlaylists();
+    
+    document.title = `My Library | Creacove`;
+  }, [user]);
 
-  // Mock playlists for demo
-  const [playlists, setPlaylists] = useState([
-    { id: '1', name: 'Workout Beats', beatCount: 5 },
-    { id: '2', name: 'Studio Session', beatCount: 3 },
-  ]);
+  const loadPlaylists = async () => {
+    if (!user) {
+      setLoadingPlaylists(false);
+      return;
+    }
+    
+    setLoadingPlaylists(true);
+    const userPlaylists = await getUserPlaylists(user.id);
+    setPlaylists(userPlaylists);
+    setLoadingPlaylists(false);
+  };
 
-  const handleCreatePlaylist = () => {
+  const handleCreatePlaylist = async () => {
+    if (!user) return;
+    
     if (newPlaylistName.trim()) {
-      const newPlaylist = {
-        id: `playlist-${Date.now()}`,
-        name: newPlaylistName,
-        beatCount: 0
-      };
-      setPlaylists([...playlists, newPlaylist]);
-      setNewPlaylistName("");
-      setIsCreatingPlaylist(false);
+      const playlist = await createPlaylist(user.id, newPlaylistName);
+      if (playlist) {
+        setPlaylists([...playlists, playlist]);
+        setNewPlaylistName("");
+        setIsCreatingPlaylist(false);
+      }
     }
   };
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    // Update URL to match the tab
+    if (value === "favorites") navigate("/favorites");
+    else if (value === "purchased") navigate("/purchased");
+    else if (value === "playlists") navigate("/my-playlists");
+  };
+  
+  const handleViewPlaylist = (playlistId: string) => {
+    navigate(`/playlists?id=${playlistId}`);
+  };
+
+  if (!user) {
+    return (
+      <MainLayout>
+        <div className="container py-12 text-center">
+          <h1 className="text-2xl font-bold mb-4">Sign in to access your library</h1>
+          <p className="text-muted-foreground mb-6">
+            You need to be logged in to view your purchased beats, favorites, and playlists.
+          </p>
+          <Button asChild>
+            <a href="/login">Sign In</a>
+          </Button>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -42,7 +109,7 @@ export default function Library() {
           <h1 className="text-2xl font-bold">My Library</h1>
         </div>
 
-        <Tabs defaultValue="purchased" className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} defaultValue={activeTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="purchased" className="gap-2">
               <Music size={16} />
@@ -59,7 +126,17 @@ export default function Library() {
           </TabsList>
 
           <TabsContent value="purchased" className="animate-fade-in">
-            {purchasedBeats.length === 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="aspect-square w-full rounded-lg" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : purchasedBeats.length === 0 ? (
               <div className="text-center p-12 bg-card rounded-lg">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
                   <Music className="h-6 w-6 text-primary" />
@@ -75,14 +152,30 @@ export default function Library() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {purchasedBeats.map((beat) => (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat} 
+                    isPurchased={true}
+                    onToggleFavorite={toggleFavorite}
+                    isFavorite={favoriteBeats.some(b => b.id === beat.id)}
+                  />
                 ))}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="favorites" className="animate-fade-in">
-            {favoriteBeats.length === 0 ? (
+            {isLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="aspect-square w-full rounded-lg" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : favoriteBeats.length === 0 ? (
               <div className="text-center p-12 bg-card rounded-lg">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
                   <Heart className="h-6 w-6 text-primary" />
@@ -98,7 +191,13 @@ export default function Library() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {favoriteBeats.map((beat) => (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat} 
+                    onToggleFavorite={toggleFavorite}
+                    isFavorite={true}
+                    isPurchased={purchasedBeats.some(b => b.id === beat.id)}
+                  />
                 ))}
               </div>
             )}
@@ -138,7 +237,17 @@ export default function Library() {
               </div>
             )}
 
-            {playlists.length === 0 ? (
+            {loadingPlaylists ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="aspect-square w-full rounded-lg" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : playlists.length === 0 ? (
               <div className="text-center p-12 bg-card rounded-lg">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
                   <ListMusic className="h-6 w-6 text-primary" />
@@ -157,13 +266,14 @@ export default function Library() {
                   <div 
                     key={playlist.id} 
                     className="bg-card rounded-lg p-4 hover:bg-card/80 transition-colors cursor-pointer"
+                    onClick={() => handleViewPlaylist(playlist.id)}
                   >
                     <div className="aspect-square rounded-md bg-muted mb-3 flex items-center justify-center">
                       <ListMusic className="h-10 w-10 text-muted-foreground" />
                     </div>
                     <h3 className="font-medium">{playlist.name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {playlist.beatCount} {playlist.beatCount === 1 ? 'beat' : 'beats'}
+                      {playlist.beats?.length || 0} {(playlist.beats?.length || 0) === 1 ? 'beat' : 'beats'}
                     </p>
                   </div>
                 ))}
@@ -172,6 +282,8 @@ export default function Library() {
           </TabsContent>
         </Tabs>
       </div>
+      
+      <PersistentPlayer />
     </MainLayout>
   );
 }

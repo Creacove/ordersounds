@@ -201,6 +201,7 @@ export type Database = {
       playlists: {
         Row: {
           beats: string[] | null
+          cover_image: string | null
           created_date: string | null
           id: string
           is_public: boolean | null
@@ -209,6 +210,7 @@ export type Database = {
         }
         Insert: {
           beats?: string[] | null
+          cover_image?: string | null
           created_date?: string | null
           id?: string
           is_public?: boolean | null
@@ -217,6 +219,7 @@ export type Database = {
         }
         Update: {
           beats?: string[] | null
+          cover_image?: string | null
           created_date?: string | null
           id?: string
           is_public?: boolean | null

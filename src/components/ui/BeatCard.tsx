@@ -4,8 +4,20 @@ import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
 import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
-import { Play, Pause, ShoppingCart, Heart } from 'lucide-react';
-import { useAudio } from '@/hooks/useAudio';
+import { usePlayer } from '@/context/PlayerContext';
+import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical } from 'lucide-react';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal
+} from "@/components/ui/dropdown-menu";
+import { getUserPlaylists, addBeatToPlaylist } from '@/lib/playlistService';
 
 interface BeatCardProps {
   beat: Beat;
@@ -29,15 +41,16 @@ export function BeatCard({
   className,
 }: BeatCardProps) {
   const { user } = useAuth();
-  const { 
-    playing, 
-    togglePlay 
-  } = useAudio(beat.preview_url);
+  const { playBeat, playing, currentBeat } = usePlayer();
+  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  
+  const isPlaying = playing && currentBeat?.id === beat.id;
 
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    togglePlay();
+    playBeat(beat);
     if (onPlay) {
       onPlay(beat.id);
     }
@@ -58,6 +71,20 @@ export function BeatCard({
       onToggleFavorite(beat.id);
     }
   };
+  
+  const loadPlaylists = async () => {
+    if (!user || loadingPlaylists) return;
+    
+    setLoadingPlaylists(true);
+    const userPlaylists = await getUserPlaylists(user.id);
+    setPlaylists(userPlaylists);
+    setLoadingPlaylists(false);
+  };
+  
+  const handleAddToPlaylist = async (playlistId: string) => {
+    if (!user) return;
+    await addBeatToPlaylist(playlistId, beat.id);
+  };
 
   return (
     <div
@@ -77,7 +104,7 @@ export function BeatCard({
             onClick={handlePlay}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-110"
           >
-            {playing ? <Pause size={20} /> : <Play size={20} />}
+            {isPlaying ? <Pause size={20} /> : <Play size={20} />}
           </button>
         </div>
       </div>
@@ -115,17 +142,61 @@ export function BeatCard({
           )}
 
           {user && (
-            <button
-              onClick={handleToggleFavorite}
-              className={cn(
-                "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
-                isFavorite
-                  ? "bg-red-500/20 text-red-500"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              )}
-            >
-              <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
-            </button>
+            <>
+              <button
+                onClick={handleToggleFavorite}
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                  isFavorite
+                    ? "bg-red-500/20 text-red-500"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
+              </button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex h-8 w-8 items-center justify-center rounded-md bg-muted text-muted-foreground hover:bg-muted/80 transition-colors">
+                    <MoreVertical size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuSub onOpenChange={loadPlaylists}>
+                    <DropdownMenuSubTrigger className="flex items-center">
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span>Add to Playlist</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {loadingPlaylists ? (
+                          <DropdownMenuItem disabled>
+                            Loading playlists...
+                          </DropdownMenuItem>
+                        ) : playlists.length === 0 ? (
+                          <DropdownMenuItem disabled>
+                            No playlists found
+                          </DropdownMenuItem>
+                        ) : (
+                          playlists.map(playlist => (
+                            <DropdownMenuItem
+                              key={playlist.id}
+                              onClick={() => handleAddToPlaylist(playlist.id)}
+                            >
+                              {playlist.name}
+                            </DropdownMenuItem>
+                          ))
+                        )}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handlePlay}>
+                    {isPlaying ? "Pause" : "Play"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           )}
         </div>
       </div>
