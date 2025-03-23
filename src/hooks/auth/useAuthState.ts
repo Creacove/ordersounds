@@ -20,37 +20,22 @@ export const useAuthState = () => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log("Auth state changed:", event, session);
-        if (event === 'SIGNED_IN' && session) {
+        console.log("Auth state changed:", event, session?.user?.id);
+        
+        if (session?.user) {
           try {
-            const { data: userData, error: userError } = await supabase.auth.getUser();
-            if (userData.user && !userError) {
-              const mappedUser = mapSupabaseUser(userData.user);
-              setUser(mappedUser);
-              setCurrency(mappedUser.default_currency || 'NGN');
-            }
+            const mappedUser = mapSupabaseUser(session.user);
+            setUser(mappedUser);
+            setCurrency(mappedUser.default_currency || 'NGN');
           } catch (error) {
-            console.error("Error processing sign in:", error);
+            console.error("Error processing auth state change:", error);
           } finally {
             setIsLoading(false);
           }
-        } else if (event === 'SIGNED_OUT') {
+        } else if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
           setUser(null);
           setCurrency('NGN');
           setIsLoading(false);
-        } else if (event === 'USER_UPDATED') {
-          try {
-            const { data: userData, error: userError } = await supabase.auth.getUser();
-            if (userData.user && !userError) {
-              const mappedUser = mapSupabaseUser(userData.user);
-              setUser(mappedUser);
-              setCurrency(mappedUser.default_currency || 'NGN');
-            }
-          } catch (error) {
-            console.error("Error processing user update:", error);
-          } finally {
-            setIsLoading(false);
-          }
         }
       }
     );
@@ -62,22 +47,16 @@ export const useAuthState = () => {
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          throw error;
+          console.error("Session check error:", error);
+          setIsLoading(false);
+          return;
         }
         
-        if (data?.session) {
-          console.log("Found existing session:", data.session);
-          const { data: userData, error: userError } = await supabase.auth.getUser();
-          
-          if (userError) {
-            throw userError;
-          }
-          
-          if (userData.user) {
-            const mappedUser = mapSupabaseUser(userData.user);
-            setUser(mappedUser);
-            setCurrency(mappedUser.default_currency || 'NGN');
-          }
+        if (data?.session?.user) {
+          console.log("Found existing session:", data.session.user.id);
+          const mappedUser = mapSupabaseUser(data.session.user);
+          setUser(mappedUser);
+          setCurrency(mappedUser.default_currency || 'NGN');
         }
       } catch (error) {
         console.error('Session check error:', error);
@@ -86,6 +65,7 @@ export const useAuthState = () => {
       }
     };
 
+    // Check session immediately
     checkSession();
 
     return () => {

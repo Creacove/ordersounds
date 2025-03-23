@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, ShoppingCart, User, Bell, LogOut, Settings, MessageSquare, LogIn, UserPlus } from "lucide-react";
@@ -106,7 +107,14 @@ export function Topbar() {
             </Link>
           )}
 
-          {!user ? (
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" disabled className="opacity-50">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-purple-500 border-t-transparent mr-2"></span>
+                Loading...
+              </Button>
+            </div>
+          ) : !user ? (
             <div className="flex items-center gap-2">
               <Link to="/signup">
                 <Button variant="ghost" size="sm" className="flex items-center gap-1 hover:bg-purple-500/10 hover:text-purple-500 transition-colors">
