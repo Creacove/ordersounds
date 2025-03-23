@@ -4,7 +4,7 @@ import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
-import { Play, Pause, Heart, Trash2, MoreVertical } from 'lucide-react';
+import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from 'sonner';
@@ -13,7 +13,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 
 interface BeatListItemProps {
@@ -33,6 +34,7 @@ export function BeatListItem({
 }: BeatListItemProps) {
   const { currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
+  const { addToCart } = useCart();
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
 
@@ -44,6 +46,14 @@ export function BeatListItem({
     e.stopPropagation();
     addToQueue(beat);
     toast.success(`Added "${beat.title}" to queue`);
+  };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isInCart) {
+      addToCart(beat);
+      toast.success(`Added "${beat.title}" to cart`);
+    }
   };
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -62,9 +72,9 @@ export function BeatListItem({
   };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors shadow-sm hover:shadow">
       {/* Thumbnail with play button */}
-      <div className="relative h-16 w-full sm:w-16 flex-shrink-0 overflow-hidden rounded-md">
+      <div className="relative h-16 w-full sm:w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted">
         <img 
           src={beat.cover_image_url || '/placeholder.svg'} 
           alt={beat.title}
@@ -94,15 +104,26 @@ export function BeatListItem({
       
       {/* Action buttons */}
       <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 mt-2 sm:mt-0">
+        {!isInCart && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleAddToCart}
+            className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <ShoppingCart size={18} />
+          </Button>
+        )}
+        
         <Button
           variant="ghost"
           size="icon"
           onClick={handleToggleFavorite}
           className={cn(
-            "rounded-full sm:ml-2",
+            "rounded-full",
             isFavorite 
               ? "text-purple-500 bg-purple-500/10 hover:bg-purple-500/20" 
-              : "text-muted-foreground hover:text-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
         >
           <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
@@ -124,17 +145,29 @@ export function BeatListItem({
             <Button 
               variant="ghost"
               size="icon"
-              className="rounded-full text-muted-foreground hover:text-foreground"
+              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
             >
               <MoreVertical size={18} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={handleAddToQueue}>
-              Add to queue
+            <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer">
+              <Plus className="mr-2 h-4 w-4" />
+              <span>Add to queue</span>
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handlePlay}>
-              {isCurrentlyPlaying ? "Pause" : "Play"}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handlePlay} className="cursor-pointer">
+              {isCurrentlyPlaying ? (
+                <>
+                  <Pause className="mr-2 h-4 w-4" />
+                  <span>Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play className="mr-2 h-4 w-4" />
+                  <span>Play</span>
+                </>
+              )}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
