@@ -30,7 +30,6 @@ export default function UploadBeat() {
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Beat details form state
   const [beatDetails, setBeatDetails] = useState({
     title: "",
     description: "",
@@ -43,7 +42,6 @@ export default function UploadBeat() {
     status: "draft" as "draft" | "published",
   });
 
-  // Collaborators form state
   const [collaborators, setCollaborators] = useState([
     { id: 1, name: user?.name || "", email: user?.email || "", role: "Producer", percentage: 100 }
   ]);
@@ -77,7 +75,6 @@ export default function UploadBeat() {
       const file = e.target.files[0];
       setImageFile(file);
       
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
@@ -121,7 +118,6 @@ export default function UploadBeat() {
       return;
     }
     
-    // Recalculate percentages when removing a collaborator
     const removedCollaborator = collaborators.find(c => c.id === id);
     const remainingCollaborators = collaborators.filter(c => c.id !== id);
     
@@ -147,7 +143,6 @@ export default function UploadBeat() {
   };
 
   const validateForm = () => {
-    // Basic validation
     if (!beatDetails.title) {
       toast.error("Beat title is required");
       return false;
@@ -178,7 +173,6 @@ export default function UploadBeat() {
       return false;
     }
     
-    // Validate sum of collaborator percentages is 100%
     const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
     if (totalPercentage !== 100) {
       toast.error("Collaborator percentages must sum to 100%");
@@ -198,7 +192,6 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
-      // Prepare the beat data
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
@@ -249,7 +242,6 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
-      // Prepare the beat data for draft
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
@@ -757,7 +749,7 @@ export default function UploadBeat() {
                               id={`name-${collaborator.id}`}
                               value={collaborator.name}
                               onChange={(e) => handleCollaboratorChange(collaborator.id, 'name', e.target.value)}
-                              disabled={index === 0} // Primary producer uses logged in user
+                              disabled={index === 0}
                             />
                           </div>
                           <div>
@@ -767,7 +759,7 @@ export default function UploadBeat() {
                               type="email"
                               value={collaborator.email}
                               onChange={(e) => handleCollaboratorChange(collaborator.id, 'email', e.target.value)}
-                              disabled={index === 0} // Primary producer uses logged in user
+                              disabled={index === 0}
                             />
                           </div>
                         </div>
@@ -778,7 +770,7 @@ export default function UploadBeat() {
                             <Select
                               value={collaborator.role}
                               onValueChange={(value) => handleCollaboratorChange(collaborator.id, 'role', value)}
-                              disabled={index === 0} // Primary producer is always "Producer"
+                              disabled={index === 0}
                             >
                               <SelectTrigger id={`role-${collaborator.id}`}>
                                 <SelectValue placeholder="Select role" />

@@ -8,7 +8,17 @@ import { toast } from 'sonner';
  * Uploads a beat with all its associated files and metadata to Supabase
  */
 export const uploadBeat = async (
-  beatData: Omit<Beat, 'id' | 'producer_id' | 'producer_name' | 'created_at' | 'updated_at' | 'favorites_count' | 'purchase_count'>,
+  beatInfo: {
+    title: string;
+    description: string;
+    genre: string;
+    track_type: string;
+    bpm: number;
+    tags: string[];
+    price_local: number;
+    price_diaspora: number;
+    status: 'draft' | 'published';
+  },
   fullTrackFile: File,
   previewFile: File,
   coverImageFile: File,
@@ -35,15 +45,15 @@ export const uploadBeat = async (
       .from('beats')
       .insert({
         producer_id: producerId,
-        title: beatData.title,
-        description: beatData.description,
-        genre: beatData.genre,
-        track_type: beatData.track_type,
-        bpm: beatData.bpm,
-        tags: beatData.tags,
-        price_local: beatData.price_local,
-        price_diaspora: beatData.price_diaspora,
-        status: beatData.status,
+        title: beatInfo.title,
+        description: beatInfo.description,
+        genre: beatInfo.genre,
+        track_type: beatInfo.track_type,
+        bpm: beatInfo.bpm,
+        tags: beatInfo.tags,
+        price_local: beatInfo.price_local,
+        price_diaspora: beatInfo.price_diaspora,
+        status: beatInfo.status,
         cover_image: coverImageUrl,
         audio_preview: previewUrl,
         audio_file: fullTrackUrl,
