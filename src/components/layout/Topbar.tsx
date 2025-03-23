@@ -30,7 +30,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export function Topbar() {
-  const { user, signOut, currency, toggleCurrency } = useAuth();
+  const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
   const { toggleSidebar } = useSidebar() || {};
   const { itemCount } = useCart();
@@ -48,13 +48,17 @@ export function Topbar() {
   }, []);
   
   const handleSignOut = async () => {
-    await signOut();
+    await logout();
     navigate("/login");
   };
   
   const getInitials = (name: string) => {
     if (!name) return "U";
     return name.split(" ").map((n) => n[0]).join("").toUpperCase();
+  };
+  
+  const toggleCurrency = (newCurrency: 'USD' | 'NGN') => {
+    setCurrency(newCurrency);
   };
   
   return (
@@ -153,7 +157,7 @@ export function Topbar() {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={user.avatar_url} alt={user.name} />
                     <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
                 </Button>

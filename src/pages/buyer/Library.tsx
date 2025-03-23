@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +16,7 @@ import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { CreatePlaylistForm } from "@/components/library/CreatePlaylistForm";
 import { useCart } from "@/context/CartContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export default function Library() {
   const location = useLocation();
@@ -59,7 +59,6 @@ export default function Library() {
     return () => window.removeEventListener('resize', handleResize);
   }, [user]);
 
-  // Set initial view mode based on screen size
   useEffect(() => {
     setViewMode(isMobile ? 'list' : 'grid');
   }, [isMobile]);
@@ -76,7 +75,6 @@ export default function Library() {
     setLoadingPlaylists(false);
   };
 
-  // Wrap toggleFavorite to handle the Promise
   const handleToggleFavorite = useCallback((id: string) => {
     toggleFavorite(id);
     return favoriteBeats.some(beat => beat.id === id);
