@@ -25,7 +25,7 @@ export function MainLayout({ children, hideSidebar = false }: MainLayoutProps) {
         {!hideSidebar && <Sidebar />}
         <main 
           className={cn(
-            "flex-1 transition-all duration-300 animate-fade-in",
+            "flex-1 transition-all duration-300 animate-fade-in w-full",
             hideSidebar ? "ml-0" : "ml-0 md:ml-[70px] lg:ml-[240px]" 
           )}
         >

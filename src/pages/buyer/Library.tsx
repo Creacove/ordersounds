@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useAuth } from "@/context/AuthContext";
@@ -156,7 +157,7 @@ export default function Library() {
     }
     
     return viewMode === 'grid' ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {beats.map((beat) => (
           <BeatCard 
             key={beat.id} 
@@ -184,9 +185,9 @@ export default function Library() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container py-8 pb-24 md:pb-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">My Library</h1>
+      <div className="container py-6 pb-24 md:py-8 px-4 sm:px-6">
+        <div className="flex items-center justify-between mb-4 md:mb-6">
+          <h1 className="text-xl md:text-2xl font-bold">My Library</h1>
           
           <Button 
             variant="ghost" 
@@ -209,16 +210,16 @@ export default function Library() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} defaultValue={activeTab} className="w-full">
-          <TabsList className="mb-6 w-full overflow-x-auto flex flex-nowrap justify-start md:justify-center py-1 px-0 bg-transparent border-b rounded-none">
-            <TabsTrigger value="purchased" className="flex-shrink-0 gap-2">
+          <TabsList className="mb-4 md:mb-6 w-full overflow-x-auto flex flex-nowrap justify-start md:justify-center py-1 px-0 bg-transparent border-b rounded-none">
+            <TabsTrigger value="purchased" className="flex-shrink-0 gap-2 text-xs md:text-sm">
               <Music size={16} />
               <span>Purchased</span>
             </TabsTrigger>
-            <TabsTrigger value="favorites" className="flex-shrink-0 gap-2">
+            <TabsTrigger value="favorites" className="flex-shrink-0 gap-2 text-xs md:text-sm">
               <Heart size={16} />
               <span>Favorites</span>
             </TabsTrigger>
-            <TabsTrigger value="playlists" className="flex-shrink-0 gap-2">
+            <TabsTrigger value="playlists" className="flex-shrink-0 gap-2 text-xs md:text-sm">
               <ListMusic size={16} />
               <span>My Playlists</span>
             </TabsTrigger>
@@ -249,15 +250,15 @@ export default function Library() {
           </TabsContent>
 
           <TabsContent value="playlists" className="animate-fade-in">
-            <div className="mb-6 flex justify-between items-center">
-              <h2 className="text-lg font-medium">Your playlists</h2>
+            <div className="mb-4 md:mb-6 flex justify-between items-center">
+              <h2 className="text-base md:text-lg font-medium">Your playlists</h2>
               <Button 
                 size="sm" 
                 className="gap-2"
                 onClick={() => setIsCreatingPlaylist(true)}
               >
                 <PlusCircle size={16} />
-                <span>New Playlist</span>
+                <span className="hidden xs:inline">New Playlist</span>
               </Button>
             </div>
 
@@ -269,7 +270,7 @@ export default function Library() {
             )}
 
             {loadingPlaylists ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="aspect-square w-full rounded-lg" />
