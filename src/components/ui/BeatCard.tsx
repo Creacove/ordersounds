@@ -1,11 +1,12 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
 import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
+import { useCart } from '@/context/CartContext';
 import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical } from 'lucide-react';
+import { toast } from 'sonner';
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +24,7 @@ interface BeatCardProps {
   beat: Beat;
   onPlay?: (id: string) => void;
   onAddToCart?: (beat: Beat) => void;
-  onToggleFavorite?: (id: string) => void; // Changed return type to void
+  onToggleFavorite?: (id: string) => void;
   isFavorite?: boolean;
   isPurchased?: boolean;
   isInCart?: boolean;
@@ -41,7 +42,8 @@ export function BeatCard({
   className,
 }: BeatCardProps) {
   const { user } = useAuth();
-  const { playBeat, isPlaying, currentBeat } = usePlayer();
+  const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
+  const { addToCart } = useCart();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   
@@ -59,8 +61,12 @@ export function BeatCard({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
     if (onAddToCart) {
       onAddToCart(beat);
+    } 
+    else if (!isInCart) {
+      addToCart(beat);
     }
   };
 
@@ -72,18 +78,38 @@ export function BeatCard({
     }
   };
   
+  const handleAddToQueue = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    addToQueue(beat);
+    toast.success(`Added "${beat.title}" to queue`);
+  };
+  
   const loadPlaylists = async () => {
     if (!user || loadingPlaylists) return;
     
     setLoadingPlaylists(true);
-    const userPlaylists = await getUserPlaylists(user.id);
-    setPlaylists(userPlaylists);
-    setLoadingPlaylists(false);
+    try {
+      const userPlaylists = await getUserPlaylists(user.id);
+      setPlaylists(userPlaylists);
+    } catch (error) {
+      console.error('Error loading playlists:', error);
+      toast.error('Failed to load playlists');
+    } finally {
+      setLoadingPlaylists(false);
+    }
   };
   
   const handleAddToPlaylist = async (playlistId: string) => {
     if (!user) return;
-    await addBeatToPlaylist(playlistId, beat.id);
+    
+    try {
+      await addBeatToPlaylist(playlistId, beat.id);
+      toast.success(`Added to playlist`);
+    } catch (error) {
+      console.error('Error adding to playlist:', error);
+      toast.error('Failed to add to playlist');
+    }
   };
 
   return (
@@ -162,6 +188,9 @@ export function BeatCard({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleAddToQueue}>
+                    Add to queue
+                  </DropdownMenuItem>
                   <DropdownMenuSub onOpenChange={loadPlaylists}>
                     <DropdownMenuSubTrigger className="flex items-center">
                       <Plus className="mr-2 h-4 w-4" />

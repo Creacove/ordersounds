@@ -117,7 +117,7 @@ export function Sidebar() {
                 "hover:bg-purple-500/20 hover:text-purple-500",
                 isActive 
                   ? "bg-purple-500/10 text-purple-500 font-medium" 
-                  : "text-sidebar-foreground",
+                  : "text-muted-foreground",
                 isCollapsed ? "justify-center" : ""
               )}
               aria-current={isActive ? "page" : undefined}
@@ -136,6 +136,84 @@ export function Sidebar() {
     );
   };
 
+  // Desktop sidebar
+  const DesktopSidebar = () => (
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out",
+        isCollapsed ? "w-[70px]" : "w-[240px]"
+      )}
+    >
+      <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
+        {/* Section for each navigation group */}
+        {navigationLinks.map((section, index) => (
+          <div key={index} className="mb-6">
+            {!isCollapsed && (
+              <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
+                {section.title}
+              </h2>
+            )}
+            <nav className="flex flex-col gap-1">
+              {section.items.map((item, idx) => (
+                <SidebarItem key={idx} item={item} />
+              ))}
+            </nav>
+          </div>
+        ))}
+      </div>
+
+      {/* Collapse button */}
+      <div className="flex items-center justify-center p-4 border-t">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
+          onClick={toggleSidebar}
+        >
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </Button>
+      </div>
+    </aside>
+  );
+
+  // Mobile bottom navigation
+  const MobileBottomNav = () => (
+    <nav className="fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-sidebar-border py-2 px-1">
+      <div className="flex justify-around">
+        {/* Show only main navigation items on mobile */}
+        {buyerLinks[0].items.slice(0, 5).map((item, idx) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.href;
+          
+          return (
+            <NavLink
+              key={idx}
+              to={item.href}
+              className={({ isActive }) => cn(
+                "flex flex-col items-center justify-center px-2 py-1 rounded-md transition-colors",
+                isActive 
+                  ? "text-purple-500" 
+                  : "text-muted-foreground"
+              )}
+            >
+              <Icon size={20} />
+              <span className="text-[10px] mt-1">{item.title}</span>
+            </NavLink>
+          );
+        })}
+        
+        {/* More button that opens the full sidebar */}
+        <button 
+          onClick={() => setIsOpen(true)}
+          className="flex flex-col items-center justify-center px-2 py-1 rounded-md text-muted-foreground"
+        >
+          <PanelLeft size={20} />
+          <span className="text-[10px] mt-1">More</span>
+        </button>
+      </div>
+    </nav>
+  );
+
   return (
     <>
       {/* Mobile overlay */}
@@ -146,63 +224,64 @@ export function Sidebar() {
         />
       )}
 
-      {/* Mobile toggle button */}
+      {/* Mobile sidebar (slides in from left) */}
       {isMobile && (
-        <Button
-          variant="outline"
-          size="icon"
-          className="fixed left-4 top-20 z-50 rounded-full bg-primary text-primary-foreground shadow-md md:hidden"
-          onClick={toggleSidebar}
-        >
-          <PanelLeft size={18} />
-        </Button>
+        <>
+          <aside
+            className={cn(
+              "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out w-[240px]",
+              isOpen ? "translate-x-0" : "-translate-x-full"
+            )}
+          >
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="font-medium">Menu</h2>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                onClick={() => setIsOpen(false)}
+              >
+                <ChevronLeft size={16} />
+              </Button>
+            </div>
+            
+            <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
+              {navigationLinks.map((section, index) => (
+                <div key={index} className="mb-6">
+                  <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
+                    {section.title}
+                  </h2>
+                  <nav className="flex flex-col gap-1">
+                    {section.items.map((item, idx) => (
+                      <NavLink
+                        key={idx}
+                        to={item.href}
+                        className={({ isActive }) => cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                          "hover:bg-purple-500/20 hover:text-purple-500",
+                          isActive 
+                            ? "bg-purple-500/10 text-purple-500 font-medium" 
+                            : "text-muted-foreground"
+                        )}
+                        onClick={() => setIsOpen(false)}
+                      >
+                        <item.icon size={18} />
+                        <span>{item.title}</span>
+                      </NavLink>
+                    ))}
+                  </nav>
+                </div>
+              ))}
+            </div>
+          </aside>
+          
+          {/* Bottom navigation for mobile */}
+          <MobileBottomNav />
+        </>
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out",
-          isMobile
-            ? isOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
-            : isCollapsed
-            ? "w-[70px]"
-            : "w-[240px]"
-        )}
-      >
-        <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-          {/* Section for each navigation group */}
-          {navigationLinks.map((section, index) => (
-            <div key={index} className="mb-6">
-              {!isCollapsed && (
-                <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
-                  {section.title}
-                </h2>
-              )}
-              <nav className="flex flex-col gap-1">
-                {section.items.map((item, idx) => (
-                  <SidebarItem key={idx} item={item} />
-                ))}
-              </nav>
-            </div>
-          ))}
-        </div>
-
-        {/* Collapse button */}
-        {!isMobile && (
-          <div className="flex items-center justify-center p-4 border-t">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
-              onClick={toggleSidebar}
-            >
-              {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-            </Button>
-          </div>
-        )}
-      </aside>
+      {/* Desktop sidebar */}
+      {!isMobile && <DesktopSidebar />}
     </>
   );
 }

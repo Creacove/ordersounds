@@ -10,7 +10,8 @@ import {
   VolumeX,
   SkipForward,
   SkipBack,
-  ListMusic
+  ListMusic,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -28,12 +29,14 @@ export function PersistentPlayer() {
     setVolume,
     nextTrack,
     previousTrack,
-    queue
+    queue,
+    removeFromQueue,
+    clearQueue
   } = usePlayer();
 
-  // No player if no beat is selected
+  // Player is always rendered but hidden if no beat is selected
   if (!currentBeat) {
-    return null;
+    return <div className="h-0 overflow-hidden" />; // Take no space but always render
   }
 
   const formatTime = (time: number) => {
@@ -50,13 +53,13 @@ export function PersistentPlayer() {
       : Volume2;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex items-center z-50">
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex items-center z-40">
       <div className="container mx-auto flex items-center gap-4">
         {/* Beat info */}
         <div className="flex items-center gap-3 w-1/4">
           <div className="w-12 h-12 rounded overflow-hidden flex-shrink-0">
             <img 
-              src={currentBeat.cover_image_url}
+              src={currentBeat.cover_image_url || '/placeholder.svg'}
               alt={currentBeat.title}
               className="w-full h-full object-cover"
             />
@@ -187,8 +190,18 @@ export function PersistentPlayer() {
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-80 p-0" align="end">
-              <div className="p-2 border-b border-border">
+              <div className="p-2 border-b border-border flex justify-between items-center">
                 <h4 className="font-medium text-sm">Queue ({queue.length})</h4>
+                {queue.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={clearQueue}
+                    className="h-7 text-xs"
+                  >
+                    Clear All
+                  </Button>
+                )}
               </div>
               {queue.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">
@@ -203,7 +216,7 @@ export function PersistentPlayer() {
                     >
                       <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
                         <img 
-                          src={beat.cover_image_url}
+                          src={beat.cover_image_url || '/placeholder.svg'}
                           alt={beat.title}
                           className="w-full h-full object-cover"
                         />
@@ -212,6 +225,14 @@ export function PersistentPlayer() {
                         <p className="text-sm truncate">{beat.title}</p>
                         <p className="text-xs text-muted-foreground truncate">{beat.producer_name}</p>
                       </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 opacity-70 hover:opacity-100" 
+                        onClick={() => removeFromQueue(beat.id)}
+                      >
+                        <X size={14} />
+                      </Button>
                     </div>
                   ))}
                 </div>

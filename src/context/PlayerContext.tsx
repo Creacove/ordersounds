@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Beat } from '@/types';
+import { toast } from 'sonner';
 
 interface PlayerContextType {
   currentBeat: Beat | null;
@@ -56,7 +57,11 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
       audioRef.current.src = currentBeat.preview_url;
       audioRef.current.load();
       if (isPlaying) {
-        audioRef.current.play();
+        audioRef.current.play().catch(error => {
+          console.error('Failed to play audio:', error);
+          setIsPlaying(false);
+          toast.error('Failed to play audio. Try again.');
+        });
       }
     }
   }, [currentBeat]);
@@ -65,6 +70,8 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     setIsPlaying(false);
     if (queue.length > 0) {
       nextTrack();
+    } else {
+      setCurrentTime(0);
     }
   };
 
@@ -84,7 +91,10 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch(error => {
+        console.error('Failed to play audio:', error);
+        toast.error('Failed to play audio. Try again.');
+      });
     }
     setIsPlaying(!isPlaying);
   };
@@ -114,12 +124,20 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const previousTrack = () => {
     if (audioRef.current) {
-      audioRef.current.currentTime = 0;
+      if (currentTime > 3) {
+        // If more than 3 seconds in, just restart the current track
+        audioRef.current.currentTime = 0;
+      } else if (currentBeat) {
+        // Otherwise restart and maintain play state
+        audioRef.current.currentTime = 0;
+        // Could implement history in the future
+      }
     }
   };
 
   const addToQueue = (beat: Beat) => {
     if (queue.some(item => item.id === beat.id) || (currentBeat && currentBeat.id === beat.id)) {
+      toast.info(`"${beat.title}" is already in your queue`);
       return;
     }
     
@@ -128,10 +146,12 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearQueue = () => {
     setQueue([]);
+    toast.success('Queue cleared');
   };
 
   const removeFromQueue = (beatId: string) => {
     setQueue(queue.filter(beat => beat.id !== beatId));
+    toast.success('Removed from queue');
   };
 
   return (
