@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -41,11 +40,11 @@ export function BeatCard({
   className,
 }: BeatCardProps) {
   const { user } = useAuth();
-  const { playBeat, playing, currentBeat } = usePlayer();
+  const { playBeat, isPlaying, currentBeat } = usePlayer();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   
-  const isPlaying = playing && currentBeat?.id === beat.id;
+  const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
 
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -104,7 +103,7 @@ export function BeatCard({
             onClick={handlePlay}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-110"
           >
-            {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+            {isCurrentlyPlaying ? <Pause size={20} /> : <Play size={20} />}
           </button>
         </div>
       </div>
@@ -192,7 +191,7 @@ export function BeatCard({
                   </DropdownMenuSub>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handlePlay}>
-                    {isPlaying ? "Pause" : "Play"}
+                    {isCurrentlyPlaying ? "Pause" : "Play"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

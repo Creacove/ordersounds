@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Beat } from '@/types';
 
@@ -53,7 +52,6 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-    // Update audio source when currentBeat changes
     if (currentBeat && audioRef.current) {
       audioRef.current.src = currentBeat.preview_url;
       audioRef.current.load();
@@ -66,13 +64,11 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   const handleTrackEnd = () => {
     setIsPlaying(false);
     if (queue.length > 0) {
-      // Auto play next track in queue
       nextTrack();
     }
   };
 
   const playBeat = (beat: Beat) => {
-    // If already playing this beat, just toggle play state
     if (currentBeat && currentBeat.id === beat.id) {
       togglePlay();
       return;
@@ -117,14 +113,12 @@ export const PlayerProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const previousTrack = () => {
-    // For simplicity, just restart the current track
     if (audioRef.current) {
       audioRef.current.currentTime = 0;
     }
   };
 
   const addToQueue = (beat: Beat) => {
-    // Don't add duplicates
     if (queue.some(item => item.id === beat.id) || (currentBeat && currentBeat.id === beat.id)) {
       return;
     }

@@ -19,7 +19,7 @@ export const createPlaylist = async (
         name,
         is_public: isPublic,
         beats: [],
-        created_date: new Date().toISOString()
+        created_at: new Date().toISOString()
       })
       .select()
       .single();

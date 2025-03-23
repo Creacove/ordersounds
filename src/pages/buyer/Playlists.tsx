@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { getUserPlaylists, createPlaylist, getPlaylistWithBeats, deletePlaylist, updatePlaylist } from "@/lib/playlistService";
 import { useBeats } from "@/hooks/useBeats";
-import { PersistentPlayer } from "@/components/player/PersistentPlayer";
+import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Playlist, Beat } from "@/types";
 
 export default function Playlists() {
@@ -100,7 +98,6 @@ export default function Playlists() {
   const handlePlayAll = () => {
     if (playlistBeats.length === 0) return;
     
-    // Play the first beat and add the rest to queue
     playBeat(playlistBeats[0]);
   };
 
@@ -109,7 +106,6 @@ export default function Playlists() {
     if (success) {
       setPlaylists(playlists.filter(p => p.id !== id));
       
-      // If the deleted playlist was the selected one, clear selection
       if (selectedPlaylist && selectedPlaylist.id === id) {
         setSelectedPlaylist(null);
         setPlaylistBeats([]);
@@ -134,14 +130,12 @@ export default function Playlists() {
     
     const success = await updatePlaylist(selectedPlaylist.id, updates);
     if (success) {
-      // Update playlists state
       setPlaylists(playlists.map(p => 
         p.id === selectedPlaylist.id
           ? { ...p, ...updates }
           : p
       ));
       
-      // Update selected playlist if needed
       if (selectedPlaylist) {
         setSelectedPlaylist({
           ...selectedPlaylist,
@@ -154,7 +148,7 @@ export default function Playlists() {
   };
 
   return (
-    <MainLayout>
+    <MainLayoutWithPlayer>
       <div className="container py-8">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold">Playlists</h1>
@@ -208,7 +202,6 @@ export default function Playlists() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Playlists Sidebar */}
           <div className="lg:col-span-1 space-y-4">
             <div className="bg-card rounded-lg p-4 border border-border">
               <h2 className="font-semibold mb-3">Your Playlists</h2>
@@ -278,7 +271,6 @@ export default function Playlists() {
             </div>
           </div>
           
-          {/* Playlist Content */}
           <div className="lg:col-span-3">
             {selectedPlaylist ? (
               <div className="bg-card rounded-lg p-6 border border-border">
@@ -413,7 +405,6 @@ export default function Playlists() {
         </div>
       </div>
       
-      {/* Edit Playlist Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -451,8 +442,6 @@ export default function Playlists() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      <PersistentPlayer />
-    </MainLayout>
+    </MainLayoutWithPlayer>
   );
 }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserPlaylists, createPlaylist } from "@/lib/playlistService";
-import { PersistentPlayer } from "@/components/player/PersistentPlayer";
+import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Playlist } from "@/types";
 
 export default function Library() {
@@ -27,7 +26,6 @@ export default function Library() {
   const favoriteBeats = getUserFavoriteBeats();
   const purchasedBeats = getUserPurchasedBeats();
   
-  // Get tab from URL path
   const getDefaultTab = () => {
     if (location.pathname === "/favorites") return "favorites";
     if (location.pathname === "/purchased") return "purchased";
@@ -38,7 +36,6 @@ export default function Library() {
   const [activeTab, setActiveTab] = useState(getDefaultTab());
   
   useEffect(() => {
-    // Update the tab when the URL changes
     setActiveTab(getDefaultTab());
   }, [location.pathname]);
   
@@ -76,7 +73,6 @@ export default function Library() {
   const handleTabChange = (value: string) => {
     setActiveTab(value);
     
-    // Update URL to match the tab
     if (value === "favorites") navigate("/favorites");
     else if (value === "purchased") navigate("/purchased");
     else if (value === "playlists") navigate("/my-playlists");
@@ -84,6 +80,11 @@ export default function Library() {
   
   const handleViewPlaylist = (playlistId: string) => {
     navigate(`/playlists?id=${playlistId}`);
+  };
+
+  const handleToggleFavorite = (id: string): boolean => {
+    toggleFavorite(id);
+    return !favoriteBeats.some(beat => beat.id === id);
   };
 
   if (!user) {
@@ -103,7 +104,7 @@ export default function Library() {
   }
 
   return (
-    <MainLayout>
+    <MainLayoutWithPlayer>
       <div className="container py-8">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold">My Library</h1>
@@ -194,7 +195,7 @@ export default function Library() {
                   <BeatCard 
                     key={beat.id} 
                     beat={beat} 
-                    onToggleFavorite={toggleFavorite}
+                    onToggleFavorite={handleToggleFavorite}
                     isFavorite={true}
                     isPurchased={purchasedBeats.some(b => b.id === beat.id)}
                   />
@@ -282,8 +283,6 @@ export default function Library() {
           </TabsContent>
         </Tabs>
       </div>
-      
-      <PersistentPlayer />
-    </MainLayout>
+    </MainLayoutWithPlayer>
   );
 }
