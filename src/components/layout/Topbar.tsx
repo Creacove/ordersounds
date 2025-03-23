@@ -10,7 +10,6 @@ import {
   X,
   LogOut,
   Settings,
-  PanelLeft,
   Heart,
   Music2,
   MessageSquare,
@@ -23,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import { useSidebar } from "@/components/ui/sidebar";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -49,8 +47,6 @@ export function Topbar() {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const sidebarContext = useSidebar();
-  const toggleSidebar = sidebarContext?.toggleSidebar;
   const { itemCount } = useCart();
   const isMobile = useIsMobile();
   
@@ -92,20 +88,8 @@ export function Topbar() {
       )}
     >
       <div className="container flex items-center justify-between h-16 py-2">
-        {/* Logo and sidebar toggle */}
-        <div className="flex items-center gap-2">
-          {toggleSidebar && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="md:hidden" 
-              onClick={toggleSidebar}
-            >
-              <PanelLeft size={20} />
-              <span className="sr-only">Toggle sidebar</span>
-            </Button>
-          )}
-          
+        {/* Logo */}
+        <div className="flex items-center gap-2">          
           <Link to="/" className="flex items-center gap-2">
             <Headphones size={24} className="text-purple-600" />
             <span className="font-heading font-bold text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text">OrderSOUNDS</span>

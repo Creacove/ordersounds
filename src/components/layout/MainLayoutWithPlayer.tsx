@@ -26,7 +26,7 @@ export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlay
   return (
     <div className={cn(
       "flex min-h-screen flex-col w-full",
-      hasPlayer && isMobile ? "pb-32" : "",
+      hasPlayer && isMobile ? "pb-32" : hasPlayer ? "pb-24" : "",
       className
     )}>
       <Topbar />
@@ -37,7 +37,7 @@ export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlay
         <main className={cn(
           "flex-1 pl-0 md:pl-[70px] transition-all duration-300 w-full", 
           isMobile ? "" : "lg:pl-[240px]",
-          hasPlayer && isMobile ? "pb-24" : "",
+          hasPlayer && isMobile ? "pb-24" : hasPlayer ? "pb-20" : "",
           "animate-fade-in"
         )}>
           {children}
