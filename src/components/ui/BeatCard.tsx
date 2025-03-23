@@ -20,6 +20,8 @@ import {
   DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
 import { getUserPlaylists, addBeatToPlaylist } from '@/lib/playlistService';
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 interface BeatCardProps {
   beat: Beat;
@@ -47,6 +49,7 @@ export function BeatCard({
   const { addToCart } = useCart();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const navigate = useNavigate();
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
 
@@ -68,14 +71,22 @@ export function BeatCard({
     } 
     else if (!isInCart) {
       addToCart(beat);
+      toast.success(`Added "${beat.title}" to cart`);
     }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (!user) {
+      toast.error('Please log in to add favorites');
+      return;
+    }
+    
     if (onToggleFavorite) {
       onToggleFavorite(beat.id);
+      toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
     }
   };
   
@@ -113,6 +124,12 @@ export function BeatCard({
     }
   };
 
+  const goToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigate('/cart');
+  };
+
   return (
     <div
       className={cn(
@@ -142,7 +159,7 @@ export function BeatCard({
       {/* Beat info and action buttons - separate from the play overlay */}
       <div className="flex flex-col space-y-2 p-4">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1 mr-2">
             <h3 className="font-semibold leading-none tracking-tight truncate">
               {beat.title}
             </h3>
@@ -157,44 +174,64 @@ export function BeatCard({
 
         <div className="flex items-center gap-2 pt-2">
           {!isPurchased && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={handleAddToCart}
               disabled={isInCart}
               className={cn(
-                "flex h-8 items-center gap-1 rounded-md px-2 text-xs font-medium transition-colors",
+                "h-8 w-8 rounded-md",
                 isInCart
                   ? "bg-primary/10 text-primary"
                   : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
               )}
+              title={isInCart ? "In Cart" : "Add to Cart"}
             >
-              <ShoppingCart size={14} />
-              {isInCart ? "In Cart" : "Add to Cart"}
-            </button>
+              <ShoppingCart size={16} />
+            </Button>
+          )}
+
+          {isInCart && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={goToCart}
+              className="h-8 w-8 rounded-md bg-primary/20 text-primary hover:bg-primary/30"
+              title="Go to Cart"
+            >
+              <ShoppingCart size={16} />
+            </Button>
           )}
 
           {user && (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={handleToggleFavorite}
                 aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
                 className={cn(
-                  "flex h-8 w-8 items-center justify-center rounded-md transition-colors",
+                  "h-8 w-8 rounded-md transition-colors",
                   isFavorite
-                    ? "bg-red-500/20 text-red-500"
+                    ? "bg-red-500/20 text-red-500 hover:bg-red-500/30"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
                 )}
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
-                <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
-              </button>
+                <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
+              </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button 
-                    className="flex h-8 w-8 items-center justify-center rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+                  <Button 
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
                     aria-label="More options"
+                    title="More options"
                   >
-                    <MoreVertical size={14} />
-                  </button>
+                    <MoreVertical size={16} />
+                  </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
                   <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer">
