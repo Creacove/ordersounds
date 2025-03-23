@@ -15,23 +15,6 @@ export const uploadFile = async (
   path = ''
 ): Promise<string> => {
   try {
-    // Ensure the bucket exists before uploading - this is a safety check
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const bucketExists = buckets?.some(b => b.name === bucket);
-    
-    if (!bucketExists) {
-      console.warn(`Bucket ${bucket} doesn't exist. Attempting to create it...`);
-      // Try to create the bucket if it doesn't exist
-      const { error: createError } = await supabase.storage.createBucket(bucket, {
-        public: true
-      });
-      
-      if (createError) {
-        console.error(`Failed to create bucket ${bucket}:`, createError);
-        throw new Error(`Failed to create storage bucket: ${createError.message}`);
-      }
-    }
-    
     // Generate a unique filename to prevent collisions
     const fileExt = file.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;

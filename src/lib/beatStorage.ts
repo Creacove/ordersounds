@@ -34,13 +34,18 @@ export const uploadBeat = async (
 ): Promise<{success: boolean; beatId?: string; error?: string}> => {
   try {
     // Step 1: Upload all files to storage
-    const [coverImageUrl, previewUrl, fullTrackUrl] = await Promise.all([
+    console.log('Uploading files to storage...');
+    const uploadPromises = [
       uploadFile(coverImageFile, 'covers', 'beats'),
       uploadFile(previewFile, 'beats', 'previews'),
       uploadFile(fullTrackFile, 'beats', 'full-tracks')
-    ]);
+    ];
+    
+    const [coverImageUrl, previewUrl, fullTrackUrl] = await Promise.all(uploadPromises);
+    console.log('Files uploaded successfully:', { coverImageUrl, previewUrl, fullTrackUrl });
 
     // Step 2: Insert beat record into database
+    console.log('Inserting beat record into database...');
     const { data: beatRecord, error: beatError } = await supabase
       .from('beats')
       .insert({
@@ -65,18 +70,21 @@ export const uploadBeat = async (
       .single();
 
     if (beatError) {
+      console.error('Error inserting beat record:', beatError);
       throw new Error(`Error inserting beat: ${beatError.message}`);
     }
 
     const beatId = beatRecord.id;
+    console.log('Beat record inserted successfully:', beatId);
 
     // Step 3: Insert royalty splits if there are collaborators
     if (collaborators.length > 0) {
+      console.log('Inserting royalty splits...');
       const royaltySplits = collaborators.map(collaborator => ({
         beat_id: beatId,
         party_id: collaborator.id === 1 ? producerId : null, // Main producer uses their ID
-        party_email: collaborator.id !== 1 ? collaborator.email : null, // Collaborators use email for now
         party_name: collaborator.name,
+        party_email: collaborator.id !== 1 ? collaborator.email : null, // Collaborators use email for now
         party_role: collaborator.role,
         percentage: collaborator.percentage,
       }));
@@ -88,6 +96,9 @@ export const uploadBeat = async (
       if (royaltyError) {
         console.error('Error inserting royalty splits:', royaltyError);
         // Don't throw here, we can still consider the beat uploaded
+        toast.warning('Beat uploaded, but there was an issue with royalty splits');
+      } else {
+        console.log('Royalty splits inserted successfully');
       }
     }
 
