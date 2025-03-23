@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -33,7 +32,6 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-// Define interface for mobile menu items
 interface MobileMenuItem {
   icon: React.ReactNode;
   label: string;
@@ -66,7 +64,6 @@ export function Sidebar() {
       setIsOpen(false);
     }
     
-    // Set active bottom tab based on current path
     const path = location.pathname;
     if (path === "/") setActiveBottomTab("home");
     else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
@@ -90,14 +87,10 @@ export function Sidebar() {
     }
   };
 
-  // Generate mobile menu content based on user role
   const getSidebarContent = () => {
-    // Base sections for all users
     const sections = [];
-    
-    // Add different primary sections based on user role
+
     if (user?.role === "producer") {
-      // For producers, prioritize producer functions first
       sections.push({
         title: "Producer",
         items: [
@@ -107,8 +100,7 @@ export function Sidebar() {
           { icon: Settings, title: "Settings", href: "/producer/settings" },
         ]
       });
-      
-      // Add relevant buyer functions secondary (simplified)
+
       sections.push({
         title: "Marketplace",
         items: [
@@ -119,7 +111,6 @@ export function Sidebar() {
         ]
       });
     } else {
-      // Regular buyer navigation - Explore section
       sections.push({ 
         title: "Explore Beats", 
         items: [
@@ -131,8 +122,7 @@ export function Sidebar() {
           { icon: Search, title: "Search", href: "/search" },
         ]
       });
-      
-      // Library section
+
       sections.push({ 
         title: "Library", 
         items: [
@@ -142,8 +132,7 @@ export function Sidebar() {
         ]
       });
     }
-    
-    // Add user section for all users
+
     if (user) {
       sections.push({
         title: "Account",
@@ -154,17 +143,14 @@ export function Sidebar() {
         ]
       });
     }
-    
+
     return sections;
   };
 
-  // Mobile bottom navigation with role-specific options
   const MobileBottomNav = () => {
-    // Primary mobile menu items based on user role
     let mobileMenuItems: MobileMenuItem[] = [];
-    
+
     if (user?.role === "producer") {
-      // Producer-specific mobile menu
       mobileMenuItems = [
         { icon: <LayoutDashboard size={20} />, label: "Dashboard", to: "/producer/dashboard", id: "producer" },
         { icon: <Music size={20} />, label: "My Beats", to: "/producer/beats", id: "beats" },
@@ -173,7 +159,6 @@ export function Sidebar() {
         { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
       ];
     } else {
-      // Buyer mobile menu - fixed items to prevent blinking
       mobileMenuItems = [
         { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
         { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
@@ -252,7 +237,6 @@ export function Sidebar() {
     );
   };
 
-  // Desktop sidebar using the same content structure as mobile
   const DesktopSidebar = () => (
     <aside
       className={cn(
@@ -261,7 +245,6 @@ export function Sidebar() {
       )}
     >
       <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-        {/* Use the same content structure as mobile */}
         {getSidebarContent().map((section, index) => (
           <div key={index} className="mb-6">
             {!isCollapsed && (
@@ -340,7 +323,6 @@ export function Sidebar() {
         ))}
       </div>
 
-      {/* Collapse button */}
       <div className="flex items-center justify-center p-4 border-t">
         <Button
           variant="ghost"
@@ -356,7 +338,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile overlay */}
       {isMobile && isOpen && (
         <div 
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
@@ -364,7 +345,6 @@ export function Sidebar() {
         />
       )}
 
-      {/* Mobile sidebar (slides in from left) */}
       {isMobile && (
         <>
           <aside
@@ -437,14 +417,11 @@ export function Sidebar() {
             </div>
           </aside>
           
-          {/* Bottom navigation for mobile */}
           <MobileBottomNav />
         </>
       )}
 
-      {/* Desktop sidebar */}
       {!isMobile && <DesktopSidebar />}
     </>
   );
 }
-

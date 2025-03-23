@@ -35,8 +35,9 @@ export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlay
         <Sidebar />
         
         <main className={cn(
-          "flex-1 pl-0 md:pl-[70px] transition-all duration-300 w-full", 
-          isMobile ? "" : "lg:pl-[240px]",
+          "flex-1 transition-all duration-300 w-full", 
+          // Increase left padding to prevent overlap with the app name in topbar
+          isMobile ? "pl-0" : "pl-[240px]",
           hasPlayer && isMobile ? "pb-24" : hasPlayer ? "pb-20" : "",
           "animate-fade-in"
         )}>
