@@ -90,7 +90,7 @@ export function Topbar() {
         <div className="flex items-center gap-2 md:gap-4 ml-auto">
           {/* Auth Status Indicator */}
           <div className="hidden md:flex items-center mr-2">
-            <Badge variant={user ? "success" : "secondary"} className="px-2 py-1">
+            <Badge variant={user ? "default" : "secondary"} className="px-2 py-1">
               {isLoading ? "Loading..." : user ? "Signed In" : "Signed Out"}
             </Badge>
           </div>
@@ -196,4 +196,3 @@ export function Topbar() {
       </div>
     </header>
   );
-}
