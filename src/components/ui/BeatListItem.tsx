@@ -139,12 +139,12 @@ export function BeatListItem({
           </DropdownMenuContent>
         </DropdownMenu>
         
-        <div className="ml-2 font-medium">
-          {currency === 'NGN' ? (
-            <span>₦{beat.price_local.toLocaleString()}</span>
-          ) : (
-            <span>${beat.price_diaspora.toLocaleString()}</span>
-          )}
+        <div className="ml-2 shrink-0 font-medium whitespace-nowrap">
+          <PriceTag
+            localPrice={beat.price_local}
+            diasporaPrice={beat.price_diaspora}
+            size="sm"
+          />
         </div>
       </div>
     </div>

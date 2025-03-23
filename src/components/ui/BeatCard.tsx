@@ -160,8 +160,8 @@ export function BeatCard({
       {/* Beat info and action buttons - separate from the play overlay */}
       <div className="flex flex-col space-y-2 p-4">
         <div className="flex items-start justify-between">
-          <div className="flex-1 mr-2">
-            <h3 className="font-semibold leading-none tracking-tight truncate">
+          <div className="flex-1 mr-2 min-w-0">
+            <h3 className="font-semibold leading-tight tracking-tight truncate">
               {beat.title}
             </h3>
             <p className="text-sm text-muted-foreground truncate">{beat.producer_name}</p>
@@ -170,11 +170,12 @@ export function BeatCard({
             localPrice={beat.price_local}
             diasporaPrice={beat.price_diaspora}
             size="sm"
+            className="shrink-0" 
           />
         </div>
 
         <div className="flex items-center gap-2 pt-2">
-          {!isPurchased && (
+          {!isPurchased && !inCart && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -182,19 +183,13 @@ export function BeatCard({
                     variant="ghost"
                     size="icon"
                     onClick={handleAddToCart}
-                    disabled={inCart}
-                    className={cn(
-                      "h-8 w-8 rounded-md",
-                      inCart
-                        ? "bg-primary/10 text-primary"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                    )}
+                    className="h-8 w-8 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
                   >
                     <ShoppingCart size={16} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {inCart ? "In Cart" : "Add to Cart"}
+                  Add to Cart
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

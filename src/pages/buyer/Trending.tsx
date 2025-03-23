@@ -6,10 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 
 export default function Trending() {
-  const { trendingBeats, isLoading } = useBeats();
+  const { trendingBeats, isLoading, toggleFavorite, isFavorite, isInCart, isPurchased } = useBeats();
   
   useEffect(() => {
-    document.title = "Trending Beats | Creacove";
+    document.title = "Trending Beats | OrderSOUNDS";
   }, []);
 
   return (
@@ -30,7 +30,14 @@ export default function Trending() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {trendingBeats.map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
+              <BeatCard 
+                key={beat.id} 
+                beat={beat} 
+                onToggleFavorite={toggleFavorite}
+                isFavorite={isFavorite(beat.id)}
+                isInCart={isInCart(beat.id)}
+                isPurchased={isPurchased(beat.id)}
+              />
             ))}
           </div>
         )}

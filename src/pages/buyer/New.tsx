@@ -6,10 +6,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 
 export default function New() {
-  const { newBeats, isLoading } = useBeats();
+  const { newBeats, isLoading, toggleFavorite, isFavorite, isInCart, isPurchased } = useBeats();
   
   useEffect(() => {
-    document.title = "New Beats | Creacove";
+    document.title = "New Beats | OrderSOUNDS";
   }, []);
 
   return (
@@ -30,7 +30,14 @@ export default function New() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {newBeats.map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
+              <BeatCard 
+                key={beat.id} 
+                beat={beat}
+                onToggleFavorite={toggleFavorite}
+                isFavorite={isFavorite(beat.id)}
+                isInCart={isInCart(beat.id)}
+                isPurchased={isPurchased(beat.id)}
+              />
             ))}
           </div>
         )}
