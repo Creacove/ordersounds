@@ -53,7 +53,7 @@ export function PersistentPlayer() {
       : Volume2;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-3 md:p-4 flex items-center z-50 shadow-lg">
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-3 md:p-4 flex items-center z-40 shadow-lg">
       <div className="container mx-auto flex items-center gap-2 md:gap-4">
         {/* Beat info */}
         <div className="flex items-center gap-2 md:gap-3 w-1/4 min-w-[100px]">

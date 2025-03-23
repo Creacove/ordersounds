@@ -29,7 +29,7 @@ import { usePlayer } from "@/context/PlayerContext";
 export function Sidebar() {
   const { user } = useAuth();
   const location = useLocation();
-  const { isPlaying } = usePlayer();
+  const { isPlaying, currentBeat } = usePlayer();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -182,7 +182,6 @@ export function Sidebar() {
   const MobileBottomNav = () => (
     <nav className={cn(
       "fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-sidebar-border py-2 px-1",
-      isPlaying ? "pb-16" : ""  // Add padding when a track is playing
     )}>
       <div className="flex justify-around">
         {/* Show only main navigation items on mobile */}
@@ -278,9 +277,6 @@ export function Sidebar() {
                 </div>
               ))}
             </div>
-            
-            {/* Add padding at the bottom when player is active */}
-            {isPlaying && <div className="h-16" />}
           </aside>
           
           {/* Bottom navigation for mobile */}
