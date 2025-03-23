@@ -186,7 +186,7 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold">Trending Beats</h2>
                 <div className="bg-rose-500/10 text-rose-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <Fire size={12} />
+                  <Flame size={12} />
                   <span>Hot</span>
                 </div>
               </div>
