@@ -32,7 +32,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 export function Topbar() {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
-  const { toggleSidebar } = useSidebar() || {};
+  const sidebarContext = useSidebar();
+  const toggleSidebar = sidebarContext?.toggleSidebar;
   const { itemCount } = useCart();
   const isMobile = useIsMobile();
   

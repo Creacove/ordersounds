@@ -19,7 +19,7 @@ export function MainLayout({ children, hideSidebar = false }: MainLayoutProps) {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col w-full">
       <Topbar />
       <div className="flex flex-1">
         {!hideSidebar && <Sidebar />}

@@ -18,7 +18,7 @@ export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlay
   
   return (
     <div className={cn(
-      "flex min-h-screen flex-col",
+      "flex min-h-screen flex-col w-full",
       hasPlayer && isMobile ? "has-player pb-32" : "",
       className
     )}>
