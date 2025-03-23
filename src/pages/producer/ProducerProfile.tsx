@@ -15,7 +15,7 @@ import { BeatCard } from "@/components/ui/BeatCard";
 
 export default function ProducerProfile() {
   const { producerId } = useParams<{ producerId: string }>();
-  const { allBeats, isLoading: isLoadingBeats } = useBeats();
+  const { beats, isLoading: isLoadingBeats } = useBeats();
   const { playBeat } = usePlayer();
   const [producer, setProducer] = useState<Partial<User> | null>(null);
   const [producerBeats, setProducerBeats] = useState<Beat[]>([]);
@@ -63,11 +63,11 @@ export default function ProducerProfile() {
 
   useEffect(() => {
     // Filter beats by this producer once we have both the producer and all beats
-    if (producerId && allBeats.length > 0) {
-      const beats = allBeats.filter(beat => beat.producer_id === producerId);
-      setProducerBeats(beats);
+    if (producerId && beats.length > 0) {
+      const filteredBeats = beats.filter(beat => beat.producer_id === producerId);
+      setProducerBeats(filteredBeats);
     }
-  }, [producerId, allBeats]);
+  }, [producerId, beats]);
 
   return (
     <MainLayoutWithPlayer>
