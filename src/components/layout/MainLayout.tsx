@@ -1,37 +1,37 @@
 
-import React, { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Topbar } from "./Topbar";
-import Sidebar from "./Sidebar";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Sidebar } from "./Sidebar";
+import { useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 interface MainLayoutProps {
   children: React.ReactNode;
   hideSidebar?: boolean;
 }
 
-export const MainLayout: React.FC<MainLayoutProps> = ({ children, hideSidebar = false }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const isMobile = useIsMobile();
+export function MainLayout({ children, hideSidebar = false }: MainLayoutProps) {
+  const location = useLocation();
 
+  // Smooth scroll to top on route change
   useEffect(() => {
-    if (!isMobile) {
-      setSidebarOpen(false);
-    }
-  }, [isMobile]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [location.pathname]);
 
   return (
-    <div className="h-screen flex flex-col">
-      <Topbar setSidebarOpen={setSidebarOpen} hideLogo={!hideSidebar} />
-      
-      <div className="flex-1 flex overflow-hidden">
+    <div className="min-h-screen flex flex-col w-full">
+      <Topbar />
+      <div className="flex flex-1">
         {!hideSidebar && <Sidebar />}
-        
-        <main className="flex-1 overflow-y-auto">
+        <main 
+          className={cn(
+            "flex-1 transition-all duration-300 animate-fade-in w-full",
+            hideSidebar ? "ml-0" : "ml-0 md:ml-[70px] lg:ml-[240px]" 
+          )}
+        >
           {children}
         </main>
       </div>
     </div>
   );
-};
-
-export default MainLayout;
+}
