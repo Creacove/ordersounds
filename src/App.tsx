@@ -21,6 +21,7 @@ import Genres from "./pages/buyer/Genres";
 import Producers from "./pages/buyer/Producers";
 import Charts from "./pages/buyer/Charts";
 import Orders from "./pages/buyer/Orders";
+import Cart from "./pages/buyer/Cart";
 import Settings from "./pages/user/Settings";
 import Contact from "./pages/Contact";
 import BuyerProfile from "./pages/buyer/BuyerProfile";
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/producers" element={<Producers />} />
                 <Route path="/charts" element={<Charts />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/cart" element={<Cart />} />
                 
                 {/* Profile Routes */}
                 <Route path="/buyer/:buyerId" element={<BuyerProfile />} />

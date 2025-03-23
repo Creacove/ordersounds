@@ -213,7 +213,7 @@ export function BeatCard({
                 className={cn(
                   "h-8 w-8 rounded-md transition-colors",
                   isFavorite
-                    ? "bg-red-500/20 text-red-500 hover:bg-red-500/30"
+                    ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
                 )}
                 title={isFavorite ? "Remove from favorites" : "Add to favorites"}
