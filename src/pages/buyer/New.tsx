@@ -4,9 +4,11 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { useBeats } from "@/hooks/useBeats";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
+import { useCart } from "@/context/CartContext";
 
 export default function New() {
-  const { newBeats, isLoading, toggleFavorite, isFavorite, isInCart, isPurchased } = useBeats();
+  const { newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
+  const { isInCart } = useCart();
   
   useEffect(() => {
     document.title = "New Beats | OrderSOUNDS";
