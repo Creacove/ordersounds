@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -33,7 +34,7 @@ export interface Beat {
   purchase_count: number;
   status: 'draft' | 'published';
   is_featured?: boolean;
-  license_type?: string;
+  license_type?: 'basic' | 'premium' | 'exclusive' | string;
   license_terms?: string;
 }
 

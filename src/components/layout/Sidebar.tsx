@@ -21,7 +21,8 @@ import {
   Grip,
   ShoppingCart,
   User,
-  MoreHorizontal
+  MoreHorizontal,
+  LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -29,7 +30,6 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
-import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // Define interface for mobile menu items
@@ -43,7 +43,7 @@ interface MobileMenuItem {
 }
 
 export function Sidebar() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
   const { isPlaying, currentBeat } = usePlayer();
@@ -72,10 +72,14 @@ export function Sidebar() {
     else if (path === "/trending") setActiveBottomTab("trending");
     else if (path === "/favorites") setActiveBottomTab("favorites");
     else if (path === "/cart") setActiveBottomTab("cart");
-    else if (path.includes("/my-playlists") || path.includes("/purchased")) setActiveBottomTab("more");
     else if (path.includes("/producer/")) setActiveBottomTab("producer");
+    else if (path.includes("/my-playlists") || path.includes("/purchased")) setActiveBottomTab("more");
     else setActiveBottomTab("");
   }, [location.pathname, isMobile]);
+
+  const handleSignOut = () => {
+    signOut && signOut();
+  };
 
   const toggleSidebar = () => {
     if (isMobile) {
@@ -124,7 +128,7 @@ export function Sidebar() {
     }
   ];
 
-  // Choose navigation based on user role or include both if user is producer
+  // Choose navigation based on user role
   const navigationLinks = user?.role === "producer" 
     ? [...producerLinks, ...buyerLinks]  // If producer, show both producer and buyer links
     : buyerLinks;  // If not producer (or not logged in), show only buyer links
@@ -203,25 +207,29 @@ export function Sidebar() {
     </aside>
   );
 
-  // Mobile bottom navigation with all essential options
+  // Mobile bottom navigation with role-specific options
   const MobileBottomNav = () => {
-    // Primary mobile menu items that should always be visible
-    let mobileMenuItems: MobileMenuItem[] = [
-      { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
-      { icon: <Disc size={20} />, label: "Discover", to: "/genres", id: "discover" },
-      { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
-      { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
-      { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
-    ];
+    // Primary mobile menu items based on user role
+    let mobileMenuItems: MobileMenuItem[] = [];
     
-    // Add producer tab for producer users
     if (user?.role === "producer") {
-      mobileMenuItems.push({ 
-        icon: <LayoutDashboard size={20} />, 
-        label: "Producer", 
-        to: "/producer/dashboard", 
-        id: "producer" 
-      });
+      // Producer-specific mobile menu
+      mobileMenuItems = [
+        { icon: <LayoutDashboard size={20} />, label: "Dashboard", to: "/producer/dashboard", id: "producer" },
+        { icon: <Music size={20} />, label: "My Beats", to: "/producer/beats", id: "beats" },
+        { icon: <Upload size={20} />, label: "Upload", to: "/producer/upload", id: "upload" },
+        { icon: <DollarSign size={20} />, label: "Royalties", to: "/producer/royalties", id: "royalties" },
+        { icon: <Home size={20} />, label: "Explore", to: "/", id: "home" },
+      ];
+    } else {
+      // Buyer mobile menu
+      mobileMenuItems = [
+        { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
+        { icon: <Disc size={20} />, label: "Discover", to: "/genres", id: "discover" },
+        { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
+        { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
+        { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
+      ];
     }
     
     // Always add More tab as the last item
@@ -234,10 +242,9 @@ export function Sidebar() {
     });
 
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1 animate-fade-in">
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
-            // For the "More" button, use a button instead of a link
             const isActive = activeBottomTab === item.id;
             
             if (item.action) {
@@ -303,6 +310,57 @@ export function Sidebar() {
     );
   };
 
+  // Generate mobile menu content based on user role
+  const getMobileMenuContent = () => {
+    // Base sections for all users
+    const sections = [];
+    
+    // Add different primary sections based on user role
+    if (user?.role === "producer") {
+      // For producers, prioritize producer functions first
+      sections.push({
+        title: "Producer",
+        items: [
+          { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
+          { icon: Music, title: "My Beats", href: "/producer/beats" },
+          { icon: Upload, title: "Upload Beat", href: "/producer/upload" },
+          { icon: DollarSign, title: "Royalty Splits", href: "/producer/royalties" },
+          { icon: Settings, title: "Settings", href: "/producer/settings" },
+        ]
+      });
+      
+      // Add relevant buyer functions secondary (simplified)
+      sections.push({
+        title: "Marketplace",
+        items: [
+          { icon: Home, title: "Explore", href: "/" },
+          { icon: TrendingUp, title: "Trending", href: "/trending" },
+          { icon: Heart, title: "Favorites", href: "/favorites" },
+          { icon: ShoppingCart, title: "Cart", href: "/cart" },
+        ]
+      });
+    } else {
+      // Regular buyer navigation
+      navigationLinks.forEach(section => {
+        sections.push(section);
+      });
+    }
+    
+    // Add user section for all users
+    if (user) {
+      sections.push({
+        title: "Account",
+        items: [
+          { icon: User, title: "Profile", href: user.role === "producer" ? `/producer/${user.id}` : `/buyer/${user.id}` },
+          { icon: Settings, title: "Settings", href: "/settings" },
+          { icon: LogOut, title: "Sign Out", href: "#", onClick: handleSignOut },
+        ]
+      });
+    }
+    
+    return sections;
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -323,7 +381,9 @@ export function Sidebar() {
             )}
           >
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="font-medium">OrderSOUNDS Menu</h2>
+              <h2 className="font-medium">
+                {user?.role === "producer" ? "Producer Menu" : "OrderSOUNDS Menu"}
+              </h2>
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -335,71 +395,50 @@ export function Sidebar() {
             </div>
             
             <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-              {navigationLinks.map((section, index) => (
+              {getMobileMenuContent().map((section, index) => (
                 <div key={index} className="mb-6">
                   <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
                     {section.title}
                   </h2>
                   <nav className="flex flex-col gap-1">
                     {section.items.map((item, idx) => (
-                      <NavLink
-                        key={idx}
-                        to={item.href}
-                        className={({ isActive }) => cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                          "hover:bg-purple-500/20 hover:text-purple-500",
-                          isActive 
-                            ? "bg-purple-500/10 text-purple-500 font-medium" 
-                            : "text-muted-foreground"
-                        )}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        <item.icon size={18} />
-                        <span>{item.title}</span>
-                      </NavLink>
+                      item.onClick ? (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            item.onClick && item.onClick();
+                            setIsOpen(false);
+                          }}
+                          className={cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 text-left",
+                            "hover:bg-purple-500/20 hover:text-purple-500",
+                            "text-muted-foreground"
+                          )}
+                        >
+                          <item.icon size={18} />
+                          <span>{item.title}</span>
+                        </button>
+                      ) : (
+                        <NavLink
+                          key={idx}
+                          to={item.href}
+                          className={({ isActive }) => cn(
+                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                            "hover:bg-purple-500/20 hover:text-purple-500",
+                            isActive 
+                              ? "bg-purple-500/10 text-purple-500 font-medium" 
+                              : "text-muted-foreground"
+                          )}
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <item.icon size={18} />
+                          <span>{item.title}</span>
+                        </NavLink>
+                      )
                     ))}
                   </nav>
                 </div>
               ))}
-              
-              {/* User section */}
-              {user && (
-                <div className="mt-2 border-t pt-4">
-                  <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
-                    User
-                  </h2>
-                  <nav className="flex flex-col gap-1">
-                    <NavLink
-                      to={`/buyer/${user.id}`}
-                      className={({ isActive }) => cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                        "hover:bg-purple-500/20 hover:text-purple-500",
-                        isActive 
-                          ? "bg-purple-500/10 text-purple-500 font-medium" 
-                          : "text-muted-foreground"
-                      )}
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <User size={18} />
-                      <span>Profile</span>
-                    </NavLink>
-                    <NavLink
-                      to="/settings"
-                      className={({ isActive }) => cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                        "hover:bg-purple-500/20 hover:text-purple-500",
-                        isActive 
-                          ? "bg-purple-500/10 text-purple-500 font-medium" 
-                          : "text-muted-foreground"
-                      )}
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Settings size={18} />
-                      <span>Settings</span>
-                    </NavLink>
-                  </nav>
-                </div>
-              )}
             </div>
           </aside>
           
