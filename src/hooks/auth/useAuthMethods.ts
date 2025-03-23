@@ -25,8 +25,25 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       });
 
       if (error) {
+        // Special handling for the "Email not confirmed" error
+        if (error.message === "Email not confirmed" || error.code === "email_not_confirmed") {
+          console.log("Email not confirmed, attempting to resend confirmation email");
+          
+          // Attempt to resend the confirmation email
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email,
+          });
+          
+          if (resendError) {
+            throw resendError;
+          }
+          
+          toast.error("Your email is not confirmed. A new confirmation email has been sent.");
+          throw new Error("Please check your email and confirm your account before logging in.");
+        }
+        
         console.error("Login error:", error);
-        toast.error(error.message);
         throw error;
       }
 
