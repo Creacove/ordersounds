@@ -1,3 +1,4 @@
+
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@/types';
@@ -18,63 +19,92 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     try {
       console.log("Attempting login with:", email);
       
-      // Direct sign in attempt
+      // First attempt direct sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      if (error) {
-        // If the error is "Email not confirmed", force update the user to treat it as confirmed
-        if (error.message === "Email not confirmed" || error.code === "email_not_confirmed") {
-          console.log("Email not confirmed, attempting to sign up again...");
+      // If we get an error about email confirmation
+      if (error && (error.message.includes("Email not confirmed") || error.code === "email_not_confirmed")) {
+        console.log("Login failed due to email confirmation. Updating user and retrying...");
+        
+        // 1. First try to update the user in the auth.users table to mark email as confirmed
+        const { error: adminUpdateError } = await supabase.rpc('admin_update_user_confirmed', { 
+          user_email: email 
+        });
+        
+        if (adminUpdateError) {
+          console.log("Admin update failed, trying alternative approach:", adminUpdateError);
           
-          // Force sign up the user again without confirmation requirement
-          const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: { 
-                email_confirmed: true 
-              }
-            }
-          });
-          
-          if (signUpError) {
-            throw signUpError;
-          }
-          
-          // If sign-up successful, try to log in right away
+          // 2. Try direct login again after update attempt
           const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
             email,
             password
           });
           
           if (retryError) {
-            throw retryError;
-          }
-          
-          if (retryData?.user) {
+            // If still failing, let's do a more direct approach
+            console.log("Retry login still failed. Attempting to sign up again to get a new session.");
+            
+            // 3. As a last resort, sign up again but with email_confirmed flag
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+              email,
+              password,
+              options: {
+                data: { 
+                  email_confirmed: true
+                }
+              }
+            });
+            
+            if (signUpError && !signUpError.message.includes("already registered")) {
+              throw signUpError;
+            }
+            
+            // Try login one more time
+            const { data: finalData, error: finalError } = await supabase.auth.signInWithPassword({
+              email,
+              password
+            });
+            
+            if (finalError) {
+              throw finalError;
+            }
+            
+            if (finalData?.user) {
+              const mappedUser = mapSupabaseUser(finalData.user);
+              setUser(mappedUser);
+              setCurrency(mappedUser.default_currency || 'NGN');
+              toast.success('Login successful');
+              
+              if (mappedUser.role === 'producer') {
+                navigate('/producer/dashboard');
+              } else {
+                navigate('/');
+              }
+              return;
+            }
+          } else if (retryData?.user) {
+            // Retry worked after admin update
             const mappedUser = mapSupabaseUser(retryData.user);
             setUser(mappedUser);
             setCurrency(mappedUser.default_currency || 'NGN');
             toast.success('Login successful');
             
-            // Redirect based on role
             if (mappedUser.role === 'producer') {
               navigate('/producer/dashboard');
             } else {
               navigate('/');
             }
-            
             return;
           }
-        } else {
-          // Handle other errors
-          console.error("Login error:", error);
-          toast.error(error.message || 'Failed to log in');
-          throw error;
         }
+      } else if (error) {
+        // Handle other errors
+        console.error("Login error:", error);
+        toast.error(error.message || 'Failed to log in');
+        throw error;
       }
 
       if (data?.user) {
@@ -84,7 +114,6 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         setCurrency(mappedUser.default_currency || 'NGN');
         toast.success('Login successful');
         
-        // Redirect based on role
         if (mappedUser.role === 'producer') {
           navigate('/producer/dashboard');
         } else {

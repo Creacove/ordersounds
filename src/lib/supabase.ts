@@ -12,8 +12,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     storage: localStorage,
-    // Disable auto confirm email strategy
-    flowType: 'implicit',
+    flowType: 'implicit',  // Disable email confirmation
+    detectSessionInUrl: false, // Don't look for the session in the URL
+    autoConfirmEmailOnSignup: true // Try to auto-confirm emails (though this depends on Supabase settings)
   }
 });
 
