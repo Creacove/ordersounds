@@ -32,6 +32,16 @@ import { useCart } from "@/context/CartContext";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 
+// Define interface for mobile menu items
+interface MobileMenuItem {
+  icon: React.ReactNode;
+  label: string;
+  to: string;
+  id: string;
+  badge?: number | null;
+  action?: () => void;
+}
+
 export function Sidebar() {
   const { user } = useAuth();
   const { itemCount } = useCart();
@@ -196,7 +206,7 @@ export function Sidebar() {
   // Mobile bottom navigation with all essential options
   const MobileBottomNav = () => {
     // Primary mobile menu items that should always be visible
-    let mobileMenuItems = [
+    let mobileMenuItems: MobileMenuItem[] = [
       { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
       { icon: <Disc size={20} />, label: "Discover", to: "/genres", id: "discover" },
       { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
