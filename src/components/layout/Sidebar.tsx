@@ -100,8 +100,7 @@ export function Sidebar() {
         { title: "New", icon: Clock, href: "/new" },
         { title: "Playlists", icon: List, href: "/playlists" },
         { title: "Genres", icon: Disc, href: "/genres" },
-        { title: "Producers", icon: Grip, href: "/producers" },
-        { title: "Charts", icon: LayoutGrid, href: "/charts" },
+        { title: "Search", icon: Search, href: "/search" },
       ]
     },
     { 
@@ -110,7 +109,6 @@ export function Sidebar() {
         { title: "Favorites", icon: Heart, href: "/favorites" },
         { title: "My Playlists", icon: LayoutGrid, href: "/my-playlists" },
         { title: "Purchased", icon: Music, href: "/purchased" },
-        { title: "Orders", icon: Library, href: "/orders" },
       ]
     }
   ];
@@ -123,7 +121,6 @@ export function Sidebar() {
         { title: "Dashboard", icon: LayoutDashboard, href: "/producer/dashboard" },
         { title: "My Beats", icon: Music, href: "/producer/beats" },
         { title: "Upload Beat", icon: Upload, href: "/producer/upload" },
-        { title: "Royalty Splits", icon: DollarSign, href: "/producer/royalties" },
         { title: "Settings", icon: Settings, href: "/producer/settings" },
       ]
     }
@@ -219,31 +216,22 @@ export function Sidebar() {
         { icon: <LayoutDashboard size={20} />, label: "Dashboard", to: "/producer/dashboard", id: "producer" },
         { icon: <Music size={20} />, label: "My Beats", to: "/producer/beats", id: "beats" },
         { icon: <Upload size={20} />, label: "Upload", to: "/producer/upload", id: "upload" },
-        { icon: <DollarSign size={20} />, label: "Royalties", to: "/producer/royalties", id: "royalties" },
         { icon: <Home size={20} />, label: "Explore", to: "/", id: "home" },
+        { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
       ];
     } else {
-      // Buyer mobile menu
+      // Buyer mobile menu - fixed items to prevent blinking
       mobileMenuItems = [
         { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
-        { icon: <Disc size={20} />, label: "Discover", to: "/genres", id: "discover" },
         { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
         { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
         { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
+        { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
       ];
     }
-    
-    // Always add More tab as the last item
-    mobileMenuItems.push({ 
-      icon: <MoreHorizontal size={20} />, 
-      label: "More", 
-      to: "#", 
-      id: "more", 
-      action: () => setIsOpen(true) 
-    });
 
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1 animate-fade-in">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
             const isActive = activeBottomTab === item.id;
@@ -293,7 +281,7 @@ export function Sidebar() {
                       variant="destructive" 
                       className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
                     >
-                      {item.badge}
+                      {item.badge > 9 ? '9+' : item.badge}
                     </Badge>
                   )}
                 </div>
@@ -325,7 +313,6 @@ export function Sidebar() {
           { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
           { icon: Music, title: "My Beats", href: "/producer/beats" },
           { icon: Upload, title: "Upload Beat", href: "/producer/upload" },
-          { icon: DollarSign, title: "Royalty Splits", href: "/producer/royalties" },
           { icon: Settings, title: "Settings", href: "/producer/settings" },
         ]
       });

@@ -23,6 +23,7 @@ import Producers from "./pages/buyer/Producers";
 import Charts from "./pages/buyer/Charts";
 import Orders from "./pages/buyer/Orders";
 import Cart from "./pages/buyer/Cart";
+import Search from "./pages/buyer/Search";
 import Settings from "./pages/user/Settings";
 import Contact from "./pages/Contact";
 import BuyerProfile from "./pages/buyer/BuyerProfile";
@@ -56,6 +57,7 @@ const App = () => (
                   <Route path="/genres" element={<Genres />} />
                   <Route path="/producers" element={<Producers />} />
                   <Route path="/charts" element={<Charts />} />
+                  <Route path="/search" element={<Search />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/cart" element={<Cart />} />
                   

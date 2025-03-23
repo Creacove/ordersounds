@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -14,7 +15,8 @@ import {
   Music2,
   MessageSquare,
   ChevronDown,
-  Flame
+  Flame,
+  Headphones
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -105,10 +107,11 @@ export function Topbar() {
           )}
           
           <Link to="/" className="flex items-center gap-2">
+            <Headphones size={24} className="text-purple-600" />
             <span className="font-heading font-bold text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text">OrderSOUNDS</span>
           </Link>
 
-          {/* Desktop Navigation Menu */}
+          {/* Desktop Navigation Menu - Simplified */}
           {!isMobile && (
             <NavigationMenu className="ml-4 hidden md:flex">
               <NavigationMenuList>
@@ -124,65 +127,15 @@ export function Topbar() {
                   </NavigationMenuLink>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger
+                  <NavigationMenuLink
                     className={cn(
-                      isActive("/trending") || isActive("/new") ? "bg-accent text-accent-foreground" : ""
+                      navigationMenuTriggerStyle(),
+                      isActive("/trending") ? "bg-accent text-accent-foreground" : ""
                     )}
+                    href="/trending"
                   >
-                    Discover
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="grid gap-2 p-4 md:w-[400px] lg:w-[500px] lg:grid-cols-2">
-                      <Link
-                        to="/trending"
-                        className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        <div className="flex items-center gap-2 text-sm font-medium leading-none">
-                          <Flame size={16} className="text-rose-500" />
-                          Trending Beats
-                        </div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Discover what's hot right now
-                        </p>
-                      </Link>
-                      <Link
-                        to="/new"
-                        className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        <div className="flex items-center gap-2 text-sm font-medium leading-none">
-                          <Music2 size={16} className="text-purple-500" />
-                          New Releases
-                        </div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Fresh beats just dropped
-                        </p>
-                      </Link>
-                      <Link
-                        to="/genres"
-                        className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        <div className="flex items-center gap-2 text-sm font-medium leading-none">
-                          <Music2 size={16} className="text-blue-500" />
-                          Genres
-                        </div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Browse beats by genre
-                        </p>
-                      </Link>
-                      <Link
-                        to="/producers"
-                        className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                      >
-                        <div className="flex items-center gap-2 text-sm font-medium leading-none">
-                          <User size={16} className="text-green-500" />
-                          Producers
-                        </div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Find talented beat makers
-                        </p>
-                      </Link>
-                    </div>
-                  </NavigationMenuContent>
+                    Trending
+                  </NavigationMenuLink>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
                   <NavigationMenuLink
@@ -199,11 +152,11 @@ export function Topbar() {
                   <NavigationMenuLink
                     className={cn(
                       navigationMenuTriggerStyle(),
-                      isActive("/contact") ? "bg-accent text-accent-foreground" : ""
+                      isActive("/search") ? "bg-accent text-accent-foreground" : ""
                     )}
-                    href="/contact"
+                    href="/search"
                   >
-                    Contact
+                    Search
                   </NavigationMenuLink>
                 </NavigationMenuItem>
               </NavigationMenuList>
@@ -211,7 +164,7 @@ export function Topbar() {
           )}
         </div>
         
-        {/* Search, Cart, User */}
+        {/* Search, Cart, User - Simplified */}
         <div className="flex items-center gap-3">
           {/* Currency toggle */}
           <DropdownMenu>
@@ -236,51 +189,16 @@ export function Topbar() {
             </DropdownMenuContent>
           </DropdownMenu>
           
-          {/* Search - visible on desktop, toggle on mobile */}
+          {/* Search - redirects to search page */}
           <Button
             variant="ghost"
             size="icon"
             className="relative h-8 w-8"
-            onClick={() => isMobile ? setShowSearch(!showSearch) : navigate("/search")}
+            onClick={() => navigate("/search")}
           >
             <Search size={18} />
             <span className="sr-only">Search</span>
           </Button>
-          
-          {/* Search input (mobile) */}
-          {isMobile && showSearch && (
-            <div className="absolute top-16 left-0 right-0 bg-background border-b p-2 animate-slide-down z-50">
-              <div className="container flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Search beats, producers..."
-                  className="flex-1 h-10 rounded-md border border-input px-3 py-2 text-sm"
-                  autoFocus
-                />
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8"
-                  onClick={() => setShowSearch(false)}
-                >
-                  <X size={18} />
-                </Button>
-              </div>
-            </div>
-          )}
-          
-          {/* Favorites shortcut - desktop only */}
-          {!isMobile && user && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative h-8 w-8"
-              onClick={() => navigate("/favorites")}
-            >
-              <Heart size={18} />
-              <span className="sr-only">Favorites</span>
-            </Button>
-          )}
           
           {/* Cart - show for all users */}
           <Button
