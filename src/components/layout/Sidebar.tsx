@@ -27,6 +27,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
@@ -43,7 +44,7 @@ interface MobileMenuItem {
 }
 
 export function Sidebar() {
-  const { user, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
   const { isPlaying, currentBeat } = usePlayer();
@@ -78,7 +79,7 @@ export function Sidebar() {
   }, [location.pathname, isMobile]);
 
   const handleSignOut = () => {
-    signOut && signOut();
+    logout && logout();
   };
 
   const toggleSidebar = () => {
