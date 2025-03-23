@@ -22,7 +22,8 @@ import {
   ShoppingCart,
   User,
   MoreHorizontal,
-  LogOut
+  LogOut,
+  Search
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";

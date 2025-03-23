@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
-import { Search, MusicIcon, UserIcon, PlaylistIcon, Filter } from "lucide-react";
+import { Search, MusicIcon, UserIcon, ListMusic, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BeatCard } from "@/components/ui/BeatCard";
@@ -13,20 +13,20 @@ export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-  const { allBeats, isLoading } = useBeats();
-  const [searchResults, setSearchResults] = useState(allBeats);
+  const { beats, isLoading } = useBeats();
+  const [searchResults, setSearchResults] = useState(beats);
 
   // Process search results whenever search term changes
   useEffect(() => {
     if (!searchTerm.trim()) {
-      setSearchResults(allBeats);
+      setSearchResults(beats);
       return;
     }
 
     const term = searchTerm.toLowerCase().trim();
     
     // Filter based on search term and active tab
-    const filteredResults = allBeats.filter(beat => {
+    const filteredResults = beats.filter(beat => {
       const matchTitle = beat.title.toLowerCase().includes(term);
       const matchProducer = beat.producer_name.toLowerCase().includes(term);
       const matchGenre = beat.genre.toLowerCase().includes(term);
@@ -37,7 +37,7 @@ export default function SearchPage() {
     });
 
     setSearchResults(filteredResults);
-  }, [searchTerm, allBeats, activeTab]);
+  }, [searchTerm, beats, activeTab]);
 
   // Reset search when tab changes
   const handleTabChange = (value: string) => {
