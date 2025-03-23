@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Play, Filter, ArrowRight, Sparkles, Fire, Clock } from "lucide-react";
+import { Play, Filter, ArrowRight, Sparkles, Flame, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { BeatCard } from "@/components/ui/BeatCard";
@@ -25,7 +25,7 @@ export default function Home() {
   // Categories for quick browsing
   const categories = [
     { name: "Afrobeat", icon: <Sparkles size={16} /> },
-    { name: "Hip Hop", icon: <Fire size={16} /> },
+    { name: "Hip Hop", icon: <Flame size={16} /> },
     { name: "R&B", icon: <Clock size={16} /> },
     { name: "Amapiano", icon: <Sparkles size={16} /> },
   ];
