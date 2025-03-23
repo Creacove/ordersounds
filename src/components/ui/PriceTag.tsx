@@ -31,15 +31,15 @@ export function PriceTag({
     : formatPrice(diasporaPrice, 'USD');
 
   const sizeClasses = {
-    sm: "text-xs font-medium px-2 py-0.5",
-    md: "text-sm font-semibold px-2.5 py-0.5",
-    lg: "text-base font-bold px-3 py-1"
+    sm: "text-xs font-medium px-2 py-0.5 leading-normal",
+    md: "text-sm font-semibold px-2.5 py-0.5 leading-normal",
+    lg: "text-base font-bold px-3 py-1 leading-normal"
   };
 
   return (
     <span 
       className={cn(
-        "inline-flex items-center bg-primary/10 text-primary rounded-full whitespace-nowrap", 
+        "inline-flex items-center justify-center bg-primary/10 text-primary rounded-full whitespace-nowrap", 
         sizeClasses[size],
         className
       )}

@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function PersistentPlayer() {
   const {
@@ -33,6 +34,8 @@ export function PersistentPlayer() {
     removeFromQueue,
     clearQueue
   } = usePlayer();
+  
+  const isMobile = useIsMobile();
 
   // Even when no beat is selected, we render a hidden player to maintain the layout
   if (!currentBeat) {
@@ -52,8 +55,14 @@ export function PersistentPlayer() {
       ? Volume1 
       : Volume2;
 
+  // For mobile, place the player right above the bottom nav (which has z-40)
+  const playerClassName = cn(
+    "fixed left-0 right-0 bg-card border-t border-border p-3 md:p-4 flex items-center shadow-lg",
+    isMobile ? "bottom-16 z-50" : "bottom-0 z-40" // Position above mobile nav when on mobile
+  );
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-3 md:p-4 flex items-center z-40 shadow-lg">
+    <div className={playerClassName}>
       <div className="container mx-auto flex items-center gap-2 md:gap-4">
         {/* Beat info */}
         <div className="flex items-center gap-2 md:gap-3 w-1/4 min-w-[100px]">

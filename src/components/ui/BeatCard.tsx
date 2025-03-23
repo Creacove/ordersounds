@@ -23,6 +23,7 @@ import { getUserPlaylists, addBeatToPlaylist } from '@/lib/playlistService';
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BeatCardProps {
   beat: Beat;
@@ -51,6 +52,7 @@ export function BeatCard({
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
   const inCart = isInCart || (checkIsInCart && checkIsInCart(beat.id));
