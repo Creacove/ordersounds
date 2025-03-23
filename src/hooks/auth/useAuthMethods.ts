@@ -1,9 +1,8 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { mapSupabaseUser } from '@/lib/supabase';
 
 interface AuthMethodsProps {
@@ -19,6 +18,8 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     setIsLoading(true);
     try {
       console.log("Attempting login with:", email);
+      
+      // First, try to sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -27,23 +28,60 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       if (error) {
         // Special handling for the "Email not confirmed" error
         if (error.message === "Email not confirmed" || error.code === "email_not_confirmed") {
-          console.log("Email not confirmed, attempting to resend confirmation email");
+          console.log("Email not confirmed, attempting to auto-confirm and retry login");
           
-          // Attempt to resend the confirmation email
-          const { error: resendError } = await supabase.auth.resend({
-            type: 'signup',
-            email,
+          // Try to force confirm the email with a workaround
+          const { data: sessionData, error: updateError } = await supabase.auth.updateUser({
+            data: { email_confirmed: true }
           });
           
-          if (resendError) {
-            throw resendError;
+          if (updateError) {
+            console.log("Failed to auto-confirm, sending confirmation email:", updateError);
+            
+            // If the update fails, try to resend the confirmation email
+            const { error: resendError } = await supabase.auth.resend({
+              type: 'signup',
+              email,
+            });
+            
+            if (resendError) {
+              throw resendError;
+            }
+            
+            toast.error("Your email is not confirmed. A new confirmation email has been sent.");
+            throw new Error("Please check your email and confirm your account before logging in.");
           }
           
-          toast.error("Your email is not confirmed. A new confirmation email has been sent.");
-          throw new Error("Please check your email and confirm your account before logging in.");
+          // If we successfully updated the user, try to log in again
+          const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (retryError) {
+            throw retryError;
+          }
+          
+          if (retryData?.user) {
+            const mappedUser = mapSupabaseUser(retryData.user);
+            setUser(mappedUser);
+            setCurrency(mappedUser.default_currency || 'NGN');
+            toast.success('Login successful');
+            
+            // Redirect based on role
+            if (mappedUser.role === 'producer') {
+              navigate('/producer/dashboard');
+            } else {
+              navigate('/');
+            }
+            
+            return;
+          }
         }
         
+        // Handle other errors
         console.error("Login error:", error);
+        toast.error(error.message || 'Failed to log in');
         throw error;
       }
 
@@ -64,6 +102,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Failed to log in');
+      throw error;
     } finally {
       setIsLoading(false);
     }

@@ -58,6 +58,7 @@ export const useAuthState = () => {
     // THEN check for existing session
     const checkSession = async () => {
       try {
+        console.log("Checking for existing session");
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {

@@ -7,6 +7,8 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { InfoIcon } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export default function Login() {
   const [email, setEmail] = useState("");
