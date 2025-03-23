@@ -40,14 +40,6 @@ export function Topbar() {
     navigate('/login');
   };
 
-  // Primary mobile menu items that should always be visible
-  const mobileMenuItems = [
-    { icon: <Home size={20} />, label: "Home", to: "/" },
-    { icon: <Music size={20} />, label: "Discover", to: "/genres" },
-    { icon: <Heart size={20} />, label: "Favorites", to: "/favorites" },
-    { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", badge: itemCount > 0 ? itemCount : null },
-  ];
-
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-lg">
       <div className="flex h-16 items-center px-4 md:px-6">
@@ -202,58 +194,6 @@ export function Topbar() {
             </DropdownMenu>
           )}
         </div>
-      </div>
-
-      {/* Mobile Navigation Menu (always visible when scrolling) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background border-t border-border flex justify-around items-center h-16 px-2">
-        {mobileMenuItems.map((item, index) => (
-          <Link
-            key={index}
-            to={item.to}
-            className="flex flex-col items-center justify-center py-1 px-3 relative"
-          >
-            <div className="relative">
-              {item.icon}
-              {item.badge && (
-                <Badge 
-                  variant="destructive" 
-                  className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
-                >
-                  {item.badge}
-                </Badge>
-              )}
-            </div>
-            <span className="text-xs mt-1">{item.label}</span>
-          </Link>
-        ))}
-        
-        {user ? (
-          <Link
-            to="/profile"
-            className="flex flex-col items-center justify-center py-1 px-3"
-          >
-            {user.avatar_url ? (
-              <img 
-                src={user.avatar_url} 
-                alt={user.name} 
-                className="h-6 w-6 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-6 w-6 rounded-full bg-purple-500 flex items-center justify-center text-xs font-medium text-white">
-                {user.name.charAt(0)}
-              </div>
-            )}
-            <span className="text-xs mt-1">Profile</span>
-          </Link>
-        ) : (
-          <Link
-            to="/login"
-            className="flex flex-col items-center justify-center py-1 px-3"
-          >
-            <User size={20} />
-            <span className="text-xs mt-1">Sign In</span>
-          </Link>
-        )}
       </div>
     </header>
   );

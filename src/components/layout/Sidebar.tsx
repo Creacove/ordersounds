@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
   Home, 
   TrendingUp, 
@@ -18,16 +18,22 @@ import {
   DollarSign,
   Settings,
   Disc,
-  Grip
+  Grip,
+  ShoppingCart,
+  User,
+  MoreHorizontal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePlayer } from "@/context/PlayerContext";
+import { useCart } from "@/context/CartContext";
+import { Badge } from "@/components/ui/badge";
 
 export function Sidebar() {
   const { user } = useAuth();
+  const { itemCount } = useCart();
   const location = useLocation();
   const { isPlaying, currentBeat } = usePlayer();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -178,45 +184,63 @@ export function Sidebar() {
     </aside>
   );
 
-  // Mobile bottom navigation
-  const MobileBottomNav = () => (
-    <nav className={cn(
-      "fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-sidebar-border py-2 px-1",
-    )}>
-      <div className="flex justify-around">
-        {/* Show only main navigation items on mobile */}
-        {buyerLinks[0].items.slice(0, 5).map((item, idx) => {
-          const Icon = item.icon;
-          const isActive = location.pathname === item.href;
-          
-          return (
-            <NavLink
-              key={idx}
-              to={item.href}
-              className={({ isActive }) => cn(
-                "flex flex-col items-center justify-center px-2 py-1 rounded-md transition-colors",
-                isActive 
-                  ? "text-purple-500" 
-                  : "text-muted-foreground"
-              )}
-            >
-              <Icon size={20} />
-              <span className="text-[10px] mt-1">{item.title}</span>
-            </NavLink>
-          );
-        })}
-        
-        {/* More button that opens the full sidebar */}
-        <button 
-          onClick={() => setIsOpen(true)}
-          className="flex flex-col items-center justify-center px-2 py-1 rounded-md text-muted-foreground"
-        >
-          <PanelLeft size={20} />
-          <span className="text-[10px] mt-1">More</span>
-        </button>
-      </div>
-    </nav>
-  );
+  // Mobile bottom navigation with all essential options
+  const MobileBottomNav = () => {
+    // Primary mobile menu items that should always be visible
+    const mobileMenuItems = [
+      { icon: <Home size={20} />, label: "Home", to: "/" },
+      { icon: <Music size={20} />, label: "Discover", to: "/genres" },
+      { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending" },
+      { icon: <Heart size={20} />, label: "Favorites", to: "/favorites" },
+      { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", badge: itemCount > 0 ? itemCount : null },
+      { icon: <MoreHorizontal size={20} />, label: "More", to: "#", action: () => setIsOpen(true) },
+    ];
+
+    return (
+      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-sidebar-border py-2 px-1">
+        <div className="flex justify-around">
+          {mobileMenuItems.map((item, idx) => {
+            // For the "More" button, use a button instead of a link
+            if (item.label === "More") {
+              return (
+                <button
+                  key={idx}
+                  onClick={item.action}
+                  className="flex flex-col items-center justify-center py-1 px-3 relative text-muted-foreground"
+                >
+                  <div className="relative">
+                    {item.icon}
+                  </div>
+                  <span className="text-xs mt-1">{item.label}</span>
+                </button>
+              );
+            }
+            
+            return (
+              <Link
+                key={idx}
+                to={item.to}
+                className="flex flex-col items-center justify-center py-1 px-3 relative"
+              >
+                <div className="relative">
+                  {item.icon}
+                  {item.badge && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
+                    >
+                      {item.badge}
+                    </Badge>
+                  )}
+                </div>
+                <span className="text-xs mt-1">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+    );
+  };
 
   return (
     <>
@@ -238,7 +262,7 @@ export function Sidebar() {
             )}
           >
             <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="font-medium">Menu</h2>
+              <h2 className="font-medium">OrderSOUNDS Menu</h2>
               <Button 
                 variant="ghost" 
                 size="icon" 
@@ -276,6 +300,45 @@ export function Sidebar() {
                   </nav>
                 </div>
               ))}
+              
+              {/* User section */}
+              {user && (
+                <div className="mt-2 border-t pt-4">
+                  <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
+                    User
+                  </h2>
+                  <nav className="flex flex-col gap-1">
+                    <NavLink
+                      to="/profile"
+                      className={({ isActive }) => cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                        "hover:bg-purple-500/20 hover:text-purple-500",
+                        isActive 
+                          ? "bg-purple-500/10 text-purple-500 font-medium" 
+                          : "text-muted-foreground"
+                      )}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <User size={18} />
+                      <span>Profile</span>
+                    </NavLink>
+                    <NavLink
+                      to="/settings"
+                      className={({ isActive }) => cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                        "hover:bg-purple-500/20 hover:text-purple-500",
+                        isActive 
+                          ? "bg-purple-500/10 text-purple-500 font-medium" 
+                          : "text-muted-foreground"
+                      )}
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <Settings size={18} />
+                      <span>Settings</span>
+                    </NavLink>
+                  </nav>
+                </div>
+              )}
             </div>
           </aside>
           
