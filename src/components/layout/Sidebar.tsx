@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { 
@@ -89,12 +90,11 @@ const Sidebar = () => {
           isMobile ? "fixed left-0" : "sticky top-0"
         )}
       >
-        {/* Sidebar content */}
+        {/* Sidebar header - now without logo */}
         <div className="p-4 flex justify-between items-center border-b">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
-            <Music className="h-6 w-6 text-primary" />
-            {isOpen && <span>OrderSOUNDS</span>}
-          </Link>
+          <span className="text-sm font-medium text-muted-foreground">
+            {isOpen && "Navigation"}
+          </span>
         </div>
         
         {/* Main Navigation */}

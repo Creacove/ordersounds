@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search, ShoppingCart, Bell, User, Headphones } from "lucide-react";
@@ -29,10 +28,11 @@ export const Topbar = ({ setSidebarOpen, hideLogo = false }: TopbarProps) => {
   const { cartItems } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  
+  const isMobileMenuOpen = isMobile;
+
   // Handler for mobile menu
   const toggleMobileMenu = () => {
-    setSidebarOpen((prev: boolean) => !prev);
+    setSidebarOpen(!isMobileMenuOpen);
   };
 
   // Navigate to search page
