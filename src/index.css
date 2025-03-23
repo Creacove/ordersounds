@@ -206,4 +206,64 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   .leading-normal {
     line-height: 1.5;
   }
+  
+  /* Make mobile menu items more touchable */
+  .mobile-menu-item {
+    @apply py-2.5 px-3;
+  }
+  
+  /* Fix spacing for mobile buttons */
+  .mobile-btn {
+    @apply h-10 min-w-[2.5rem] px-3;
+  }
+  
+  /* Library page responsive grid */
+  .library-grid {
+    @apply grid-cols-1;
+  }
+  
+  /* Make tab list more mobile friendly */
+  .tabs-mobile {
+    @apply overflow-x-auto flex-nowrap justify-start;
+  }
+  
+  /* Add more breathing room to mobile cards */
+  .mobile-card-spacing {
+    @apply gap-y-4;
+  }
+  
+  /* Fix for mobile bottom navigation */
+  .mobile-bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t py-1;
+  }
+  
+  /* Bottom indicator for active tab */
+  .mobile-nav-active {
+    @apply relative after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-1/2 after:h-0.5 after:bg-primary after:rounded-full;
+  }
+  
+  /* Make mobile sidebar overlay take full screen */
+  .mobile-sidebar-overlay {
+    @apply fixed inset-0 bg-background/80 backdrop-blur-sm z-50;
+  }
+  
+  /* Mobile sidebar improved styling */
+  .mobile-sidebar {
+    @apply fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out w-[80%] max-w-[300px];
+  }
+  
+  /* Better text truncation on small screens */
+  .text-truncate-1 {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 }

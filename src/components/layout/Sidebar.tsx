@@ -30,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
 import { Badge } from "@/components/ui/badge";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export function Sidebar() {
   const { user } = useAuth();
@@ -37,25 +38,32 @@ export function Sidebar() {
   const location = useLocation();
   const { isPlaying, currentBeat } = usePlayer();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeBottomTab, setActiveBottomTab] = useState("");
 
   useEffect(() => {
-    const checkWidth = () => {
-      const isMobileView = window.innerWidth < 768;
-      setIsMobile(isMobileView);
-      setIsCollapsed(isMobileView);
-    };
-
-    checkWidth();
-    window.addEventListener("resize", checkWidth);
-    return () => window.removeEventListener("resize", checkWidth);
-  }, []);
+    if (!isMobile) {
+      setIsCollapsed(false);
+    } else {
+      setIsCollapsed(true);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile) {
       setIsOpen(false);
     }
+    
+    // Set active bottom tab based on current path
+    const path = location.pathname;
+    if (path === "/") setActiveBottomTab("home");
+    else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
+    else if (path === "/trending") setActiveBottomTab("trending");
+    else if (path === "/favorites") setActiveBottomTab("favorites");
+    else if (path === "/cart") setActiveBottomTab("cart");
+    else if (path.includes("/my-playlists") || path.includes("/purchased")) setActiveBottomTab("more");
+    else setActiveBottomTab("");
   }, [location.pathname, isMobile]);
 
   const toggleSidebar = () => {
@@ -188,30 +196,43 @@ export function Sidebar() {
   const MobileBottomNav = () => {
     // Primary mobile menu items that should always be visible
     const mobileMenuItems = [
-      { icon: <Home size={20} />, label: "Home", to: "/" },
-      { icon: <Music size={20} />, label: "Discover", to: "/genres" },
-      { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending" },
-      { icon: <Heart size={20} />, label: "Favorites", to: "/favorites" },
-      { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", badge: itemCount > 0 ? itemCount : null },
-      { icon: <MoreHorizontal size={20} />, label: "More", to: "#", action: () => setIsOpen(true) },
+      { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
+      { icon: <Disc size={20} />, label: "Discover", to: "/genres", id: "discover" },
+      { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
+      { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
+      { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
+      { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
     ];
 
     return (
-      <nav className="fixed bottom-0 left-0 right-0 z-30 bg-sidebar border-t border-sidebar-border py-2 px-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
             // For the "More" button, use a button instead of a link
-            if (item.label === "More") {
+            const isActive = activeBottomTab === item.id;
+            
+            if (item.id === "more") {
               return (
                 <button
                   key={idx}
                   onClick={item.action}
-                  className="flex flex-col items-center justify-center py-1 px-3 relative text-muted-foreground"
+                  className={cn(
+                    "flex flex-col items-center justify-center py-1 px-2 relative",
+                    isActive ? "text-purple-500" : "text-muted-foreground"
+                  )}
                 >
-                  <div className="relative">
+                  <div className={cn(
+                    "relative p-1.5 rounded-full transition-colors",
+                    isActive ? "bg-purple-500/20" : ""
+                  )}>
                     {item.icon}
                   </div>
-                  <span className="text-xs mt-1">{item.label}</span>
+                  <span className={cn(
+                    "text-xs mt-0.5",
+                    isActive ? "text-purple-500 font-medium" : ""
+                  )}>
+                    {item.label}
+                  </span>
                 </button>
               );
             }
@@ -220,20 +241,31 @@ export function Sidebar() {
               <Link
                 key={idx}
                 to={item.to}
-                className="flex flex-col items-center justify-center py-1 px-3 relative"
+                className={cn(
+                  "flex flex-col items-center justify-center py-1 px-2 relative",
+                  isActive ? "text-purple-500" : "text-muted-foreground"
+                )}
               >
-                <div className="relative">
+                <div className={cn(
+                  "relative p-1.5 rounded-full transition-colors",
+                  isActive ? "bg-purple-500/20" : ""
+                )}>
                   {item.icon}
                   {item.badge && (
                     <Badge 
                       variant="destructive" 
-                      className="absolute -top-2 -right-2 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
+                      className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
                     >
                       {item.badge}
                     </Badge>
                   )}
                 </div>
-                <span className="text-xs mt-1">{item.label}</span>
+                <span className={cn(
+                  "text-xs mt-0.5",
+                  isActive ? "text-purple-500 font-medium" : ""
+                )}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -247,7 +279,7 @@ export function Sidebar() {
       {/* Mobile overlay */}
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
           onClick={() => setIsOpen(false)}
         />
       )}
@@ -257,7 +289,7 @@ export function Sidebar() {
         <>
           <aside
             className={cn(
-              "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out w-[240px]",
+              "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out w-[80%] max-w-[300px]",
               isOpen ? "translate-x-0" : "-translate-x-full"
             )}
           >

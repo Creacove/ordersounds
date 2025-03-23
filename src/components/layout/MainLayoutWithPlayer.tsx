@@ -1,27 +1,42 @@
 
-import React from 'react';
-import { MainLayout } from './MainLayout';
-import { PersistentPlayer } from '../player/PersistentPlayer';
-import { usePlayer } from '@/context/PlayerContext';
-import { useIsMobile } from '@/hooks/use-mobile';
+import React, { PropsWithChildren } from "react";
+import { cn } from "@/lib/utils";
+import { Topbar } from "./Topbar";
+import { Sidebar } from "./Sidebar";
+import { PersistentPlayer } from "@/components/player/PersistentPlayer";
+import { usePlayer } from "@/context/PlayerContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-interface MainLayoutWithPlayerProps {
-  children: React.ReactNode;
+interface MainLayoutWithPlayerProps extends PropsWithChildren {
+  className?: string;
 }
 
-export function MainLayoutWithPlayer({ children }: MainLayoutWithPlayerProps) {
+export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlayerProps) {
   const { currentBeat } = usePlayer();
   const isMobile = useIsMobile();
+  const hasPlayer = !!currentBeat;
   
-  // Add padding at the bottom to ensure content doesn't get hidden
-  // On mobile, we need extra space for both player and bottom nav
   return (
-    <MainLayout>
-      <div className={currentBeat ? (isMobile ? 'pb-40' : 'pb-28') : (isMobile ? 'pb-16' : '')}>
-        {children}
+    <div className={cn(
+      "flex min-h-screen flex-col",
+      hasPlayer && isMobile ? "has-player pb-32" : "",
+      className
+    )}>
+      <Topbar />
+      
+      <div className="flex flex-1">
+        <Sidebar />
+        
+        <main className={cn(
+          "flex-1 pl-0 md:pl-[70px] transition-all duration-300", 
+          isMobile ? "" : "lg:pl-[240px]",
+          hasPlayer && isMobile ? "pb-24" : ""
+        )}>
+          {children}
+        </main>
       </div>
-      {/* Always render the player but with fixed positioning at the bottom */}
+      
       <PersistentPlayer />
-    </MainLayout>
+    </div>
   );
 }

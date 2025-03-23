@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/library/EmptyState";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { CreatePlaylistForm } from "@/components/library/CreatePlaylistForm";
 import { useCart } from "@/context/CartContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Library() {
   const location = useLocation();
@@ -23,10 +24,11 @@ export default function Library() {
   const { user } = useAuth();
   const { getUserFavoriteBeats, getUserPurchasedBeats, toggleFavorite, isLoading } = useBeats();
   const { isInCart } = useCart();
+  const isMobile = useIsMobile();
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(window.innerWidth < 768 ? 'list' : 'grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(isMobile ? 'list' : 'grid');
 
   const favoriteBeats = getUserFavoriteBeats();
   const purchasedBeats = getUserPurchasedBeats();
@@ -56,6 +58,11 @@ export default function Library() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [user]);
+
+  // Set initial view mode based on screen size
+  useEffect(() => {
+    setViewMode(isMobile ? 'list' : 'grid');
+  }, [isMobile]);
 
   const loadPlaylists = async () => {
     if (!user) {
@@ -120,13 +127,27 @@ export default function Library() {
   const renderBeats = (beats, isFavoriteSection = false) => {
     if (isLoading) {
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="aspect-square w-full rounded-lg" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-1/2" />
-            </div>
+        <div className={viewMode === 'grid' 
+          ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+          : "space-y-3"
+        }>
+          {[...Array(4)].map((_, i) => (
+            viewMode === 'grid' ? (
+              <div key={i} className="space-y-2">
+                <Skeleton className="aspect-square w-full rounded-lg" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ) : (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+                <Skeleton className="h-12 w-12 rounded-md flex-shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+                <Skeleton className="h-8 w-8 rounded-full" />
+              </div>
+            )
           ))}
         </div>
       );
@@ -173,7 +194,7 @@ export default function Library() {
             variant="ghost" 
             size="sm" 
             onClick={toggleViewMode}
-            className="hidden md:flex items-center gap-2"
+            className={cn("items-center gap-2", isMobile ? "hidden" : "flex")}
           >
             {viewMode === 'grid' ? (
               <>
