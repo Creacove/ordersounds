@@ -63,6 +63,7 @@ export function Sidebar() {
     else if (path === "/favorites") setActiveBottomTab("favorites");
     else if (path === "/cart") setActiveBottomTab("cart");
     else if (path.includes("/my-playlists") || path.includes("/purchased")) setActiveBottomTab("more");
+    else if (path.includes("/producer/")) setActiveBottomTab("producer");
     else setActiveBottomTab("");
   }, [location.pathname, isMobile]);
 
@@ -195,14 +196,32 @@ export function Sidebar() {
   // Mobile bottom navigation with all essential options
   const MobileBottomNav = () => {
     // Primary mobile menu items that should always be visible
-    const mobileMenuItems = [
+    let mobileMenuItems = [
       { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
       { icon: <Disc size={20} />, label: "Discover", to: "/genres", id: "discover" },
       { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
       { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
       { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
-      { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
     ];
+    
+    // Add producer tab for producer users
+    if (user?.role === "producer") {
+      mobileMenuItems.push({ 
+        icon: <LayoutDashboard size={20} />, 
+        label: "Producer", 
+        to: "/producer/dashboard", 
+        id: "producer" 
+      });
+    }
+    
+    // Always add More tab as the last item
+    mobileMenuItems.push({ 
+      icon: <MoreHorizontal size={20} />, 
+      label: "More", 
+      to: "#", 
+      id: "more", 
+      action: () => setIsOpen(true) 
+    });
 
     return (
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
@@ -211,7 +230,7 @@ export function Sidebar() {
             // For the "More" button, use a button instead of a link
             const isActive = activeBottomTab === item.id;
             
-            if (item.id === "more") {
+            if (item.action) {
               return (
                 <button
                   key={idx}
@@ -341,7 +360,7 @@ export function Sidebar() {
                   </h2>
                   <nav className="flex flex-col gap-1">
                     <NavLink
-                      to="/profile"
+                      to={`/buyer/${user.id}`}
                       className={({ isActive }) => cn(
                         "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
                         "hover:bg-purple-500/20 hover:text-purple-500",
