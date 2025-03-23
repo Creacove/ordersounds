@@ -1,7 +1,7 @@
 
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Search, ShoppingCart, User, Bell, LogOut, Settings, Heart, MessageSquare } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Search, ShoppingCart, User, Bell, LogOut, Settings, MessageSquare, LogIn, UserPlus } from "lucide-react";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -15,20 +15,29 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function Topbar() {
-  const { user, logout, currency, setCurrency } = useAuth();
+  const { user, logout, currency, setCurrency, isLoading } = useAuth();
   const { itemCount } = useCart();
   const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle search submission
-    console.log("Searching for:", searchQuery);
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
+    }
   };
 
   const toggleCurrency = () => {
     setCurrency(currency === 'NGN' ? 'USD' : 'NGN');
+    toast.success(`Currency changed to ${currency === 'NGN' ? 'USD' : 'NGN'}`);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
   };
 
   return (
@@ -79,10 +88,17 @@ export function Topbar() {
         </form>
 
         <div className="flex items-center gap-2 md:gap-4 ml-auto">
+          {/* Auth Status Indicator */}
+          <div className="hidden md:flex items-center mr-2">
+            <Badge variant={user ? "success" : "secondary"} className="px-2 py-1">
+              {isLoading ? "Loading..." : user ? "Signed In" : "Signed Out"}
+            </Badge>
+          </div>
+          
           {/* Cart Icon */}
           {user && (
             <Link to="/cart" className="relative flex items-center">
-              <Button variant="ghost" size="icon" className="relative">
+              <Button variant="ghost" size="icon" className="relative hover:bg-purple-500/10 hover:text-purple-500 transition-colors">
                 <ShoppingCart className="h-5 w-5" />
                 {itemCount > 0 && (
                   <Badge 
@@ -100,16 +116,22 @@ export function Topbar() {
           {!user ? (
             <div className="flex items-center gap-2">
               <Link to="/signup">
-                <Button variant="ghost" size="sm">Sign up</Button>
+                <Button variant="ghost" size="sm" className="flex items-center gap-1 hover:bg-purple-500/10 hover:text-purple-500 transition-colors">
+                  <UserPlus className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sign up</span>
+                </Button>
               </Link>
               <Link to="/login">
-                <Button size="sm" className="bg-primary">Login</Button>
+                <Button size="sm" className="bg-purple-500 hover:bg-purple-600 flex items-center gap-1">
+                  <LogIn className="h-4 w-4" />
+                  <span className="hidden sm:inline">Login</span>
+                </Button>
               </Link>
             </div>
           ) : (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
+                <Button variant="ghost" size="icon" className="rounded-full hover:bg-purple-500/10 transition-colors">
                   {user.avatar_url ? (
                     <img 
                       src={user.avatar_url} 
@@ -118,8 +140,8 @@ export function Topbar() {
                     />
                   ) : (
                     <div className={cn(
-                      "h-8 w-8 rounded-full bg-primary flex items-center justify-center",
-                      "text-sm font-medium text-primary-foreground"
+                      "h-8 w-8 rounded-full bg-purple-500 flex items-center justify-center",
+                      "text-sm font-medium text-white"
                     )}>
                       {user.name.charAt(0)}
                     </div>
@@ -131,35 +153,39 @@ export function Topbar() {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">{user.name}</p>
                     <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                    <p className="text-xs font-medium text-purple-500">{user.role === 'producer' ? 'Producer Account' : 'Buyer Account'}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/profile" className="cursor-pointer flex items-center">
+                  <Link to="/profile" className="cursor-pointer flex items-center hover:text-purple-500 transition-colors">
                     <User className="mr-2 h-4 w-4" />
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/notifications" className="cursor-pointer flex items-center">
+                  <Link to="/notifications" className="cursor-pointer flex items-center hover:text-purple-500 transition-colors">
                     <Bell className="mr-2 h-4 w-4" />
                     <span>Notifications</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer flex items-center">
+                  <Link to="/settings" className="cursor-pointer flex items-center hover:text-purple-500 transition-colors">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/contact" className="cursor-pointer flex items-center">
+                  <Link to="/contact" className="cursor-pointer flex items-center hover:text-purple-500 transition-colors">
                     <MessageSquare className="mr-2 h-4 w-4" />
                     <span>Contact Us</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => logout()} className="cursor-pointer text-destructive focus:text-destructive">
+                <DropdownMenuItem 
+                  onClick={handleLogout} 
+                  className="cursor-pointer text-destructive focus:text-destructive hover:bg-destructive/10"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Logout</span>
                 </DropdownMenuItem>

@@ -69,6 +69,7 @@ export function Sidebar() {
         { title: "Playlists", icon: List, href: "/playlists" },
         { title: "Genres", icon: Disc, href: "/genres" },
         { title: "Producers", icon: Grip, href: "/producers" },
+        { title: "Charts", icon: LayoutGrid, href: "/charts" },
       ]
     },
     { 
@@ -96,8 +97,10 @@ export function Sidebar() {
     }
   ];
 
-  // Choose navigation based on user role
-  const navigationLinks = user?.role === "producer" ? producerLinks : buyerLinks;
+  // Choose navigation based on user role or include both if user is producer
+  const navigationLinks = user?.role === "producer" 
+    ? [...producerLinks, ...buyerLinks]  // If producer, show both producer and buyer links
+    : buyerLinks;  // If not producer (or not logged in), show only buyer links
 
   const SidebarItem = ({ item }: { item: { title: string; icon: React.ElementType; href: string } }) => {
     const isActive = location.pathname === item.href;
@@ -110,16 +113,16 @@ export function Sidebar() {
             <NavLink
               to={item.href}
               className={({ isActive }) => cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                "hover:bg-purple-500/20 hover:text-purple-500",
                 isActive 
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground" 
+                  ? "bg-purple-500/10 text-purple-500 font-medium" 
                   : "text-sidebar-foreground",
                 isCollapsed ? "justify-center" : ""
               )}
               aria-current={isActive ? "page" : undefined}
             >
-              <Icon size={18} />
+              <Icon size={18} className={isActive ? "text-purple-500" : ""} />
               {!isCollapsed && <span>{item.title}</span>}
             </NavLink>
           </TooltipTrigger>
@@ -192,7 +195,7 @@ export function Sidebar() {
             <Button
               variant="ghost"
               size="icon"
-              className="w-8 h-8 rounded-full"
+              className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
               onClick={toggleSidebar}
             >
               {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
