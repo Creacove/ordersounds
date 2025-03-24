@@ -4,6 +4,7 @@ import { Topbar } from "./Topbar";
 import { Sidebar } from "./Sidebar";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, hideSidebar = false }: MainLayoutProps) {
   const location = useLocation();
+  const isMobile = useIsMobile();
 
   // Smooth scroll to top on route change
   useEffect(() => {
@@ -26,7 +28,8 @@ export function MainLayout({ children, hideSidebar = false }: MainLayoutProps) {
         <main 
           className={cn(
             "flex-1 transition-all duration-300 animate-fade-in w-full",
-            hideSidebar ? "ml-0" : "ml-0 md:ml-[70px] lg:ml-[240px]" 
+            hideSidebar ? "ml-0" : "ml-0 md:ml-[70px] lg:ml-[240px]",
+            isMobile ? "pb-24" : "" // Add bottom padding on mobile
           )}
         >
           {children}

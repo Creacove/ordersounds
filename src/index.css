@@ -194,6 +194,11 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
     z-index: 50;
   }
   
+  /* Mobile content bottom padding - consistent across app */
+  .mobile-content-padding {
+    padding-bottom: 6rem;
+  }
+  
   /* Ensure proper text sizing in small containers */
   .truncate {
     text-overflow: ellipsis;
@@ -267,3 +272,4 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
     overflow: hidden;
   }
 }
+
