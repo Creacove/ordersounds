@@ -47,20 +47,26 @@ export function BeatFilters({
 }: BeatFiltersProps) {
   const { currency } = useAuth();
   
+  // Set default price ranges based on currency
+  const getDefaultPriceRange = (curr: 'NGN' | 'USD'): [number, number] => {
+    return curr === 'NGN' ? [1000, 30000] : [10, 200];
+  };
+  
   // Filter state
   const [search, setSearch] = useState(initialFilters?.search || '');
   const [selectedGenres, setSelectedGenres] = useState<string[]>(initialFilters?.genre || []);
   const [selectedTrackTypes, setSelectedTrackTypes] = useState<string[]>(initialFilters?.trackType || []);
   const [bpmRange, setBpmRange] = useState<[number, number]>(initialFilters?.bpmRange || [70, 180]);
   const [priceRange, setPriceRange] = useState<[number, number]>(
-    initialFilters?.priceRange || (currency === 'NGN' ? [1000, 30000] : [10, 200])
+    initialFilters?.priceRange || getDefaultPriceRange(currency)
   );
   const [isFilterVisible, setIsFilterVisible] = useState(true);
   
   // Handle price range based on currency
   useEffect(() => {
-    // Reset price range when currency changes
-    setPriceRange(currency === 'NGN' ? [1000, 30000] : [10, 200]);
+    // Reset price range when currency changes if not already customized
+    const defaultRange = getDefaultPriceRange(currency);
+    setPriceRange(defaultRange);
   }, [currency]);
   
   // Apply filters
@@ -79,7 +85,7 @@ export function BeatFilters({
     setSelectedGenres([]);
     setSelectedTrackTypes([]);
     setBpmRange([70, 180]);
-    setPriceRange(currency === 'NGN' ? [1000, 30000] : [10, 200]);
+    setPriceRange(getDefaultPriceRange(currency));
     clearFilters();
   };
   
@@ -97,6 +103,17 @@ export function BeatFilters({
     } else {
       setSelectedTrackTypes([...selectedTrackTypes, type]);
     }
+  };
+  
+  const priceConfig = {
+    min: currency === 'NGN' ? 500 : 5,
+    max: currency === 'NGN' ? 50000 : 300,
+    step: currency === 'NGN' ? 500 : 5,
+    symbol: currency === 'NGN' ? '₦' : '$'
+  };
+  
+  const formatPrice = (price: number) => {
+    return `${priceConfig.symbol}${price.toLocaleString()}`;
   };
   
   const hasActiveFilters = 
@@ -189,14 +206,14 @@ export function BeatFilters({
             <div className="flex justify-between mb-2">
               <Label>Price Range ({currency})</Label>
               <span className="text-sm text-muted-foreground">
-                {currency === 'NGN' ? '₦' : '$'}{priceRange[0].toLocaleString()} - {currency === 'NGN' ? '₦' : '$'}{priceRange[1].toLocaleString()}
+                {formatPrice(priceRange[0])} - {formatPrice(priceRange[1])}
               </span>
             </div>
             <Slider
               value={priceRange}
-              min={currency === 'NGN' ? 500 : 5}
-              max={currency === 'NGN' ? 50000 : 300}
-              step={currency === 'NGN' ? 500 : 5}
+              min={priceConfig.min}
+              max={priceConfig.max}
+              step={priceConfig.step}
               onValueChange={(value) => setPriceRange(value as [number, number])}
               className="max-w-md"
             />

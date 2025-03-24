@@ -33,16 +33,6 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
-
 export function Topbar() {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
@@ -76,10 +66,6 @@ export function Topbar() {
     setCurrency(newCurrency);
   };
 
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
-  
   return (
     <header 
       className={cn(
@@ -94,58 +80,6 @@ export function Topbar() {
             <Headphones size={24} className="text-purple-600" />
             <span className="font-heading font-bold text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text">OrderSOUNDS</span>
           </Link>
-
-          {/* Desktop Navigation Menu - Simplified */}
-          {!isMobile && (
-            <NavigationMenu className="ml-4 hidden md:flex">
-              <NavigationMenuList>
-                <NavigationMenuItem>
-                  <NavigationMenuLink
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      isActive("/") ? "bg-accent text-accent-foreground" : ""
-                    )}
-                    href="/"
-                  >
-                    Home
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuLink
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      isActive("/trending") ? "bg-accent text-accent-foreground" : ""
-                    )}
-                    href="/trending"
-                  >
-                    Trending
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuLink
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      isActive("/playlists") ? "bg-accent text-accent-foreground" : ""
-                    )}
-                    href="/playlists"
-                  >
-                    Playlists
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-                <NavigationMenuItem>
-                  <NavigationMenuLink
-                    className={cn(
-                      navigationMenuTriggerStyle(),
-                      isActive("/search") ? "bg-accent text-accent-foreground" : ""
-                    )}
-                    href="/search"
-                  >
-                    Search
-                  </NavigationMenuLink>
-                </NavigationMenuItem>
-              </NavigationMenuList>
-            </NavigationMenu>
-          )}
         </div>
         
         {/* Search, Cart, User - Simplified */}
