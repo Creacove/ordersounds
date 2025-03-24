@@ -1,7 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
-import { Beat } from '@/types';
+import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 
 /**
@@ -87,8 +87,8 @@ export const uploadBeat = async (
       const royaltySplits = collaborators.map(collaborator => ({
         beat_id: beatId,
         party_id: collaborator.id === 1 ? producerId : null, // Main producer uses their ID
+        party_email: collaborator.email,
         party_name: collaborator.name,
-        party_email: collaborator.id !== 1 ? collaborator.email : null, // Collaborators use email for now
         party_role: collaborator.role,
         percentage: collaborator.percentage,
       }));
@@ -180,6 +180,71 @@ export const getProducerBeats = async (producerId: string): Promise<Beat[]> => {
   } catch (error) {
     console.error('Error fetching producer beats:', error);
     toast.error('Failed to load beats');
+    return [];
+  }
+};
+
+/**
+ * Gets all royalty splits for a producer
+ */
+export const getProducerRoyaltySplits = async (producerId: string): Promise<RoyaltySplit[]> => {
+  try {
+    // First get all beats where the producer is the owner
+    const { data: producerBeats, error: beatsError } = await supabase
+      .from('beats')
+      .select('id, title, cover_image')
+      .eq('producer_id', producerId);
+    
+    if (beatsError) {
+      throw beatsError;
+    }
+
+    if (!producerBeats || producerBeats.length === 0) {
+      return [];
+    }
+
+    // Get beat IDs
+    const beatIds = producerBeats.map(beat => beat.id);
+
+    // Get royalty splits for all these beats
+    const { data: royaltySplits, error: royaltyError } = await supabase
+      .from('royalty_splits')
+      .select('*')
+      .in('beat_id', beatIds);
+    
+    if (royaltyError) {
+      throw royaltyError;
+    }
+
+    if (!royaltySplits) {
+      return [];
+    }
+
+    // Create a map of beat details for easy lookup
+    const beatDetailsMap = producerBeats.reduce((map, beat) => {
+      map[beat.id] = {
+        title: beat.title,
+        cover_image: beat.cover_image
+      };
+      return map;
+    }, {});
+
+    // Transform the data to match the RoyaltySplit type
+    return royaltySplits.map(split => ({
+      id: split.id,
+      beat_id: split.beat_id,
+      beat_title: beatDetailsMap[split.beat_id]?.title || 'Unknown Beat',
+      beat_cover_image: beatDetailsMap[split.beat_id]?.cover_image || null,
+      collaborator_id: split.party_id || '',
+      collaborator_name: split.party_name || 'Unknown',
+      collaborator_email: split.party_email || '',
+      collaborator_role: split.party_role || '',
+      percentage: split.percentage || 0,
+      created_at: split.created_date || new Date().toISOString()
+    }));
+  } catch (error) {
+    console.error('Error fetching royalty splits:', error);
+    toast.error('Failed to load royalty splits');
     return [];
   }
 };

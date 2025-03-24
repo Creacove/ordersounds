@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   email: string;
@@ -80,9 +81,16 @@ export interface PurchasedBeat {
 }
 
 export interface RoyaltySplit {
+  id: string;
   beat_id: string;
+  beat_title: string;
+  beat_cover_image: string | null;
   collaborator_id: string;
+  collaborator_name: string;
+  collaborator_email: string;
+  collaborator_role: string;
   percentage: number;
+  created_at: string;
 }
 
 export interface CartItem {
