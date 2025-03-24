@@ -241,21 +241,30 @@ export type Database = {
           beat_id: string
           created_date: string | null
           id: string
-          party_id: string
+          party_email: string | null
+          party_id: string | null
+          party_name: string | null
+          party_role: string | null
           percentage: number
         }
         Insert: {
           beat_id: string
           created_date?: string | null
           id?: string
-          party_id: string
+          party_email?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          party_role?: string | null
           percentage: number
         }
         Update: {
           beat_id?: string
           created_date?: string | null
           id?: string
-          party_id?: string
+          party_email?: string | null
+          party_id?: string | null
+          party_name?: string | null
+          party_role?: string | null
           percentage?: number
         }
         Relationships: [
