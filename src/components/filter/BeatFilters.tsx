@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -66,6 +66,7 @@ export function BeatFilters({
   initialFilters 
 }: BeatFiltersProps) {
   const { currency } = useAuth();
+  const prevCurrencyRef = useRef(currency);
   
   // Get price config based on current currency
   const getPriceConfig = () => CURRENCY_CONFIG[currency];
@@ -86,12 +87,34 @@ export function BeatFilters({
   );
   const [isFilterVisible, setIsFilterVisible] = useState(true);
   
-  // Update price range when currency changes
+  // Reset price range when currency changes
   useEffect(() => {
-    console.log('Currency changed to:', currency);
-    const newPriceRange = getDefaultPriceRange();
-    console.log('Setting new price range:', newPriceRange);
-    setPriceRange(newPriceRange);
+    // Only update if currency actually changed
+    if (prevCurrencyRef.current !== currency) {
+      console.log('Currency changed from', prevCurrencyRef.current, 'to', currency);
+      
+      // Calculate new price range based on proportional values in the new currency
+      const oldConfig = CURRENCY_CONFIG[prevCurrencyRef.current];
+      const newConfig = CURRENCY_CONFIG[currency];
+      
+      // Calculate the proportion of the current range within the old configuration
+      const oldRangeStart = (priceRange[0] - oldConfig.min) / (oldConfig.max - oldConfig.min);
+      const oldRangeEnd = (priceRange[1] - oldConfig.min) / (oldConfig.max - oldConfig.min);
+      
+      // Apply that proportion to the new currency range
+      const newRangeStart = Math.round((newConfig.max - newConfig.min) * oldRangeStart + newConfig.min);
+      const newRangeEnd = Math.round((newConfig.max - newConfig.min) * oldRangeEnd + newConfig.min);
+      
+      // Ensure values are within valid ranges and steps
+      const normalizedStart = Math.max(newConfig.min, Math.round(newRangeStart / newConfig.step) * newConfig.step);
+      const normalizedEnd = Math.min(newConfig.max, Math.round(newRangeEnd / newConfig.step) * newConfig.step);
+      
+      console.log('Setting proportional price range:', [normalizedStart, normalizedEnd]);
+      setPriceRange([normalizedStart, normalizedEnd]);
+      
+      // Update the ref
+      prevCurrencyRef.current = currency;
+    }
   }, [currency]);
   
   // Apply filters whenever any filter changes
@@ -231,7 +254,7 @@ export function BeatFilters({
               </span>
             </div>
             <Slider
-              key={`price-slider-${currency}`} 
+              key={`price-slider-${currency}`}
               value={priceRange}
               min={currentPriceConfig.min}
               max={currentPriceConfig.max}
