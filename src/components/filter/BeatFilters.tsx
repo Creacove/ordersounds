@@ -86,10 +86,12 @@ export function BeatFilters({
   );
   const [isFilterVisible, setIsFilterVisible] = useState(true);
   
-  // Handle price range based on currency changes
+  // Update price range when currency changes
   useEffect(() => {
-    // Reset price range when currency changes
-    setPriceRange(getDefaultPriceRange());
+    console.log('Currency changed to:', currency);
+    const newPriceRange = getDefaultPriceRange();
+    console.log('Setting new price range:', newPriceRange);
+    setPriceRange(newPriceRange);
   }, [currency]);
   
   // Apply filters whenever any filter changes
@@ -101,7 +103,7 @@ export function BeatFilters({
       bpmRange,
       priceRange
     });
-  }, [search, selectedGenres, selectedTrackTypes, bpmRange, priceRange, currency]);
+  }, [search, selectedGenres, selectedTrackTypes, bpmRange, priceRange, onFilterChange]);
   
   const handleClearFilters = () => {
     setSearch('');
@@ -128,6 +130,7 @@ export function BeatFilters({
     }
   };
   
+  // Get current price config based on the current currency
   const currentPriceConfig = getPriceConfig();
   
   const formatPrice = (price: number) => {
@@ -222,12 +225,13 @@ export function BeatFilters({
           
           <div>
             <div className="flex justify-between mb-2">
-              <Label>Price Range ({currency === 'NGN' ? '₦' : '$'})</Label>
+              <Label>Price Range ({currentPriceConfig.symbol})</Label>
               <span className="text-sm text-muted-foreground">
                 {formatPrice(priceRange[0])} - {formatPrice(priceRange[1])}
               </span>
             </div>
             <Slider
+              key={`price-slider-${currency}`} 
               value={priceRange}
               min={currentPriceConfig.min}
               max={currentPriceConfig.max}
