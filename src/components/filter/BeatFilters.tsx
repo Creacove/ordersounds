@@ -26,6 +26,26 @@ const TRACK_TYPES = [
   'Dark', 'Drill', 'Experimental'
 ];
 
+// Currency-specific configurations
+const CURRENCY_CONFIG = {
+  NGN: {
+    min: 500,
+    max: 50000,
+    step: 500,
+    defaultMin: 1000,
+    defaultMax: 30000,
+    symbol: '₦'
+  },
+  USD: {
+    min: 5,
+    max: 300,
+    step: 5,
+    defaultMin: 10,
+    defaultMax: 200,
+    symbol: '$'
+  }
+};
+
 export interface FilterValues {
   search: string;
   genre: string[];
@@ -47,9 +67,13 @@ export function BeatFilters({
 }: BeatFiltersProps) {
   const { currency } = useAuth();
   
+  // Get price config based on current currency
+  const getPriceConfig = () => CURRENCY_CONFIG[currency];
+  
   // Set default price ranges based on currency
-  const getDefaultPriceRange = (curr: 'NGN' | 'USD'): [number, number] => {
-    return curr === 'NGN' ? [1000, 30000] : [10, 200];
+  const getDefaultPriceRange = (): [number, number] => {
+    const config = getPriceConfig();
+    return [config.defaultMin, config.defaultMax];
   };
   
   // Filter state
@@ -58,15 +82,24 @@ export function BeatFilters({
   const [selectedTrackTypes, setSelectedTrackTypes] = useState<string[]>(initialFilters?.trackType || []);
   const [bpmRange, setBpmRange] = useState<[number, number]>(initialFilters?.bpmRange || [70, 180]);
   const [priceRange, setPriceRange] = useState<[number, number]>(
-    initialFilters?.priceRange || getDefaultPriceRange(currency)
+    initialFilters?.priceRange || getDefaultPriceRange()
   );
   const [isFilterVisible, setIsFilterVisible] = useState(true);
   
   // Handle price range based on currency
   useEffect(() => {
-    // Reset price range when currency changes if not already customized
-    const defaultRange = getDefaultPriceRange(currency);
+    // Reset price range when currency changes
+    const defaultRange = getDefaultPriceRange();
     setPriceRange(defaultRange);
+    
+    // Apply the new filters with updated price range
+    onFilterChange({
+      search,
+      genre: selectedGenres,
+      trackType: selectedTrackTypes,
+      bpmRange,
+      priceRange: defaultRange
+    });
   }, [currency]);
   
   // Apply filters
@@ -85,7 +118,7 @@ export function BeatFilters({
     setSelectedGenres([]);
     setSelectedTrackTypes([]);
     setBpmRange([70, 180]);
-    setPriceRange(getDefaultPriceRange(currency));
+    setPriceRange(getDefaultPriceRange());
     clearFilters();
   };
   
@@ -105,15 +138,10 @@ export function BeatFilters({
     }
   };
   
-  const priceConfig = {
-    min: currency === 'NGN' ? 500 : 5,
-    max: currency === 'NGN' ? 50000 : 300,
-    step: currency === 'NGN' ? 500 : 5,
-    symbol: currency === 'NGN' ? '₦' : '$'
-  };
+  const currentPriceConfig = getPriceConfig();
   
   const formatPrice = (price: number) => {
-    return `${priceConfig.symbol}${price.toLocaleString()}`;
+    return `${currentPriceConfig.symbol}${price.toLocaleString()}`;
   };
   
   const hasActiveFilters = 
@@ -122,8 +150,8 @@ export function BeatFilters({
     selectedTrackTypes.length > 0 || 
     bpmRange[0] !== 70 || 
     bpmRange[1] !== 180 ||
-    (currency === 'NGN' && (priceRange[0] !== 1000 || priceRange[1] !== 30000)) ||
-    (currency === 'USD' && (priceRange[0] !== 10 || priceRange[1] !== 200));
+    priceRange[0] !== currentPriceConfig.defaultMin || 
+    priceRange[1] !== currentPriceConfig.defaultMax;
   
   return (
     <div className="bg-card rounded-lg border border-border mb-6">
@@ -204,16 +232,16 @@ export function BeatFilters({
           
           <div>
             <div className="flex justify-between mb-2">
-              <Label>Price Range ({currency})</Label>
+              <Label>Price Range</Label>
               <span className="text-sm text-muted-foreground">
                 {formatPrice(priceRange[0])} - {formatPrice(priceRange[1])}
               </span>
             </div>
             <Slider
               value={priceRange}
-              min={priceConfig.min}
-              max={priceConfig.max}
-              step={priceConfig.step}
+              min={currentPriceConfig.min}
+              max={currentPriceConfig.max}
+              step={currentPriceConfig.step}
               onValueChange={(value) => setPriceRange(value as [number, number])}
               className="max-w-md"
             />
