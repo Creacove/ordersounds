@@ -12,9 +12,11 @@ import {
   ChevronLeft,
   Music,
   LayoutDashboard,
+  Upload,
   DollarSign,
   Settings,
   Disc,
+  Grip,
   ShoppingCart,
   User,
   MoreHorizontal,
@@ -94,6 +96,7 @@ export function Sidebar() {
         items: [
           { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
           { icon: Music, title: "My Beats", href: "/producer/beats" },
+          { icon: Upload, title: "Upload Beat", href: "/producer/upload" },
           { icon: DollarSign, title: "Royalty Splits", href: "/producer/royalties" },
           { icon: Settings, title: "Settings", href: "/producer/settings" },
         ]
@@ -152,6 +155,7 @@ export function Sidebar() {
       mobileMenuItems = [
         { icon: <LayoutDashboard size={20} />, label: "Dashboard", to: "/producer/dashboard", id: "producer" },
         { icon: <Music size={20} />, label: "My Beats", to: "/producer/beats", id: "beats" },
+        { icon: <Upload size={20} />, label: "Upload", to: "/producer/upload", id: "upload" },
         { icon: <DollarSign size={20} />, label: "Royalties", to: "/producer/royalties", id: "royalties" },
         { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
       ];
