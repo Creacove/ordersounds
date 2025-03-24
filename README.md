@@ -21,6 +21,7 @@ Creacove is a sophisticated beat marketplace platform designed to connect music 
 - **Secure Payments**: Integrated with Stripe and Paystack payment gateways
 - **Analytics & Insights**: Track sales, plays, and user engagement
 - **User Authentication**: Secure login and registration systems
+- **Notifications**: Real-time notifications for purchases, messages, and platform updates
 
 ## Architecture & Technology Stack
 
@@ -31,6 +32,7 @@ Creacove is a sophisticated beat marketplace platform designed to connect music 
 - **State Management**: React Context API
 - **Routing**: React Router
 - **API Requests**: Tanstack React Query
+- **Notifications**: Real-time notifications using Supabase Realtime
 
 ### Backend
 - **Database**: PostgreSQL (via Supabase)
@@ -38,6 +40,7 @@ Creacove is a sophisticated beat marketplace platform designed to connect music 
 - **Storage**: Supabase Storage for beat files and images
 - **API Layer**: Supabase API and custom Edge Functions
 - **Real-time Features**: Supabase Realtime
+- **Email Notifications**: Integrated email notification system
 
 ## User Flows & Dashboards
 
@@ -62,6 +65,7 @@ Creacove is a sophisticated beat marketplace platform designed to connect music 
 - Create and manage playlists
 - Follow favorite producers
 - View purchase history
+- Receive notifications for new releases and updates
 
 ### Producer Dashboard
 
@@ -78,6 +82,7 @@ Creacove is a sophisticated beat marketplace platform designed to connect music 
 - Define royalty splits with collaborators
 - Track sales and analytics
 - Manage profile and payout information
+- Receive notifications for sales and collaborations
 
 ## Database Schema Overview
 
@@ -167,6 +172,13 @@ npm test -- --coverage
 ```
 
 ## Changelog
+
+### [v0.2.0] - 2025-04-02
+- Implemented notifications system
+- Enhanced royalty splits management
+- Added real-time updates for producers
+- Improved UI/UX for beat discovery
+- Fixed various bugs and performance issues
 
 ### [v0.1.0] - 2025-03-23
 - Initial project setup with React, Vite, and Supabase
