@@ -1,13 +1,16 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Play, Filter, ArrowRight, Sparkles, Flame, Clock } from "lucide-react";
+import { Play, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
 import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading } = useBeats();
@@ -28,6 +31,15 @@ export default function Home() {
     { name: "Hip Hop", icon: <Flame size={16} /> },
     { name: "R&B", icon: <Clock size={16} /> },
     { name: "Amapiano", icon: <Sparkles size={16} /> },
+  ];
+
+  // Top producers (mock data)
+  const topProducers = [
+    { id: '1', name: 'Metro Boomin', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+    { id: '2', name: 'JUNE', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+    { id: '3', name: 'DJ Eazie', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
+    { id: '4', name: 'Beats by Dre', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+    { id: '5', name: 'KBeatz', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
   ];
 
   return (
@@ -90,9 +102,43 @@ export default function Home() {
           </section>
         )}
 
+        {/* Top Producers - Circle Avatars */}
+        <div className="bg-background pt-8 pb-4">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Top Producers</h2>
+              <Button variant="ghost" size="sm" className="gap-1 text-primary" asChild>
+                <Link to="/producers">
+                  <span>View all</span>
+                  <ChevronRight size={16} />
+                </Link>
+              </Button>
+            </div>
+            
+            <div className="flex overflow-x-auto pb-4 gap-5 scrollbar-hide">
+              {topProducers.map((producer) => (
+                <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[90px]">
+                  <div className="relative">
+                    <Avatar className="h-[90px] w-[90px] border-2 border-background shadow-md">
+                      <AvatarImage src={producer.avatar} alt={producer.name} />
+                      <AvatarFallback>{producer.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    {producer.verified && (
+                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
+                        <UserCheck size={16} />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-center truncate max-w-[90px]">{producer.name}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Quick category browse section */}
-        <div className="container py-6 overflow-hidden">
-          <div className="flex overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2">
+        <div className="container py-4 overflow-hidden bg-black/5 dark:bg-white/5">
+          <div className="flex overflow-x-auto pb-2 scrollbar-hide -mx-2 px-6">
             <div className="flex gap-2">
               {categories.map((category, index) => (
                 <Link 
@@ -116,7 +162,7 @@ export default function Home() {
         </div>
 
         {/* Main content */}
-        <div className="container py-4">
+        <div className="container py-6">
           {/* Filter and search controls */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Browse Beats</h2>
@@ -218,6 +264,109 @@ export default function Home() {
             )}
           </section>
 
+          {/* Featured Collections */}
+          <section className="mb-10">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Featured Collections</h2>
+                <div className="bg-purple-500/10 text-purple-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Star size={12} />
+                  <span>Curated</span>
+                </div>
+              </div>
+              <Link to="/playlists" className="text-sm text-primary hover:underline flex items-center gap-1">
+                View all
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Link to="/playlists/piano" className="block">
+                <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-blue-500 to-purple-500 relative group">
+                  <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
+                  <div className="p-4 flex flex-col h-full justify-between">
+                    <div className="flex justify-end">
+                      <Badge variant="outline" className="bg-white/20 text-white border-white/10">
+                        Collection
+                      </Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Piano Vibes</h3>
+                      <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
+                          <Play size={14} className="mr-1" /> Listen
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+              
+              <Link to="/playlists/guitar" className="block">
+                <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-orange-500 to-red-500 relative group">
+                  <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
+                  <div className="p-4 flex flex-col h-full justify-between">
+                    <div className="flex justify-end">
+                      <Badge variant="outline" className="bg-white/20 text-white border-white/10">
+                        Collection
+                      </Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Guitar Classics</h3>
+                      <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
+                          <Play size={14} className="mr-1" /> Listen
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+              
+              <Link to="/playlists/afro" className="block">
+                <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-green-500 to-emerald-500 relative group">
+                  <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
+                  <div className="p-4 flex flex-col h-full justify-between">
+                    <div className="flex justify-end">
+                      <Badge variant="outline" className="bg-white/20 text-white border-white/10">
+                        Collection
+                      </Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Afro Fusion</h3>
+                      <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
+                          <Play size={14} className="mr-1" /> Listen
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+              
+              <Link to="/playlists/rnb" className="block">
+                <div className="aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-pink-500 to-purple-500 relative group">
+                  <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
+                  <div className="p-4 flex flex-col h-full justify-between">
+                    <div className="flex justify-end">
+                      <Badge variant="outline" className="bg-white/20 text-white border-white/10">
+                        Collection
+                      </Badge>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-white">Smooth R&B</h3>
+                      <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
+                          <Play size={14} className="mr-1" /> Listen
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </section>
+
           {/* New Beats Section */}
           <section className="mb-10">
             <div className="flex justify-between items-center mb-4">
@@ -255,6 +404,21 @@ export default function Home() {
               </div>
             )}
           </section>
+        </div>
+
+        {/* CTA Banner */}
+        <div className="bg-primary/10 dark:bg-primary/5 py-8 mb-10">
+          <div className="container mx-auto px-4 text-center">
+            <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+              DON'T WAIT, JOIN TODAY!
+            </h2>
+            <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+              The most talented producers are waiting for you. Sign up now and get access to thousands of premium beats.
+            </p>
+            <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+              <Link to="/signup">Create Account</Link>
+            </Button>
+          </div>
         </div>
       </div>
     </MainLayoutWithPlayer>
