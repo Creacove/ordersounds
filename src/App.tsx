@@ -29,7 +29,6 @@ import Settings from "./pages/user/Settings";
 import Contact from "./pages/Contact";
 import BuyerProfile from "./pages/buyer/BuyerProfile";
 import ProducerProfile from "./pages/producer/ProducerProfile";
-import Collections from "./pages/buyer/Collections"; // Added Collections import
 
 // Producer pages
 import ProducerDashboard from "./pages/producer/Dashboard";
@@ -56,16 +55,13 @@ const App = () => (
                   <Route path="/trending" element={<Trending />} />
                   <Route path="/new" element={<New />} />
                   <Route path="/playlists" element={<Playlists />} />
+                  <Route path="/playlists/:playlistId" element={<Playlists />} />
                   <Route path="/genres" element={<Genres />} />
                   <Route path="/producers" element={<Producers />} />
                   <Route path="/charts" element={<Charts />} />
                   <Route path="/search" element={<Search />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/cart" element={<Cart />} />
-                  
-                  {/* Collections Routes */}
-                  <Route path="/collections" element={<Collections />} />
-                  <Route path="/collections/:collectionId" element={<Collections />} />
                   
                   {/* Profile Routes */}
                   <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
