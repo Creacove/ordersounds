@@ -29,7 +29,8 @@ export function MainLayout({ children, hideSidebar = false }: MainLayoutProps) {
           className={cn(
             "flex-1 transition-all duration-300 animate-fade-in w-full",
             hideSidebar ? "ml-0" : "ml-0 md:ml-[70px] lg:ml-[240px]",
-            isMobile ? "mobile-content-padding" : "" // Use consistent mobile content padding
+            // Consistent mobile padding with extra space for the bottom navigation
+            isMobile ? "pb-20 mobile-content-padding" : ""
           )}
         >
           {children}

@@ -8,13 +8,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function ProducerSettings() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   useEffect(() => {
-    document.title = "Producer Settings | Creacove";
+    document.title = "Producer Settings | OrderSOUNDS";
     
     // Redirect to login if not authenticated or not a producer
     if (!user) {
@@ -30,8 +33,8 @@ export default function ProducerSettings() {
       <MainLayout>
         <div className="container py-16">
           <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Producer Access Required</h1>
-            <p className="mb-4">You need to be logged in as a producer to access this page.</p>
+            <h1 className="heading-responsive-md mb-4">Producer Access Required</h1>
+            <p className="text-responsive-base mb-4">You need to be logged in as a producer to access this page.</p>
             <Button onClick={() => navigate('/login')}>Login</Button>
           </div>
         </div>
@@ -41,11 +44,14 @@ export default function ProducerSettings() {
 
   return (
     <MainLayout>
-      <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-8">Producer Settings</h1>
+      <div className={cn(
+        "container py-6 md:py-8",
+        isMobile ? "mobile-content-padding" : ""
+      )}>
+        <h1 className="heading-responsive-lg mb-6 md:mb-8">Producer Settings</h1>
         
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3 mb-8">
+          <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8">
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="payment">Payment</TabsTrigger>
             <TabsTrigger value="preferences">Preferences</TabsTrigger>
@@ -54,8 +60,8 @@ export default function ProducerSettings() {
           <TabsContent value="profile">
             <Card>
               <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-responsive-lg">Profile Information</CardTitle>
+                <CardDescription className="text-responsive-sm">
                   Update your producer profile information that will be visible to buyers
                 </CardDescription>
               </CardHeader>
@@ -88,7 +94,7 @@ export default function ProducerSettings() {
                   />
                 </div>
                 
-                <Button className="bg-purple-500 hover:bg-purple-600">
+                <Button>
                   Save Changes
                 </Button>
               </CardContent>
@@ -98,13 +104,13 @@ export default function ProducerSettings() {
           <TabsContent value="payment">
             <Card>
               <CardHeader>
-                <CardTitle>Payment Settings</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-responsive-lg">Payment Settings</CardTitle>
+                <CardDescription className="text-responsive-sm">
                   Configure how you'll receive payments for your beats
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center py-10">
-                <p className="text-muted-foreground mb-4">Payment settings coming soon</p>
+                <p className="text-responsive-base text-muted-foreground mb-4">Payment settings coming soon</p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -112,13 +118,13 @@ export default function ProducerSettings() {
           <TabsContent value="preferences">
             <Card>
               <CardHeader>
-                <CardTitle>Preferences</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-responsive-lg">Preferences</CardTitle>
+                <CardDescription className="text-responsive-sm">
                   Customize your producer experience
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center py-10">
-                <p className="text-muted-foreground mb-4">Preference settings coming soon</p>
+                <p className="text-responsive-base text-muted-foreground mb-4">Preference settings coming soon</p>
               </CardContent>
             </Card>
           </TabsContent>

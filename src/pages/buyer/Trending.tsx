@@ -5,10 +5,13 @@ import { useBeats } from "@/hooks/useBeats";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useCart } from "@/context/CartContext";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Trending() {
   const { trendingBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { isInCart } = useCart();
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     document.title = "Trending Beats | OrderSOUNDS";
@@ -16,11 +19,14 @@ export default function Trending() {
 
   return (
     <MainLayout>
-      <div className="container py-8">
-        <h1 className="text-3xl font-bold mb-8">Trending Beats</h1>
+      <div className={cn(
+        "container py-6 md:py-8",
+        isMobile ? "mobile-content-padding" : ""
+      )}>
+        <h1 className="heading-responsive-lg mb-6 md:mb-8">Trending Beats</h1>
         
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2">
                 <Skeleton className="h-48 w-full rounded-lg" />
@@ -30,7 +36,7 @@ export default function Trending() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
             {trendingBeats.map((beat) => (
               <BeatCard 
                 key={beat.id} 

@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -203,6 +202,23 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   
   .heading-responsive-lg {
     @apply text-2xl md:text-3xl font-bold;
+  }
+  
+  /* Updated with more consistent spacing utilities */
+  .section-spacing {
+    @apply mb-6 md:mb-8 lg:mb-10;
+  }
+  
+  .header-spacing {
+    @apply mb-4 md:mb-6 lg:mb-8;
+  }
+  
+  .content-spacing {
+    @apply mb-4 md:mb-6;
+  }
+  
+  .item-spacing {
+    @apply mb-2 md:mb-3;
   }
 }
 

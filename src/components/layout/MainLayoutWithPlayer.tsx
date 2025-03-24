@@ -35,12 +35,13 @@ export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlay
         <Sidebar />
         
         <main className={cn(
-          "flex-1 transition-all duration-300 w-full", 
+          "flex-1 transition-all duration-300 w-full animate-fade-in", 
           // Adjust left padding to prevent content overlap
           isMobile ? "pl-0" : "pl-[70px] lg:pl-[240px]",
-          // Add mobile content padding with extra for player if needed
-          isMobile ? hasPlayer ? "pb-32 mobile-content-padding" : "mobile-content-padding" : hasPlayer ? "pb-20" : "",
-          "animate-fade-in"
+          // Add consistently sized bottom padding for mobile
+          isMobile ? 
+            hasPlayer ? "pb-32 mobile-content-padding" : "pb-20 mobile-content-padding" : 
+            hasPlayer ? "pb-24" : ""
         )}>
           {children}
         </main>
