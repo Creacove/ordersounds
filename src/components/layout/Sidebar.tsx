@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -13,7 +12,6 @@ import {
   ChevronLeft,
   Music,
   LayoutDashboard,
-  Upload,
   DollarSign,
   Settings,
   Disc,
@@ -97,7 +95,6 @@ export function Sidebar() {
         items: [
           { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
           { icon: Music, title: "My Beats", href: "/producer/beats" },
-          { icon: Upload, title: "Upload Beat", href: "/producer/upload" },
           { icon: DollarSign, title: "Royalty Splits", href: "/producer/royalties" },
           { icon: Settings, title: "Settings", href: "/producer/settings" },
         ]
@@ -156,7 +153,6 @@ export function Sidebar() {
       mobileMenuItems = [
         { icon: <LayoutDashboard size={20} />, label: "Dashboard", to: "/producer/dashboard", id: "producer" },
         { icon: <Music size={20} />, label: "My Beats", to: "/producer/beats", id: "beats" },
-        { icon: <Upload size={20} />, label: "Upload", to: "/producer/upload", id: "upload" },
         { icon: <DollarSign size={20} />, label: "Royalties", to: "/producer/royalties", id: "royalties" },
         { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
       ];
@@ -174,7 +170,8 @@ export function Sidebar() {
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
-            const isActive = activeBottomTab === item.id;
+            const isCurrentPath = location.pathname === item.to;
+            const isActive = activeBottomTab === item.id || isCurrentPath;
             
             if (item.action) {
               return (
@@ -210,7 +207,6 @@ export function Sidebar() {
                   "flex flex-col items-center justify-center py-1 px-2 relative",
                   isActive ? "text-purple-500" : "text-muted-foreground"
                 )}
-                onClick={() => setActiveBottomTab(item.id)}
               >
                 <div className={cn(
                   "relative p-1.5 rounded-full transition-colors",
@@ -256,8 +252,10 @@ export function Sidebar() {
               </h2>
             )}
             <nav className="flex flex-col gap-1">
-              {section.items.map((item, idx) => (
-                item.onClick ? (
+              {section.items.map((item, idx) => {
+                const isActive = location.pathname === item.href;
+                
+                return item.onClick ? (
                   <TooltipProvider delayDuration={isCollapsed ? 100 : 1000} key={idx}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -377,8 +375,10 @@ export function Sidebar() {
                     {section.title}
                   </h2>
                   <nav className="flex flex-col gap-1">
-                    {section.items.map((item, idx) => (
-                      item.onClick ? (
+                    {section.items.map((item, idx) => {
+                      const isActive = location.pathname === item.href;
+                      
+                      return item.onClick ? (
                         <button
                           key={idx}
                           onClick={() => {
@@ -388,18 +388,19 @@ export function Sidebar() {
                           className={cn(
                             "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 text-left",
                             "hover:bg-purple-500/20 hover:text-purple-500",
-                            location.pathname === '#' 
+                            isActive 
                               ? "text-purple-500 font-medium bg-purple-500/10" 
                               : "text-muted-foreground"
                           )}
                         >
-                          <item.icon size={18} className={location.pathname === '#' ? "text-purple-500" : ""} />
+                          <item.icon size={18} className={isActive ? "text-purple-500" : ""} />
                           <span>{item.title}</span>
                         </button>
                       ) : (
                         <NavLink
                           key={idx}
                           to={item.href}
+                          onClick={() => setIsOpen(false)}
                           className={({ isActive }) => cn(
                             "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
                             "hover:bg-purple-500/20 hover:text-purple-500",
@@ -407,15 +408,14 @@ export function Sidebar() {
                               ? "bg-purple-500/10 text-purple-500 font-medium" 
                               : "text-muted-foreground"
                           )}
-                          onClick={() => setIsOpen(false)}
                         >
-                          <item.icon size={18} className={location.pathname === item.href ? "text-purple-500" : ""} />
-                          <span className={location.pathname === item.href ? "text-purple-500 font-medium" : ""}>
+                          <item.icon size={18} className={isActive ? "text-purple-500" : ""} />
+                          <span className={isActive ? "text-purple-500 font-medium" : ""}>
                             {item.title}
                           </span>
                         </NavLink>
-                      )
-                    ))}
+                      );
+                    })}
                   </nav>
                 </div>
               ))}
