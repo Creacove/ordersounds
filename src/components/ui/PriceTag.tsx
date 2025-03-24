@@ -31,9 +31,9 @@ export function PriceTag({
     : formatPrice(diasporaPrice, 'USD');
 
   const sizeClasses = {
-    sm: "text-xs font-medium px-2 py-0.5 leading-normal",
-    md: "text-sm font-semibold px-2.5 py-0.5 leading-normal",
-    lg: "text-base font-bold px-3 py-1 leading-normal"
+    sm: "text-[10px] xs:text-xs font-medium px-1.5 py-0.5 leading-normal",
+    md: "text-xs sm:text-sm font-semibold px-2 py-0.5 leading-normal",
+    lg: "text-sm sm:text-base font-bold px-2.5 py-0.5 leading-normal"
   };
 
   return (

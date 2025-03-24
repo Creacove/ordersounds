@@ -147,7 +147,6 @@ export function BeatCard({
           alt={beat.title}
           className="h-full w-full object-cover transition-transform group-hover:scale-105"
         />
-        {/* Play button overlay - only on the image */}
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={handlePlay}
@@ -159,119 +158,99 @@ export function BeatCard({
         </div>
       </div>
 
-      {/* Beat info and action buttons - separate from the play overlay */}
-      <div className="flex flex-col space-y-2 p-4">
+      {/* Beat info section - improved for better visibility on small screens */}
+      <div className="flex flex-col p-3 space-y-2">
+        {/* Price tag positioned at the top right for better visibility */}
         <div className="flex items-start justify-between">
           <div className="flex-1 mr-2 min-w-0">
-            <h3 className="font-semibold leading-tight tracking-tight truncate">
+            <h3 className="font-medium text-sm leading-tight tracking-tight truncate">
               {beat.title}
             </h3>
-            <p className="text-sm text-muted-foreground truncate">{beat.producer_name}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {beat.producer_name}
+            </p>
           </div>
           <PriceTag
             localPrice={beat.price_local}
             diasporaPrice={beat.price_diaspora}
             size="sm"
-            className="shrink-0" 
+            className="shrink-0"
           />
         </div>
-
-        <div className="flex items-center gap-2 pt-2">
+        
+        {/* Action buttons with improved layout for small screens */}
+        <div className="flex items-center gap-1.5 pt-1">
           {!isPurchased && !inCart && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleAddToCart}
-                    className="h-8 w-8 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                  >
-                    <ShoppingCart size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Add to Cart
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleAddToCart}
+              className="h-7 w-7 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              title="Add to Cart"
+            >
+              <ShoppingCart size={14} />
+            </Button>
           )}
 
           {inCart && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={goToCart}
-                    className="h-8 w-8 rounded-md bg-primary/20 text-primary hover:bg-primary/30"
-                  >
-                    <ShoppingCart size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Go to Cart
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={goToCart}
+              className="h-7 w-7 rounded-md bg-primary/20 text-primary hover:bg-primary/30"
+              title="Go to Cart"
+            >
+              <ShoppingCart size={14} />
+            </Button>
           )}
 
           {user && (
             <>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={handleToggleFavorite}
-                      aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                      className={cn(
-                        "h-8 w-8 rounded-md transition-colors",
-                        isFavorite
-                          ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
-                          : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                      )}
-                    >
-                      <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {isFavorite ? "Remove from favorites" : "Add to favorites"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleFavorite}
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                className={cn(
+                  "h-7 w-7 rounded-md transition-colors",
+                  isFavorite
+                    ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                )}
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
+              </Button>
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
+                    className="h-7 w-7 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
                     aria-label="More options"
                     title="More options"
                   >
-                    <MoreVertical size={16} />
+                    <MoreVertical size={14} />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer">
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer text-xs">
                     Add to queue
                   </DropdownMenuItem>
                   <DropdownMenuSub onOpenChange={loadPlaylists}>
-                    <DropdownMenuSubTrigger className="flex items-center cursor-pointer">
-                      <Plus className="mr-2 h-4 w-4" />
+                    <DropdownMenuSubTrigger className="flex items-center cursor-pointer text-xs">
+                      <Plus className="mr-2 h-3 w-3" />
                       <span>Add to Playlist</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent>
                         {loadingPlaylists ? (
-                          <DropdownMenuItem disabled>
+                          <DropdownMenuItem disabled className="text-xs">
                             Loading playlists...
                           </DropdownMenuItem>
                         ) : playlists.length === 0 ? (
-                          <DropdownMenuItem disabled>
+                          <DropdownMenuItem disabled className="text-xs">
                             No playlists found
                           </DropdownMenuItem>
                         ) : (
@@ -279,7 +258,7 @@ export function BeatCard({
                             <DropdownMenuItem
                               key={playlist.id}
                               onClick={() => handleAddToPlaylist(playlist.id)}
-                              className="cursor-pointer"
+                              className="cursor-pointer text-xs"
                             >
                               {playlist.name}
                             </DropdownMenuItem>
@@ -289,7 +268,7 @@ export function BeatCard({
                     </DropdownMenuPortal>
                   </DropdownMenuSub>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handlePlay} className="cursor-pointer">
+                  <DropdownMenuItem onClick={handlePlay} className="cursor-pointer text-xs">
                     {isCurrentlyPlaying ? "Pause" : "Play"}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
