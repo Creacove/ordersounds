@@ -167,6 +167,45 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   transform-origin: center;
 }
 
+/* Responsive typography for consistent text sizing */
+@layer utilities {
+  .text-responsive-xs {
+    @apply text-[10px] xs:text-xs sm:text-sm;
+  }
+  
+  .text-responsive-sm {
+    @apply text-xs sm:text-sm md:text-base;
+  }
+  
+  .text-responsive-base {
+    @apply text-sm md:text-base lg:text-lg;
+  }
+  
+  .text-responsive-lg {
+    @apply text-base md:text-lg lg:text-xl;
+  }
+  
+  .text-responsive-xl {
+    @apply text-lg md:text-xl lg:text-2xl;
+  }
+  
+  .text-responsive-2xl {
+    @apply text-xl md:text-2xl lg:text-3xl;
+  }
+  
+  .heading-responsive-sm {
+    @apply text-lg md:text-xl font-bold;
+  }
+  
+  .heading-responsive-md {
+    @apply text-xl md:text-2xl font-bold;
+  }
+  
+  .heading-responsive-lg {
+    @apply text-2xl md:text-3xl font-bold;
+  }
+}
+
 /* Mobile-specific styles */
 @media (max-width: 768px) {
   .content-with-bottom-nav {
@@ -271,5 +310,33 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+  
+  /* Consistent card spacing for mobile */
+  .card-mobile-padding {
+    @apply p-3 md:p-4 lg:p-5;
+  }
+  
+  /* Consistent spacing for page sections */
+  .section-mobile-spacing {
+    @apply mb-6 md:mb-8 lg:mb-10;
+  }
+  
+  /* Consistent spacing for headers */
+  .header-mobile-spacing {
+    @apply mb-4 md:mb-6;
+  }
+  
+  /* Consistent grid layouts */
+  .responsive-grid-2 {
+    @apply grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
+  }
+  
+  .responsive-grid-3 {
+    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+  }
+  
+  /* Prevent content from being hidden under fixed elements */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 1rem);
+  }
 }
-

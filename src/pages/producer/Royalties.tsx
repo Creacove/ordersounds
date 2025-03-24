@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -21,7 +22,7 @@ export default function Royalties() {
   const isMobile = useIsMobile();
   
   useEffect(() => {
-    document.title = "Royalty Splits | Creacove";
+    document.title = "Royalty Splits | OrderSOUNDS";
     
     // Redirect to login if not authenticated or not a producer
     if (!user) {
@@ -77,8 +78,8 @@ export default function Royalties() {
       <MainLayout>
         <div className="container py-16">
           <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Producer Access Required</h1>
-            <p className="mb-4">You need to be logged in as a producer to access this page.</p>
+            <h1 className="heading-responsive-md mb-4">Producer Access Required</h1>
+            <p className="text-responsive-base mb-4">You need to be logged in as a producer to access this page.</p>
             <Button onClick={() => navigate('/login')}>Login</Button>
           </div>
         </div>
@@ -88,61 +89,58 @@ export default function Royalties() {
 
   return (
     <MainLayout>
-      <div className={cn(
-        "container py-6 md:py-8", 
-        isMobile ? "pb-28 md:pb-6" : ""  // Add extra padding at the bottom on mobile
-      )}>
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-8">Royalty Splits & Earnings</h1>
+      <div className="container py-6 md:py-8">
+        <h1 className="heading-responsive-lg mb-4 md:mb-8">Royalty Splits & Earnings</h1>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 section-mobile-spacing">
           {/* Stats Cards */}
-          <Card>
+          <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Total Earnings</CardTitle>
+              <CardTitle className="text-responsive-xs font-medium">Total Earnings</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold">${totalEarnings.toFixed(2)}</div>
-              <p className="text-[10px] xs:text-xs text-muted-foreground">
+              <div className="text-responsive-xl font-bold">${totalEarnings.toFixed(2)}</div>
+              <p className="text-responsive-xs text-muted-foreground">
                 Lifetime earnings from your beats
               </p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">This Month</CardTitle>
+              <CardTitle className="text-responsive-xs font-medium">This Month</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold">${monthlyEarnings.toFixed(2)}</div>
-              <p className="text-[10px] xs:text-xs text-muted-foreground">
+              <div className="text-responsive-xl font-bold">${monthlyEarnings.toFixed(2)}</div>
+              <p className="text-responsive-xs text-muted-foreground">
                 +8% from last month
               </p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Sales</CardTitle>
+              <CardTitle className="text-responsive-xs font-medium">Sales</CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold">{salesCount}</div>
-              <p className="text-[10px] xs:text-xs text-muted-foreground">
+              <div className="text-responsive-xl font-bold">{salesCount}</div>
+              <p className="text-responsive-xs text-muted-foreground">
                 Total beats purchased
               </p>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-xs sm:text-sm font-medium">Growth</CardTitle>
+              <CardTitle className="text-responsive-xs font-medium">Growth</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl md:text-2xl font-bold">{growthPercentage}%</div>
-              <p className="text-[10px] xs:text-xs text-muted-foreground">
+              <div className="text-responsive-xl font-bold">{growthPercentage}%</div>
+              <p className="text-responsive-xs text-muted-foreground">
                 Year over year growth
               </p>
             </CardContent>
@@ -151,8 +149,8 @@ export default function Royalties() {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg md:text-xl">Royalty Splits</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Manage splits with collaborators on your beats</CardDescription>
+            <CardTitle className="text-responsive-lg">Royalty Splits</CardTitle>
+            <CardDescription className="text-responsive-xs">Manage splits with collaborators on your beats</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -173,7 +171,7 @@ export default function Royalties() {
             ) : groupedSplits.length > 0 ? (
               <div className="space-y-6 md:space-y-8">
                 {groupedSplits.map((beatGroup) => (
-                  <div key={beatGroup.beatId} className="border rounded-lg p-3 md:p-4">
+                  <div key={beatGroup.beatId} className="border rounded-lg card-mobile-padding">
                     <div className="flex items-center gap-3 md:gap-4 mb-3 md:mb-4">
                       {beatGroup.beatCoverImage ? (
                         <img 
@@ -187,8 +185,8 @@ export default function Royalties() {
                         </div>
                       )}
                       <div>
-                        <h3 className="text-base md:text-lg font-semibold leading-tight line-clamp-1">{beatGroup.beatTitle}</h3>
-                        <p className="text-xs md:text-sm text-muted-foreground">
+                        <h3 className="text-responsive-base font-semibold leading-tight line-clamp-1">{beatGroup.beatTitle}</h3>
+                        <p className="text-responsive-xs text-muted-foreground">
                           {beatGroup.splits.length} collaborator{beatGroup.splits.length !== 1 ? 's' : ''}
                         </p>
                       </div>
@@ -205,10 +203,10 @@ export default function Royalties() {
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between mb-1 items-center">
                               <div className="truncate pr-2">
-                                <span className="font-medium text-xs md:text-sm">{split.collaborator_name}</span>
-                                <span className="text-xs text-muted-foreground ml-1 md:ml-2 hidden xs:inline">({split.collaborator_role})</span>
+                                <span className="font-medium text-responsive-xs">{split.collaborator_name}</span>
+                                <span className="text-responsive-xs text-muted-foreground ml-1 md:ml-2 hidden xs:inline">({split.collaborator_role})</span>
                               </div>
-                              <span className="font-bold text-xs md:text-sm whitespace-nowrap">{split.percentage}%</span>
+                              <span className="font-bold text-responsive-xs whitespace-nowrap">{split.percentage}%</span>
                             </div>
                             <div className="xs:hidden text-[10px] text-muted-foreground mb-1">
                               {split.collaborator_role}
@@ -223,7 +221,7 @@ export default function Royalties() {
               </div>
             ) : (
               <div className="text-center py-8 md:py-10">
-                <p className="text-sm md:text-base text-muted-foreground mb-4">You don't have any royalty splits set up yet</p>
+                <p className="text-responsive-base text-muted-foreground mb-4">You don't have any royalty splits set up yet</p>
                 <Button variant="outline" onClick={() => navigate('/producer/beats')}>
                   Set Up Splits
                 </Button>

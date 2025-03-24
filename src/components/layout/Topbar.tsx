@@ -77,8 +77,11 @@ export function Topbar() {
         {/* Logo */}
         <div className="flex items-center gap-2">          
           <Link to="/" className="flex items-center gap-2">
-            <Headphones size={24} className="text-purple-600" />
-            <span className="font-heading font-bold text-xl bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text">OrderSOUNDS</span>
+            <Headphones size={isMobile ? 20 : 24} className="text-purple-600" />
+            <span className={cn(
+              "font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text",
+              isMobile ? "text-lg" : "text-xl"
+            )}>OrderSOUNDS</span>
           </Link>
         </div>
         
