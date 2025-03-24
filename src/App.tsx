@@ -11,7 +11,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { PersistentPlayer } from "@/components/player/PersistentPlayer";
 
 // Pages
-import Index from "./pages/buyer/Home";
+import Home from "./pages/buyer/Home";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
@@ -51,7 +51,7 @@ const App = () => (
                 <Sonner />
                 <Routes>
                   {/* Buyer Routes */}
-                  <Route path="/" element={<Index />} />
+                  <Route path="/" element={<Home />} />
                   <Route path="/trending" element={<Trending />} />
                   <Route path="/new" element={<New />} />
                   <Route path="/playlists" element={<Playlists />} />
