@@ -86,23 +86,13 @@ export function BeatFilters({
   );
   const [isFilterVisible, setIsFilterVisible] = useState(true);
   
-  // Handle price range based on currency
+  // Handle price range based on currency changes
   useEffect(() => {
     // Reset price range when currency changes
-    const defaultRange = getDefaultPriceRange();
-    setPriceRange(defaultRange);
-    
-    // Apply the new filters with updated price range
-    onFilterChange({
-      search,
-      genre: selectedGenres,
-      trackType: selectedTrackTypes,
-      bpmRange,
-      priceRange: defaultRange
-    });
+    setPriceRange(getDefaultPriceRange());
   }, [currency]);
   
-  // Apply filters
+  // Apply filters whenever any filter changes
   useEffect(() => {
     onFilterChange({
       search,
@@ -111,7 +101,7 @@ export function BeatFilters({
       bpmRange,
       priceRange
     });
-  }, [search, selectedGenres, selectedTrackTypes, bpmRange, priceRange]);
+  }, [search, selectedGenres, selectedTrackTypes, bpmRange, priceRange, currency]);
   
   const handleClearFilters = () => {
     setSearch('');
@@ -232,7 +222,7 @@ export function BeatFilters({
           
           <div>
             <div className="flex justify-between mb-2">
-              <Label>Price Range</Label>
+              <Label>Price Range ({currency === 'NGN' ? '₦' : '$'})</Label>
               <span className="text-sm text-muted-foreground">
                 {formatPrice(priceRange[0])} - {formatPrice(priceRange[1])}
               </span>
