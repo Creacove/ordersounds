@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -209,6 +210,7 @@ export function Sidebar() {
                   "flex flex-col items-center justify-center py-1 px-2 relative",
                   isActive ? "text-purple-500" : "text-muted-foreground"
                 )}
+                onClick={() => setActiveBottomTab(item.id)}
               >
                 <div className={cn(
                   "relative p-1.5 rounded-full transition-colors",
@@ -386,10 +388,12 @@ export function Sidebar() {
                           className={cn(
                             "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 text-left",
                             "hover:bg-purple-500/20 hover:text-purple-500",
-                            "text-muted-foreground"
+                            location.pathname === '#' 
+                              ? "text-purple-500 font-medium bg-purple-500/10" 
+                              : "text-muted-foreground"
                           )}
                         >
-                          <item.icon size={18} />
+                          <item.icon size={18} className={location.pathname === '#' ? "text-purple-500" : ""} />
                           <span>{item.title}</span>
                         </button>
                       ) : (
