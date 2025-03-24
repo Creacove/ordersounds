@@ -246,3 +246,38 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
     return [];
   }
 };
+
+/**
+ * Updates the play count for a specific beat
+ */
+export const updatePlayCount = async (beatId: string): Promise<boolean> => {
+  try {
+    // First get the current play count
+    const { data: beatData, error: getError } = await supabase
+      .from('beats')
+      .select('plays')
+      .eq('id', beatId)
+      .single();
+    
+    if (getError) {
+      throw getError;
+    }
+    
+    const currentPlays = beatData?.plays || 0;
+    
+    // Update the play count
+    const { error: updateError } = await supabase
+      .from('beats')
+      .update({ plays: currentPlays + 1 })
+      .eq('id', beatId);
+    
+    if (updateError) {
+      throw updateError;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating play count:', error);
+    return false;
+  }
+};

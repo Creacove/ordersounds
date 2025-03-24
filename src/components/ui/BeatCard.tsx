@@ -6,7 +6,7 @@ import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
-import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical } from 'lucide-react';
+import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Headphones } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   DropdownMenu,
@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { updatePlayCount } from '@/lib/beatStorage';
 
 interface BeatCardProps {
   beat: Beat;
@@ -57,9 +58,19 @@ export function BeatCard({
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
   const inCart = isInCart || (checkIsInCart && checkIsInCart(beat.id));
 
-  const handlePlay = (e: React.MouseEvent) => {
+  const handlePlay = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // Increment play count in the database
+    if (!isCurrentlyPlaying) {
+      try {
+        await updatePlayCount(beat.id);
+      } catch (error) {
+        console.error('Failed to update play count:', error);
+      }
+    }
+    
     playBeat(beat);
     if (onPlay) {
       onPlay(beat.id);
@@ -156,6 +167,12 @@ export function BeatCard({
           >
             {isCurrentlyPlaying ? <Pause size={20} /> : <Play size={20} />}
           </button>
+        </div>
+        
+        {/* Play count indicator */}
+        <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs py-1 px-2 rounded-full flex items-center gap-1">
+          <Headphones size={12} />
+          <span>{beat.plays || 0}</span>
         </div>
       </div>
 

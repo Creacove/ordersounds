@@ -4,7 +4,6 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
   Search, 
   ShoppingCart, 
-  Bell, 
   User,
   Menu,
   X,
@@ -22,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { NotificationDropdown } from "@/components/notification/NotificationDropdown";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -117,6 +117,9 @@ export function Topbar() {
             <Search size={18} />
             <span className="sr-only">Search</span>
           </Button>
+          
+          {/* Notifications - only for logged in users */}
+          {user && <NotificationDropdown />}
           
           {/* Cart - show for all users */}
           <Button
