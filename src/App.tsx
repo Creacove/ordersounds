@@ -8,6 +8,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { PersistentPlayer } from "@/components/player/PersistentPlayer";
 
 // Pages
 import Index from "./pages/buyer/Home";
@@ -86,6 +87,7 @@ const App = () => (
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />
                 </Routes>
+                <PersistentPlayer />
               </SidebarProvider>
             </PlayerProvider>
           </CartProvider>

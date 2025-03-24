@@ -246,7 +246,7 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   /* Fix for player and navigation overlap on mobile */
   .player-above-nav {
     bottom: 5rem !important;
-    z-index: 50;
+    z-index: 40;
   }
   
   /* Mobile content bottom padding - consistent across app */
@@ -294,7 +294,7 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   
   /* Fix for mobile bottom navigation */
   .mobile-bottom-nav {
-    @apply fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t py-1;
+    @apply fixed bottom-0 left-0 right-0 z-45 bg-sidebar border-t py-1;
   }
   
   /* Bottom indicator for active tab */
@@ -355,4 +355,9 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 1rem);
   }
+}
+
+/* Z-index organization */
+.z-45 {
+  z-index: 45;
 }

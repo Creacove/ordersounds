@@ -39,7 +39,7 @@ export function PersistentPlayer() {
 
   // Even when no beat is selected, we render a hidden player to maintain the layout
   if (!currentBeat) {
-    return <div className="fixed bottom-0 left-0 right-0 h-0 z-50" />; // Take no space but ensure it's in the DOM
+    return <div className="fixed bottom-0 left-0 right-0 h-0 z-40" />; // Take no space but ensure it's in the DOM
   }
 
   const formatTime = (time: number) => {
@@ -55,10 +55,10 @@ export function PersistentPlayer() {
       ? Volume1 
       : Volume2;
 
-  // For mobile, place the player right above the bottom nav (which has z-40)
+  // Player is always at z-40, below the mobile sidebar which will be at z-50
   const playerClassName = cn(
-    "fixed left-0 right-0 bg-card border-t border-border p-3 md:p-4 flex items-center shadow-lg",
-    isMobile ? "bottom-16 z-50" : "bottom-0 z-40" // Position above mobile nav when on mobile
+    "fixed left-0 right-0 bg-card border-t border-border p-3 md:p-4 flex items-center shadow-lg z-40",
+    isMobile ? "bottom-16" : "bottom-0" // Position above mobile nav when on mobile
   );
 
   return (
