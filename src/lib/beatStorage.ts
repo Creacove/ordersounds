@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -67,8 +66,8 @@ export const uploadBeat = async (
         favorites_count: 0,
         purchase_count: 0,
         plays: 0,
-        license_type: beatInfo.license_type,
-        license_terms: beatInfo.license_terms
+        license_type: beatInfo.license_type || 'basic',
+        license_terms: beatInfo.license_terms || ''
       })
       .select('id')
       .single();
@@ -99,7 +98,6 @@ export const uploadBeat = async (
 
       if (royaltyError) {
         console.error('Error inserting royalty splits:', royaltyError);
-        // Don't throw here, we can still consider the beat uploaded
         toast.warning('Beat uploaded, but there was an issue with royalty splits');
       } else {
         console.log('Royalty splits inserted successfully');
