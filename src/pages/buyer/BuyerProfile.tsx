@@ -13,7 +13,17 @@ import { useAuth } from "@/context/AuthContext";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { getUserPlaylists } from "@/lib/playlistService"; 
 import { EmptyState } from "@/components/library/EmptyState";
-import { ListMusic } from "lucide-react";
+import { 
+  ListMusic, 
+  MapPin, 
+  Calendar, 
+  Share2, 
+  MessageSquare, 
+  BarChart4,
+  UserPlus,
+  FileEdit
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function BuyerProfile() {
   const { buyerId } = useParams<{ buyerId: string }>();
@@ -113,106 +123,187 @@ export default function BuyerProfile() {
           </div>
         ) : buyer ? (
           <>
-            <div className="flex flex-col md:flex-row gap-6 mb-8">
-              <div className="flex-shrink-0">
-                <Avatar className="h-32 w-32">
-                  <AvatarImage src={buyer.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${buyer.name}`} />
-                  <AvatarFallback>{(buyer.name || 'U').charAt(0)}</AvatarFallback>
-                </Avatar>
-              </div>
-              
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold mb-1">
-                  {buyer.name}
-                </h1>
-                <p className="text-muted-foreground mb-4">
-                  {buyer.country || 'Music Fan'} • {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
-                </p>
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-b from-blue-500/20 to-background h-40 rounded-xl -z-10"></div>
+              <div className="flex flex-col md:flex-row gap-6 pt-6 mb-8">
+                <div className="flex-shrink-0 md:ml-8">
+                  <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
+                    <AvatarImage src={buyer.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${buyer.name}`} />
+                    <AvatarFallback className="bg-blue-500 text-2xl">
+                      {(buyer.name || 'U').charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
                 
-                {buyer.bio ? (
-                  <p className="mb-4">{buyer.bio}</p>
-                ) : (
-                  <p className="text-muted-foreground italic mb-4">
-                    {isOwnProfile ? "You haven't added a bio yet." : "This user hasn't added a bio yet."}
-                  </p>
-                )}
-                
-                <div className="flex gap-2">
-                  {isOwnProfile ? (
-                    <Button asChild>
-                      <a href="/settings">Edit Profile</a>
-                    </Button>
+                <div className="flex-1 md:mt-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <h1 className="text-3xl font-bold mb-1">
+                        {buyer.name}
+                      </h1>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground mb-4">
+                        {buyer.country && (
+                          <span className="flex items-center gap-1 text-sm">
+                            <MapPin size={14} />
+                            {buyer.country}
+                          </span>
+                        )}
+                        <span className="flex items-center gap-1 text-sm">
+                          <ListMusic size={14} />
+                          {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
+                        </span>
+                        <span className="flex items-center gap-1 text-sm">
+                          <Calendar size={14} />
+                          Member since 2023
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {isOwnProfile ? (
+                        <Button asChild size="sm" variant="default" className="gap-1.5">
+                          <a href="/settings">
+                            <FileEdit size={14} />
+                            Edit Profile
+                          </a>
+                        </Button>
+                      ) : (
+                        <>
+                          <Button size="sm" variant="secondary" className="gap-1.5">
+                            <UserPlus size={14} />
+                            Follow
+                          </Button>
+                          <Button size="sm" variant="secondary" className="gap-1.5">
+                            <Share2 size={14} />
+                            Share
+                          </Button>
+                          <Button size="sm" variant="secondary" className="gap-1.5">
+                            <MessageSquare size={14} />
+                            Message
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {buyer.bio ? (
+                    <p className="text-sm md:text-base mb-4 max-w-3xl">{buyer.bio}</p>
                   ) : (
-                    <>
-                      <Button variant="outline" size="sm">Follow</Button>
-                      <Button variant="outline" size="sm">Message</Button>
-                    </>
+                    <p className="text-muted-foreground italic mb-4 text-sm md:text-base">
+                      {isOwnProfile ? "You haven't added a bio yet." : "This user hasn't added a bio yet."}
+                    </p>
                   )}
                 </div>
               </div>
             </div>
-
-            <Tabs defaultValue="playlists" className="w-full">
-              <TabsList>
-                <TabsTrigger value="playlists">Playlists</TabsTrigger>
-                <TabsTrigger value="about">About</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="playlists" className="py-4">
-                {isLoadingPlaylists ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {[1, 2, 3, 4].map(i => (
-                      <Skeleton key={i} className="h-64 w-full" />
-                    ))}
-                  </div>
-                ) : playlists.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {playlists.map(playlist => (
-                      <PlaylistCard 
-                        key={playlist.id} 
-                        playlist={playlist} 
-                        onClick={handlePlaylistClick}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyState
-                    icon={ListMusic}
-                    title={isOwnProfile ? "You don't have any playlists yet" : "No playlists to show"}
-                    description={isOwnProfile 
-                      ? "Create your first playlist to organize your favorite beats" 
-                      : "This user hasn't created any public playlists yet"
-                    }
-                    actionLabel={isOwnProfile ? "Create Playlist" : undefined}
-                    actionHref={isOwnProfile ? "/playlists" : undefined}
-                  />
-                )}
-              </TabsContent>
-              
-              <TabsContent value="about">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>About {buyer.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-sm font-medium">Bio</h3>
-                        <p className="mt-1">{buyer.bio || 'No bio provided'}</p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium">Location</h3>
-                        <p className="mt-1">{buyer.country || 'Not specified'}</p>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium">Member since</h3>
-                        <p className="mt-1">2023</p>
-                      </div>
+            
+            <div className="mt-8">
+              <Tabs defaultValue="playlists" className="w-full">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="playlists" className="gap-2">
+                    <ListMusic size={16} />
+                    Playlists
+                  </TabsTrigger>
+                  <TabsTrigger value="about" className="gap-2">
+                    <BarChart4 size={16} />
+                    About
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="playlists" className="py-4">
+                  {isLoadingPlaylists ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {[1, 2, 3, 4].map(i => (
+                        <Skeleton key={i} className="h-64 w-full" />
+                      ))}
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                  ) : playlists.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {playlists.map(playlist => (
+                        <PlaylistCard 
+                          key={playlist.id} 
+                          playlist={playlist} 
+                          onClick={handlePlaylistClick}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyState
+                      icon={ListMusic}
+                      title={isOwnProfile ? "You don't have any playlists yet" : "No playlists to show"}
+                      description={isOwnProfile 
+                        ? "Create your first playlist to organize your favorite beats" 
+                        : "This user hasn't created any public playlists yet"
+                      }
+                      actionLabel={isOwnProfile ? "Create Playlist" : undefined}
+                      actionHref={isOwnProfile ? "/playlists" : undefined}
+                    />
+                  )}
+                </TabsContent>
+                
+                <TabsContent value="about">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <Card className="bg-card/60">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                          <BarChart4 size={18} className="text-blue-500" />
+                          User Info
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center pb-2 border-b border-border/40">
+                            <span className="text-sm text-muted-foreground">Full Name</span>
+                            <span className="font-medium">{buyer.name}</span>
+                          </div>
+                          <div className="flex justify-between items-center pb-2 border-b border-border/40">
+                            <span className="text-sm text-muted-foreground">Location</span>
+                            <span className="font-medium">{buyer.country || 'Not specified'}</span>
+                          </div>
+                          <div className="flex justify-between items-center pb-2 border-b border-border/40">
+                            <span className="text-sm text-muted-foreground">Member Since</span>
+                            <span className="font-medium">2023</span>
+                          </div>
+                          <div className="flex justify-between items-center pb-2 border-b border-border/40">
+                            <span className="text-sm text-muted-foreground">Playlists</span>
+                            <span className="font-medium">{playlists.length}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card className="bg-card/60">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-xl">
+                          <ListMusic size={18} className="text-blue-500" />
+                          Music Interests
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="text-sm font-medium mb-2">Bio</h3>
+                            <p className="text-sm text-muted-foreground">{buyer.bio || 'No bio provided'}</p>
+                          </div>
+                          
+                          <div>
+                            <h3 className="text-sm font-medium mb-2">Interests</h3>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="secondary" className="px-3 py-1 text-xs">Music Fan</Badge>
+                              {isOwnProfile && (
+                                <span className="text-xs text-muted-foreground mt-2">
+                                  Add your music interests in your profile settings
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
           </>
         ) : (
           <div className="text-center py-12">

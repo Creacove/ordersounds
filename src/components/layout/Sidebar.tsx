@@ -65,12 +65,16 @@ export function Sidebar() {
     }
     
     const path = location.pathname;
+    
+    // Fix the highlighting issue by setting the active tab based on the exact current path
     if (path === "/") setActiveBottomTab("home");
     else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
     else if (path === "/trending") setActiveBottomTab("trending");
     else if (path === "/favorites") setActiveBottomTab("favorites");
     else if (path === "/cart") setActiveBottomTab("cart");
-    else if (path.includes("/producer/")) setActiveBottomTab("producer");
+    else if (path === "/producer/dashboard") setActiveBottomTab("producer");
+    else if (path === "/producer/beats") setActiveBottomTab("beats");
+    else if (path === "/producer/royalties") setActiveBottomTab("royalties");
     else if (path.includes("/my-playlists") || path.includes("/purchased")) setActiveBottomTab("more");
     else setActiveBottomTab("");
   }, [location.pathname, isMobile]);
@@ -171,8 +175,9 @@ export function Sidebar() {
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
+            // Fix the highlighting logic by comparing the current pathname with item.to
             const isCurrentPath = location.pathname === item.to;
-            const isActive = activeBottomTab === item.id || isCurrentPath;
+            const isActive = activeBottomTab === item.id;
             
             if (item.action) {
               return (
