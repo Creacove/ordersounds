@@ -38,7 +38,8 @@ export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlay
           "flex-1 transition-all duration-300 w-full", 
           // Adjust left padding to prevent content overlap
           isMobile ? "pl-0" : "pl-[70px] lg:pl-[240px]",
-          hasPlayer && isMobile ? "pb-24" : hasPlayer ? "pb-20" : "",
+          // Add extra bottom padding when on mobile with player
+          hasPlayer && isMobile ? "pb-28" : hasPlayer ? "pb-20" : isMobile ? "pb-20" : "",
           "animate-fade-in"
         )}>
           {children}

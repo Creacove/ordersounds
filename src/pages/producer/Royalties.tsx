@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +11,7 @@ import { RoyaltySplit } from "@/types";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export default function Royalties() {
   const { user } = useAuth();
@@ -88,7 +88,10 @@ export default function Royalties() {
 
   return (
     <MainLayout>
-      <div className="container py-6 md:py-8">
+      <div className={cn(
+        "container py-6 md:py-8", 
+        isMobile ? "pb-28 md:pb-6" : ""  // Add extra padding at the bottom on mobile
+      )}>
         <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-8">Royalty Splits & Earnings</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
