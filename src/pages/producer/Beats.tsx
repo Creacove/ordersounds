@@ -9,7 +9,7 @@ import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PlusCircle } from "lucide-react";
 
-const Beats = () => {
+export default function ProducerBeats() {
   const { user } = useAuth();
   const { beats, isLoading } = useBeats();
   const navigate = useNavigate();
@@ -91,6 +91,4 @@ const Beats = () => {
       </div>
     </MainLayout>
   );
-};
-
-export default Beats;
+}

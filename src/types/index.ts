@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   email: string;
@@ -32,7 +33,6 @@ export interface Beat {
   updated_at?: string;
   favorites_count: number;
   purchase_count: number;
-  plays?: number; // Play count field
   status: 'draft' | 'published';
   is_featured?: boolean;
   license_type?: 'basic' | 'premium' | 'exclusive' | string;
