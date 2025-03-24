@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -207,6 +208,7 @@ export function Sidebar() {
                   "flex flex-col items-center justify-center py-1 px-2 relative",
                   isActive ? "text-purple-500" : "text-muted-foreground"
                 )}
+                onClick={() => setActiveBottomTab(item.id)}
               >
                 <div className={cn(
                   "relative p-1.5 rounded-full transition-colors",
@@ -236,106 +238,109 @@ export function Sidebar() {
     );
   };
 
-  const DesktopSidebar = () => (
-    <aside
-      className={cn(
-        "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-[70px]" : "w-[240px]"
-      )}
-    >
-      <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
-        {getSidebarContent().map((section, index) => (
-          <div key={index} className="mb-6">
-            {!isCollapsed && (
-              <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
-                {section.title}
-              </h2>
-            )}
-            <nav className="flex flex-col gap-1">
-              {section.items.map((item, idx) => {
-                const isActive = location.pathname === item.href;
-                
-                return item.onClick ? (
-                  <TooltipProvider delayDuration={isCollapsed ? 100 : 1000} key={idx}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={item.onClick}
-                          className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 text-left",
-                            "hover:bg-purple-500/20 hover:text-purple-500",
-                            "text-muted-foreground",
-                            isCollapsed ? "justify-center" : ""
-                          )}
-                        >
-                          <item.icon size={18} />
-                          {!isCollapsed && <span>{item.title}</span>}
-                        </button>
-                      </TooltipTrigger>
-                      {isCollapsed && (
-                        <TooltipContent side="right">
-                          {item.title}
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <TooltipProvider delayDuration={isCollapsed ? 100 : 1000} key={idx}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <NavLink
-                          to={item.href}
-                          className={({ isActive }) => cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
-                            "hover:bg-purple-500/20 hover:text-purple-500",
-                            isActive 
-                              ? "bg-purple-500/10 text-purple-500 font-medium" 
-                              : "text-muted-foreground",
-                            isCollapsed ? "justify-center" : ""
-                          )}
-                        >
-                          <item.icon 
-                            size={18} 
+  // Fixed the syntax issue with the DesktopSidebar component
+  const DesktopSidebar = () => {
+    return (
+      <aside
+        className={cn(
+          "fixed inset-y-0 left-0 z-30 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out",
+          isCollapsed ? "w-[70px]" : "w-[240px]"
+        )}
+      >
+        <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
+          {getSidebarContent().map((section, index) => (
+            <div key={index} className="mb-6">
+              {!isCollapsed && (
+                <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
+                  {section.title}
+                </h2>
+              )}
+              <nav className="flex flex-col gap-1">
+                {section.items.map((item, idx) => {
+                  const isActive = location.pathname === item.href;
+                  
+                  return item.onClick ? (
+                    <TooltipProvider delayDuration={isCollapsed ? 100 : 1000} key={idx}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={item.onClick}
                             className={cn(
-                              "transition-colors",
-                              location.pathname === item.href ? "text-purple-500" : "text-muted-foreground"
-                            )} 
-                          />
-                          {!isCollapsed && (
-                            <span className={cn(
-                              location.pathname === item.href ? "text-purple-500 font-medium" : "text-muted-foreground"
-                            )}>
-                              {item.title}
-                            </span>
-                          )}
-                        </NavLink>
-                      </TooltipTrigger>
-                      {isCollapsed && (
-                        <TooltipContent side="right">
-                          {item.title}
-                        </TooltipContent>
-                      )}
-                    </Tooltip>
-                  </TooltipProvider>
-                )
-              ))}
-            </nav>
-          </div>
-        ))}
-      </div>
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200 text-left",
+                              "hover:bg-purple-500/20 hover:text-purple-500",
+                              "text-muted-foreground",
+                              isCollapsed ? "justify-center" : ""
+                            )}
+                          >
+                            <item.icon size={18} />
+                            {!isCollapsed && <span>{item.title}</span>}
+                          </button>
+                        </TooltipTrigger>
+                        {isCollapsed && (
+                          <TooltipContent side="right">
+                            {item.title}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <TooltipProvider delayDuration={isCollapsed ? 100 : 1000} key={idx}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <NavLink
+                            to={item.href}
+                            className={({ isActive }) => cn(
+                              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
+                              "hover:bg-purple-500/20 hover:text-purple-500",
+                              isActive 
+                                ? "bg-purple-500/10 text-purple-500 font-medium" 
+                                : "text-muted-foreground",
+                              isCollapsed ? "justify-center" : ""
+                            )}
+                          >
+                            <item.icon 
+                              size={18} 
+                              className={cn(
+                                "transition-colors",
+                                location.pathname === item.href ? "text-purple-500" : "text-muted-foreground"
+                              )} 
+                            />
+                            {!isCollapsed && (
+                              <span className={cn(
+                                location.pathname === item.href ? "text-purple-500 font-medium" : "text-muted-foreground"
+                              )}>
+                                {item.title}
+                              </span>
+                            )}
+                          </NavLink>
+                        </TooltipTrigger>
+                        {isCollapsed && (
+                          <TooltipContent side="right">
+                            {item.title}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
+        </div>
 
-      <div className="flex items-center justify-center p-4 border-t">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
-          onClick={toggleSidebar}
-        >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </Button>
-      </div>
-    </aside>
-  );
+        <div className="flex items-center justify-center p-4 border-t">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 rounded-full hover:bg-purple-500/10 hover:text-purple-500 transition-colors"
+            onClick={toggleSidebar}
+          >
+            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </Button>
+        </div>
+      </aside>
+    );
+  };
 
   return (
     <>
