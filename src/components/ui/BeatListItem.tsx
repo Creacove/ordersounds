@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface BeatListItemProps {
   beat: Beat;
@@ -35,6 +36,7 @@ export function BeatListItem({
   const { currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
   const { addToCart } = useCart();
+  const isMobile = useIsMobile();
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
 
@@ -100,6 +102,16 @@ export function BeatListItem({
           <span>•</span>
           <span>{beat.bpm} BPM</span>
         </div>
+        {/* Show price tag on mobile */}
+        {isMobile && (
+          <div className="mt-1">
+            <PriceTag
+              localPrice={beat.price_local}
+              diasporaPrice={beat.price_diaspora}
+              size="sm"
+            />
+          </div>
+        )}
       </div>
       
       {/* Action buttons */}
@@ -172,13 +184,16 @@ export function BeatListItem({
           </DropdownMenuContent>
         </DropdownMenu>
         
-        <div className="ml-2 shrink-0 font-medium whitespace-nowrap">
-          <PriceTag
-            localPrice={beat.price_local}
-            diasporaPrice={beat.price_diaspora}
-            size="sm"
-          />
-        </div>
+        {/* Show price tag only on desktop */}
+        {!isMobile && (
+          <div className="ml-2 shrink-0 font-medium whitespace-nowrap">
+            <PriceTag
+              localPrice={beat.price_local}
+              diasporaPrice={beat.price_diaspora}
+              size="sm"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

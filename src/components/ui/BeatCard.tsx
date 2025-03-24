@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -158,27 +157,25 @@ export function BeatCard({
         </div>
       </div>
 
-      {/* Beat info section - improved for better visibility on small screens */}
+      {/* Beat info section - redesigned for better mobile visibility */}
       <div className="flex flex-col p-3 space-y-2">
-        {/* Price tag positioned at the top right for better visibility */}
-        <div className="flex items-start justify-between">
-          <div className="flex-1 mr-2 min-w-0">
-            <h3 className="font-medium text-sm leading-tight tracking-tight truncate">
-              {beat.title}
-            </h3>
-            <p className="text-xs text-muted-foreground truncate">
-              {beat.producer_name}
-            </p>
-          </div>
+        {/* Mobile-optimized layout with price tag under title and producer name */}
+        <div className="flex flex-col">
+          <h3 className="font-medium text-sm leading-tight tracking-tight truncate">
+            {beat.title}
+          </h3>
+          <p className="text-xs text-muted-foreground truncate mb-1">
+            {beat.producer_name}
+          </p>
           <PriceTag
             localPrice={beat.price_local}
             diasporaPrice={beat.price_diaspora}
             size="sm"
-            className="shrink-0"
+            className="self-start"
           />
         </div>
         
-        {/* Action buttons with improved layout for small screens */}
+        {/* Action buttons */}
         <div className="flex items-center gap-1.5 pt-1">
           {!isPurchased && !inCart && (
             <Button
