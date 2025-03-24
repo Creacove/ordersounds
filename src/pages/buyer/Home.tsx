@@ -1,16 +1,18 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Play, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck } from "lucide-react";
+import { Play, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Bookmark, List, Volume2, Settings, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { BeatCard } from "@/components/ui/BeatCard";
+import { BeatListItem } from "@/components/ui/BeatListItem";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading } = useBeats();
@@ -42,12 +44,15 @@ export default function Home() {
     { id: '5', name: 'KBeatz', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
   ];
 
+  // Weekly picks in list format
+  const weeklyPicks = trendingBeats.slice(0, 8);
+
   return (
     <MainLayoutWithPlayer>
       <div className="min-h-screen">
-        {/* Hero section with featured beat */}
+        {/* Hero section with featured beat - REDUCED HEIGHT */}
         {featuredBeat && (
-          <section className="relative h-[320px] md:h-[400px] lg:h-[480px] overflow-hidden">
+          <section className="relative h-[250px] md:h-[300px] lg:h-[380px] overflow-hidden">
             {/* Background image with overlay */}
             <div className="absolute inset-0 z-0">
               <img 
@@ -61,16 +66,16 @@ export default function Home() {
             {/* Content */}
             <div className="relative z-10 h-full container flex flex-col justify-center">
               <div className="max-w-2xl">
-                <div className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium mb-4 animate-pulse-gentle">
+                <div className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium mb-3 animate-pulse-gentle">
                   Featured Beat
                 </div>
-                <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-3 text-white">
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 text-white">
                   {featuredBeat.title}
                 </h1>
-                <div className="text-lg font-medium mb-4 text-white/90">
+                <div className="text-md font-medium mb-2 text-white/90">
                   {featuredBeat.producer_name}
                 </div>
-                <div className="flex flex-wrap gap-2 mb-6">
+                <div className="flex flex-wrap gap-2 mb-4">
                   <div className="text-sm text-white/60">
                     {featuredBeat.bpm} BPM
                   </div>
@@ -85,6 +90,7 @@ export default function Home() {
                   <Button 
                     onClick={handlePlayFeatured} 
                     className="gap-2 bg-primary hover:bg-primary/90 shadow-md"
+                    size="sm"
                   >
                     {isPlaying ? <span>Pause</span> : (
                       <>
@@ -93,7 +99,7 @@ export default function Home() {
                       </>
                     )}
                   </Button>
-                  <Button variant="outline" className="gap-2 bg-white/10 backdrop-blur-sm text-white border-white/20 hover:bg-white/20">
+                  <Button variant="outline" size="sm" className="gap-2 bg-white/10 backdrop-blur-sm text-white border-white/20 hover:bg-white/20">
                     Add to favourite
                   </Button>
                 </div>
@@ -101,40 +107,6 @@ export default function Home() {
             </div>
           </section>
         )}
-
-        {/* Top Producers - Circle Avatars */}
-        <div className="bg-background pt-8 pb-4">
-          <div className="container mx-auto px-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Top Producers</h2>
-              <Button variant="ghost" size="sm" className="gap-1 text-primary" asChild>
-                <Link to="/producers">
-                  <span>View all</span>
-                  <ChevronRight size={16} />
-                </Link>
-              </Button>
-            </div>
-            
-            <div className="flex overflow-x-auto pb-4 gap-5 scrollbar-hide">
-              {topProducers.map((producer) => (
-                <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[90px]">
-                  <div className="relative">
-                    <Avatar className="h-[90px] w-[90px] border-2 border-background shadow-md">
-                      <AvatarImage src={producer.avatar} alt={producer.name} />
-                      <AvatarFallback>{producer.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    {producer.verified && (
-                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
-                        <UserCheck size={16} />
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-sm font-medium text-center truncate max-w-[90px]">{producer.name}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
 
         {/* Quick category browse section */}
         <div className="container py-4 overflow-hidden bg-black/5 dark:bg-white/5">
@@ -262,6 +234,28 @@ export default function Home() {
                 ))}
               </div>
             )}
+          </section>
+
+          {/* NEW SECTION: Weekly Picks as a List View with columns */}
+          <section className="bg-card/50 p-6 rounded-lg mb-10 border">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Weekly Picks</h2>
+                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
+                  <Star size={12} className="mr-1" /> Selected
+                </Badge>
+              </div>
+              <Button variant="ghost" size="sm" className="gap-1">
+                <List size={14} />
+                <span>View as List</span>
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {weeklyPicks.map((beat, index) => (
+                <BeatListItem key={beat.id} beat={beat} />
+              ))}
+            </div>
           </section>
 
           {/* Featured Collections */}
@@ -406,8 +400,42 @@ export default function Home() {
           </section>
         </div>
 
+        {/* Top Producers - Circle Avatars - MOVED LOWER IN THE PAGE */}
+        <div className="bg-background pt-4 pb-4">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Top Producers</h2>
+              <Button variant="ghost" size="sm" className="gap-1 text-primary" asChild>
+                <Link to="/producers">
+                  <span>View all</span>
+                  <ChevronRight size={16} />
+                </Link>
+              </Button>
+            </div>
+            
+            <div className="flex overflow-x-auto pb-4 gap-5 scrollbar-hide">
+              {topProducers.map((producer) => (
+                <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[90px]">
+                  <div className="relative">
+                    <Avatar className="h-[90px] w-[90px] border-2 border-background shadow-md">
+                      <AvatarImage src={producer.avatar} alt={producer.name} />
+                      <AvatarFallback>{producer.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    {producer.verified && (
+                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
+                        <UserCheck size={16} />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-center truncate max-w-[90px]">{producer.name}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* CTA Banner */}
-        <div className="bg-primary/10 dark:bg-primary/5 py-8 mb-10">
+        <div className="bg-primary/10 dark:bg-primary/5 py-8 mb-8">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
               DON'T WAIT, JOIN TODAY!
@@ -418,6 +446,178 @@ export default function Home() {
             <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
               <Link to="/signup">Create Account</Link>
             </Button>
+          </div>
+        </div>
+
+        {/* NEW SECTION: Beat Production Resources */}
+        <div className="container mx-auto px-4 mb-10">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold">Production Resources</h2>
+            <Button variant="outline" size="sm" className="gap-1" asChild>
+              <Link to="/resources">
+                <span>Browse Resources</span>
+                <ArrowRight size={16} />
+              </Link>
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="bg-gradient-to-br from-purple-50/10 to-transparent dark:from-purple-900/5 border-purple-100/20 dark:border-purple-900/20 hover:shadow-md transition-all">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-full bg-purple-100 dark:bg-purple-800/30 p-3 text-purple-600 dark:text-purple-400">
+                    <Music size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Sample Packs</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Premium sample packs curated by top producers</p>
+                    <Button variant="link" className="p-0 h-auto text-purple-600 dark:text-purple-400 gap-1 hover:text-purple-700" asChild>
+                      <Link to="/resources/samples">
+                        <span>Browse samples</span>
+                        <ArrowRight size={14} />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-blue-50/10 to-transparent dark:from-blue-900/5 border-blue-100/20 dark:border-blue-900/20 hover:shadow-md transition-all">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-full bg-blue-100 dark:bg-blue-800/30 p-3 text-blue-600 dark:text-blue-400">
+                    <Volume2 size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Mixing Tutorials</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Learn the art of mixing from industry professionals</p>
+                    <Button variant="link" className="p-0 h-auto text-blue-600 dark:text-blue-400 gap-1 hover:text-blue-700" asChild>
+                      <Link to="/resources/tutorials">
+                        <span>Watch tutorials</span>
+                        <ArrowRight size={14} />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-br from-green-50/10 to-transparent dark:from-green-900/5 border-green-100/20 dark:border-green-900/20 hover:shadow-md transition-all">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="rounded-full bg-green-100 dark:bg-green-800/30 p-3 text-green-600 dark:text-green-400">
+                    <Settings size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Plugin Deals</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Exclusive discounts on premium audio plugins</p>
+                    <Button variant="link" className="p-0 h-auto text-green-600 dark:text-green-400 gap-1 hover:text-green-700" asChild>
+                      <Link to="/resources/plugins">
+                        <span>See deals</span>
+                        <ArrowRight size={14} />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* NEW SECTION: Upcoming Events */}
+        <div className="bg-black/5 dark:bg-white/5 py-8 mb-12">
+          <div className="container mx-auto px-4">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold">Upcoming Events</h2>
+                <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20">
+                  <Calendar size={12} className="mr-1" /> New
+                </Badge>
+              </div>
+              <Button variant="ghost" size="sm" className="gap-1" asChild>
+                <Link to="/events">
+                  <span>All events</span>
+                  <ChevronRight size={16} />
+                </Link>
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-card rounded-lg overflow-hidden border shadow-sm hover:shadow-md transition-all">
+                <div className="aspect-video relative">
+                  <img 
+                    src="/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png" 
+                    alt="Beat Battle Lagos"
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
+                    <div>
+                      <Badge className="mb-2 bg-red-500 text-white">
+                        Live
+                      </Badge>
+                      <h3 className="text-xl font-bold text-white">Beat Battle Lagos</h3>
+                      <p className="text-sm text-white/80">May 15, 2023 - The Shrine, Lagos</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Join the biggest beat battle in Lagos and showcase your production skills. Top prize: ₦500,000
+                  </p>
+                  <Button size="sm" variant="outline" className="w-full">Register Now</Button>
+                </div>
+              </div>
+              
+              <div className="bg-card rounded-lg overflow-hidden border shadow-sm hover:shadow-md transition-all">
+                <div className="aspect-video relative">
+                  <img 
+                    src="/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png" 
+                    alt="Production Masterclass"
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
+                    <div>
+                      <Badge className="mb-2 bg-blue-500 text-white">
+                        Workshop
+                      </Badge>
+                      <h3 className="text-xl font-bold text-white">Production Masterclass</h3>
+                      <p className="text-sm text-white/80">June 3, 2023 - Virtual Event</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Learn advanced production techniques from Grammy-winning producer Metro Boomin in this exclusive online event.
+                  </p>
+                  <Button size="sm" variant="outline" className="w-full">Reserve Spot</Button>
+                </div>
+              </div>
+              
+              <div className="bg-card rounded-lg overflow-hidden border shadow-sm hover:shadow-md transition-all">
+                <div className="aspect-video relative">
+                  <img 
+                    src="/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png" 
+                    alt="Industry Showcase"
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
+                    <div>
+                      <Badge className="mb-2 bg-green-500 text-white">
+                        Networking
+                      </Badge>
+                      <h3 className="text-xl font-bold text-white">Industry Showcase</h3>
+                      <p className="text-sm text-white/80">July 12, 2023 - Abuja</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Connect with artists, labels, and other producers at this exclusive industry networking event.
+                  </p>
+                  <Button size="sm" variant="outline" className="w-full">Get Invited</Button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
