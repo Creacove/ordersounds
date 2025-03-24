@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Notification } from '@/types';
@@ -15,7 +14,6 @@ interface NotificationContextType {
   deleteNotification: (notificationId: string) => Promise<void>;
 }
 
-// This interface represents the actual shape of notifications from the database
 interface DatabaseNotification {
   id: string;
   recipient_id: string;
@@ -33,14 +31,13 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
 
-  // Convert database notification to application notification
   const mapDatabaseToAppNotification = (dbNotification: DatabaseNotification): Notification => {
     return {
       id: dbNotification.id,
       user_id: dbNotification.recipient_id,
       title: dbNotification.title,
       message: dbNotification.body,
-      type: 'info', // Default type
+      type: 'info',
       read: dbNotification.is_read,
       created_at: dbNotification.created_date
     };
@@ -139,7 +136,6 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
-  // Setup real-time subscription for new notifications
   useEffect(() => {
     if (!user) return;
     
@@ -161,10 +157,8 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
           
-          // Show toast for new notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
+          toast(newNotification.message, {
+            description: newNotification.title,
           });
         }
       )
