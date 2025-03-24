@@ -15,6 +15,16 @@ interface NotificationContextType {
   deleteNotification: (notificationId: string) => Promise<void>;
 }
 
+// This interface represents the actual shape of notifications from the database
+interface DatabaseNotification {
+  id: string;
+  recipient_id: string;
+  title: string;
+  body: string;
+  is_read: boolean;
+  created_date: string;
+}
+
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider = ({ children }: { children: React.ReactNode }) => {
@@ -22,6 +32,19 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+
+  // Convert database notification to application notification
+  const mapDatabaseToAppNotification = (dbNotification: DatabaseNotification): Notification => {
+    return {
+      id: dbNotification.id,
+      user_id: dbNotification.recipient_id,
+      title: dbNotification.title,
+      message: dbNotification.body,
+      type: 'info', // Default type
+      read: dbNotification.is_read,
+      created_at: dbNotification.created_date
+    };
+  };
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -31,14 +54,15 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .eq('recipient_id', user.id)
+        .order('created_date', { ascending: false })
         .limit(20);
 
       if (error) throw error;
       
-      setNotifications(data || []);
-      const unread = (data || []).filter(n => !n.read).length;
+      const mappedNotifications = (data || []).map(mapDatabaseToAppNotification);
+      setNotifications(mappedNotifications);
+      const unread = mappedNotifications.filter(n => !n.read).length;
       setUnreadCount(unread);
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -53,9 +77,9 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('id', notificationId)
-        .eq('user_id', user.id);
+        .eq('recipient_id', user.id);
 
       if (error) throw error;
       
@@ -76,9 +100,9 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
-        .eq('user_id', user.id)
-        .eq('read', false);
+        .update({ is_read: true })
+        .eq('recipient_id', user.id)
+        .eq('is_read', false);
 
       if (error) throw error;
       
@@ -99,7 +123,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
         .from('notifications')
         .delete()
         .eq('id', notificationId)
-        .eq('user_id', user.id);
+        .eq('recipient_id', user.id);
 
       if (error) throw error;
       
@@ -129,10 +153,11 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
+          filter: `recipient_id=eq.${user.id}`,
         },
         (payload) => {
-          const newNotification = payload.new as Notification;
+          const newDbNotification = payload.new as DatabaseNotification;
+          const newNotification = mapDatabaseToAppNotification(newDbNotification);
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
           
