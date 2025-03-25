@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { 
   Play, Pause, Heart, Download, ShoppingCart, 
   Share2, ArrowLeft, Music, Info, Tag, Clock, User, Globe,
-  Waveform
+  AudioWaveform
 } from 'lucide-react';
 import { MainLayoutWithPlayer } from '@/components/layout/MainLayoutWithPlayer';
 import { BeatListItem } from '@/components/ui/BeatListItem';
@@ -312,7 +312,7 @@ const BeatDetail = () => {
               {/* Audio Preview */}
               <div className="bg-card border rounded-xl p-4 shadow">
                 <div className="flex items-center mb-3">
-                  <Waveform size={18} className="text-primary mr-2" />
+                  <AudioWaveform size={18} className="text-primary mr-2" />
                   <h3 className="text-sm font-medium">Preview Track</h3>
                 </div>
                 <AudioPlayer src={beat.preview_url} />
