@@ -19,14 +19,14 @@ export default function Trending() {
 
   return (
     <MainLayout>
-      <div className={cn(
-        "container py-4 md:py-8",
-        isMobile ? "px-3" : ""
-      )}>
-        <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Trending Beats</h1>
+      <div className="container py-4 md:py-8 px-4 md:px-6">
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold">Trending Beats</h1>
+          <p className="text-sm text-muted-foreground mt-1">Discover the hottest beats right now</p>
+        </div>
         
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2">
                 <Skeleton className="aspect-square rounded-lg" />
@@ -36,7 +36,7 @@ export default function Trending() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {trendingBeats.map((beat) => (
               <BeatCard 
                 key={beat.id} 

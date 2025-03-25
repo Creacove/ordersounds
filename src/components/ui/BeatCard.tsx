@@ -223,7 +223,7 @@ export function BeatCard({
           <PriceTag
             localPrice={getDisplayPrice()}
             diasporaPrice={getDisplayPrice()}
-            size="xs"
+            size="sm"
             className="self-start"
             licenseType={!['basic', 'premium', 'exclusive'].includes(displayLicenseType) ? displayLicenseType : undefined}
             onClick={(e: React.MouseEvent) => {

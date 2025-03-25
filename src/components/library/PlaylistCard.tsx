@@ -1,14 +1,17 @@
 
 import React from 'react';
 import { Playlist, Beat } from '@/types';
-import { ListMusic } from 'lucide-react';
+import { ListMusic, Play } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface PlaylistCardProps {
   playlist: Playlist;
   onClick: (id: string) => void;
+  onPlay?: (playlist: Playlist) => void;
 }
 
-export function PlaylistCard({ playlist, onClick }: PlaylistCardProps) {
+export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
   const beatCount = playlist.beats?.length || 0;
   
   const generateCoverImages = () => {
@@ -83,16 +86,45 @@ export function PlaylistCard({ playlist, onClick }: PlaylistCardProps) {
 
   return (
     <div 
-      className="bg-card hover:bg-card/80 transition-colors rounded-lg p-4 cursor-pointer"
-      onClick={() => onClick(playlist.id)}
+      className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-all overflow-hidden"
     >
-      <div className="aspect-square rounded-md bg-muted mb-3 overflow-hidden">
+      <div 
+        className="aspect-square rounded-md overflow-hidden group relative cursor-pointer"
+        onClick={() => onClick(playlist.id)}
+      >
         {generateCoverImages()}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          {onPlay && beatCount > 0 && (
+            <Button 
+              size="icon" 
+              className="rounded-full h-10 w-10"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPlay(playlist);
+              }}
+            >
+              <Play size={18} />
+            </Button>
+          )}
+        </div>
       </div>
-      <h3 className="font-medium truncate">{playlist.name}</h3>
-      <p className="text-sm text-muted-foreground">
-        {beatCount} {beatCount === 1 ? 'beat' : 'beats'}
-      </p>
+      <div className="p-3">
+        <h3 
+          className="font-medium truncate cursor-pointer"
+          onClick={() => onClick(playlist.id)}
+        >
+          {playlist.name}
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          {beatCount} {beatCount === 1 ? 'beat' : 'beats'}
+        </p>
+        <div className={cn(
+          "flex items-center text-xs mt-1", 
+          playlist.is_public ? "text-sky-500" : "text-amber-500"
+        )}>
+          <span>{playlist.is_public ? 'Public' : 'Private'}</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -279,7 +280,7 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   
   /* Library page responsive grid */
   .library-grid {
-    @apply grid-cols-1;
+    @apply grid-cols-2 gap-3;
   }
   
   /* Make tab list more mobile friendly */
@@ -344,11 +345,21 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   
   /* Consistent grid layouts */
   .responsive-grid-2 {
-    @apply grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
+    @apply grid-cols-2 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
   }
   
   .responsive-grid-3 {
-    @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+    @apply grid-cols-2 sm:grid-cols-2 lg:grid-cols-3;
+  }
+  
+  /* Mobile playlists and trending grid */
+  .mobile-playlists-grid {
+    @apply grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5;
+  }
+  
+  /* Mobile playlist header */
+  .mobile-playlist-header {
+    @apply flex flex-col space-y-2 md:flex-row md:justify-between md:items-center md:space-y-0;
   }
   
   /* Prevent content from being hidden under fixed elements */
