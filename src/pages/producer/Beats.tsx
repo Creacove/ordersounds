@@ -1,5 +1,5 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
@@ -7,17 +7,28 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Music } from "lucide-react";
+import { PlusCircle, Music, Grid, List, Table } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { BeatListItem } from "@/components/ui/BeatListItem";
+import {
+  Table as UITable,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
   const { beats, isLoading } = useBeats();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
   
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -29,6 +40,13 @@ export default function ProducerBeats() {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // Update view mode when screen size changes
+  useEffect(() => {
+    if (isMobile && viewMode === "table") {
+      setViewMode("list");
+    }
+  }, [isMobile, viewMode]);
 
   // Filter beats by producer
   const producerBeats = user ? beats.filter(beat => beat.producer_id === user.id) : [];
@@ -74,21 +92,34 @@ export default function ProducerBeats() {
         {/* View switcher */}
         <div className="flex items-center justify-end gap-2 mb-4">
           <Button
-            variant="ghost"
+            variant={viewMode === "grid" ? "secondary" : "ghost"}
             size="sm"
             className="text-xs py-1 px-2.5 h-auto"
-            onClick={() => {}}
+            onClick={() => setViewMode("grid")}
           >
-            Grid View
+            <Grid className="h-3.5 w-3.5 mr-1.5" />
+            Grid
           </Button>
           <Button
-            variant="ghost"
+            variant={viewMode === "list" ? "secondary" : "ghost"}
             size="sm"
-            className="text-xs py-1 px-2.5 h-auto bg-muted/50"
-            onClick={() => {}}
+            className="text-xs py-1 px-2.5 h-auto"
+            onClick={() => setViewMode("list")}
           >
-            List View
+            <List className="h-3.5 w-3.5 mr-1.5" />
+            List
           </Button>
+          {!isMobile && (
+            <Button
+              variant={viewMode === "table" ? "secondary" : "ghost"}
+              size="sm"
+              className="text-xs py-1 px-2.5 h-auto"
+              onClick={() => setViewMode("table")}
+            >
+              <Table className="h-3.5 w-3.5 mr-1.5" />
+              Table
+            </Button>
+          )}
         </div>
         
         {isLoading ? (
@@ -103,26 +134,82 @@ export default function ProducerBeats() {
           </div>
         ) : producerBeats.length > 0 ? (
           <>
-            {/* More compact grid for desktop */}
-            <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-              {producerBeats.map((beat) => (
-                <BeatCard 
-                  key={beat.id} 
-                  beat={beat}
-                  className="h-full shadow-sm hover:shadow"
-                />
-              ))}
-            </div>
+            {/* Grid View - Desktop */}
+            {viewMode === "grid" && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                {producerBeats.map((beat) => (
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat}
+                    className="h-full shadow-sm hover:shadow"
+                  />
+                ))}
+              </div>
+            )}
             
-            {/* List view for mobile */}
-            <div className="sm:hidden space-y-3">
-              {producerBeats.map((beat) => (
-                <BeatListItem
-                  key={beat.id}
-                  beat={beat}
-                />
-              ))}
-            </div>
+            {/* List View */}
+            {viewMode === "list" && (
+              <div className="space-y-3">
+                {producerBeats.map((beat) => (
+                  <BeatListItem
+                    key={beat.id}
+                    beat={beat}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {/* Table View - Desktop only */}
+            {viewMode === "table" && !isMobile && (
+              <div className="rounded-md border">
+                <UITable>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px]"></TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Genre</TableHead>
+                      <TableHead>BPM</TableHead>
+                      <TableHead>Key</TableHead>
+                      <TableHead>Track Type</TableHead>
+                      <TableHead className="text-right">Price (Local)</TableHead>
+                      <TableHead className="text-right">Price (Diaspora)</TableHead>
+                      <TableHead className="text-right">Plays</TableHead>
+                      <TableHead className="text-right">Favorites</TableHead>
+                      <TableHead className="text-right">Sales</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {producerBeats.map((beat) => (
+                      <TableRow 
+                        key={beat.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/beat/${beat.id}`)}
+                      >
+                        <TableCell className="p-2">
+                          <div className="relative h-10 w-10 rounded-md overflow-hidden">
+                            <img 
+                              src={beat.cover_image_url || '/placeholder.svg'} 
+                              alt={beat.title}
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">{beat.title}</TableCell>
+                        <TableCell>{beat.genre}</TableCell>
+                        <TableCell>{beat.bpm} BPM</TableCell>
+                        <TableCell>{beat.key || "-"}</TableCell>
+                        <TableCell>{beat.track_type}</TableCell>
+                        <TableCell className="text-right">₦{beat.price_local.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">${beat.price_diaspora.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{beat.plays || 0}</TableCell>
+                        <TableCell className="text-right">{beat.favorites_count}</TableCell>
+                        <TableCell className="text-right">{beat.purchase_count}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </UITable>
+              </div>
+            )}
           </>
         ) : (
           <Card className="border border-dashed bg-muted/30">
