@@ -90,7 +90,7 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
 
   const handleClick = () => {
     onClick(playlist.id);
-    // Navigate to the correct playlist URL
+    // Navigate to the correct playlist URL with the 's' in playlists
     if (playlist.is_public) {
       navigate(`/playlists/${playlist.id}`);
     } else {

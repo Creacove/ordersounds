@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Button } from "@/components/ui/button";
@@ -79,7 +78,6 @@ export default function Index() {
     enabled: true
   });
 
-  // Get playlists
   const { data: playlists, isLoading: isPlaylistsLoading } = useQuery({
     queryKey: ['homePlaylists'],
     queryFn: async () => {
@@ -96,17 +94,15 @@ export default function Index() {
       
       return data.map(playlist => ({
         ...playlist,
-        created_at: playlist.created_date // Map created_date to created_at to match Playlist type
+        created_at: playlist.created_date
       }));
     },
     enabled: true
   });
 
-  // Get the specified producer with ID fed34a00-a027-46ba-8598-cbeb2fe91ce0
   const { data: producerOfWeek } = useQuery({
     queryKey: ['specificProducer'],
     queryFn: async () => {
-      // Get the specified producer
       const producerId = 'fed34a00-a027-46ba-8598-cbeb2fe91ce0';
       const { data, error: producerError } = await supabase
         .from('users')
@@ -116,7 +112,6 @@ export default function Index() {
       
       if (producerError || !data) {
         console.error('Error fetching specified producer:', producerError);
-        // Fallback to Creacove Afrobeats Challenge
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('users')
           .select('id, stage_name, full_name, profile_picture, bio, country')
@@ -147,13 +142,11 @@ export default function Index() {
         };
       }
       
-      // Get beats count
       const { count: beatsCount } = await supabase
         .from('beats')
         .select('id', { count: 'exact', head: true })
         .eq('producer_id', data.id);
       
-      // Get sales count
       const { data: producerBeats } = await supabase
         .from('beats')
         .select('id')
@@ -185,7 +178,6 @@ export default function Index() {
     enabled: true
   });
 
-  // Weekly picks (top 3 beats with highest favorites count this week)
   const { data: weeklyPicks, isLoading: isWeeklyLoading } = useQuery({
     queryKey: ['weeklyPicks'],
     queryFn: async () => {
@@ -250,16 +242,15 @@ export default function Index() {
   };
   
   const handlePlaylistClick = (playlistId: string) => {
-    navigate(`/playlists/${playlistId}`, { state: { from: '/' } });
+    navigate(`/playlists/${playlistId}`);
   };
   
   const handleProducerClick = () => {
     if (producerOfWeek) {
-      navigate(`/producer/${producerOfWeek.id}`, { state: { from: '/' } });
+      navigate(`/producer/${producerOfWeek.id}`);
     }
   };
 
-  // Functions to get appropriate license prices based on license type
   const getLicenseLocalPrice = (beat: any) => {
     if (beat.license_type === 'basic') {
       return beat.basic_license_price_local || beat.price_local;
@@ -284,7 +275,6 @@ export default function Index() {
 
   return (
     <MainLayoutWithPlayer>
-      {/* Hero Section */}
       <section className="bg-gradient-to-b from-primary/20 to-background pt-4 pb-8 md:pt-8 md:pb-12">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center text-center space-y-4 md:space-y-6">
@@ -306,7 +296,6 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Producer of the Week Section */}
       <section className="py-8 md:py-12">
         <div className="container px-4 md:px-6">
           <div className="flex items-center justify-between mb-6">
@@ -370,7 +359,6 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Weekly Picks Section */}
       <section className="py-8 md:py-12 bg-gradient-to-r from-primary/5 to-muted">
         <div className="container px-4 md:px-6">
           <div className="flex items-center justify-between mb-6">
@@ -447,10 +435,8 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Trending and New Sections */}
       <section className="py-8 md:py-12">
         <div className="container grid md:grid-cols-2 gap-8 px-4 md:px-6">
-          {/* Trending Section */}
           <div>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -486,7 +472,6 @@ export default function Index() {
             </div>
           </div>
           
-          {/* New Releases Section */}
           <div>
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -524,7 +509,6 @@ export default function Index() {
         </div>
       </section>
 
-      {/* Playlists Section */}
       <section className="py-8 md:py-12 bg-card">
         <div className="container px-4 md:px-6">
           <div className="flex items-center justify-between mb-6">
