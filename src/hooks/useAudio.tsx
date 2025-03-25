@@ -52,13 +52,33 @@ export const useAudio = (url: string): UseAudioReturn => {
   
   // Update source if URL changes
   useEffect(() => {
-    if (audioRef.current && audioRef.current.src !== url && url) {
-      audioRef.current.src = url;
-      audioRef.current.load();
-      setCurrentTime(0);
-      setDuration(0);
+    if (audioRef.current && url) {
+      // If URL changed, pause first, then update source
+      if (audioRef.current.src !== url) {
+        const wasPlaying = playing;
+        audioRef.current.pause();
+        setPlaying(false);
+        
+        audioRef.current.src = url;
+        audioRef.current.load();
+        setCurrentTime(0);
+        setDuration(0);
+        
+        // If it was playing before, start playing again after source change
+        if (wasPlaying) {
+          const playPromise = audioRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              setPlaying(true);
+            }).catch(error => {
+              console.error("Error playing audio:", error);
+            });
+          }
+        }
+      }
     }
-  }, [url]);
+  }, [url, playing]);
 
   // Play/pause toggle function
   const togglePlay = () => {
@@ -68,10 +88,15 @@ export const useAudio = (url: string): UseAudioReturn => {
       audioRef.current.pause();
       setPlaying(false);
     } else {
-      audioRef.current.play().catch(error => {
-        console.error("Error playing audio:", error);
-      });
-      setPlaying(true);
+      const playPromise = audioRef.current.play();
+      
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setPlaying(true);
+        }).catch(error => {
+          console.error("Error playing audio:", error);
+        });
+      }
     }
   };
 

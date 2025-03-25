@@ -17,7 +17,7 @@ interface PlayerContextType {
   setProgress: (progress: number) => void;
   togglePlayPause: () => void;
   togglePlay: () => void;
-  pausePlayback: () => void; // Adding this method to fix the error
+  pausePlayback: () => void;
   seek: (time: number) => void;
   addToQueue: (beat: Beat) => void;
   removeFromQueue: (beatId: string) => void;
@@ -40,7 +40,7 @@ const PlayerContext = createContext<PlayerContextType>({
   setProgress: () => {},
   togglePlayPause: () => {},
   togglePlay: () => {},
-  pausePlayback: () => {}, // Adding default implementation
+  pausePlayback: () => {},
   seek: () => {},
   addToQueue: () => {},
   removeFromQueue: () => {},
@@ -96,18 +96,27 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
   const playBeat = (beat: Beat | null) => {
     if (beat === null) {
       setIsPlaying(false);
+      togglePlay(); // Ensure audio is paused when beat is null
+      setCurrentBeat(null);
       return;
     }
 
     if (currentBeat && currentBeat.id === beat.id) {
+      // If the same beat, just toggle play/pause
       togglePlayPause();
     } else {
+      // Different beat, update current beat and start playing
       if (currentBeat) {
         setPreviousBeats(prev => [...prev, currentBeat]);
       }
       setCurrentBeat(beat);
-      setIsPlaying(true);
-      setProgress(0);
+      
+      // Small delay to ensure the audio source has updated before playing
+      setTimeout(() => {
+        if (!isPlaying) {
+          togglePlay();
+        }
+      }, 50);
     }
   };
 
@@ -117,7 +126,6 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     }
   };
   
-  // Add the pausePlayback method to fix the error
   const pausePlayback = () => {
     if (isPlaying) {
       togglePlay();
@@ -183,7 +191,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setProgress,
       togglePlayPause,
       togglePlay,
-      pausePlayback, // Exposing the pausePlayback function 
+      pausePlayback,
       seek,
       addToQueue,
       removeFromQueue,

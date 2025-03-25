@@ -47,16 +47,47 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     };
   }, []);
 
+  // Update source when src prop changes
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !src) return;
+
+    if (audio.src !== src) {
+      const wasPlaying = isPlaying;
+      audio.pause();
+      setIsPlaying(false);
+      
+      audio.src = src;
+      audio.load();
+      
+      if (wasPlaying) {
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            setIsPlaying(true);
+          }).catch(() => {});
+        }
+      }
+    }
+  }, [src, isPlaying]);
+
   const togglePlay = () => {
     const audio = audioRef.current;
     if (!audio) return;
 
     if (isPlaying) {
       audio.pause();
+      setIsPlaying(false);
     } else {
-      audio.play();
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setIsPlaying(true);
+        }).catch(error => {
+          console.error("Error playing audio:", error);
+        });
+      }
     }
-    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
