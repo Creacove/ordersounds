@@ -60,7 +60,6 @@ export default function UploadBeat() {
     { id: 1, name: user?.name || "", email: user?.email || "", role: "Producer", percentage: 100 }
   ]);
 
-  // License options with updated custom license
   const licenseOptions = [
     {
       value: "basic",
@@ -816,3 +815,293 @@ export default function UploadBeat() {
                         <Label htmlFor="basicLicensePriceDiaspora">International Price (USD) *</Label>
                         <div className="flex items-center mt-1.5">
                           <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            $
+                          </div>
+                          <Input
+                            id="basicLicensePriceDiaspora"
+                            name="basicLicensePriceDiaspora"
+                            type="number"
+                            value={beatDetails.basicLicensePriceDiaspora}
+                            onChange={(e) => setBeatDetails({...beatDetails, basicLicensePriceDiaspora: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Premium License Pricing */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Premium License</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="premiumLicensePriceLocal">Local Price (NGN) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            ₦
+                          </div>
+                          <Input
+                            id="premiumLicensePriceLocal"
+                            name="premiumLicensePriceLocal"
+                            type="number"
+                            value={beatDetails.premiumLicensePriceLocal}
+                            onChange={(e) => setBeatDetails({...beatDetails, premiumLicensePriceLocal: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="premiumLicensePriceDiaspora">International Price (USD) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            $
+                          </div>
+                          <Input
+                            id="premiumLicensePriceDiaspora"
+                            name="premiumLicensePriceDiaspora"
+                            type="number"
+                            value={beatDetails.premiumLicensePriceDiaspora}
+                            onChange={(e) => setBeatDetails({...beatDetails, premiumLicensePriceDiaspora: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Exclusive License Pricing */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Exclusive License</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="exclusiveLicensePriceLocal">Local Price (NGN) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            ₦
+                          </div>
+                          <Input
+                            id="exclusiveLicensePriceLocal"
+                            name="exclusiveLicensePriceLocal"
+                            type="number"
+                            value={beatDetails.exclusiveLicensePriceLocal}
+                            onChange={(e) => setBeatDetails({...beatDetails, exclusiveLicensePriceLocal: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="exclusiveLicensePriceDiaspora">International Price (USD) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            $
+                          </div>
+                          <Input
+                            id="exclusiveLicensePriceDiaspora"
+                            name="exclusiveLicensePriceDiaspora"
+                            type="number"
+                            value={beatDetails.exclusiveLicensePriceDiaspora}
+                            onChange={(e) => setBeatDetails({...beatDetails, exclusiveLicensePriceDiaspora: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Custom License Pricing */}
+                  {beatDetails.licenseType === 'custom' && (
+                    <div className="border rounded-lg p-4 border-primary/50">
+                      <h3 className="font-medium mb-3">Custom License</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="customLicensePriceLocal">Local Price (NGN) *</Label>
+                          <div className="flex items-center mt-1.5">
+                            <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                              ₦
+                            </div>
+                            <Input
+                              id="customLicensePriceLocal"
+                              name="customLicensePriceLocal"
+                              type="number"
+                              value={beatDetails.customLicensePriceLocal}
+                              onChange={(e) => setBeatDetails({...beatDetails, customLicensePriceLocal: parseInt(e.target.value) || 0})}
+                              className="rounded-l-none"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="customLicensePriceDiaspora">International Price (USD) *</Label>
+                          <div className="flex items-center mt-1.5">
+                            <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                              $
+                            </div>
+                            <Input
+                              id="customLicensePriceDiaspora"
+                              name="customLicensePriceDiaspora"
+                              type="number"
+                              value={beatDetails.customLicensePriceDiaspora}
+                              onChange={(e) => setBeatDetails({...beatDetails, customLicensePriceDiaspora: parseInt(e.target.value) || 0})}
+                              className="rounded-l-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="royalties" className="mt-0 animate-fade-in">
+                <div className="space-y-4">
+                  <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
+                    <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium">Royalty Splits</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Define how royalties should be distributed among collaborators. 
+                        The total percentage must equal 100%.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {collaborators.map((collaborator, index) => (
+                      <div key={collaborator.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-medium">Collaborator {index + 1}</h3>
+                          {collaborators.length > 1 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleRemoveCollaborator(collaborator.id)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 h-auto"
+                            >
+                              <X size={16} />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`name-${collaborator.id}`}>Name</Label>
+                            <Input 
+                              id={`name-${collaborator.id}`}
+                              value={collaborator.name}
+                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'name', e.target.value)}
+                              placeholder="Collaborator's name"
+                              disabled={index === 0}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`email-${collaborator.id}`}>Email</Label>
+                            <Input 
+                              id={`email-${collaborator.id}`}
+                              value={collaborator.email}
+                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'email', e.target.value)}
+                              placeholder="Collaborator's email"
+                              disabled={index === 0}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+                          <div>
+                            <Label htmlFor={`role-${collaborator.id}`}>Role</Label>
+                            <Input 
+                              id={`role-${collaborator.id}`}
+                              value={collaborator.role}
+                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'role', e.target.value)}
+                              placeholder="e.g. Producer, Engineer"
+                              disabled={index === 0}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`percentage-${collaborator.id}`}>Percentage (%)</Label>
+                            <Input 
+                              id={`percentage-${collaborator.id}`}
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={collaborator.percentage}
+                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'percentage', parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {collaborators.length < 5 && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full" 
+                        onClick={handleAddCollaborator}
+                      >
+                        <Plus className="mr-2 h-4 w-4" /> Add Collaborator
+                      </Button>
+                    )}
+                    
+                    <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
+                      <span className="text-sm font-medium">Total Percentage:</span>
+                      <span 
+                        className={`font-bold ${
+                          collaborators.reduce((sum, c) => sum + c.percentage, 0) === 100 
+                            ? 'text-green-600' 
+                            : 'text-red-600'
+                        }`}
+                      >
+                        {collaborators.reduce((sum, c) => sum + c.percentage, 0)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </CardContent>
+            
+            <CardFooter className="flex justify-between p-4 sm:p-6 border-t">
+              <div className="flex gap-2">
+                {activeTab !== "details" && (
+                  <Button variant="outline" onClick={prevTab}>
+                    Previous
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {activeTab !== "royalties" ? (
+                  <Button onClick={nextTab}>
+                    Next
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleSaveDraft} disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save as Draft'
+                      )}
+                    </Button>
+                    <Button onClick={handlePublish} disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Publishing...
+                        </>
+                      ) : (
+                        'Publish Beat'
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardFooter>
+          </Tabs>
+        </Card>
+      </div>
+    </MainLayout>
+  );
+}
