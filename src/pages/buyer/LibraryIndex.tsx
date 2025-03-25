@@ -15,6 +15,6 @@ export default function LibraryIndex() {
     return <Navigate to="/login" replace />;
   }
   
-  // By default, show the playlists page
-  return <Navigate to="/playlists" replace />;
+  // Redirect to my-playlists instead of playlists
+  return <Navigate to="/my-playlists" replace />;
 }

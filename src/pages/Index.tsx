@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Button } from "@/components/ui/button";
@@ -95,20 +96,20 @@ const Index = () => {
     enabled: true
   });
 
-  // Producer of the week - simplified to get a producer without complex queries
+  // Producer of the week - fix the query structure
   const { data: producerOfWeek } = useQuery({
     queryKey: ['producerOfWeek'],
     queryFn: async () => {
       // Get a producer from the database
-      const { data, error } = await supabase
+      const { data, error: producerError } = await supabase
         .from('users')
         .select('id, stage_name, full_name, profile_picture, bio, country')
         .eq('role', 'producer')
         .limit(1)
         .single();
       
-      if (error) {
-        console.error('Error fetching producer of week:', error);
+      if (producerError) {
+        console.error('Error fetching producer of week:', producerError);
         return {
           id: '1', 
           name: 'JUNE', 
@@ -125,16 +126,26 @@ const Index = () => {
         .select('id', { count: 'exact', head: true })
         .eq('producer_id', data.id);
       
-      // Get sales count
-      const { count: salesCount } = await supabase
-        .from('user_purchased_beats')
-        .select('id', { count: 'exact', head: true })
-        .eq('beat_id', (
-          supabase
-            .from('beats')
-            .select('id')
-            .eq('producer_id', data.id)
-        ));
+      // Get sales count - Fix the way we fetch beats by this producer
+      const { data: producerBeats, error: beatsError } = await supabase
+        .from('beats')
+        .select('id')
+        .eq('producer_id', data.id);
+      
+      let salesCount = 0;
+      
+      if (!beatsError && producerBeats && producerBeats.length > 0) {
+        const beatIds = producerBeats.map(beat => beat.id);
+        
+        const { count, error: purchasesError } = await supabase
+          .from('user_purchased_beats')
+          .select('id', { count: 'exact', head: true })
+          .in('beat_id', beatIds);
+          
+        if (!purchasesError) {
+          salesCount = count || 0;
+        }
+      }
       
       return {
         id: data.id, 
