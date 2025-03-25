@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Playlist, Beat } from '@/types';
 import { ListMusic, Play } from 'lucide-react';
@@ -90,7 +89,7 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
 
   const handleClick = () => {
     onClick(playlist.id);
-    // Navigate to the correct playlist URL with the 's' in playlists
+    // Always navigate to the correct URL with 's' in playlists
     if (playlist.is_public) {
       navigate(`/playlists/${playlist.id}`);
     } else {
