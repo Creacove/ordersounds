@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
   Search, 
-  ShoppingCart, 
   Bell, 
   User,
   Menu,
@@ -84,7 +83,7 @@ export function Topbar() {
           </Link>
         </div>
         
-        {/* Search, Cart, User - Simplified */}
+        {/* Search and User Menu */}
         <div className="flex items-center gap-3">
           {/* Currency toggle */}
           <DropdownMenu>
@@ -118,25 +117,6 @@ export function Topbar() {
           >
             <Search size={18} />
             <span className="sr-only">Search</span>
-          </Button>
-          
-          {/* Cart - show for all users */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-8 w-8"
-            onClick={() => navigate("/cart")}
-          >
-            <ShoppingCart size={18} />
-            <span className="sr-only">Cart</span>
-            {itemCount > 0 && (
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
-              >
-                {itemCount > 9 ? '9+' : itemCount}
-              </Badge>
-            )}
           </Button>
           
           {/* User Menu */}
@@ -182,36 +162,4 @@ export function Topbar() {
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </DropdownMenuItem>
-                {user.role === "producer" && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate("/producer/dashboard")}>
-                      <span className="mr-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Producer</span>
-                      <span>Switch to Producer View</span>
-                    </DropdownMenuItem>
-                  </>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="font-medium"
-              onClick={() => navigate("/login")}
-            >
-              Sign In
-            </Button>
-          )}
-        </div>
-      </div>
-    </header>
-  );
-}
-
-export default Topbar;
+                {user.role === "
