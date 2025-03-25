@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import { uploadBeat } from "@/lib/beatStorage";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
+import { PriceTag } from "@/components/ui/PriceTag";
 
 export default function UploadBeat() {
   const { user } = useAuth();
@@ -727,49 +729,49 @@ export default function UploadBeat() {
                     <div>
                       <h3 className="text-sm font-medium">License Options</h3>
                       <p className="text-xs text-muted-foreground">
-                        Select a license type for your beat. This determines how buyers can use your beat and what rights they acquire.
+                        Define license options for your beat. Each license type comes with different rights and pricing.
                       </p>
                     </div>
                   </div>
                   
-                  <RadioGroup 
-                    value={beatDetails.licenseType} 
-                    onValueChange={handleLicenseTypeChange}
-                    className="space-y-3"
-                  >
-                    {licenseOptions.map((option) => (
-                      <div key={option.value} className="flex items-start space-x-2">
-                        <RadioGroupItem value={option.value} id={`license-${option.value}`} className="mt-1" />
-                        <div className="grid gap-1.5 leading-none w-full">
-                          <Label htmlFor={`license-${option.value}`} className="font-medium">{option.label}</Label>
-                          <p className="text-sm text-muted-foreground">{option.description}</p>
-                          {option.value === beatDetails.licenseType && option.value !== 'custom' && (
-                            <div className="mt-2 p-3 bg-muted/50 rounded-md text-xs">
-                              <p>{option.terms}</p>
-                            </div>
-                          )}
+                  <div className="space-y-4">
+                    {licenseOptions.slice(0, 3).map((option) => (
+                      <div key={option.value} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h3 className="font-medium">{option.label}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{option.description}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 p-3 bg-muted/50 rounded-md text-xs">
+                          <p>{option.terms}</p>
                         </div>
                       </div>
                     ))}
-                  </RadioGroup>
-                  
-                  {beatDetails.licenseType === 'custom' && (
-                    <div className="mt-4">
-                      <Label htmlFor="licenseTerms">Custom License Terms *</Label>
-                      <Textarea 
-                        id="licenseTerms" 
-                        name="licenseTerms"
-                        value={beatDetails.licenseTerms}
-                        onChange={handleBeatChange}
-                        placeholder="Describe the terms and conditions of your custom license..." 
-                        rows={6}
-                        className="mt-1.5"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1.5">
-                        Be clear and specific about usage rights, limitations, and attribution requirements.
-                      </p>
+                    
+                    <div className="border rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-medium">Custom License</h3>
+                          <p className="text-sm text-muted-foreground mt-1">Define your own terms and conditions.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <Label htmlFor="licenseTerms">Custom License Terms</Label>
+                        <Textarea 
+                          id="licenseTerms" 
+                          name="licenseTerms"
+                          value={beatDetails.licenseTerms}
+                          onChange={handleBeatChange}
+                          placeholder="Describe the terms and conditions of your custom license..." 
+                          rows={4}
+                          className="mt-1.5"
+                        />
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               </TabsContent>
 
@@ -781,7 +783,7 @@ export default function UploadBeat() {
                       <h3 className="text-sm font-medium">License Pricing</h3>
                       <p className="text-xs text-muted-foreground">
                         Set different prices for each license type in both local (NGN) and international (USD) currencies. 
-                        Users will be able to choose which license they want to purchase.
+                        Buyers will be able to choose which license they want to purchase.
                       </p>
                     </div>
                   </div>
@@ -821,3 +823,260 @@ export default function UploadBeat() {
                             onChange={(e) => setBeatDetails({...beatDetails, basicLicensePriceDiaspora: parseInt(e.target.value) || 0})}
                             className="rounded-l-none"
                           />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Premium License Pricing */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Premium License</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="premiumLicensePriceLocal">Local Price (NGN) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            ₦
+                          </div>
+                          <Input
+                            id="premiumLicensePriceLocal"
+                            name="premiumLicensePriceLocal"
+                            type="number"
+                            value={beatDetails.premiumLicensePriceLocal}
+                            onChange={(e) => setBeatDetails({...beatDetails, premiumLicensePriceLocal: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="premiumLicensePriceDiaspora">International Price (USD) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            $
+                          </div>
+                          <Input
+                            id="premiumLicensePriceDiaspora"
+                            name="premiumLicensePriceDiaspora"
+                            type="number"
+                            value={beatDetails.premiumLicensePriceDiaspora}
+                            onChange={(e) => setBeatDetails({...beatDetails, premiumLicensePriceDiaspora: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Exclusive License Pricing */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Exclusive License</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="exclusiveLicensePriceLocal">Local Price (NGN) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            ₦
+                          </div>
+                          <Input
+                            id="exclusiveLicensePriceLocal"
+                            name="exclusiveLicensePriceLocal"
+                            type="number"
+                            value={beatDetails.exclusiveLicensePriceLocal}
+                            onChange={(e) => setBeatDetails({...beatDetails, exclusiveLicensePriceLocal: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="exclusiveLicensePriceDiaspora">International Price (USD) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            $
+                          </div>
+                          <Input
+                            id="exclusiveLicensePriceDiaspora"
+                            name="exclusiveLicensePriceDiaspora"
+                            type="number"
+                            value={beatDetails.exclusiveLicensePriceDiaspora}
+                            onChange={(e) => setBeatDetails({...beatDetails, exclusiveLicensePriceDiaspora: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* License Preview Section */}
+                  <div className="mt-6">
+                    <h3 className="text-sm font-medium mb-3">License Price Preview</h3>
+                    <div className="flex flex-wrap gap-2">
+                      <PriceTag 
+                        localPrice={beatDetails.basicLicensePriceLocal} 
+                        diasporaPrice={beatDetails.basicLicensePriceDiaspora}
+                        licenseType="Basic"
+                      />
+                      <PriceTag 
+                        localPrice={beatDetails.premiumLicensePriceLocal} 
+                        diasporaPrice={beatDetails.premiumLicensePriceDiaspora}
+                        licenseType="Premium"
+                      />
+                      <PriceTag 
+                        localPrice={beatDetails.exclusiveLicensePriceLocal} 
+                        diasporaPrice={beatDetails.exclusiveLicensePriceDiaspora}
+                        licenseType="Exclusive"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="royalties" className="mt-0 animate-fade-in">
+                <div className="space-y-4">
+                  <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
+                    <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-medium">Collaborator Royalties</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Add collaborators who worked on this beat and set their royalty percentages. 
+                        The total percentage must add up to 100%.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {collaborators.map((collaborator, index) => (
+                      <div key={collaborator.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-medium">
+                            {index === 0 ? "Main Producer" : `Collaborator ${index}`}
+                          </h3>
+                          {index !== 0 && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleRemoveCollaborator(collaborator.id)}
+                            >
+                              <X size={16} className="mr-1" /> Remove
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor={`name-${collaborator.id}`}>Name *</Label>
+                            <Input
+                              id={`name-${collaborator.id}`}
+                              value={collaborator.name}
+                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'name', e.target.value)}
+                              placeholder="Full name"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`email-${collaborator.id}`}>Email *</Label>
+                            <Input
+                              id={`email-${collaborator.id}`}
+                              type="email"
+                              value={collaborator.email}
+                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'email', e.target.value)}
+                              placeholder="Email address"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                          <div>
+                            <Label htmlFor={`role-${collaborator.id}`}>Role *</Label>
+                            <Input
+                              id={`role-${collaborator.id}`}
+                              value={collaborator.role}
+                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'role', e.target.value)}
+                              placeholder="e.g. Producer, Engineer, etc."
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor={`percentage-${collaborator.id}`}>Percentage % *</Label>
+                            <Input
+                              id={`percentage-${collaborator.id}`}
+                              type="number"
+                              min="0"
+                              max="100"
+                              value={collaborator.percentage}
+                              onChange={(e) => handleCollaboratorChange(
+                                collaborator.id, 
+                                'percentage', 
+                                Math.min(100, Math.max(0, parseInt(e.target.value) || 0))
+                              )}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {collaborators.length < 5 && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full" 
+                        onClick={handleAddCollaborator}
+                      >
+                        <Plus size={16} className="mr-2" /> Add Collaborator
+                      </Button>
+                    )}
+                    
+                    <div className="flex justify-between items-center mt-4 p-3 bg-muted/50 rounded-md">
+                      <span className="text-sm font-medium">Total Percentage:</span>
+                      <span className={`font-bold ${
+                        collaborators.reduce((sum, c) => sum + c.percentage, 0) === 100 
+                          ? "text-green-600" 
+                          : "text-red-600"
+                      }`}>
+                        {collaborators.reduce((sum, c) => sum + c.percentage, 0)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            </CardContent>
+
+            <CardFooter className="flex justify-between px-4 pb-4 sm:px-6 sm:pb-6 pt-0 border-t">
+              <div className="flex gap-2">
+                {activeTab !== "details" && (
+                  <Button variant="outline" onClick={prevTab}>
+                    Previous
+                  </Button>
+                )}
+                {activeTab !== "royalties" && (
+                  <Button onClick={nextTab}>
+                    Next
+                  </Button>
+                )}
+              </div>
+              
+              {activeTab === "royalties" && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSaveDraft}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Save as Draft
+                  </Button>
+                  <Button 
+                    variant="default" 
+                    onClick={handlePublish}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                    Publish Beat
+                  </Button>
+                </div>
+              )}
+            </CardFooter>
+          </Tabs>
+        </Card>
+      </div>
+    </MainLayout>
+  );
+}
