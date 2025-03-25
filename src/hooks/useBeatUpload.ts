@@ -51,6 +51,7 @@ export const useBeatUpload = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']); // Default to basic license
   
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
     title: "",
@@ -201,14 +202,47 @@ export const useBeatUpload = () => {
     );
   };
 
-  const handleLicenseTypeChange = (value: string) => {
-    const selectedLicense = licenseOptions.find(option => option.value === value);
+  const handleLicenseTypeChange = (value: string, isChecked: boolean) => {
+    if (isChecked) {
+      // Add license type
+      setSelectedLicenseTypes(prev => [...prev, value]);
+      
+      // If this is a custom license, update the license terms
+      if (value === 'custom') {
+        const customOption = licenseOptions.find(option => option.value === 'custom');
+        if (customOption) {
+          setBeatDetails({
+            ...beatDetails,
+            licenseTerms: beatDetails.licenseTerms || customOption.terms
+          });
+        }
+      }
+    } else {
+      // Remove license type
+      setSelectedLicenseTypes(prev => prev.filter(type => type !== value));
+    }
     
-    setBeatDetails({
-      ...beatDetails,
-      licenseType: value,
-      licenseTerms: value !== 'custom' && selectedLicense ? selectedLicense.terms : beatDetails.licenseTerms
-    });
+    // Update the primary license type if needed
+    if (isChecked && beatDetails.licenseType === '') {
+      setBeatDetails({
+        ...beatDetails,
+        licenseType: value
+      });
+    } else if (!isChecked && beatDetails.licenseType === value) {
+      // If we're unchecking the current primary license, set the first available one
+      const newLicenseTypes = selectedLicenseTypes.filter(type => type !== value);
+      if (newLicenseTypes.length > 0) {
+        setBeatDetails({
+          ...beatDetails,
+          licenseType: newLicenseTypes[0]
+        });
+      } else {
+        setBeatDetails({
+          ...beatDetails,
+          licenseType: ''
+        });
+      }
+    }
   };
 
   const validateForm = () => {
@@ -242,12 +276,12 @@ export const useBeatUpload = () => {
       return false;
     }
     
-    if (!beatDetails.licenseType) {
-      toast.error("License type is required");
+    if (selectedLicenseTypes.length === 0) {
+      toast.error("At least one license type is required");
       return false;
     }
     
-    if (beatDetails.licenseType === "custom" && !beatDetails.licenseTerms) {
+    if (selectedLicenseTypes.includes('custom') && !beatDetails.licenseTerms) {
       toast.error("Custom license terms are required");
       return false;
     }
@@ -273,6 +307,7 @@ export const useBeatUpload = () => {
     collaborators, setCollaborators,
     isPlaying, setIsPlaying,
     isSubmitting, setIsSubmitting,
+    selectedLicenseTypes, setSelectedLicenseTypes,
     validateForm,
     handleLicenseTypeChange,
     handleCollaboratorChange,

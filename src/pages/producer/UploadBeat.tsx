@@ -29,6 +29,7 @@ export default function UploadBeat() {
     collaborators, setCollaborators,
     isPlaying, setIsPlaying,
     isSubmitting, setIsSubmitting,
+    selectedLicenseTypes,
     validateForm, handleLicenseTypeChange,
     handleCollaboratorChange, handleRemoveCollaborator, handleAddCollaborator,
     handleRemoveTag, handleAddTag,
@@ -63,28 +64,38 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
+      // Set a primary license type if multiple are selected
+      const primaryLicenseType = selectedLicenseTypes[0] || "basic";
+      
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
         genre: beatDetails.genre,
         track_type: beatDetails.trackType,
         bpm: beatDetails.bpm,
+        key: beatDetails.key,
         tags: tags,
-        price_local: beatDetails.licenseType === "custom" ? beatDetails.customLicensePriceLocal : beatDetails.priceLocal,
-        price_diaspora: beatDetails.licenseType === "custom" ? beatDetails.customLicensePriceDiaspora : beatDetails.priceDiaspora,
-        basic_license_price_local: beatDetails.basicLicensePriceLocal,
-        basic_license_price_diaspora: beatDetails.basicLicensePriceDiaspora,
-        premium_license_price_local: beatDetails.premiumLicensePriceLocal,
-        premium_license_price_diaspora: beatDetails.premiumLicensePriceDiaspora,
-        exclusive_license_price_local: beatDetails.exclusiveLicensePriceLocal,
-        exclusive_license_price_diaspora: beatDetails.exclusiveLicensePriceDiaspora,
+        price_local: beatDetails.priceLocal,
+        price_diaspora: beatDetails.priceDiaspora,
+        basic_license_price_local: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceLocal : 0,
+        basic_license_price_diaspora: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceDiaspora : 0,
+        premium_license_price_local: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceLocal : 0,
+        premium_license_price_diaspora: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceDiaspora : 0,
+        exclusive_license_price_local: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceLocal : 0,
+        exclusive_license_price_diaspora: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceDiaspora : 0,
         status: "published" as const,
-        license_type: beatDetails.licenseType,
+        license_type: selectedLicenseTypes.join(','),
         license_terms: beatDetails.licenseTerms
       };
       
       if (!uploadedFile || !previewFile || !imageFile) {
         throw new Error("Missing required files");
+      }
+
+      // Make sure the first collaborator is the uploader
+      if (collaborators[0].id === 1) {
+        collaborators[0].name = user.name;
+        collaborators[0].email = user.email || '';
       }
       
       const result = await uploadBeat(
@@ -121,28 +132,38 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
+      // Set a primary license type if multiple are selected
+      const primaryLicenseType = selectedLicenseTypes[0] || "basic";
+      
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
         genre: beatDetails.genre,
         track_type: beatDetails.trackType,
         bpm: beatDetails.bpm,
+        key: beatDetails.key,
         tags: tags,
-        price_local: beatDetails.licenseType === "custom" ? beatDetails.customLicensePriceLocal : beatDetails.priceLocal,
-        price_diaspora: beatDetails.licenseType === "custom" ? beatDetails.customLicensePriceDiaspora : beatDetails.priceDiaspora,
-        basic_license_price_local: beatDetails.basicLicensePriceLocal,
-        basic_license_price_diaspora: beatDetails.basicLicensePriceDiaspora,
-        premium_license_price_local: beatDetails.premiumLicensePriceLocal,
-        premium_license_price_diaspora: beatDetails.premiumLicensePriceDiaspora,
-        exclusive_license_price_local: beatDetails.exclusiveLicensePriceLocal,
-        exclusive_license_price_diaspora: beatDetails.exclusiveLicensePriceDiaspora,
+        price_local: beatDetails.priceLocal,
+        price_diaspora: beatDetails.priceDiaspora,
+        basic_license_price_local: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceLocal : 0,
+        basic_license_price_diaspora: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceDiaspora : 0,
+        premium_license_price_local: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceLocal : 0,
+        premium_license_price_diaspora: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceDiaspora : 0,
+        exclusive_license_price_local: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceLocal : 0,
+        exclusive_license_price_diaspora: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceDiaspora : 0,
         status: "draft" as const,
-        license_type: beatDetails.licenseType,
+        license_type: selectedLicenseTypes.join(','),
         license_terms: beatDetails.licenseTerms
       };
       
       if (!uploadedFile || !previewFile || !imageFile) {
         throw new Error("Missing required files");
+      }
+
+      // Make sure the first collaborator is the uploader
+      if (collaborators[0].id === 1) {
+        collaborators[0].name = user.name;
+        collaborators[0].email = user.email || '';
       }
       
       const result = await uploadBeat(
@@ -248,6 +269,7 @@ export default function UploadBeat() {
                   handleBeatChange={handleBeatChange}
                   licenseOptions={licenseOptions}
                   handleLicenseTypeChange={handleLicenseTypeChange}
+                  selectedLicenseTypes={selectedLicenseTypes}
                 />
               </TabsContent>
 
@@ -255,6 +277,7 @@ export default function UploadBeat() {
                 <PricingTab 
                   beatDetails={beatDetails}
                   setBeatDetails={setBeatDetails}
+                  selectedLicenseTypes={selectedLicenseTypes}
                 />
               </TabsContent>
 

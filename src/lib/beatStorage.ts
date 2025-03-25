@@ -11,6 +11,7 @@ interface BeatUploadData {
   genre: string;
   track_type: string;
   bpm: number;
+  key?: string;
   tags: string[];
   price_local: number;
   price_diaspora: number;
@@ -29,6 +30,8 @@ interface BeatUploadData {
   premium_license_price_diaspora?: number;
   exclusive_license_price_local?: number;
   exclusive_license_price_diaspora?: number;
+  custom_license_price_local?: number;
+  custom_license_price_diaspora?: number;
 }
 
 /**
@@ -41,6 +44,7 @@ export const uploadBeat = async (
     genre: string;
     track_type: string;
     bpm: number;
+    key?: string;
     tags: string[];
     price_local: number;
     price_diaspora: number;
@@ -90,6 +94,7 @@ export const uploadBeat = async (
       genre: beatInfo.genre,
       track_type: beatInfo.track_type,
       bpm: beatInfo.bpm,
+      key: beatInfo.key,
       tags: beatInfo.tags,
       price_local: beatInfo.price_local,
       price_diaspora: beatInfo.price_diaspora,
@@ -107,27 +112,19 @@ export const uploadBeat = async (
     if (beatInfo.license_type) {
       beatData.license_type = beatInfo.license_type;
       
-      if (beatInfo.basic_license_price_local > 0) {
+      // Add license pricing based on which license types are selected
+      if (beatInfo.license_type.includes('basic') && beatInfo.basic_license_price_local > 0) {
         beatData.basic_license_price_local = beatInfo.basic_license_price_local;
-      }
-      
-      if (beatInfo.basic_license_price_diaspora > 0) {
         beatData.basic_license_price_diaspora = beatInfo.basic_license_price_diaspora;
       }
       
-      if (beatInfo.premium_license_price_local > 0) {
+      if (beatInfo.license_type.includes('premium') && beatInfo.premium_license_price_local > 0) {
         beatData.premium_license_price_local = beatInfo.premium_license_price_local;
-      }
-      
-      if (beatInfo.premium_license_price_diaspora > 0) {
         beatData.premium_license_price_diaspora = beatInfo.premium_license_price_diaspora;
       }
       
-      if (beatInfo.exclusive_license_price_local > 0) {
+      if (beatInfo.license_type.includes('exclusive') && beatInfo.exclusive_license_price_local > 0) {
         beatData.exclusive_license_price_local = beatInfo.exclusive_license_price_local;
-      }
-      
-      if (beatInfo.exclusive_license_price_diaspora > 0) {
         beatData.exclusive_license_price_diaspora = beatInfo.exclusive_license_price_diaspora;
       }
     }
