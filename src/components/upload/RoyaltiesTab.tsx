@@ -35,8 +35,10 @@ export const RoyaltiesTab = ({
         {collaborators.map((collaborator, index) => (
           <div key={collaborator.id} className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium">Collaborator {index + 1}</h3>
-              {collaborators.length > 1 && (
+              <h3 className="font-medium">
+                {index === 0 ? "You (Main Producer)" : `Collaborator ${index + 1}`}
+              </h3>
+              {collaborators.length > 1 && index !== 0 && (
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -57,6 +59,7 @@ export const RoyaltiesTab = ({
                   onChange={(e) => handleCollaboratorChange(collaborator.id, 'name', e.target.value)}
                   placeholder="Collaborator's name"
                   disabled={index === 0}
+                  className={index === 0 ? "bg-muted cursor-not-allowed" : ""}
                 />
               </div>
               <div>
@@ -67,6 +70,7 @@ export const RoyaltiesTab = ({
                   onChange={(e) => handleCollaboratorChange(collaborator.id, 'email', e.target.value)}
                   placeholder="Collaborator's email"
                   disabled={index === 0}
+                  className={index === 0 ? "bg-muted cursor-not-allowed" : ""}
                 />
               </div>
             </div>
@@ -80,6 +84,7 @@ export const RoyaltiesTab = ({
                   onChange={(e) => handleCollaboratorChange(collaborator.id, 'role', e.target.value)}
                   placeholder="e.g. Producer, Engineer"
                   disabled={index === 0}
+                  className={index === 0 ? "bg-muted cursor-not-allowed" : ""}
                 />
               </div>
               <div>
