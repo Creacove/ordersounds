@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+// Layout.tsx
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
-import Topbar from "./Topbar";
-import Bottombar from "./Bottombar";
+import Bottombar from "./Bottombar"; // Bottombar must exist!
 import { useUser } from "@/hooks/useUser";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -24,15 +24,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="relative flex h-screen w-full">
-      {!isMobile && user && <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />}
+      {!isMobile && user && (
+        <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+      )}
       <main className="relative flex flex-1 flex-col bg-background pb-20">
-        <Topbar />
         {children}
         <Toaster />
       </main>
       {isMobile && user && (
         <div className="fixed bottom-0 z-30 flex w-full items-center justify-between bg-white shadow-md dark:bg-black">
-          <Bottombar />
+          <Bottombar userId={user.id} />
         </div>
       )}
     </div>
