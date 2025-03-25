@@ -27,7 +27,7 @@ export const useAudio = (url: string) => {
     }
     
     // Update source if URL changes
-    if (audioRef.current.src !== url) {
+    if (audioRef.current.src !== url && url) {
       audioRef.current.src = url;
       audioRef.current.load();
     }
@@ -49,7 +49,9 @@ export const useAudio = (url: string) => {
       audioRef.current.pause();
       setPlaying(false);
     } else {
-      audioRef.current.play();
+      audioRef.current.play().catch(error => {
+        console.error("Error playing audio:", error);
+      });
       setPlaying(true);
     }
   };
