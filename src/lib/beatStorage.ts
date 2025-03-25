@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -105,8 +104,7 @@ export const uploadBeat = async (
     };
     
     // Add license information
-    if (beatInfo.license_type && beatInfo.license_type !== 'custom') {
-      // For standard licenses, add the license type and prices
+    if (beatInfo.license_type) {
       beatData.license_type = beatInfo.license_type;
       
       if (beatInfo.basic_license_price_local > 0) {
@@ -132,9 +130,6 @@ export const uploadBeat = async (
       if (beatInfo.exclusive_license_price_diaspora > 0) {
         beatData.exclusive_license_price_diaspora = beatInfo.exclusive_license_price_diaspora;
       }
-    } else if (beatInfo.license_type === 'custom') {
-      // For custom licenses, just set the license type and let the base price be used
-      beatData.license_type = beatInfo.license_type;
     }
 
     const { data: beatRecord, error: beatError } = await supabase
