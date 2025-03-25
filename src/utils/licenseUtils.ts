@@ -1,72 +1,36 @@
 
-import { Beat } from '@/types';
-
-/**
- * Calculates the price for a specific license type based on the beat and user location
- * @param beat The beat object
- * @param licenseType The type of license: 'basic', 'premium', 'exclusive' or custom
- * @param isDiaspora Whether to use diaspora (USD) pricing or local (NGN) pricing
- * @returns The calculated price for the license
- */
 export const getLicensePrice = (
-  beat: Beat | undefined, 
-  licenseType: string = 'basic', 
-  isDiaspora: boolean = false
+  beat: any, 
+  licenseType: 'basic' | 'premium' | 'exclusive' | 'custom' | string, 
+  isDiaspora: boolean
 ): number => {
-  if (!beat) return 0;
-  
-  const fallbackMultipliers = {
-    basic: 0.5,
-    premium: 1,
-    exclusive: 3
-  };
-
-  // Handle custom license types
-  if (licenseType && !['basic', 'premium', 'exclusive'].includes(licenseType)) {
-    return isDiaspora ? beat.price_diaspora : beat.price_local;
-  }
-
+  // For diaspora pricing (USD)
   if (isDiaspora) {
-    // Diaspora pricing (USD)
     switch (licenseType) {
       case 'basic':
-        return beat.basic_license_price_diaspora || beat.price_diaspora * fallbackMultipliers.basic;
+        return beat.basic_license_price_diaspora ?? beat.price_diaspora ?? 0;
       case 'premium':
-        return beat.premium_license_price_diaspora || beat.price_diaspora * fallbackMultipliers.premium;
+        return beat.premium_license_price_diaspora ?? (beat.price_diaspora ? beat.price_diaspora * 1.5 : 0);
       case 'exclusive':
-        return beat.exclusive_license_price_diaspora || beat.price_diaspora * fallbackMultipliers.exclusive;
+        return beat.exclusive_license_price_diaspora ?? (beat.price_diaspora ? beat.price_diaspora * 3 : 0);
+      case 'custom':
+        return beat.custom_license_price_diaspora ?? beat.price_diaspora ?? 0;
       default:
-        return beat.price_diaspora;
-    }
-  } else {
-    // Local pricing (NGN)
-    switch (licenseType) {
-      case 'basic':
-        return beat.basic_license_price_local || beat.price_local * fallbackMultipliers.basic;
-      case 'premium':
-        return beat.premium_license_price_local || beat.price_local * fallbackMultipliers.premium;
-      case 'exclusive':
-        return beat.exclusive_license_price_local || beat.price_local * fallbackMultipliers.exclusive;
-      default:
-        return beat.price_local;
+        return beat.price_diaspora ?? 0;
     }
   }
-};
-
-/**
- * Get a description for a license type
- * @param licenseType The type of license
- * @returns A short description of the license
- */
-export const getLicenseDescription = (licenseType: string): string => {
+  
+  // For local pricing (NGN)
   switch (licenseType) {
     case 'basic':
-      return 'Limited distribution rights';
+      return beat.basic_license_price_local ?? beat.price_local ?? 0;
     case 'premium':
-      return 'Extended distribution & broadcasting';
+      return beat.premium_license_price_local ?? (beat.price_local ? beat.price_local * 1.5 : 0);
     case 'exclusive':
-      return 'Full ownership transfer';
+      return beat.exclusive_license_price_local ?? (beat.price_local ? beat.price_local * 3 : 0);
+    case 'custom':
+      return beat.custom_license_price_local ?? beat.price_local ?? 0;
     default:
-      return 'Custom license terms';
+      return beat.price_local ?? 0;
   }
 };

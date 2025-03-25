@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useAuth } from "@/context/AuthContext";
@@ -7,16 +8,17 @@ import { BeatCard } from "@/components/ui/BeatCard";
 import { BeatListItem } from "@/components/ui/BeatListItem"; 
 import { useBeats } from "@/hooks/useBeats";
 import { PlusCircle, Music, Heart, ListMusic, Grid, List } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getUserPlaylists, createPlaylist } from "@/lib/playlistService";
-import { Playlist } from "@/types";
+import { getUserPlaylists, createPlaylist, getPlaylistWithBeats } from "@/lib/playlistService";
+import { Playlist, Beat } from "@/types";
 import { EmptyState } from "@/components/library/EmptyState";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { CreatePlaylistForm } from "@/components/library/CreatePlaylistForm";
 import { useCart } from "@/context/CartContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { usePlayer } from "@/context/PlayerContext";
 
 export default function Library() {
   const location = useLocation();
@@ -24,11 +26,17 @@ export default function Library() {
   const { user } = useAuth();
   const { getUserFavoriteBeats, getUserPurchasedBeats, toggleFavorite, isLoading } = useBeats();
   const { isInCart } = useCart();
+  const { playBeat } = usePlayer();
   const isMobile = useIsMobile();
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(isMobile ? 'list' : 'grid');
+  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
+  const [playlistBeats, setPlaylistBeats] = useState<Beat[]>([]);
+  const [playlistLoading, setPlaylistLoading] = useState(false);
+  const params = new URLSearchParams(location.search);
+  const playlistId = params.get('id');
 
   const favoriteBeats = getUserFavoriteBeats();
   const purchasedBeats = getUserPurchasedBeats();
@@ -58,6 +66,15 @@ export default function Library() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [user]);
+
+  useEffect(() => {
+    if (playlistId && playlists.length > 0) {
+      const playlist = playlists.find(p => p.id === playlistId);
+      if (playlist) {
+        handleViewPlaylist(playlist);
+      }
+    }
+  }, [playlistId, playlists]);
 
   useEffect(() => {
     setViewMode(isMobile ? 'list' : 'grid');
@@ -96,10 +113,28 @@ export default function Library() {
     if (value === "favorites") navigate("/favorites");
     else if (value === "purchased") navigate("/purchased");
     else if (value === "playlists") navigate("/my-playlists");
+    
+    // Clear selected playlist when changing tabs
+    setSelectedPlaylist(null);
   };
   
-  const handleViewPlaylist = (playlistId: string) => {
-    navigate(`/playlists?id=${playlistId}`);
+  const handleViewPlaylist = async (playlist: Playlist) => {
+    setSelectedPlaylist(playlist);
+    setPlaylistLoading(true);
+    
+    const { beats } = await getPlaylistWithBeats(playlist.id);
+    setPlaylistBeats(beats);
+    setPlaylistLoading(false);
+  };
+  
+  const handleBackToPlaylists = () => {
+    setSelectedPlaylist(null);
+    navigate("/my-playlists");
+  };
+  
+  const handlePlayAll = () => {
+    if (playlistBeats.length === 0) return;
+    playBeat(playlistBeats[0]);
   };
   
   const toggleViewMode = () => {
@@ -181,6 +216,169 @@ export default function Library() {
       </div>
     );
   };
+  
+  // Render the selected playlist content
+  if (selectedPlaylist && activeTab === "playlists") {
+    return (
+      <MainLayoutWithPlayer>
+        <div className="container py-6 pb-24 md:py-8 px-4 sm:px-6">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="mb-4"
+            onClick={handleBackToPlaylists}
+          >
+            ← Back to playlists
+          </Button>
+          
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="w-full md:w-1/3 lg:w-1/4">
+              <div className="aspect-square bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg overflow-hidden shadow-lg">
+                {playlistBeats.length > 0 ? (
+                  <div className="grid grid-cols-2 h-full">
+                    {playlistBeats.slice(0, 4).map((beat, idx) => (
+                      <div key={idx} className="relative overflow-hidden">
+                        <img 
+                          src={beat.cover_image_url || '/placeholder.svg'} 
+                          alt={beat.title}
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/10"></div>
+                      </div>
+                    ))}
+                    {Array.from({ length: Math.max(0, 4 - playlistBeats.length) }).map((_, idx) => (
+                      <div key={`empty-${idx}`} className="bg-black/20"></div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full w-full flex items-center justify-center">
+                    <ListMusic size={64} className="text-white/80" />
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-4 space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    {!selectedPlaylist.is_public && (
+                      <div className="text-muted-foreground flex items-center gap-1">
+                        <span className="sr-only">Private</span>
+                        <span>Private playlist</span>
+                      </div>
+                    )}
+                    {selectedPlaylist.is_public && (
+                      <div className="text-muted-foreground flex items-center gap-1">
+                        <span className="sr-only">Public</span>
+                        <span>Public playlist</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {playlistBeats.length} {playlistBeats.length === 1 ? 'track' : 'tracks'}
+                  </span>
+                </div>
+                
+                <div className="space-y-1">
+                  <h1 className="text-2xl font-bold truncate">{selectedPlaylist.name}</h1>
+                </div>
+                
+                <div className="pt-2 space-y-2">
+                  <Button 
+                    className="w-full gap-2"
+                    onClick={handlePlayAll}
+                    disabled={playlistBeats.length === 0}
+                  >
+                    <Play size={16} />
+                    <span>Play All</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <div className="bg-card rounded-lg border border-border overflow-hidden">
+                <div className="p-4 bg-muted/30 flex justify-between items-center border-b border-border">
+                  <h2 className="font-semibold">Tracks</h2>
+                </div>
+                
+                {playlistLoading ? (
+                  <div className="p-8">
+                    <div className="flex justify-center">
+                      <Skeleton className="h-24 w-full max-w-md" />
+                    </div>
+                  </div>
+                ) : playlistBeats.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
+                      <Music size={20} className="text-muted-foreground" />
+                    </div>
+                    <h3 className="text-lg font-medium mb-2">No beats in this playlist yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Add beats to this playlist while browsing the marketplace.
+                    </p>
+                    <Button asChild>
+                      <a href="/">Browse Beats</a>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    <div className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_auto_auto] px-4 py-2 text-sm text-muted-foreground bg-muted/50">
+                      <div className="w-8 text-center">#</div>
+                      <div className="pl-14">Title</div>
+                      <div className="hidden md:block text-right pr-8">Duration</div>
+                      <div className="w-8"></div>
+                    </div>
+                    
+                    {playlistBeats.map((beat, i) => (
+                      <div 
+                        key={beat.id}
+                        className="grid grid-cols-[auto_1fr_auto] md:grid-cols-[auto_1fr_auto_auto] px-4 py-3 hover:bg-muted/10 items-center"
+                      >
+                        <div className="w-8 text-center text-muted-foreground text-sm">
+                          {i + 1}
+                        </div>
+                        
+                        <div className="flex items-center min-w-0">
+                          <div className="w-10 h-10 rounded overflow-hidden mr-4 flex-shrink-0">
+                            <img 
+                              src={beat.cover_image_url || '/placeholder.svg'} 
+                              alt={beat.title}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{beat.title}</p>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {beat.producer_name}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <div className="hidden md:block text-sm text-muted-foreground text-right pr-8">
+                          3:24 {/* This would typically come from the beat data */}
+                        </div>
+                        
+                        <div className="">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => playBeat(beat)}
+                          >
+                            <Play size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </MainLayoutWithPlayer>
+    );
+  }
 
   return (
     <MainLayoutWithPlayer>
@@ -292,7 +490,10 @@ export default function Library() {
                   <PlaylistCard
                     key={playlist.id}
                     playlist={playlist}
-                    onClick={handleViewPlaylist}
+                    onClick={(id) => {
+                      const playlist = playlists.find(p => p.id === id);
+                      if (playlist) handleViewPlaylist(playlist);
+                    }}
                   />
                 ))}
               </div>

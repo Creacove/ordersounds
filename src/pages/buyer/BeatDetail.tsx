@@ -238,9 +238,9 @@ const BeatDetail = () => {
           
           <div className="rounded-xl bg-card/50 backdrop-blur-sm border shadow-sm overflow-hidden mb-4">
             <div className="p-4">
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-4">
                 <div 
-                  className="h-20 w-20 sm:h-24 sm:w-24 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm"
+                  className="h-24 w-24 sm:h-24 sm:w-24 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm mx-auto sm:mx-0"
                   onClick={() => handlePlay()}
                 >
                   <div className="relative group cursor-pointer h-full">
@@ -257,7 +257,7 @@ const BeatDetail = () => {
                     </div>
                   </div>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-center sm:text-left">
                   <h1 className="text-2xl font-bold mb-1 truncate">{beat.title}</h1>
                   <Link 
                     to={`/producer/${beat.producer_id}`} 
@@ -266,7 +266,7 @@ const BeatDetail = () => {
                     {beat.producer_name}
                   </Link>
                   
-                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-3">
                     <div className="flex items-center gap-2 text-sm">
                       <Clock size={14} className="text-primary/70" /> 
                       <span>{beat.bpm} BPM</span>
@@ -292,7 +292,7 @@ const BeatDetail = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3 mt-3">
+                  <div className="flex items-center justify-center sm:justify-start gap-3 mt-3">
                     <div className="flex items-center gap-1 text-sm">
                       <Globe size={14} className="text-primary/70" /> 
                       <span>{beat.purchase_count || 0} downloads</span>
@@ -311,7 +311,7 @@ const BeatDetail = () => {
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 mt-4">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mt-4">
                 <Button 
                   size={isMobile ? "sm" : "default"}
                   onClick={() => handlePlay()}

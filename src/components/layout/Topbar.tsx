@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -15,7 +14,8 @@ import {
   MessageSquare,
   ChevronDown,
   Flame,
-  Headphones
+  Headphones,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -211,6 +211,73 @@ export function Topbar() {
           )}
         </div>
       </div>
+      
+      {isMobile && user && (
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg z-40">
+          <div className="flex justify-around items-center h-14">
+            <Link 
+              to="/" 
+              className={cn(
+                "flex flex-col items-center justify-center w-full h-full text-xs",
+                location.pathname === "/" ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <Flame size={20} />
+              <span>Explore</span>
+            </Link>
+            <Link 
+              to="/search" 
+              className={cn(
+                "flex flex-col items-center justify-center w-full h-full text-xs",
+                location.pathname === "/search" ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <Search size={20} />
+              <span>Search</span>
+            </Link>
+            <Link 
+              to="/library" 
+              className={cn(
+                "flex flex-col items-center justify-center w-full h-full text-xs",
+                ["/library", "/favorites", "/purchased", "/my-playlists"].includes(location.pathname) 
+                  ? "text-primary" 
+                  : "text-muted-foreground"
+              )}
+            >
+              <BookOpen size={20} />
+              <span>Library</span>
+            </Link>
+            <Link 
+              to="/cart" 
+              className={cn(
+                "flex flex-col items-center justify-center w-full h-full text-xs relative",
+                location.pathname === "/cart" ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <ShoppingCart size={20} />
+              {itemCount > 0 && (
+                <Badge 
+                  variant="destructive" 
+                  className="absolute top-0 right-1/3 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
+                >
+                  {itemCount > 9 ? '9+' : itemCount}
+                </Badge>
+              )}
+              <span>Cart</span>
+            </Link>
+            <Link 
+              to={`/buyer/${user.id}`} 
+              className={cn(
+                "flex flex-col items-center justify-center w-full h-full text-xs",
+                location.pathname.includes(`/buyer/${user.id}`) ? "text-primary" : "text-muted-foreground"
+              )}
+            >
+              <User size={20} />
+              <span>Profile</span>
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
