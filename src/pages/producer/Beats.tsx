@@ -7,9 +7,11 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Card, CardContent } from "@/components/ui/card";
+import { BeatListItem } from "@/components/ui/BeatListItem";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
@@ -52,45 +54,95 @@ export default function ProducerBeats() {
         "container py-6 md:py-8",
         isMobile ? "mobile-content-padding" : ""
       )}>
-        <div className="flex justify-between items-center mb-6 md:mb-8">
-          <h1 className="heading-responsive-lg">My Beats</h1>
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-3">
+            <h1 className="heading-responsive-lg">My Beats</h1>
+            <span className="text-muted-foreground text-sm">
+              {producerBeats.length} {producerBeats.length === 1 ? 'beat' : 'beats'}
+            </span>
+          </div>
           <Button 
             onClick={() => navigate('/producer/upload')}
+            size="sm"
+            className="gap-1.5"
           >
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Upload Beat
+            <PlusCircle className="h-4 w-4" />
+            Upload
+          </Button>
+        </div>
+        
+        {/* View switcher */}
+        <div className="flex items-center justify-end gap-2 mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs py-1 px-2.5 h-auto"
+            onClick={() => {}}
+          >
+            Grid View
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs py-1 px-2.5 h-auto bg-muted/50"
+            onClick={() => {}}
+          >
+            List View
           </Button>
         </div>
         
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            {[...Array(10)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2">
-                <Skeleton className="h-48 w-full rounded-lg" />
-                <Skeleton className="h-6 w-2/3" />
-                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="aspect-square w-full rounded-lg" />
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-1/2" />
               </div>
             ))}
           </div>
         ) : producerBeats.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-            {producerBeats.map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
-            ))}
-          </div>
+          <>
+            {/* More compact grid for desktop */}
+            <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+              {producerBeats.map((beat) => (
+                <BeatCard 
+                  key={beat.id} 
+                  beat={beat}
+                  className="h-full shadow-sm hover:shadow"
+                />
+              ))}
+            </div>
+            
+            {/* List view for mobile */}
+            <div className="sm:hidden space-y-3">
+              {producerBeats.map((beat) => (
+                <BeatListItem
+                  key={beat.id}
+                  beat={beat}
+                />
+              ))}
+            </div>
+          </>
         ) : (
-          <div className="text-center py-8 md:py-16 bg-muted rounded-lg">
-            <h2 className="heading-responsive-sm mb-4">No Beats Yet</h2>
-            <p className="text-responsive-base text-muted-foreground mb-6">
-              You haven't uploaded any beats yet. Get started by uploading your first beat!
-            </p>
-            <Button 
-              onClick={() => navigate('/producer/upload')}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Upload Beat
-            </Button>
-          </div>
+          <Card className="border border-dashed bg-muted/30">
+            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="rounded-full bg-primary/10 p-3 mb-4">
+                <Music className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="heading-responsive-sm mb-2">No Beats Yet</h2>
+              <p className="text-sm text-muted-foreground max-w-md mb-5">
+                You haven't uploaded any beats yet. Get started by uploading your first beat!
+              </p>
+              <Button 
+                onClick={() => navigate('/producer/upload')}
+                className="gap-1.5"
+              >
+                <PlusCircle className="h-4 w-4" />
+                Upload Beat
+              </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
     </MainLayout>
