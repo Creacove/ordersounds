@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -16,6 +17,12 @@ export const uploadBeat = async (
     tags: string[];
     price_local: number;
     price_diaspora: number;
+    basic_license_price_local: number;
+    basic_license_price_diaspora: number;
+    premium_license_price_local: number;
+    premium_license_price_diaspora: number;
+    exclusive_license_price_local: number;
+    exclusive_license_price_diaspora: number;
     status: 'draft' | 'published';
     license_type?: string;
     license_terms?: string;
@@ -59,6 +66,12 @@ export const uploadBeat = async (
         tags: beatInfo.tags,
         price_local: beatInfo.price_local,
         price_diaspora: beatInfo.price_diaspora,
+        basic_license_price_local: beatInfo.basic_license_price_local,
+        basic_license_price_diaspora: beatInfo.basic_license_price_diaspora,
+        premium_license_price_local: beatInfo.premium_license_price_local,
+        premium_license_price_diaspora: beatInfo.premium_license_price_diaspora,
+        exclusive_license_price_local: beatInfo.exclusive_license_price_local,
+        exclusive_license_price_diaspora: beatInfo.exclusive_license_price_diaspora,
         status: beatInfo.status,
         cover_image: coverImageUrl,
         audio_preview: previewUrl,

@@ -7,13 +7,15 @@ interface PriceTagProps {
   diasporaPrice: number;
   size?: "sm" | "md" | "lg";
   className?: string;
+  licenseType?: string;
 }
 
 export function PriceTag({ 
   localPrice, 
   diasporaPrice, 
   size = "md", 
-  className 
+  className,
+  licenseType
 }: PriceTagProps) {
   const { currency } = useAuth();
   
@@ -44,6 +46,7 @@ export function PriceTag({
         className
       )}
     >
+      {licenseType && <span className="mr-1 opacity-80">{licenseType}:</span>}
       {displayPrice}
     </span>
   );

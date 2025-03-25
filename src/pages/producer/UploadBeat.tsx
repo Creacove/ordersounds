@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -43,6 +42,12 @@ export default function UploadBeat() {
     key: "",
     priceLocal: 10000, // NGN
     priceDiaspora: 25, // USD
+    basicLicensePriceLocal: 5000, // NGN
+    basicLicensePriceDiaspora: 15, // USD
+    premiumLicensePriceLocal: 10000, // NGN
+    premiumLicensePriceDiaspora: 25, // USD
+    exclusiveLicensePriceLocal: 30000, // NGN
+    exclusiveLicensePriceDiaspora: 75, // USD
     status: "draft" as "draft" | "published",
     licenseType: "basic", // Default license type
     licenseTerms: ""
@@ -255,6 +260,12 @@ export default function UploadBeat() {
         tags: tags,
         price_local: beatDetails.priceLocal,
         price_diaspora: beatDetails.priceDiaspora,
+        basic_license_price_local: beatDetails.basicLicensePriceLocal,
+        basic_license_price_diaspora: beatDetails.basicLicensePriceDiaspora,
+        premium_license_price_local: beatDetails.premiumLicensePriceLocal,
+        premium_license_price_diaspora: beatDetails.premiumLicensePriceDiaspora,
+        exclusive_license_price_local: beatDetails.exclusiveLicensePriceLocal,
+        exclusive_license_price_diaspora: beatDetails.exclusiveLicensePriceDiaspora,
         status: "published" as const,
         license_type: beatDetails.licenseType,
         license_terms: beatDetails.licenseTerms
@@ -307,6 +318,12 @@ export default function UploadBeat() {
         tags: tags,
         price_local: beatDetails.priceLocal,
         price_diaspora: beatDetails.priceDiaspora,
+        basic_license_price_local: beatDetails.basicLicensePriceLocal,
+        basic_license_price_diaspora: beatDetails.basicLicensePriceDiaspora,
+        premium_license_price_local: beatDetails.premiumLicensePriceLocal,
+        premium_license_price_diaspora: beatDetails.premiumLicensePriceDiaspora,
+        exclusive_license_price_local: beatDetails.exclusiveLicensePriceLocal,
+        exclusive_license_price_diaspora: beatDetails.exclusiveLicensePriceDiaspora,
         status: "draft" as const,
         license_type: beatDetails.licenseType,
         license_terms: beatDetails.licenseTerms
@@ -761,261 +778,46 @@ export default function UploadBeat() {
                   <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
                     <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="text-sm font-medium">Dual Pricing</h3>
+                      <h3 className="text-sm font-medium">License Pricing</h3>
                       <p className="text-xs text-muted-foreground">
-                        Set different prices for local (NGN) and international (USD) customers. 
-                        The platform will automatically show the right currency based on the user's location.
+                        Set different prices for each license type in both local (NGN) and international (USD) currencies. 
+                        Users will be able to choose which license they want to purchase.
                       </p>
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                    <div>
-                      <Label htmlFor="priceLocal">Local Price (NGN) *</Label>
-                      <div className="flex items-center mt-1.5">
-                        <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
-                          ₦
-                        </div>
-                        <Input
-                          id="priceLocal"
-                          name="priceLocal"
-                          type="number"
-                          value={beatDetails.priceLocal}
-                          onChange={(e) => setBeatDetails({...beatDetails, priceLocal: parseInt(e.target.value) || 0})}
-                          className="rounded-l-none"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1.5">
-                        Recommended: ₦8,000 - ₦15,000 for basic license
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="priceDiaspora">International Price (USD) *</Label>
-                      <div className="flex items-center mt-1.5">
-                        <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
-                          $
-                        </div>
-                        <Input
-                          id="priceDiaspora"
-                          name="priceDiaspora"
-                          type="number"
-                          value={beatDetails.priceDiaspora}
-                          onChange={(e) => setBeatDetails({...beatDetails, priceDiaspora: parseInt(e.target.value) || 0})}
-                          className="rounded-l-none"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1.5">
-                        Recommended: $20 - $35 for basic license
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-2 sm:mb-4">
+                  {/* Basic License Pricing */}
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-medium mb-3">Basic License</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="status">Beat Status</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Draft beats are not visible in the marketplace
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm">Draft</span>
-                        <Switch 
-                          id="status"
-                          checked={beatDetails.status === "published"}
-                          onCheckedChange={(checked) => 
-                            setBeatDetails({
-                              ...beatDetails, 
-                              status: checked ? "published" : "draft"
-                            })
-                          }
-                        />
-                        <span className="text-xs sm:text-sm">Published</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="royalties" className="mt-0 animate-fade-in">
-                <div className="space-y-4 sm:space-y-6">
-                  <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
-                    <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="text-sm font-medium">Royalty Splits</h3>
-                      <p className="text-xs text-muted-foreground">
-                        Add collaborators who contributed to this beat and specify their percentage split.
-                        The total must add up to 100%.
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    {collaborators.map((collaborator, index) => (
-                      <div key={collaborator.id} className="border rounded-lg p-3 sm:p-4">
-                        <div className="flex items-center justify-between mb-2 sm:mb-3">
-                          <h4 className="text-xs sm:text-sm font-medium">
-                            {index === 0 ? 'Primary Producer' : `Collaborator ${index}`}
-                          </h4>
-                          {index > 0 && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleRemoveCollaborator(collaborator.id)}
-                            >
-                              <X size={16} />
-                            </Button>
-                          )}
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-3 sm:mb-4">
-                          <div>
-                            <Label htmlFor={`name-${collaborator.id}`} className="text-xs">Name</Label>
-                            <Input
-                              id={`name-${collaborator.id}`}
-                              value={collaborator.name}
-                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'name', e.target.value)}
-                              disabled={index === 0}
-                              className="mt-1 text-sm"
-                            />
+                        <Label htmlFor="basicLicensePriceLocal">Local Price (NGN) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            ₦
                           </div>
-                          <div>
-                            <Label htmlFor={`email-${collaborator.id}`} className="text-xs">Email</Label>
-                            <Input
-                              id={`email-${collaborator.id}`}
-                              type="email"
-                              value={collaborator.email}
-                              onChange={(e) => handleCollaboratorChange(collaborator.id, 'email', e.target.value)}
-                              disabled={index === 0}
-                              className="mt-1 text-sm"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          <div>
-                            <Label htmlFor={`role-${collaborator.id}`} className="text-xs">Role</Label>
-                            <Select
-                              value={collaborator.role}
-                              onValueChange={(value) => handleCollaboratorChange(collaborator.id, 'role', value)}
-                              disabled={index === 0}
-                            >
-                              <SelectTrigger id={`role-${collaborator.id}`} className="mt-1 text-sm">
-                                <SelectValue placeholder="Select role" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Producer">Producer</SelectItem>
-                                <SelectItem value="Co-Producer">Co-Producer</SelectItem>
-                                <SelectItem value="Sound Engineer">Sound Engineer</SelectItem>
-                                <SelectItem value="Composer">Composer</SelectItem>
-                                <SelectItem value="Instrumentalist">Instrumentalist</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label htmlFor={`percentage-${collaborator.id}`} className="text-xs">
-                              Percentage (%)
-                            </Label>
-                            <div className="flex items-center gap-4 mt-1">
-                              <Slider
-                                id={`percentage-${collaborator.id}`}
-                                min={0}
-                                max={100}
-                                step={1}
-                                value={[collaborator.percentage]}
-                                onValueChange={(value) => handleCollaboratorChange(collaborator.id, 'percentage', value[0])}
-                                className="flex-1"
-                              />
-                              <span className="w-12 text-center font-medium text-sm">
-                                {collaborator.percentage}%
-                              </span>
-                            </div>
-                          </div>
+                          <Input
+                            id="basicLicensePriceLocal"
+                            name="basicLicensePriceLocal"
+                            type="number"
+                            value={beatDetails.basicLicensePriceLocal}
+                            onChange={(e) => setBeatDetails({...beatDetails, basicLicensePriceLocal: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />
                         </div>
                       </div>
-                    ))}
-                    
-                    <Button 
-                      variant="outline" 
-                      className="w-full gap-2"
-                      onClick={handleAddCollaborator}
-                    >
-                      <Plus size={16} />
-                      <span>Add Collaborator</span>
-                    </Button>
-                  </div>
-                  
-                  <div className="bg-card p-4 rounded-lg">
-                    <h4 className="text-sm font-medium mb-3">Royalty Split Summary</h4>
-                    <div className="space-y-2">
-                      {collaborators.map((collaborator) => (
-                        <div key={collaborator.id} className="flex items-center justify-between">
-                          <span className="text-xs sm:text-sm">{collaborator.name || 'Unnamed'}</span>
-                          <span className="text-xs sm:text-sm font-medium">{collaborator.percentage}%</span>
-                        </div>
-                      ))}
-                      <Separator />
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs sm:text-sm font-medium">Total</span>
-                        <span className="text-xs sm:text-sm font-bold">
-                          {collaborators.reduce((sum, c) => sum + c.percentage, 0)}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-            </CardContent>
-
-            <CardFooter className="flex justify-between p-4 sm:p-6 border-t bg-card">
-              <div>
-                {activeTab !== "details" && (
-                  <Button variant="outline" onClick={prevTab} disabled={isSubmitting} className="text-xs sm:text-sm px-2 sm:px-4">
-                    Previous
-                  </Button>
-                )}
-              </div>
-              
-              <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={handleSaveDraft} 
-                  disabled={isSubmitting}
-                  className="text-xs sm:text-sm px-2 sm:px-4"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save as Draft"
-                  )}
-                </Button>
-                {activeTab !== "royalties" ? (
-                  <Button onClick={nextTab} disabled={isSubmitting} className="text-xs sm:text-sm px-2 sm:px-4">
-                    Continue
-                  </Button>
-                ) : (
-                  <Button onClick={handlePublish} disabled={isSubmitting} className="text-xs sm:text-sm px-2 sm:px-4">
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                        Publishing...
-                      </>
-                    ) : (
-                      "Publish Beat"
-                    )}
-                  </Button>
-                )}
-              </div>
-            </CardFooter>
-          </Tabs>
-        </Card>
-      </div>
-    </MainLayout>
-  );
-}
+                      
+                      <div>
+                        <Label htmlFor="basicLicensePriceDiaspora">International Price (USD) *</Label>
+                        <div className="flex items-center mt-1.5">
+                          <div className="bg-muted flex items-center justify-center h-10 px-3 rounded-l-md border-y border-l">
+                            $
+                          </div>
+                          <Input
+                            id="basicLicensePriceDiaspora"
+                            name="basicLicensePriceDiaspora"
+                            type="number"
+                            value={beatDetails.basicLicensePriceDiaspora}
+                            onChange={(e) => setBeatDetails({...beatDetails, basicLicensePriceDiaspora: parseInt(e.target.value) || 0})}
+                            className="rounded-l-none"
+                          />

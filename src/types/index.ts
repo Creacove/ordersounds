@@ -35,6 +35,12 @@ export interface Beat {
   is_featured?: boolean;
   license_type?: 'basic' | 'premium' | 'exclusive' | string;
   license_terms?: string;
+  basic_license_price_local?: number;
+  basic_license_price_diaspora?: number;
+  premium_license_price_local?: number;
+  premium_license_price_diaspora?: number;
+  exclusive_license_price_local?: number;
+  exclusive_license_price_diaspora?: number;
 }
 
 export interface Playlist {

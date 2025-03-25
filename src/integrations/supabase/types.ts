@@ -13,15 +13,21 @@ export type Database = {
         Row: {
           audio_file: string | null
           audio_preview: string | null
+          basic_license_price_diaspora: number | null
+          basic_license_price_local: number | null
           bpm: number | null
           cover_image: string | null
           description: string | null
+          exclusive_license_price_diaspora: number | null
+          exclusive_license_price_local: number | null
           favorites_count: number | null
           genre: string | null
           id: string
           license_terms: string | null
           license_type: string | null
           plays: number | null
+          premium_license_price_diaspora: number | null
+          premium_license_price_local: number | null
           price_diaspora: number | null
           price_local: number | null
           producer_id: string
@@ -35,15 +41,21 @@ export type Database = {
         Insert: {
           audio_file?: string | null
           audio_preview?: string | null
+          basic_license_price_diaspora?: number | null
+          basic_license_price_local?: number | null
           bpm?: number | null
           cover_image?: string | null
           description?: string | null
+          exclusive_license_price_diaspora?: number | null
+          exclusive_license_price_local?: number | null
           favorites_count?: number | null
           genre?: string | null
           id?: string
           license_terms?: string | null
           license_type?: string | null
           plays?: number | null
+          premium_license_price_diaspora?: number | null
+          premium_license_price_local?: number | null
           price_diaspora?: number | null
           price_local?: number | null
           producer_id: string
@@ -57,15 +69,21 @@ export type Database = {
         Update: {
           audio_file?: string | null
           audio_preview?: string | null
+          basic_license_price_diaspora?: number | null
+          basic_license_price_local?: number | null
           bpm?: number | null
           cover_image?: string | null
           description?: string | null
+          exclusive_license_price_diaspora?: number | null
+          exclusive_license_price_local?: number | null
           favorites_count?: number | null
           genre?: string | null
           id?: string
           license_terms?: string | null
           license_type?: string | null
           plays?: number | null
+          premium_license_price_diaspora?: number | null
+          premium_license_price_local?: number | null
           price_diaspora?: number | null
           price_local?: number | null
           producer_id?: string
@@ -295,6 +313,7 @@ export type Database = {
           beat_id: string
           currency_code: string
           id: string
+          license_type: string | null
           order_id: string
           purchase_date: string | null
           user_id: string
@@ -303,6 +322,7 @@ export type Database = {
           beat_id: string
           currency_code: string
           id?: string
+          license_type?: string | null
           order_id: string
           purchase_date?: string | null
           user_id: string
@@ -311,6 +331,7 @@ export type Database = {
           beat_id?: string
           currency_code?: string
           id?: string
+          license_type?: string | null
           order_id?: string
           purchase_date?: string | null
           user_id?: string

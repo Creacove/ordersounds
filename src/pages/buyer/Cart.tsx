@@ -7,15 +7,18 @@ import { useBeats } from "@/hooks/useBeats";
 import { Button } from "@/components/ui/button";
 import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, AlertCircle } from "lucide-react";
+import { ShoppingCart, AlertCircle, Play, Pause, Music, Tag, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { usePlayer } from "@/context/PlayerContext";
+import { Badge } from "@/components/ui/badge";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
   const { user, currency } = useAuth();
   const { toggleFavorite, isFavorite } = useBeats();
+  const { isPlaying, currentBeat, playBeat, togglePlayPause } = usePlayer();
   const navigate = useNavigate();
   
   const handleRemoveItem = (beatId: string) => {
@@ -30,6 +33,14 @@ export default function Cart() {
   
   const handleContinueShopping = () => {
     navigate('/');
+  };
+
+  const handlePlayBeat = (beat) => {
+    if (currentBeat?.id === beat.id) {
+      togglePlayPause();
+    } else {
+      playBeat(beat);
+    }
   };
 
   useEffect(() => {
@@ -79,14 +90,65 @@ export default function Cart() {
             <div className="lg:col-span-2">
               <div className="space-y-3">
                 {cartItems.map((item) => (
-                  <BeatListItem 
-                    key={item.beat.id}
-                    beat={item.beat}
-                    isInCart={true}
-                    isFavorite={isFavorite(item.beat.id)}
-                    onRemove={handleRemoveItem}
-                    onToggleFavorite={toggleFavorite}
-                  />
+                  <div key={item.beat.id} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
+                    <div className="flex-shrink-0 w-16 h-16">
+                      <div
+                        className="relative w-16 h-16 rounded-md overflow-hidden cursor-pointer group"
+                        onClick={() => handlePlayBeat(item.beat)}
+                      >
+                        <img
+                          src={item.beat.cover_image_url}
+                          alt={item.beat.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          {isPlaying && currentBeat?.id === item.beat.id ? (
+                            <Pause className="h-6 w-6 text-white" />
+                          ) : (
+                            <Play className="h-6 w-6 ml-1 text-white" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold truncate">{item.beat.title}</h3>
+                          <p className="text-xs text-muted-foreground">{item.beat.producer_name}</p>
+                          
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <Badge variant="outline" className="text-xs py-0 px-1.5">
+                              <Music size={10} className="mr-1" />
+                              {item.beat.genre}
+                            </Badge>
+                            
+                            <Badge variant="secondary" className="text-xs py-0 px-1.5 capitalize">
+                              {item.beat.selected_license || 'Basic'} License
+                            </Badge>
+                          </div>
+                        </div>
+                        
+                        <div className="flex flex-col items-end">
+                          <span className="font-semibold text-sm">
+                            {currency === 'NGN' ? '₦' : '$'}
+                            {currency === 'NGN' 
+                              ? getLicensePrice(item.beat, item.beat.selected_license || 'basic', false).toLocaleString() 
+                              : getLicensePrice(item.beat, item.beat.selected_license || 'basic', true).toLocaleString()}
+                          </span>
+                          
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive mt-1"
+                            onClick={() => handleRemoveItem(item.beat.id)}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
               
@@ -157,4 +219,26 @@ export default function Cart() {
       </div>
     </MainLayoutWithPlayer>
   );
+};
+
+// Helper function to get the correct price based on license type
+function getLicensePrice(beat, licenseType = 'basic', isForeign = false) {
+  if (!beat) return 0;
+  
+  const priceMap = {
+    basic: {
+      local: beat.basic_license_price_local || beat.price_local * 0.5,
+      diaspora: beat.basic_license_price_diaspora || beat.price_diaspora * 0.5
+    },
+    premium: {
+      local: beat.premium_license_price_local || beat.price_local,
+      diaspora: beat.premium_license_price_diaspora || beat.price_diaspora
+    },
+    exclusive: {
+      local: beat.exclusive_license_price_local || beat.price_local * 3,
+      diaspora: beat.exclusive_license_price_diaspora || beat.price_diaspora * 3
+    }
+  };
+  
+  return isForeign ? priceMap[licenseType].diaspora : priceMap[licenseType].local;
 }

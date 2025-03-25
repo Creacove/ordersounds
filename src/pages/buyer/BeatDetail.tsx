@@ -1,10 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Play, Pause, Heart, Download, ShoppingCart, 
-  Share2, ArrowLeft, Music, Info, Tag, Clock, User, Globe
+  Share2, ArrowLeft, Music, Info, Tag, Clock, User, Globe, AudioWaveform
 } from 'lucide-react';
 import { MainLayoutWithPlayer } from '@/components/layout/MainLayoutWithPlayer';
 import { BeatListItem } from '@/components/ui/BeatListItem';
@@ -26,12 +25,12 @@ const BeatDetail = () => {
   const { getBeatById, toggleFavorite, isFavorite, isPurchased, beats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const { addToCart, isInCart } = useCart();
-  const { user } = useAuth();
+  const { user, currency } = useAuth();
   const navigate = useNavigate();
   const [similarBeats, setSimilarBeats] = useState<Beat[]>([]);
+  const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive'>('basic');
   const isMobile = useIsMobile();
   
-  // Fetch beat details with better error handling
   const { data: beat, isLoading, error } = useQuery({
     queryKey: ['beat', beatId],
     queryFn: async () => {
@@ -54,20 +53,16 @@ const BeatDetail = () => {
   const isBeatPurchased = beat ? isPurchased(beat.id) : false;
   const beatInCart = beat ? isInCart(beat.id) : false;
 
-  // Find similar beats based on genre, BPM, or producer
   useEffect(() => {
     if (beat && beats && beats.length > 0) {
-      // First get beats from same producer
       const producerBeats = beats
         .filter(b => b.producer_id === beat.producer_id && b.id !== beat.id)
         .slice(0, 2);
       
-      // Then get beats with same genre
       const genreBeats = beats
         .filter(b => b.genre === beat.genre && b.id !== beat.id && !producerBeats.some(pb => pb.id === b.id))
         .slice(0, 2);
       
-      // Then get beats with similar BPM (±5)
       const bpmBeats = beats
         .filter(b => 
           Math.abs(b.bpm - beat.bpm) <= 5 && 
@@ -77,7 +72,6 @@ const BeatDetail = () => {
         )
         .slice(0, 2);
       
-      // Combine and limit to 5 similar beats
       setSimilarBeats([...producerBeats, ...genreBeats, ...bpmBeats].slice(0, 5));
     }
   }, [beat, beats]);
@@ -100,13 +94,32 @@ const BeatDetail = () => {
     }
   };
 
-  const handleAddToCart = () => {
-    if (beat && !isBeatPurchased && !beatInCart) {
-      addToCart(beat);
-      toast.success(`Added "${beat.title}" to cart`);
-    } else if (beatInCart) {
-      navigate('/cart');
+  const handleAddToCart = (licenseType: 'basic' | 'premium' | 'exclusive') => {
+    if (!beat) return;
+    
+    if (!user) {
+      toast.error('Please log in to add to cart');
+      navigate('/login');
+      return;
     }
+
+    if (isBeatPurchased) {
+      toast.success('You already own this beat');
+      return;
+    }
+
+    if (isInCart(beat.id)) {
+      navigate('/cart');
+      return;
+    }
+
+    const beatWithLicense = {
+      ...beat,
+      selected_license: licenseType
+    };
+    
+    addToCart(beatWithLicense);
+    toast.success(`Added "${beat.title}" (${licenseType} license) to cart`);
   };
 
   const handleShare = () => {
@@ -117,12 +130,10 @@ const BeatDetail = () => {
         url: window.location.href,
       }).catch(err => {
         console.error('Could not share:', err);
-        // Fallback: copy to clipboard
         navigator.clipboard.writeText(window.location.href);
         toast.success('Link copied to clipboard');
       });
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href);
       toast.success('Link copied to clipboard');
     }
@@ -175,11 +186,9 @@ const BeatDetail = () => {
   return (
     <MainLayoutWithPlayer>
       <div className="relative">
-        {/* Background gradient */}
         <div className="absolute top-0 inset-x-0 h-[20vh] bg-gradient-to-b from-primary/20 to-background -z-10" />
         
         <div className="container max-w-4xl py-4 md:py-6 px-4">
-          {/* Navigation */}
           <div className="flex items-center space-x-2 mb-4">
             <Button 
               variant="ghost" 
@@ -200,10 +209,9 @@ const BeatDetail = () => {
             </div>
           </div>
           
-          {/* Main beat info */}
-          <div className="rounded-xl bg-card/50 backdrop-blur-sm border shadow-sm overflow-hidden">
-            <div className="px-4 pt-4 pb-2">
-              <div className="flex items-start gap-3 mb-1">
+          <div className="rounded-xl bg-card/50 backdrop-blur-sm border shadow-sm overflow-hidden mb-4">
+            <div className="px-4 pt-4 pb-3">
+              <div className="flex items-start gap-3 mb-2">
                 <div 
                   className="h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm"
                   onClick={handlePlay}
@@ -246,63 +254,33 @@ const BeatDetail = () => {
                 </div>
               </div>
               
-              {/* Play count and stats */}
-              <div className="flex items-center justify-between my-2">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Globe size={12} className="text-primary/70" /> {beat.purchase_count || 0} downloads
-                  </span>
-                  <span className="text-xs text-muted-foreground flex items-center gap-1">
-                    <User size={12} className="text-primary/70" /> {beat.favorites_count || 0} likes
-                  </span>
-                </div>
-                <div>
-                  <PriceTag
-                    localPrice={beat.price_local}
-                    diasporaPrice={beat.price_diaspora}
-                    size="md"
-                  />
-                </div>
+              <div className="flex items-center gap-3 my-2">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Globe size={12} className="text-primary/70" /> {beat.purchase_count || 0} downloads
+                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <User size={12} className="text-primary/70" /> {beat.favorites_count || 0} likes
+                </span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <AudioWaveform size={12} className="text-primary/70" /> {beat.plays || 0} plays
+                </span>
               </div>
               
-              {/* Action buttons */}
-              <div className="flex items-center gap-2 mt-3 mb-2">
+              <div className="flex items-center gap-2 mt-3">
                 <Button 
                   size={isMobile ? "sm" : "default"}
                   onClick={handlePlay}
-                  className="flex-1 sm:flex-none rounded-full"
+                  className="flex-none sm:flex-none rounded-full"
                   variant={isCurrentlyPlaying ? "secondary" : "default"}
                 >
                   {isCurrentlyPlaying ? <Pause className="mr-2 h-4 w-4" /> : <Play className="mr-2 h-4 w-4" />}
                   {isCurrentlyPlaying ? 'Pause' : 'Play'}
                 </Button>
                 
-                {!isBeatPurchased ? (
-                  <Button 
-                    size={isMobile ? "sm" : "default"}
-                    onClick={handleAddToCart} 
-                    variant={beatInCart ? "outline" : "secondary"}
-                    className="flex-1 sm:flex-none rounded-full"
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    {beatInCart ? 'View Cart' : 'Add to Cart'}
-                  </Button>
-                ) : (
-                  <Button 
-                    size={isMobile ? "sm" : "default"}
-                    variant="outline"
-                    className="flex-1 sm:flex-none rounded-full"
-                    onClick={() => toast.success('You already own this beat')}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
-                )}
-                
                 <Button 
                   variant="ghost"
                   size="icon"
-                  onClick={handleToggleFavorite}
+                  onClick={() => toggleFavorite(beat.id)}
                   className={cn(
                     "h-9 w-9 rounded-full",
                     isBeatFavorite 
@@ -325,9 +303,7 @@ const BeatDetail = () => {
             </div>
           </div>
           
-          {/* Beat Details Sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-            {/* Tags Section */}
             {beat.tags && beat.tags.length > 0 && (
               <div className="bg-card/50 rounded-xl border p-4 shadow-sm">
                 <h3 className="text-sm font-medium mb-2 flex items-center">
@@ -342,17 +318,15 @@ const BeatDetail = () => {
               </div>
             )}
             
-            {/* License Info */}
             <div className="bg-card/50 rounded-xl border p-4 shadow-sm">
               <h3 className="text-sm font-medium mb-2 flex items-center">
                 <Info size={14} className="mr-2 text-primary/70" />
-                License
+                License Options
               </h3>
-              <p className="text-xs text-muted-foreground">{beat.license_type || 'Standard License'}</p>
+              <p className="text-xs text-muted-foreground">Choose from basic, premium, or exclusive licenses with different rights and features.</p>
             </div>
           </div>
           
-          {/* Description */}
           {beat.description && (
             <div className="bg-card/50 rounded-xl border p-4 shadow-sm mt-4">
               <h3 className="text-sm font-medium mb-2">Description</h3>
@@ -360,87 +334,184 @@ const BeatDetail = () => {
             </div>
           )}
           
-          {/* Pricing & Licenses Section */}
-          <div className="bg-card rounded-xl border shadow-sm mt-4 overflow-hidden">
-            <div className="p-4 border-b">
-              <h2 className="text-lg font-semibold">Pricing and Licenses</h2>
+          <div className="mt-6">
+            <h2 className="text-lg font-semibold mb-3">Choose a License</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className={cn(
+                "relative rounded-xl border shadow-sm overflow-hidden",
+                selectedLicense === 'basic' ? "border-primary/50 bg-primary/5" : "bg-card"
+              )}>
+                <div className="p-4">
+                  <h3 className="font-semibold">Basic License</h3>
+                  <PriceTag 
+                    localPrice={getLicensePrice(beat, 'basic', false)}
+                    diasporaPrice={getLicensePrice(beat, 'basic', true)}
+                    size="lg"
+                    className="my-3"
+                  />
+                  <ul className="text-xs space-y-2 mt-4 mb-6">
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>MP3 Format</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Non-commercial use</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Up to 5,000 streams</span>
+                    </li>
+                    <li className="flex items-start gap-2 text-muted-foreground">
+                      <div>✕</div>
+                      <span>No radio/TV broadcasts</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    className="w-full rounded-full"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedLicense('basic');
+                      handleAddToCart('basic');
+                    }}
+                    variant={isBeatPurchased ? "outline" : "default"}
+                    disabled={isBeatPurchased}
+                  >
+                    {isBeatPurchased ? (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Add to Cart
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              
+              <div className={cn(
+                "relative rounded-xl border shadow-sm overflow-hidden",
+                selectedLicense === 'premium' ? "border-primary/50 bg-primary/5" : "bg-card"
+              )}>
+                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs py-1 px-3 rounded-bl-lg">
+                  Popular
+                </div>
+                <div className="p-4">
+                  <h3 className="font-semibold">Premium License</h3>
+                  <PriceTag 
+                    localPrice={getLicensePrice(beat, 'premium', false)} 
+                    diasporaPrice={getLicensePrice(beat, 'premium', true)}
+                    size="lg"
+                    className="my-3"
+                  />
+                  <ul className="text-xs space-y-2 mt-4 mb-6">
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>WAV Format</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Commercial use</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Unlimited streams</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Limited broadcasting rights</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    className="w-full rounded-full"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedLicense('premium');
+                      handleAddToCart('premium');
+                    }}
+                    variant={selectedLicense === 'premium' ? "default" : "secondary"}
+                    disabled={isBeatPurchased}
+                  >
+                    {isBeatPurchased ? (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Add to Cart
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+              
+              <div className={cn(
+                "relative rounded-xl border shadow-sm overflow-hidden",
+                selectedLicense === 'exclusive' ? "border-primary/50 bg-primary/5" : "bg-card"
+              )}>
+                <div className="p-4">
+                  <h3 className="font-semibold">Exclusive License</h3>
+                  <PriceTag 
+                    localPrice={getLicensePrice(beat, 'exclusive', false)} 
+                    diasporaPrice={getLicensePrice(beat, 'exclusive', true)}
+                    size="lg"
+                    className="my-3"
+                  />
+                  <ul className="text-xs space-y-2 mt-4 mb-6">
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>WAV + Trackout Files</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Full ownership rights</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Unlimited distribution</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <div className="text-primary">✓</div>
+                      <span>Full broadcasting rights</span>
+                    </li>
+                  </ul>
+                  <Button 
+                    className="w-full rounded-full"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedLicense('exclusive');
+                      handleAddToCart('exclusive');
+                    }}
+                    variant={selectedLicense === 'exclusive' ? "default" : "secondary"}
+                    disabled={isBeatPurchased}
+                  >
+                    {isBeatPurchased ? (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Add to Cart
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </div>
             
-            <div className="divide-y">
-              {/* Free Download Option */}
-              <div className="p-4 flex justify-between items-center">
-                <div>
-                  <h3 className="font-medium">Free Download</h3>
-                  <p className="text-xs text-muted-foreground">Limited usage rights</p>
-                </div>
-                <Button size="sm" variant="outline" className="rounded-full">
-                  <Download size={16} className="mr-1" /> Download
-                </Button>
-              </div>
-              
-              {/* Basic License */}
-              <div className="p-4 flex justify-between items-center">
-                <div>
-                  <h3 className="font-medium">Basic License</h3>
-                  <p className="text-xs text-muted-foreground">MP3 format • Non-commercial use</p>
-                  <Link to="#" className="text-xs text-primary hover:underline">License Terms</Link>
-                </div>
-                <div className="flex flex-col items-end">
-                  <PriceTag
-                    localPrice={beat.price_local * 0.5}
-                    diasporaPrice={beat.price_diaspora * 0.5}
-                    size="md"
-                    className="mb-1"
-                  />
-                  <Button size="sm" className="rounded-full">
-                    <ShoppingCart size={14} className="mr-1" /> Add to Cart
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Premium License */}
-              <div className="p-4 flex justify-between items-center">
-                <div>
-                  <h3 className="font-medium">Premium License</h3>
-                  <p className="text-xs text-muted-foreground">WAV format • Commercial use</p>
-                  <Link to="#" className="text-xs text-primary hover:underline">License Terms</Link>
-                </div>
-                <div className="flex flex-col items-end">
-                  <PriceTag
-                    localPrice={beat.price_local}
-                    diasporaPrice={beat.price_diaspora}
-                    size="md"
-                    className="mb-1"
-                  />
-                  <Button size="sm" variant="secondary" className="rounded-full">
-                    <ShoppingCart size={14} className="mr-1" /> Add to Cart
-                  </Button>
-                </div>
-              </div>
-              
-              {/* Exclusive License */}
-              <div className="p-4 flex justify-between items-center">
-                <div>
-                  <h3 className="font-medium">Exclusive License</h3>
-                  <p className="text-xs text-muted-foreground">WAV + Trackout • Full ownership</p>
-                  <Link to="#" className="text-xs text-primary hover:underline">License Terms</Link>
-                </div>
-                <div className="flex flex-col items-end">
-                  <PriceTag
-                    localPrice={beat.price_local * 3}
-                    diasporaPrice={beat.price_diaspora * 3}
-                    size="md"
-                    className="mb-1"
-                  />
-                  <Button size="sm" variant="secondary" className="rounded-full">
-                    <ShoppingCart size={14} className="mr-1" /> Add to Cart
-                  </Button>
-                </div>
-              </div>
+            <div className="text-xs text-muted-foreground mt-3">
+              <p>All licenses include producer credit. See the full <Link to="/licenses" className="text-primary hover:underline">license terms</Link> for details.</p>
             </div>
           </div>
           
-          {/* Similar Beats */}
           {similarBeats.length > 0 && (
             <div className="mt-8">
               <h3 className="text-lg font-bold mb-3">Similar Beats</h3>
