@@ -47,11 +47,16 @@ const ProducerProfile = () => {
 
         const { data, error } = await supabase
           .from('users')
-          .select('id, stage_name, full_name, bio, profile_picture, country, created_at')
+          .select('id, stage_name, full_name, bio, profile_picture, country, created_date')
           .eq('id', producerId)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching producer:', error);
+          toast.error('Failed to load producer information');
+          setIsLoadingProducer(false);
+          return;
+        }
 
         // Format the producer data
         const producerData = {
@@ -61,7 +66,7 @@ const ProducerProfile = () => {
           username: data.stage_name?.toLowerCase().replace(/\s+/g, '') || 'producer',
           bio: data.bio || 'No bio available',
           location: data.country || 'Unknown Location',
-          joinDate: new Date(data.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          joinDate: new Date(data.created_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
           verified: true,
           avatar: data.profile_picture,
           coverImage: data.profile_picture,
