@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useAuth } from "@/context/AuthContext";
@@ -270,8 +269,8 @@ export default function Library() {
             )}
 
             {loadingPlaylists ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                {[...Array(6)].map((_, i) => (
                   <div key={i} className="space-y-2">
                     <Skeleton className="aspect-square w-full rounded-lg" />
                     <Skeleton className="h-4 w-3/4" />
@@ -288,7 +287,7 @@ export default function Library() {
                 onAction={() => setIsCreatingPlaylist(true)}
               />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
                 {playlists.map((playlist) => (
                   <PlaylistCard
                     key={playlist.id}

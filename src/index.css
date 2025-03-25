@@ -366,6 +366,21 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 1rem);
   }
+  
+  /* Compact mobile cards */
+  .playlist-card-mobile {
+    @apply max-w-[140px] text-sm;
+  }
+  
+  /* Fix for small items in tight grids */
+  .tight-grid {
+    @apply gap-2;
+  }
+  
+  /* Better spacing for mobile playlist grid */
+  .mobile-playlist-grid {
+    @apply grid-cols-2 xs:grid-cols-3 gap-2 xs:gap-3;
+  }
 }
 
 /* Z-index organization */

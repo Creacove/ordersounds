@@ -4,6 +4,7 @@ import { Playlist, Beat } from '@/types';
 import { ListMusic, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -13,12 +14,13 @@ interface PlaylistCardProps {
 
 export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
   const beatCount = playlist.beats?.length || 0;
+  const isMobile = useIsMobile();
   
   const generateCoverImages = () => {
     if (!playlist.beats || playlist.beats.length === 0) {
       return (
         <div className="w-full h-full bg-muted flex items-center justify-center">
-          <ListMusic className="h-10 w-10 text-muted-foreground" />
+          <ListMusic className={cn("text-muted-foreground", isMobile ? "h-8 w-8" : "h-10 w-10")} />
         </div>
       );
     }
@@ -86,7 +88,10 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
 
   return (
     <div 
-      className="bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-all overflow-hidden"
+      className={cn(
+        "bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-all overflow-hidden",
+        isMobile ? "max-w-[160px]" : ""
+      )}
     >
       <div 
         className="aspect-square rounded-md overflow-hidden group relative cursor-pointer"
@@ -97,30 +102,31 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
           {onPlay && beatCount > 0 && (
             <Button 
               size="icon" 
-              className="rounded-full h-10 w-10"
+              className={cn("rounded-full", isMobile ? "h-8 w-8" : "h-10 w-10")}
               onClick={(e) => {
                 e.stopPropagation();
                 onPlay(playlist);
               }}
             >
-              <Play size={18} />
+              <Play size={isMobile ? 16 : 18} />
             </Button>
           )}
         </div>
       </div>
-      <div className="p-3">
+      <div className={cn("p-3", isMobile ? "p-2" : "")}>
         <h3 
-          className="font-medium truncate cursor-pointer"
+          className={cn("font-medium truncate cursor-pointer", isMobile ? "text-sm" : "")}
           onClick={() => onClick(playlist.id)}
         >
           {playlist.name}
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className={cn("text-muted-foreground", isMobile ? "text-xs" : "text-sm")}>
           {beatCount} {beatCount === 1 ? 'beat' : 'beats'}
         </p>
         <div className={cn(
-          "flex items-center text-xs mt-1", 
-          playlist.is_public ? "text-sky-500" : "text-amber-500"
+          "flex items-center mt-1", 
+          playlist.is_public ? "text-sky-500" : "text-amber-500",
+          isMobile ? "text-[10px]" : "text-xs"
         )}>
           <span>{playlist.is_public ? 'Public' : 'Private'}</span>
         </div>

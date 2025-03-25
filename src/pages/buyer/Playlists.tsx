@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -70,7 +69,8 @@ export default function Playlists() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  
+  const isMobile = window.innerWidth <= 768;
+
   useEffect(() => {
     document.title = "Playlists | Creacove";
     loadPlaylists();
@@ -115,7 +115,6 @@ export default function Playlists() {
       setIsPublic(true);
       setIsCreateDialogOpen(false);
       
-      // Navigate to the new playlist
       navigate(`/playlists/${playlist.id}`);
     }
   };
@@ -126,7 +125,6 @@ export default function Playlists() {
     const { beats } = await getPlaylistWithBeats(playlist.id);
     setPlaylistBeats(beats);
     
-    // Update URL without full page reload
     if (!playlistId || playlistId !== playlist.id) {
       navigate(`/playlists/${playlist.id}`, { replace: true });
     }
@@ -186,12 +184,10 @@ export default function Playlists() {
   };
 
   const filteredPlaylists = playlists.filter(playlist => {
-    // Filter by search query
     if (searchQuery && !playlist.name.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     
-    // Filter by tab
     if (activeTab === "public" && !playlist.is_public) {
       return false;
     }
@@ -202,11 +198,10 @@ export default function Playlists() {
     return true;
   });
 
-  // Render playlists in grid view
   const renderPlaylistsGrid = () => {
     if (isLoading) {
       return (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 xs:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
           {Array(8).fill(0).map((_, i) => (
             <div key={i} className="space-y-3">
               <Skeleton className="h-32 w-full rounded-md" />
@@ -238,7 +233,7 @@ export default function Playlists() {
     }
     
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4">
         {filteredPlaylists.map((playlist) => (
           <PlaylistCard 
             key={playlist.id} 
@@ -247,13 +242,13 @@ export default function Playlists() {
               const playlist = playlists.find(p => p.id === id);
               if (playlist) handleSelectPlaylist(playlist);
             }} 
+            onPlay={handlePlayAll}
           />
         ))}
       </div>
     );
   };
 
-  // If a playlist is selected, show the playlist detail view
   if (selectedPlaylist) {
     const isOwner = user && user.id === selectedPlaylist.owner_id;
     
@@ -274,7 +269,6 @@ export default function Playlists() {
             </Button>
             
             <div className="flex flex-col md:flex-row gap-6">
-              {/* Playlist cover/info */}
               <div className="w-full md:w-1/3 lg:w-1/4">
                 <div className="aspect-square bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg overflow-hidden shadow-lg">
                   {playlistBeats.length > 0 ? (
@@ -411,7 +405,6 @@ export default function Playlists() {
                 </div>
               </div>
               
-              {/* Playlist tracks */}
               <div className="flex-1">
                 <div className="bg-card rounded-lg border border-border overflow-hidden">
                   <div className="p-4 bg-muted/30 flex justify-between items-center border-b border-border">
@@ -541,25 +534,29 @@ export default function Playlists() {
     );
   }
 
-  // If no playlist selected, show the playlists browse view
   return (
     <MainLayoutWithPlayer>
       <div className="container py-8">
-        <div className="bg-gradient-to-r from-purple-700 to-indigo-700 rounded-xl p-8 mb-8">
+        <div className="bg-gradient-to-r from-purple-700 to-indigo-700 rounded-xl p-4 sm:p-8 mb-8">
           <div className="max-w-2xl">
-            <h1 className="text-3xl font-bold text-white mb-2">Your Playlists</h1>
-            <p className="text-white/80 mb-6">Organize your favorite beats and share your collections with others.</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Your Playlists</h1>
+            <p className="text-white/80 mb-4 md:mb-6 text-sm md:text-base">Organize your favorite beats and share your collections with others.</p>
             
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col xs:flex-row gap-3">
               <Button 
                 className="bg-white text-purple-700 hover:bg-white/90"
                 onClick={() => setIsCreateDialogOpen(true)}
+                size={isMobile ? "sm" : "default"}
               >
-                <PlusCircle size={16} className="mr-2" />
+                <PlusCircle size={isMobile ? 14 : 16} className="mr-2" />
                 Create New Playlist
               </Button>
               
-              <Button variant="outline" className="bg-white/10 text-white border-white/20 hover:bg-white/20">
+              <Button 
+                variant="outline" 
+                className="bg-white/10 text-white border-white/20 hover:bg-white/20"
+                size={isMobile ? "sm" : "default"}
+              >
                 Browse Featured Playlists
               </Button>
             </div>
