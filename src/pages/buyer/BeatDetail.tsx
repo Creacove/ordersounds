@@ -24,7 +24,7 @@ import { getLicensePrice } from '@/utils/licenseUtils';
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
   const { getBeatById, toggleFavorite, isFavorite, isPurchased, beats } = useBeats();
-  const { isPlaying, currentBeat, playBeat } = usePlayer();
+  const { isPlaying, currentBeat, playBeat, pausePlayback } = usePlayer();
   const { addToCart, isInCart } = useCart();
   const { user, currency } = useAuth();
   const navigate = useNavigate();
@@ -83,9 +83,18 @@ const BeatDetail = () => {
     }
   }, [beat, beats]);
 
-  const handlePlay = () => {
+  const handlePlay = (similarBeat?: Beat) => {
+    if (similarBeat) {
+      playBeat(similarBeat);
+      return;
+    }
+    
     if (beat) {
-      playBeat(beat);
+      if (isCurrentlyPlaying) {
+        pausePlayback();
+      } else {
+        playBeat(beat);
+      }
     }
   };
 
@@ -198,6 +207,8 @@ const BeatDetail = () => {
   const hasPremiumLicense = beat?.premium_license_price_local !== undefined || beat?.premium_license_price_diaspora !== undefined;
   const hasExclusiveLicense = beat?.exclusive_license_price_local !== undefined || beat?.exclusive_license_price_diaspora !== undefined;
   const hasCustomLicense = beat?.license_type && !['basic', 'premium', 'exclusive'].includes(beat.license_type);
+  
+  const availableLicenseTypes = beat?.license_type ? beat.license_type.split(',') : ['basic'];
 
   return (
     <MainLayoutWithPlayer>
@@ -230,7 +241,7 @@ const BeatDetail = () => {
               <div className="flex items-start gap-3 mb-2">
                 <div 
                   className="h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm"
-                  onClick={handlePlay}
+                  onClick={() => handlePlay()}
                 >
                   <div className="relative group cursor-pointer h-full">
                     <img 
@@ -262,6 +273,14 @@ const BeatDetail = () => {
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Music size={12} /> {beat.genre}
                     </span>
+                    {beat.key && (
+                      <>
+                        <span className="text-xs text-muted-foreground mx-1">•</span>
+                        <span className="text-xs text-muted-foreground">
+                          Key: {beat.key}
+                        </span>
+                      </>
+                    )}
                     <span className="text-xs text-muted-foreground mx-1">•</span>
                     <span className="text-xs text-muted-foreground">
                       {beat.track_type}
@@ -285,7 +304,7 @@ const BeatDetail = () => {
               <div className="flex items-center gap-2 mt-3">
                 <Button 
                   size={isMobile ? "sm" : "default"}
-                  onClick={handlePlay}
+                  onClick={() => handlePlay()}
                   className="flex-none sm:flex-none rounded-full"
                   variant={isCurrentlyPlaying ? "secondary" : "default"}
                 >
@@ -339,7 +358,11 @@ const BeatDetail = () => {
                 <Info size={14} className="mr-2 text-primary/70" />
                 License Options
               </h3>
-              <p className="text-xs text-muted-foreground">Choose from basic, premium, or exclusive licenses with different rights and features.</p>
+              <p className="text-xs text-muted-foreground">
+                {availableLicenseTypes.length > 1 
+                  ? `Available licenses: ${availableLicenseTypes.map(lt => lt.charAt(0).toUpperCase() + lt.slice(1)).join(', ')}`
+                  : 'Choose from basic, premium, or exclusive licenses with different rights and features.'}
+              </p>
             </div>
           </div>
           
@@ -354,7 +377,7 @@ const BeatDetail = () => {
             <h2 className="text-lg font-semibold mb-3">Choose a License</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(hasBasicLicense || !hasCustomLicense) && (
+              {(availableLicenseTypes.includes('basic') || !hasCustomLicense) && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
                   selectedLicense === 'basic' ? "border-primary/50 bg-primary/5" : "bg-card"
@@ -412,7 +435,7 @@ const BeatDetail = () => {
                 </div>
               )}
               
-              {(hasPremiumLicense || !hasCustomLicense) && (
+              {(availableLicenseTypes.includes('premium') || !hasCustomLicense) && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
                   selectedLicense === 'premium' ? "border-primary/50 bg-primary/5" : "bg-card"
@@ -473,7 +496,7 @@ const BeatDetail = () => {
                 </div>
               )}
               
-              {(hasExclusiveLicense || !hasCustomLicense) && (
+              {(availableLicenseTypes.includes('exclusive') || !hasCustomLicense) && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
                   selectedLicense === 'exclusive' ? "border-primary/50 bg-primary/5" : "bg-card"
@@ -531,23 +554,23 @@ const BeatDetail = () => {
                 </div>
               )}
               
-              {hasCustomLicense && (
+              {availableLicenseTypes.includes('custom') && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
-                  selectedLicense === beat?.license_type ? "border-primary/50 bg-primary/5" : "bg-card"
+                  selectedLicense === 'custom' ? "border-primary/50 bg-primary/5" : "bg-card"
                 )}>
                   <div className="absolute top-0 right-0 bg-purple-500 text-white text-xs py-1 px-3 rounded-bl-lg">
                     Custom
                   </div>
                   <div className="p-4">
-                    <h3 className="font-semibold capitalize">{beat?.license_type} License</h3>
+                    <h3 className="font-semibold capitalize">Custom License</h3>
                     <PriceTag 
-                      localPrice={beat?.price_local || 0} 
-                      diasporaPrice={beat?.price_diaspora || 0}
+                      localPrice={beat?.custom_license_price_local || beat?.price_local || 0} 
+                      diasporaPrice={beat?.custom_license_price_diaspora || beat?.price_diaspora || 0}
                       size="lg"
                       className="my-3"
-                      licenseType={beat?.license_type}
-                      onClick={() => handleSelectLicense(beat?.license_type || '')}
+                      licenseType="custom"
+                      onClick={() => handleSelectLicense('custom')}
                     />
                     <div className="text-xs mt-4 mb-6">
                       {beat?.license_terms ? (
@@ -569,10 +592,10 @@ const BeatDetail = () => {
                       className="w-full rounded-full"
                       size="sm"
                       onClick={() => {
-                        handleSelectLicense(beat?.license_type || '');
-                        handleAddToCart(beat?.license_type || '');
+                        handleSelectLicense('custom');
+                        handleAddToCart('custom');
                       }}
-                      variant={isBeatPurchased ? "outline" : selectedLicense === beat?.license_type ? "default" : "secondary"}
+                      variant={isBeatPurchased ? "outline" : selectedLicense === 'custom' ? "default" : "secondary"}
                       disabled={isBeatPurchased}
                     >
                       {isBeatPurchased ? (
@@ -608,6 +631,7 @@ const BeatDetail = () => {
                     isFavorite={isFavorite(similarBeat.id)}
                     isInCart={isInCart(similarBeat.id)}
                     onToggleFavorite={toggleFavorite}
+                    onPlay={() => handlePlay(similarBeat)}
                   />
                 ))}
               </div>
@@ -620,3 +644,4 @@ const BeatDetail = () => {
 };
 
 export default BeatDetail;
+

@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -57,6 +58,8 @@ export const uploadBeat = async (
     status: 'draft' | 'published';
     license_type?: string;
     license_terms?: string;
+    custom_license_price_local?: number;
+    custom_license_price_diaspora?: number;
   },
   fullTrackFile: File,
   previewFile: File,
@@ -108,7 +111,7 @@ export const uploadBeat = async (
       license_terms: beatInfo.license_terms || ''
     };
     
-    // Add license information
+    // Add license information - store as comma-separated values if multiple licenses
     if (beatInfo.license_type) {
       beatData.license_type = beatInfo.license_type;
       
@@ -126,6 +129,11 @@ export const uploadBeat = async (
       if (beatInfo.license_type.includes('exclusive') && beatInfo.exclusive_license_price_local > 0) {
         beatData.exclusive_license_price_local = beatInfo.exclusive_license_price_local;
         beatData.exclusive_license_price_diaspora = beatInfo.exclusive_license_price_diaspora;
+      }
+      
+      if (beatInfo.license_type.includes('custom') && beatInfo.custom_license_price_local && beatInfo.custom_license_price_diaspora) {
+        beatData.custom_license_price_local = beatInfo.custom_license_price_local;
+        beatData.custom_license_price_diaspora = beatInfo.custom_license_price_diaspora;
       }
     }
 
