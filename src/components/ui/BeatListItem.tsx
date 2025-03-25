@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 interface BeatListItemProps {
   beat: Beat;
@@ -35,12 +36,15 @@ export function BeatListItem({
 }: BeatListItemProps) {
   const { currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
-  const { addToCart } = useCart();
+  const { addToCart, isInCart: checkIsInCart } = useCart();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
+  const inCart = isInCart || (checkIsInCart && checkIsInCart(beat.id));
 
-  const handlePlay = () => {
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
     playBeat(beat);
   };
 
@@ -52,7 +56,7 @@ export function BeatListItem({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isInCart) {
+    if (!inCart) {
       addToCart(beat);
       toast.success(`Added "${beat.title}" to cart`);
     }
@@ -72,9 +76,21 @@ export function BeatListItem({
       toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
     }
   };
+  
+  const handleViewBeatDetails = () => {
+    navigate(`/beat/${beat.id}`);
+  };
+
+  const handleProducerClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/producer/${beat.producer_id}`);
+  };
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors shadow-sm hover:shadow">
+    <div 
+      className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors shadow-sm hover:shadow cursor-pointer"
+      onClick={handleViewBeatDetails}
+    >
       {/* Thumbnail with play button */}
       <div className="relative h-16 w-full sm:w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted">
         <img 
@@ -96,7 +112,12 @@ export function BeatListItem({
       {/* Beat details */}
       <div className="flex-1 min-w-0">
         <h3 className="font-medium truncate">{beat.title}</h3>
-        <p className="text-sm text-muted-foreground truncate">{beat.producer_name}</p>
+        <p 
+          className="text-sm text-primary hover:underline truncate cursor-pointer" 
+          onClick={handleProducerClick}
+        >
+          {beat.producer_name}
+        </p>
         <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
           <span>{beat.genre}</span>
           <span>•</span>
@@ -114,31 +135,52 @@ export function BeatListItem({
         )}
       </div>
       
-      {/* Action buttons */}
+      {/* Action buttons - Buy button now more prominent */}
       <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 mt-2 sm:mt-0">
-        {!isInCart && (
+        {!inCart ? (
           <Button
-            variant="ghost"
-            size="icon"
+            variant="default"
+            size="sm"
             onClick={handleAddToCart}
-            className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="rounded text-xs"
           >
-            <ShoppingCart size={18} />
+            <ShoppingCart size={14} className="mr-1" /> Buy
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('/cart');
+            }}
+            className="rounded text-xs"
+          >
+            <ShoppingCart size={14} className="mr-1" /> View Cart
           </Button>
         )}
         
         <Button
           variant="ghost"
           size="icon"
+          onClick={handlePlay}
+          className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+        >
+          {isCurrentlyPlaying ? <Pause size={16} /> : <Play size={16} />}
+        </Button>
+        
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={handleToggleFavorite}
           className={cn(
-            "rounded-full",
+            "h-8 w-8 rounded-full",
             isFavorite 
-              ? "text-purple-500 bg-purple-500/10 hover:bg-purple-500/20" 
+              ? "text-purple-500 hover:bg-purple-500/10" 
               : "text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
         >
-          <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
+          <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
         </Button>
         
         {isInCart && onRemove && (
@@ -146,9 +188,9 @@ export function BeatListItem({
             variant="ghost"
             size="icon"
             onClick={handleRemove}
-            className="rounded-full text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+            className="h-8 w-8 rounded-full text-destructive hover:text-destructive/90 hover:bg-destructive/10"
           >
-            <Trash2 size={18} />
+            <Trash2 size={16} />
           </Button>
         )}
         
@@ -157,9 +199,9 @@ export function BeatListItem({
             <Button 
               variant="ghost"
               size="icon"
-              className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+              className="h-8 w-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
             >
-              <MoreVertical size={18} />
+              <MoreVertical size={16} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -168,18 +210,14 @@ export function BeatListItem({
               <span>Add to queue</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handlePlay} className="cursor-pointer">
-              {isCurrentlyPlaying ? (
-                <>
-                  <Pause className="mr-2 h-4 w-4" />
-                  <span>Pause</span>
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  <span>Play</span>
-                </>
-              )}
+            <DropdownMenuItem 
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/beat/${beat.id}`);
+              }}
+              className="cursor-pointer"
+            >
+              <span>View details</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
