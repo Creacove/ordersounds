@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Play, Pause, Heart, Download, ShoppingCart, 
@@ -28,6 +28,7 @@ const BeatDetail = () => {
   const { addToCart, isInCart } = useCart();
   const { user, currency } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [similarBeats, setSimilarBeats] = useState<Beat[]>([]);
   const [selectedLicense, setSelectedLicense] = useState<string>('basic');
   const isMobile = useIsMobile();
@@ -45,7 +46,7 @@ const BeatDetail = () => {
 
   useEffect(() => {
     if (beat) {
-      document.title = `${beat.title} by ${beat.producer_name} | OrderSOUNDS`;
+      document.title = `${beat.title} by ${beat.producer_name} | Creacove`;
     }
   }, [beat]);
 
@@ -98,13 +99,16 @@ const BeatDetail = () => {
     }
   };
 
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!user) {
       toast.error('Please log in to add favorites');
       navigate('/login');
       return;
     }
-
+    
     if (beat) {
       toggleFavorite(beat.id);
     }
@@ -157,6 +161,14 @@ const BeatDetail = () => {
 
   const handleSelectLicense = (licenseType: string) => {
     setSelectedLicense(licenseType);
+  };
+
+  const handleGoBack = () => {
+    if (location.state && location.state.from) {
+      navigate(location.state.from);
+    } else {
+      navigate(-1);
+    }
   };
 
   if (error) {
@@ -220,7 +232,7 @@ const BeatDetail = () => {
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={() => navigate(-1)}
+              onClick={handleGoBack}
               className="h-8 w-8 rounded-full"
             >
               <ArrowLeft size={16} />
@@ -231,7 +243,7 @@ const BeatDetail = () => {
               </Link>
               <span className="mx-1 text-muted-foreground">•</span>
               <Link to={`/genres`} className="text-muted-foreground hover:text-foreground">
-                {beat.genre}
+                {beat?.genre || 'Genre'}
               </Link>
             </div>
           </div>

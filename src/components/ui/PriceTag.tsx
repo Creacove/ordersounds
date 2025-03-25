@@ -31,8 +31,8 @@ export function PriceTag({
   };
 
   const displayPrice = currency === 'NGN' 
-    ? formatPrice(localPrice, 'NGN')
-    : formatPrice(diasporaPrice, 'USD');
+    ? formatPrice(localPrice || 0, 'NGN')
+    : formatPrice(diasporaPrice || 0, 'USD');
 
   const sizeClasses = {
     sm: "text-xs sm:text-sm font-medium px-1.5 py-0.5 leading-normal",

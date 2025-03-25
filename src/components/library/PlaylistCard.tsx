@@ -5,6 +5,7 @@ import { ListMusic, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useNavigate } from 'react-router-dom';
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -15,6 +16,7 @@ interface PlaylistCardProps {
 export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
   const beatCount = playlist.beats?.length || 0;
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   
   const generateCoverImages = () => {
     if (!playlist.beats || playlist.beats.length === 0) {
@@ -86,6 +88,16 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
     );
   };
 
+  const handleClick = () => {
+    onClick(playlist.id);
+    // Navigate to the correct playlist URL
+    if (playlist.is_public) {
+      navigate(`/playlists/${playlist.id}`);
+    } else {
+      navigate(`/my-playlists/${playlist.id}`);
+    }
+  };
+
   return (
     <div 
       className={cn(
@@ -95,7 +107,7 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
     >
       <div 
         className="aspect-square rounded-md overflow-hidden group relative cursor-pointer"
-        onClick={() => onClick(playlist.id)}
+        onClick={handleClick}
       >
         {generateCoverImages()}
         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -116,7 +128,7 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
       <div className={cn("p-3", isMobile ? "p-2" : "")}>
         <h3 
           className={cn("font-medium truncate cursor-pointer", isMobile ? "text-sm" : "")}
-          onClick={() => onClick(playlist.id)}
+          onClick={handleClick}
         >
           {playlist.name}
         </h3>
