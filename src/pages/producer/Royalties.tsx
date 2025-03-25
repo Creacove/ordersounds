@@ -96,12 +96,12 @@ export default function Royalties() {
           {/* Stats Cards */}
           <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-responsive-xs font-medium">Total Earnings</CardTitle>
+              <CardTitle className="text-sm font-medium">Total Earnings</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-responsive-xl font-bold">${totalEarnings.toFixed(2)}</div>
-              <p className="text-responsive-xs text-muted-foreground">
+              <div className="text-xl font-bold">${totalEarnings.toFixed(2)}</div>
+              <p className="text-sm text-muted-foreground">
                 Lifetime earnings from your beats
               </p>
             </CardContent>
@@ -109,12 +109,12 @@ export default function Royalties() {
           
           <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-responsive-xs font-medium">This Month</CardTitle>
+              <CardTitle className="text-sm font-medium">This Month</CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-responsive-xl font-bold">${monthlyEarnings.toFixed(2)}</div>
-              <p className="text-responsive-xs text-muted-foreground">
+              <div className="text-xl font-bold">${monthlyEarnings.toFixed(2)}</div>
+              <p className="text-sm text-muted-foreground">
                 +8% from last month
               </p>
             </CardContent>
@@ -122,12 +122,12 @@ export default function Royalties() {
           
           <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-responsive-xs font-medium">Sales</CardTitle>
+              <CardTitle className="text-sm font-medium">Sales</CardTitle>
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-responsive-xl font-bold">{salesCount}</div>
-              <p className="text-responsive-xs text-muted-foreground">
+              <div className="text-xl font-bold">{salesCount}</div>
+              <p className="text-sm text-muted-foreground">
                 Total beats purchased
               </p>
             </CardContent>
@@ -135,12 +135,12 @@ export default function Royalties() {
           
           <Card className="card-mobile-padding">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-responsive-xs font-medium">Growth</CardTitle>
+              <CardTitle className="text-sm font-medium">Growth</CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-responsive-xl font-bold">{growthPercentage}%</div>
-              <p className="text-responsive-xs text-muted-foreground">
+              <div className="text-xl font-bold">{growthPercentage}%</div>
+              <p className="text-sm text-muted-foreground">
                 Year over year growth
               </p>
             </CardContent>
@@ -149,8 +149,8 @@ export default function Royalties() {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-responsive-lg">Royalty Splits</CardTitle>
-            <CardDescription className="text-responsive-xs">Manage splits with collaborators on your beats</CardDescription>
+            <CardTitle className="text-xl md:text-2xl">Royalty Splits</CardTitle>
+            <CardDescription className="text-sm">Manage splits with collaborators on your beats</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -185,8 +185,8 @@ export default function Royalties() {
                         </div>
                       )}
                       <div>
-                        <h3 className="text-responsive-base font-semibold leading-tight line-clamp-1">{beatGroup.beatTitle}</h3>
-                        <p className="text-responsive-xs text-muted-foreground">
+                        <h3 className="text-base md:text-lg font-semibold leading-tight line-clamp-1">{beatGroup.beatTitle}</h3>
+                        <p className="text-sm text-muted-foreground">
                           {beatGroup.splits.length} collaborator{beatGroup.splits.length !== 1 ? 's' : ''}
                         </p>
                       </div>
@@ -203,12 +203,12 @@ export default function Royalties() {
                           <div className="flex-1 min-w-0">
                             <div className="flex justify-between mb-1 items-center">
                               <div className="truncate pr-2">
-                                <span className="font-medium text-responsive-xs">{split.collaborator_name}</span>
-                                <span className="text-responsive-xs text-muted-foreground ml-1 md:ml-2 hidden xs:inline">({split.collaborator_role})</span>
+                                <span className="font-medium text-sm md:text-base">{split.collaborator_name}</span>
+                                <span className="text-sm text-muted-foreground ml-1 md:ml-2 hidden xs:inline">({split.collaborator_role})</span>
                               </div>
-                              <span className="font-bold text-responsive-xs whitespace-nowrap">{split.percentage}%</span>
+                              <span className="font-bold text-sm md:text-base whitespace-nowrap">{split.percentage}%</span>
                             </div>
-                            <div className="xs:hidden text-[10px] text-muted-foreground mb-1">
+                            <div className="xs:hidden text-xs text-muted-foreground mb-1">
                               {split.collaborator_role}
                             </div>
                             <Progress value={split.percentage} className="h-1.5 md:h-2" />
@@ -221,7 +221,7 @@ export default function Royalties() {
               </div>
             ) : (
               <div className="text-center py-8 md:py-10">
-                <p className="text-responsive-base text-muted-foreground mb-4">You don't have any royalty splits set up yet</p>
+                <p className="text-base text-muted-foreground mb-4">You don't have any royalty splits set up yet</p>
                 <Button variant="outline" onClick={() => navigate('/producer/beats')}>
                   Set Up Splits
                 </Button>

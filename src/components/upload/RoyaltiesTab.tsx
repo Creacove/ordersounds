@@ -24,7 +24,7 @@ export const RoyaltiesTab = ({
         <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
         <div>
           <h3 className="text-sm font-medium">Royalty Splits</h3>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Define how royalties should be distributed among collaborators. 
             The total percentage must equal 100%.
           </p>
@@ -35,7 +35,7 @@ export const RoyaltiesTab = ({
         {collaborators.map((collaborator, index) => (
           <div key={collaborator.id} className="border rounded-lg p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-medium">
+              <h3 className="font-medium text-base">
                 {index === 0 ? "You (Main Producer)" : `Collaborator ${index + 1}`}
               </h3>
               {collaborators.length > 1 && index !== 0 && (
@@ -52,7 +52,7 @@ export const RoyaltiesTab = ({
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor={`name-${collaborator.id}`}>Name</Label>
+                <Label htmlFor={`name-${collaborator.id}`} size="lg">Name</Label>
                 <Input 
                   id={`name-${collaborator.id}`}
                   value={collaborator.name}
@@ -63,7 +63,7 @@ export const RoyaltiesTab = ({
                 />
               </div>
               <div>
-                <Label htmlFor={`email-${collaborator.id}`}>Email</Label>
+                <Label htmlFor={`email-${collaborator.id}`} size="lg">Email</Label>
                 <Input 
                   id={`email-${collaborator.id}`}
                   value={collaborator.email}
@@ -77,7 +77,7 @@ export const RoyaltiesTab = ({
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div>
-                <Label htmlFor={`role-${collaborator.id}`}>Role</Label>
+                <Label htmlFor={`role-${collaborator.id}`} size="lg">Role</Label>
                 <Input 
                   id={`role-${collaborator.id}`}
                   value={collaborator.role}
@@ -88,7 +88,7 @@ export const RoyaltiesTab = ({
                 />
               </div>
               <div>
-                <Label htmlFor={`percentage-${collaborator.id}`}>Percentage (%)</Label>
+                <Label htmlFor={`percentage-${collaborator.id}`} size="lg">Percentage (%)</Label>
                 <Input 
                   id={`percentage-${collaborator.id}`}
                   type="number"
@@ -115,7 +115,7 @@ export const RoyaltiesTab = ({
         <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium">Total Percentage:</span>
           <span 
-            className={`font-bold ${
+            className={`font-bold text-base ${
               collaborators.reduce((sum, c) => sum + c.percentage, 0) === 100 
                 ? 'text-green-600' 
                 : 'text-red-600'

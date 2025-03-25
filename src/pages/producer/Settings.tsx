@@ -33,8 +33,8 @@ export default function ProducerSettings() {
       <MainLayout>
         <div className="container py-16">
           <div className="text-center">
-            <h1 className="heading-responsive-md mb-4">Producer Access Required</h1>
-            <p className="text-responsive-base mb-4">You need to be logged in as a producer to access this page.</p>
+            <h1 className="text-2xl font-bold mb-4">Producer Access Required</h1>
+            <p className="text-base mb-4">You need to be logged in as a producer to access this page.</p>
             <Button onClick={() => navigate('/login')}>Login</Button>
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function ProducerSettings() {
         "container py-6 md:py-8",
         isMobile ? "mobile-content-padding" : ""
       )}>
-        <h1 className="heading-responsive-lg mb-6 md:mb-8">Producer Settings</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Producer Settings</h1>
         
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8">
@@ -60,14 +60,14 @@ export default function ProducerSettings() {
           <TabsContent value="profile">
             <Card>
               <CardHeader>
-                <CardTitle className="text-responsive-lg">Profile Information</CardTitle>
-                <CardDescription className="text-responsive-sm">
+                <CardTitle className="text-xl md:text-2xl">Profile Information</CardTitle>
+                <CardDescription className="text-sm md:text-base">
                   Update your producer profile information that will be visible to buyers
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="stageName">Stage Name</Label>
+                  <Label htmlFor="stageName" size="lg">Stage Name</Label>
                   <Input 
                     id="stageName" 
                     placeholder="Your stage name" 
@@ -76,7 +76,7 @@ export default function ProducerSettings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
+                  <Label htmlFor="bio" size="lg">Bio</Label>
                   <textarea 
                     id="bio" 
                     className="w-full min-h-32 p-2 rounded-md border border-input bg-background"
@@ -86,7 +86,7 @@ export default function ProducerSettings() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
+                  <Label htmlFor="location" size="lg">Location</Label>
                   <Input 
                     id="location" 
                     placeholder="Your location" 
@@ -104,13 +104,13 @@ export default function ProducerSettings() {
           <TabsContent value="payment">
             <Card>
               <CardHeader>
-                <CardTitle className="text-responsive-lg">Payment Settings</CardTitle>
-                <CardDescription className="text-responsive-sm">
+                <CardTitle className="text-xl md:text-2xl">Payment Settings</CardTitle>
+                <CardDescription className="text-sm md:text-base">
                   Configure how you'll receive payments for your beats
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center py-10">
-                <p className="text-responsive-base text-muted-foreground mb-4">Payment settings coming soon</p>
+                <p className="text-base text-muted-foreground mb-4">Payment settings coming soon</p>
               </CardContent>
             </Card>
           </TabsContent>
@@ -118,13 +118,13 @@ export default function ProducerSettings() {
           <TabsContent value="preferences">
             <Card>
               <CardHeader>
-                <CardTitle className="text-responsive-lg">Preferences</CardTitle>
-                <CardDescription className="text-responsive-sm">
+                <CardTitle className="text-xl md:text-2xl">Preferences</CardTitle>
+                <CardDescription className="text-sm md:text-base">
                   Customize your producer experience
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center py-10">
-                <p className="text-responsive-base text-muted-foreground mb-4">Preference settings coming soon</p>
+                <p className="text-base text-muted-foreground mb-4">Preference settings coming soon</p>
               </CardContent>
             </Card>
           </TabsContent>
