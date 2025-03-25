@@ -94,35 +94,39 @@ export default function Index() {
         throw error;
       }
       
-      return data;
+      return data.map(playlist => ({
+        ...playlist,
+        created_at: playlist.created_date // Map created_date to created_at to match Playlist type
+      }));
     },
     enabled: true
   });
 
-  // Get the "Creacove Afrobeats Challenge" producer
+  // Get the specified producer with ID fed34a00-a027-46ba-8598-cbeb2fe91ce0
   const { data: producerOfWeek } = useQuery({
-    queryKey: ['creacoveChallenge'],
+    queryKey: ['specificProducer'],
     queryFn: async () => {
-      // Get the Creacove Afrobeats Challenge producer
+      // Get the specified producer
+      const producerId = 'fed34a00-a027-46ba-8598-cbeb2fe91ce0';
       const { data, error: producerError } = await supabase
         .from('users')
         .select('id, stage_name, full_name, profile_picture, bio, country')
-        .eq('stage_name', 'Creacove Afrobeats Challenge')
+        .eq('id', producerId)
         .single();
       
       if (producerError || !data) {
-        console.error('Error fetching Creacove challenge:', producerError);
-        // Fallback to first producer in database
+        console.error('Error fetching specified producer:', producerError);
+        // Fallback to Creacove Afrobeats Challenge
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('users')
           .select('id, stage_name, full_name, profile_picture, bio, country')
-          .eq('role', 'producer')
-          .limit(1)
+          .eq('stage_name', 'Creacove Afrobeats Challenge')
           .single();
           
-        if (fallbackError) {
+        if (fallbackError || !fallbackData) {
+          console.error('Error fetching fallback producer:', fallbackError);
           return {
-            id: '1', 
+            id: producerId, 
             name: 'Creacove Afrobeats Challenge', 
             image: '/placeholder.svg',
             bio: 'Join our weekly beat challenge and showcase your talent!',
@@ -149,25 +153,23 @@ export default function Index() {
         .select('id', { count: 'exact', head: true })
         .eq('producer_id', data.id);
       
-      // Get sales count - Fix the way we fetch beats by this producer
-      const { data: producerBeats, error: beatsError } = await supabase
+      // Get sales count
+      const { data: producerBeats } = await supabase
         .from('beats')
         .select('id')
         .eq('producer_id', data.id);
       
       let salesCount = 0;
       
-      if (!beatsError && producerBeats && producerBeats.length > 0) {
+      if (producerBeats && producerBeats.length > 0) {
         const beatIds = producerBeats.map(beat => beat.id);
         
-        const { count, error: purchasesError } = await supabase
+        const { count } = await supabase
           .from('user_purchased_beats')
           .select('id', { count: 'exact', head: true })
           .in('beat_id', beatIds);
           
-        if (!purchasesError) {
-          salesCount = count || 0;
-        }
+        salesCount = count || 0;
       }
       
       return {
@@ -210,7 +212,8 @@ export default function Index() {
           premium_license_price_diaspora,
           exclusive_license_price_local,
           exclusive_license_price_diaspora,
-          license_type
+          license_type,
+          cover_image
         `)
         .eq('status', 'published')
         .order('favorites_count', { ascending: false })
@@ -235,7 +238,8 @@ export default function Index() {
         premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
         exclusive_license_price_local: beat.exclusive_license_price_local || 0,
         exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-        license_type: beat.license_type || 'basic'
+        license_type: beat.license_type || 'basic',
+        cover_image_url: beat.cover_image || '/placeholder.svg'
       }));
     },
     enabled: true
