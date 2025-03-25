@@ -1,8 +1,8 @@
-// Layout.tsx
+// src/components/layout/Layout.tsx
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Sidebar from "./Sidebar";
-import Bottombar from "./Bottombar"; // Bottombar must exist!
+import Bottombar from "./Bottombar"; // Ensure this file exists as provided below
 import { useUser } from "@/hooks/useUser";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -24,6 +24,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="relative flex h-screen w-full">
+      {/* Render Sidebar for non-mobile if user exists */}
       {!isMobile && user && (
         <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
       )}
@@ -31,6 +32,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         {children}
         <Toaster />
       </main>
+      {/* Bottom navbar for mobile devices */}
       {isMobile && user && (
         <div className="fixed bottom-0 z-30 flex w-full items-center justify-between bg-white shadow-md dark:bg-black">
           <Bottombar userId={user.id} />
