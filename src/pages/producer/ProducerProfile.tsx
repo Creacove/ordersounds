@@ -5,17 +5,23 @@ import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  Play, Pause, ExternalLink, UserPlus, Share2, Mail, MapPin, 
-  Calendar, Star, BarChart, Music, Heart, ShoppingCart, 
+  Play, ExternalLink, UserPlus, Share2, Mail, MapPin, 
+  Calendar, Star, Music, Heart, ShoppingCart, 
   Headphones, Instagram, Twitter, Globe, Facebook, Youtube, 
-  ChevronLeft, ChevronRight, ArrowLeft
+  ChevronLeft, ChevronRight, ArrowLeft, MoreHorizontal
 } from "lucide-react";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
 
@@ -58,7 +64,8 @@ const ProducerProfile = () => {
     producer_name: producer.name,
     plays: 1200 - (index * 50),
     downloads: 85 - (index * 5),
-    releaseDate: "2023-11-15"
+    releaseDate: "2023-11-15",
+    key: ["C Major", "D Minor", "G Major", "A Minor", "F Major"][index % 5]
   }));
 
   const indexOfLastBeat = currentPage * beatsPerPage;
@@ -150,16 +157,17 @@ const ProducerProfile = () => {
             </div>
           </div>
           
-          <div className="rounded-xl bg-card/50 backdrop-blur-sm border shadow-sm overflow-hidden mb-4">
-            <div className="p-4">
-              <div className="flex gap-4">
-                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm">
+          <Card className="bg-card/50 backdrop-blur-sm border shadow-sm overflow-hidden mb-4">
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm">
                   <img 
                     src={producer.profileImageUrl} 
                     alt={producer.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
+                
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h1 className="text-2xl font-bold truncate">{producer.name}</h1>
@@ -169,88 +177,99 @@ const ProducerProfile = () => {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2">{producer.bio}</p>
                   
-                  <div className="flex flex-wrap items-center gap-3 mt-3">
-                    <div className="flex items-center gap-1 text-sm">
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap gap-y-1 gap-x-3 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
                       <MapPin size={14} className="text-primary/70" /> 
                       <span>{producer.location}</span>
                     </div>
-                    <div className="h-4 w-px bg-border"></div>
-                    <div className="flex items-center gap-1 text-sm">
+                    
+                    <div className="flex items-center gap-1">
                       <Music size={14} className="text-primary/70" /> 
                       <span>{producer.genres.join(', ')}</span>
                     </div>
-                    <div className="h-4 w-px bg-border"></div>
-                    <div className="flex items-center gap-1 text-sm">
+                    
+                    <div className="flex items-center gap-1">
                       <Calendar size={14} className="text-primary/70" /> 
                       <span>Joined {producer.joinDate}</span>
                     </div>
-                    <div className="h-4 w-px bg-border"></div>
-                    <div className="flex items-center gap-1 text-sm">
+                    
+                    <div className="flex items-center gap-1">
                       <Star size={14} className="text-yellow-400" /> 
                       <span>{producer.stats.rating}</span>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3 mt-3">
-                    <div className="flex items-center gap-1 text-sm">
-                      <Music size={14} className="text-primary/70" /> 
-                      <span>{producer.stats.beats} beats</span>
+                  <div className="grid grid-cols-3 sm:flex sm:items-center gap-3 mt-2 text-center sm:text-left">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1">
+                      <span className="font-semibold">{producer.stats.beats}</span>
+                      <span className="text-xs text-muted-foreground">beats</span>
                     </div>
-                    <div className="h-4 w-px bg-border"></div>
-                    <div className="flex items-center gap-1 text-sm">
-                      <UserPlus size={14} className="text-primary/70" /> 
-                      <span>{producer.stats.followers.toLocaleString()} followers</span>
+                    
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1">
+                      <span className="font-semibold">{producer.stats.followers.toLocaleString()}</span>
+                      <span className="text-xs text-muted-foreground">followers</span>
                     </div>
-                    <div className="h-4 w-px bg-border"></div>
-                    <div className="flex items-center gap-1 text-sm">
-                      <ShoppingCart size={14} className="text-primary/70" /> 
-                      <span>{producer.stats.sales} sales</span>
+                    
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1">
+                      <span className="font-semibold">{producer.stats.sales}</span>
+                      <span className="text-xs text-muted-foreground">sales</span>
                     </div>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-2 mt-4">
-                <Button className="flex-none sm:flex-none rounded-full">
+              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/30">
+                <Button className="flex-1 sm:flex-none rounded-full" size="sm">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Follow
                 </Button>
                 
                 <Button 
-                  variant="ghost"
+                  variant="ghost" 
                   size="icon"
-                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className="h-8 w-8 rounded-full"
                 >
-                  <Mail size={18} />
+                  <Mail size={16} />
                 </Button>
                 
                 <Button 
-                  variant="ghost"
+                  variant="ghost" 
                   size="icon"
-                  className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className="h-8 w-8 rounded-full"
                 >
-                  <Share2 size={18} />
+                  <Share2 size={16} />
                 </Button>
                 
-                <div className="flex items-center gap-1 ml-auto">
-                  {producer.socialLinks && producer.socialLinks.map((link, index) => (
-                    <a 
-                      key={index} 
-                      href={link.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="bg-white/10 hover:bg-white/20 backdrop-blur-sm p-2 rounded-full transition-colors h-8 w-8 flex items-center justify-center"
-                      aria-label={`${link.platform} profile`}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-8 w-8 rounded-full ml-auto"
                     >
-                      {getSocialIcon(link.platform)}
-                    </a>
-                  ))}
-                </div>
+                      <MoreHorizontal size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {producer.socialLinks && producer.socialLinks.map((link, index) => (
+                      <DropdownMenuItem key={index} asChild>
+                        <a 
+                          href={link.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2"
+                        >
+                          {getSocialIcon(link.platform)}
+                          <span>{link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}</span>
+                        </a>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           <Tabs defaultValue="beats" className="w-full">
             <TabsList className="mb-8 w-full justify-start overflow-x-auto">
@@ -383,10 +402,7 @@ const ProducerProfile = () => {
             
             <TabsContent value="about" className="space-y-8">
               <Card>
-                <CardHeader>
-                  <CardTitle>About {producer.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="pt-6 space-y-6">
                   <div>
                     <h3 className="font-semibold mb-2">Bio</h3>
                     <p className="text-muted-foreground">{producer.bio}</p>
@@ -438,26 +454,6 @@ const ProducerProfile = () => {
                         <div className="text-xl font-bold">{producer.stats.rating}</div>
                         <div className="text-xs text-muted-foreground">Rating</div>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div>
-                    <h3 className="font-semibold mb-2">Contact</h3>
-                    <div className="flex flex-wrap gap-4">
-                      <Button variant="outline" className="gap-2">
-                        <Mail className="h-4 w-4" />
-                        <span>Send Message</span>
-                      </Button>
-                      {producer.socialLinks && producer.socialLinks.map((link, index) => (
-                        <Button key={index} variant="outline" className="gap-2" asChild>
-                          <a href={link.url} target="_blank" rel="noopener noreferrer">
-                            {getSocialIcon(link.platform)}
-                            <span>{link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}</span>
-                          </a>
-                        </Button>
-                      ))}
                     </div>
                   </div>
                 </CardContent>
