@@ -117,7 +117,6 @@ export const FilesTab = ({
                       type="file" 
                       className="hidden" 
                       accept=".mp3,.wav,audio/*" 
-                      capture=""
                       onChange={handleFullTrackUpload}
                     />
                   </>
@@ -178,7 +177,6 @@ export const FilesTab = ({
                       type="file" 
                       className="hidden" 
                       accept=".mp3,.wav,audio/*"
-                      capture=""
                       onChange={(e) => {
                         if (e.target.files && e.target.files[0]) {
                           setPreviewFile(e.target.files[0]);
