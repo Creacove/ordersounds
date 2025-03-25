@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -101,7 +102,7 @@ export function Sidebar() {
           { icon: LayoutDashboard, title: "Dashboard", href: "/producer/dashboard" },
           { icon: Music, title: "My Beats", href: "/producer/beats" },
           { icon: DollarSign, title: "Royalty Splits", href: "/producer/royalties" },
-          { icon: Settings, title: "Settings", href: "/settings" },
+          { icon: Settings, title: "Settings", href: "/producer/settings" },
         ]
       });
 
@@ -133,6 +134,7 @@ export function Sidebar() {
           { icon: Heart, title: "Favorites", href: "/favorites" },
           { icon: LayoutGrid, title: "My Playlists", href: "/my-playlists" },
           { icon: Music, title: "Purchased", href: "/purchased" },
+          { icon: BookOpen, title: "Library", href: "/library" },
         ]
       });
     }

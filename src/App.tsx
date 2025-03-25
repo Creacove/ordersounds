@@ -36,6 +36,7 @@ import ProducerDashboard from "./pages/producer/Dashboard";
 import UploadBeat from "./pages/producer/UploadBeat";
 import ProducerBeats from "./pages/producer/Beats";
 import Royalties from "./pages/producer/Royalties";
+import ProducerSettings from "./pages/producer/Settings";
 
 const queryClient = new QueryClient();
 
@@ -95,7 +96,7 @@ const App = () => (
                   <Route path="/producer/upload" element={<UploadBeat />} />
                   <Route path="/producer/beats" element={<ProducerBeats />} />
                   <Route path="/producer/royalties" element={<Royalties />} />
-                  <Route path="/producer/settings" element={<Navigate to="/settings" replace />} />
+                  <Route path="/producer/settings" element={<ProducerSettings />} />
                   
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />
