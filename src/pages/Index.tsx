@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Button } from "@/components/ui/button";
@@ -14,28 +13,84 @@ import { Badge } from "@/components/ui/badge";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useBeats } from "@/hooks/useBeats";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const Index = () => {
   const { trendingBeats, newBeats, featuredBeat, isLoading } = useBeats();
   
-  // Get first 5 producers
-  const topProducers = [
-    { id: '1', name: 'Metro Boomin', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
-    { id: '2', name: 'JUNE', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
-    { id: '3', name: 'DJ Eazie', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
-    { id: '4', name: 'Beats by Dre', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
-    { id: '5', name: 'KBeatz', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
-    { id: '6', name: 'Sound Vibe', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
-  ];
+  // Fetch top producers
+  const { data: topProducers = [] } = useQuery({
+    queryKey: ['indexTopProducers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, full_name, stage_name, profile_picture')
+        .eq('role', 'producer')
+        .order('featured_beats', { ascending: false })
+        .limit(6);
+      
+      if (error) {
+        console.error('Error fetching producers:', error);
+        return [
+          { id: '1', name: 'Metro Boomin', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+          { id: '2', name: 'JUNE', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+          { id: '3', name: 'DJ Eazie', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
+          { id: '4', name: 'Beats by Dre', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+          { id: '5', name: 'KBeatz', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
+          { id: '6', name: 'Sound Vibe', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
+        ];
+      }
+      
+      return data.map(producer => ({
+        id: producer.id,
+        name: producer.stage_name || producer.full_name,
+        avatar: producer.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+        verified: true // For now we'll show all as verified
+      }));
+    },
+    enabled: true
+  });
 
-  // Featured collections or playlists
-  const featuredPlaylists = [
-    { id: '1', title: 'Piano Vibes', color: 'from-blue-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
-    { id: '2', title: 'Guitar Classics', color: 'from-orange-500 to-red-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
-    { id: '3', title: 'Afro Fusion', color: 'from-green-500 to-emerald-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
-    { id: '4', title: 'Smooth R&B', color: 'from-pink-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
-    { id: '5', title: 'Trap Kings', color: 'from-yellow-500 to-amber-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
-  ];
+  // Fetch featured playlists
+  const { data: featuredPlaylists = [] } = useQuery({
+    queryKey: ['indexFeaturedPlaylists'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('playlists')
+        .select('id, name, cover_image, beats, is_public')
+        .eq('is_public', true)
+        .limit(5);
+      
+      if (error) {
+        console.error('Error fetching playlists:', error);
+        return [
+          { id: '1', title: 'Piano Vibes', color: 'from-blue-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
+          { id: '2', title: 'Guitar Classics', color: 'from-orange-500 to-red-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
+          { id: '3', title: 'Afro Fusion', color: 'from-green-500 to-emerald-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
+          { id: '4', title: 'Smooth R&B', color: 'from-pink-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
+          { id: '5', title: 'Trap Kings', color: 'from-yellow-500 to-amber-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png' },
+        ];
+      }
+
+      // Assign a random gradient color to each playlist
+      const gradients = [
+        'from-blue-500 to-purple-500',
+        'from-orange-500 to-red-500',
+        'from-green-500 to-emerald-500',
+        'from-pink-500 to-purple-500',
+        'from-yellow-500 to-amber-500',
+      ];
+      
+      return data.map((playlist, index) => ({
+        id: playlist.id,
+        title: playlist.name,
+        color: gradients[index % gradients.length],
+        image: playlist.cover_image || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png'
+      }));
+    },
+    enabled: true
+  });
 
   // Producer of the week
   const producerOfWeek = {
@@ -157,7 +212,7 @@ const Index = () => {
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {featuredPlaylists.map((playlist) => (
-              <Link key={playlist.id} to={`/playlists/${playlist.id}`} className="block">
+              <Link key={playlist.id} to={`/playlist/${playlist.id}`} className="block">
                 <div className={`aspect-square rounded-lg overflow-hidden bg-gradient-to-br ${playlist.color} relative group`}>
                   <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
                   <div className="p-4 flex flex-col h-full justify-between">

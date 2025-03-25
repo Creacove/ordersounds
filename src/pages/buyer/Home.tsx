@@ -21,6 +21,10 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { getUserPlaylists } from "@/lib/playlistService";
+import { PlaylistCard } from "@/components/library/PlaylistCard";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading } = useBeats();
@@ -29,6 +33,64 @@ export default function Home() {
   const { playBeat } = usePlayer();
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
+    queryKey: ['topProducers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, full_name, stage_name, profile_picture')
+        .eq('role', 'producer')
+        .order('featured_beats', { ascending: false })
+        .limit(5);
+      
+      if (error) {
+        console.error('Error fetching producers:', error);
+        return [];
+      }
+      
+      return data.map(producer => ({
+        id: producer.id,
+        name: producer.stage_name || producer.full_name,
+        avatar: producer.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+        verified: true
+      }));
+    },
+    enabled: true
+  });
+
+  const { data: featuredPlaylists = [], isLoading: isLoadingPlaylists } = useQuery({
+    queryKey: ['featuredPlaylists'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('playlists')
+        .select('id, name, cover_image, beats, is_public')
+        .eq('is_public', true)
+        .limit(4);
+      
+      if (error) {
+        console.error('Error fetching playlists:', error);
+        return [];
+      }
+
+      const gradients = [
+        'from-blue-500 to-purple-500',
+        'from-orange-500 to-red-500',
+        'from-green-500 to-emerald-500',
+        'from-pink-500 to-purple-500',
+        'from-yellow-500 to-amber-500',
+      ];
+      
+      return data.map((playlist, index) => ({
+        id: playlist.id,
+        title: playlist.name,
+        color: gradients[index % gradients.length],
+        image: playlist.cover_image || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+        tracks: (playlist.beats?.length || 0),
+      }));
+    },
+    enabled: true
+  });
 
   const handlePlayFeatured = () => {
     if (featuredBeat) {
@@ -43,6 +105,10 @@ export default function Home() {
 
   const navigateToBeat = (beatId) => {
     navigate(`/beat/${beatId}`);
+  };
+
+  const navigateToPlaylist = (playlistId) => {
+    navigate(`/playlist/${playlistId}`);
   };
 
   const categories = [
@@ -64,21 +130,6 @@ export default function Home() {
     verified: true,
     beats: trendingBeats.slice(0, 4)
   };
-
-  const topProducers = [
-    { id: '1', name: 'Metro Boomin', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
-    { id: '2', name: 'JUNE', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
-    { id: '3', name: 'DJ Eazie', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
-    { id: '4', name: 'Beats by Dre', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
-    { id: '5', name: 'KBeatz', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
-  ];
-
-  const featuredPlaylists = [
-    { id: '1', title: 'Piano Vibes', color: 'from-blue-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 12 },
-    { id: '2', title: 'Guitar Classics', color: 'from-orange-500 to-red-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 8 },
-    { id: '3', title: 'Afro Fusion', color: 'from-green-500 to-emerald-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 15 },
-    { id: '4', title: 'Smooth R&B', color: 'from-pink-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 10 },
-  ];
 
   return (
     <MainLayoutWithPlayer>
@@ -386,22 +437,33 @@ export default function Home() {
             </div>
             
             <div className="flex overflow-x-auto pb-4 gap-5 hide-scrollbar">
-              {topProducers.map((producer) => (
-                <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[90px]">
-                  <div className="relative">
-                    <Avatar className="h-[90px] w-[90px] border-2 border-background shadow-md">
-                      <AvatarImage src={producer.avatar} alt={producer.name} />
-                      <AvatarFallback>{producer.name.substring(0, 2).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                    {producer.verified && (
-                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
-                        <UserCheck size={16} />
-                      </div>
-                    )}
+              {isLoadingProducers ? (
+                [...Array(5)].map((_, i) => (
+                  <div key={i} className="flex flex-col items-center gap-2 min-w-[90px]">
+                    <div className="relative">
+                      <div className="h-[90px] w-[90px] rounded-full bg-muted animate-pulse" />
+                    </div>
+                    <div className="h-4 w-16 bg-muted animate-pulse rounded" />
                   </div>
-                  <span className="text-sm font-medium text-center truncate max-w-[90px]">{producer.name}</span>
-                </Link>
-              ))}
+                ))
+              ) : (
+                topProducers.map((producer) => (
+                  <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[90px]">
+                    <div className="relative">
+                      <Avatar className="h-[90px] w-[90px] border-2 border-background shadow-md">
+                        <AvatarImage src={producer.avatar} alt={producer.name} />
+                        <AvatarFallback>{producer.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      {producer.verified && (
+                        <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
+                          <UserCheck size={16} />
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-center truncate max-w-[90px]">{producer.name}</span>
+                  </Link>
+                ))
+              )}
             </div>
           </section>
 
@@ -421,28 +483,34 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {featuredPlaylists.map((playlist) => (
-                <Link to={`/playlists/${playlist.id}`} key={playlist.id} className="block rounded-lg overflow-hidden group">
-                  <div className={`aspect-square bg-gradient-to-br ${playlist.color} relative`}>
-                    <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
-                    <div className="p-4 flex flex-col h-full justify-between">
-                      <div className="flex justify-end">
-                        <Badge variant="outline" className="bg-white/20 text-white border-white/10">
-                          {playlist.tracks} tracks
-                        </Badge>
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-bold text-white">{playlist.title}</h3>
-                        <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button size="sm" variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
-                            <Play size={14} className="mr-1" /> Listen
-                          </Button>
+              {isLoadingPlaylists ? (
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="aspect-square rounded-lg bg-muted animate-pulse" />
+                ))
+              ) : (
+                featuredPlaylists.map((playlist) => (
+                  <Link to={`/playlist/${playlist.id}`} key={playlist.id} className="block rounded-lg overflow-hidden group">
+                    <div className={`aspect-square bg-gradient-to-br ${playlist.color} relative`}>
+                      <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
+                      <div className="p-4 flex flex-col h-full justify-between">
+                        <div className="flex justify-end">
+                          <Badge variant="outline" className="bg-white/20 text-white border-white/10">
+                            {playlist.tracks} tracks
+                          </Badge>
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-white">{playlist.title}</h3>
+                          <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button size="sm" variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
+                              <Play size={14} className="mr-1" /> Listen
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))
+              )}
             </div>
           </section>
 
