@@ -26,7 +26,7 @@ export default function Library() {
   const { user } = useAuth();
   const { getUserFavoriteBeats, getUserPurchasedBeats, toggleFavorite, isLoading } = useBeats();
   const { isInCart } = useCart();
-  const { playBeat } = usePlayer();
+  const { playBeat, isPlaying, currentBeat } = usePlayer();
   const isMobile = useIsMobile();
   const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -35,8 +35,10 @@ export default function Library() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistBeats, setPlaylistBeats] = useState<Beat[]>([]);
   const [playlistLoading, setPlaylistLoading] = useState(false);
-  const params = new URLSearchParams(location.search);
-  const playlistId = params.get('id');
+  
+  // Check if we're accessing the library from a playlist route
+  const params = useParams<{ playlistId?: string }>();
+  const playlistId = params.playlistId || new URLSearchParams(location.search).get('id');
 
   const favoriteBeats = getUserFavoriteBeats();
   const purchasedBeats = getUserPurchasedBeats();
@@ -44,7 +46,7 @@ export default function Library() {
   const getDefaultTab = () => {
     if (location.pathname === "/favorites") return "favorites";
     if (location.pathname === "/purchased") return "purchased";
-    if (location.pathname === "/my-playlists") return "playlists";
+    if (location.pathname.includes("/my-playlists") || playlistId) return "playlists";
     return "purchased";
   };
   
@@ -125,11 +127,14 @@ export default function Library() {
     const { beats } = await getPlaylistWithBeats(playlist.id);
     setPlaylistBeats(beats);
     setPlaylistLoading(false);
+    
+    // Update URL without full navigation
+    navigate(`/my-playlists/${playlist.id}`, { replace: true });
   };
   
   const handleBackToPlaylists = () => {
     setSelectedPlaylist(null);
-    navigate("/my-playlists");
+    navigate("/my-playlists", { replace: true });
   };
   
   const handlePlayAll = () => {
@@ -139,6 +144,10 @@ export default function Library() {
   
   const toggleViewMode = () => {
     setViewMode(viewMode === 'grid' ? 'list' : 'grid');
+  };
+
+  const isCurrentlyPlaying = (beatId: string) => {
+    return isPlaying && currentBeat?.id === beatId;
   };
 
   if (!user) {
@@ -235,9 +244,9 @@ export default function Library() {
             <div className="w-full md:w-1/3 lg:w-1/4">
               <div className="aspect-square bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg overflow-hidden shadow-lg">
                 {playlistBeats.length > 0 ? (
-                  <div className="grid grid-cols-2 h-full">
+                  <div className="grid grid-cols-2 h-full w-full">
                     {playlistBeats.slice(0, 4).map((beat, idx) => (
-                      <div key={idx} className="relative overflow-hidden">
+                      <div key={idx} className="relative h-full w-full overflow-hidden">
                         <img 
                           src={beat.cover_image_url || '/placeholder.svg'} 
                           alt={beat.title}
@@ -247,7 +256,7 @@ export default function Library() {
                       </div>
                     ))}
                     {Array.from({ length: Math.max(0, 4 - playlistBeats.length) }).map((_, idx) => (
-                      <div key={`empty-${idx}`} className="bg-black/20"></div>
+                      <div key={`empty-${idx}`} className="bg-black/20 h-full w-full"></div>
                     ))}
                   </div>
                 ) : (
@@ -355,7 +364,7 @@ export default function Library() {
                         </div>
                         
                         <div className="hidden md:block text-sm text-muted-foreground text-right pr-8">
-                          3:24 {/* This would typically come from the beat data */}
+                          {beat.duration || "3:24"}
                         </div>
                         
                         <div className="">
@@ -365,7 +374,7 @@ export default function Library() {
                             className="h-8 w-8"
                             onClick={() => playBeat(beat)}
                           >
-                            <Play size={16} />
+                            {isCurrentlyPlaying(beat.id) ? <Pause size={16} /> : <Play size={16} />}
                           </Button>
                         </div>
                       </div>

@@ -21,7 +21,8 @@ import {
   User,
   MoreHorizontal,
   LogOut,
-  Search
+  Search,
+  BookOpen
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -75,7 +76,7 @@ export function Sidebar() {
     else if (path === "/producer/dashboard") setActiveBottomTab("producer");
     else if (path === "/producer/beats") setActiveBottomTab("beats");
     else if (path === "/producer/royalties") setActiveBottomTab("royalties");
-    else if (path.includes("/my-playlists") || path.includes("/purchased")) setActiveBottomTab("more");
+    else if (path.includes("/my-playlists") || path.includes("/purchased") || path.includes("/library")) setActiveBottomTab("library");
     else setActiveBottomTab("");
   }, [location.pathname, isMobile]);
 
@@ -133,6 +134,7 @@ export function Sidebar() {
           { icon: Heart, title: "Favorites", href: "/favorites" },
           { icon: LayoutGrid, title: "My Playlists", href: "/my-playlists" },
           { icon: Music, title: "Purchased", href: "/purchased" },
+          { icon: BookOpen, title: "Library", href: "/library" },
         ]
       });
     }
@@ -164,7 +166,7 @@ export function Sidebar() {
     } else {
       mobileMenuItems = [
         { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
-        { icon: <TrendingUp size={20} />, label: "Trending", to: "/trending", id: "trending" },
+        { icon: <BookOpen size={20} />, label: "Library", to: "/library", id: "library" },
         { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
         { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
         { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
