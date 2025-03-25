@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -24,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getLicensePrice } from '@/utils/licenseUtils';
+import { getUserPlaylists, addBeatToPlaylist } from '@/lib/playlistService';
 
 interface BeatCardProps {
   beat: Beat;
@@ -154,20 +154,16 @@ export function BeatCard({
     navigate(`/beat/${beat.id}`);
   };
   
-  // Determine the license type to display
   const displayLicenseType = beat.license_type || 'basic';
   
-  // Get the appropriate price for this license
   const getDisplayPrice = () => {
     const { currency } = useAuth();
     const isDiaspora = currency === 'USD';
     
     if (displayLicenseType && !['basic', 'premium', 'exclusive'].includes(displayLicenseType)) {
-      // For custom license types, use the base price
       return isDiaspora ? beat.price_diaspora : beat.price_local;
     }
     
-    // For standard license types, use the utility function
     return getLicensePrice(beat, displayLicenseType, isDiaspora);
   };
 
@@ -179,7 +175,6 @@ export function BeatCard({
         className
       )}
     >
-      {/* Cover image with play button overlay */}
       <div className="relative aspect-square overflow-hidden">
         <img
           src={beat.cover_image_url || '/placeholder.svg'}
@@ -196,7 +191,6 @@ export function BeatCard({
           </button>
         </div>
         
-        {/* Status indicators */}
         {isCurrentlyPlaying && (
           <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
             Playing
@@ -208,7 +202,6 @@ export function BeatCard({
           </div>
         )}
         
-        {/* License badge if it's a custom license */}
         {displayLicenseType && !['basic', 'premium', 'exclusive'].includes(displayLicenseType) && (
           <div className="absolute bottom-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded-full capitalize">
             {displayLicenseType}
@@ -216,9 +209,7 @@ export function BeatCard({
         )}
       </div>
 
-      {/* Beat info section */}
       <div className="flex flex-col p-4 space-y-3">
-        {/* Title, producer and price tag */}
         <div className="flex flex-col">
           <h3 className="font-medium text-base leading-tight tracking-tight truncate">
             {beat.title}
@@ -239,7 +230,6 @@ export function BeatCard({
           />
         </div>
         
-        {/* Action buttons */}
         <div className="flex items-center gap-2 pt-1">
           {!isPurchased && !inCart && (
             <Button
