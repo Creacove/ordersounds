@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Bookmark } from "lucide-react";
@@ -8,7 +7,7 @@ import { BeatCard } from "@/components/ui/BeatCard";
 import { BeatListItem } from "@/components/ui/BeatListItem";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
-import { useAuth } from "@/context/AuthContext"; // Change to useAuth instead of useAuthState
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +27,7 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const { playBeat } = usePlayer();
-  const { user } = useAuth(); // Correctly use useAuth hook
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const handlePlayFeatured = () => {
@@ -42,7 +41,10 @@ export default function Home() {
     playBeat(beat);
   };
 
-  // Categories for quick browsing
+  const navigateToBeat = (beatId) => {
+    navigate(`/beat/${beatId}`);
+  };
+
   const categories = [
     { name: "Afrobeat", icon: <Sparkles size={16} /> },
     { name: "Hip Hop", icon: <Flame size={16} /> },
@@ -50,10 +52,8 @@ export default function Home() {
     { name: "Amapiano", icon: <Sparkles size={16} /> },
   ];
 
-  // Weekly picks in list format
   const weeklyPicks = trendingBeats.slice(0, 6);
 
-  // Producer of the week
   const producerOfWeek = {
     id: '1', 
     name: 'JUNE', 
@@ -65,7 +65,6 @@ export default function Home() {
     beats: trendingBeats.slice(0, 4)
   };
 
-  // Top producers (moved lower in the page)
   const topProducers = [
     { id: '1', name: 'Metro Boomin', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
     { id: '2', name: 'JUNE', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
@@ -74,7 +73,6 @@ export default function Home() {
     { id: '5', name: 'KBeatz', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
   ];
 
-  // Featured playlists
   const featuredPlaylists = [
     { id: '1', title: 'Piano Vibes', color: 'from-blue-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 12 },
     { id: '2', title: 'Guitar Classics', color: 'from-orange-500 to-red-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 8 },
@@ -85,10 +83,8 @@ export default function Home() {
   return (
     <MainLayoutWithPlayer>
       <div className="min-h-screen">
-        {/* Hero section with featured beat - SHORTER HEIGHT */}
         {featuredBeat && (
           <section className="relative h-[200px] md:h-[250px] lg:h-[300px] overflow-hidden">
-            {/* Background image with overlay */}
             <div className="absolute inset-0 z-0">
               <img 
                 src={featuredBeat.cover_image_url} 
@@ -98,16 +94,21 @@ export default function Home() {
               <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
             </div>
             
-            {/* Content */}
             <div className="relative z-10 h-full container flex flex-col justify-center">
               <div className="max-w-2xl">
                 <div className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium mb-3 animate-pulse-gentle">
                   Featured Beat
                 </div>
-                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 text-white">
+                <h1 
+                  className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 text-white cursor-pointer hover:underline"
+                  onClick={() => navigate(`/beat/${featuredBeat.id}`)}
+                >
                   {featuredBeat.title}
                 </h1>
-                <div className="text-md font-medium mb-2 text-white/90">
+                <div 
+                  className="text-md font-medium mb-2 text-white/90 cursor-pointer hover:underline"
+                  onClick={() => navigate(`/producer/${featuredBeat.producer_id}`)}
+                >
                   {featuredBeat.producer_name}
                 </div>
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -134,8 +135,13 @@ export default function Home() {
                       </>
                     )}
                   </Button>
-                  <Button variant="outline" size="sm" className="gap-2 bg-white/10 backdrop-blur-sm text-white border-white/20 hover:bg-white/20">
-                    Add to favourite
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 bg-white/10 backdrop-blur-sm text-white border-white/20 hover:bg-white/20"
+                    onClick={() => navigate(`/beat/${featuredBeat.id}`)}
+                  >
+                    View details
                   </Button>
                 </div>
               </div>
@@ -143,7 +149,6 @@ export default function Home() {
           </section>
         )}
 
-        {/* Quick category browse section */}
         <div className="container py-4 overflow-hidden bg-black/5 dark:bg-white/5">
           <div className="flex overflow-x-auto pb-2 scrollbar-hide -mx-2 px-6">
             <div className="flex gap-2">
@@ -168,9 +173,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Main content */}
         <div className="container py-6">
-          {/* Filter and search controls */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Browse Beats</h2>
             <Button 
@@ -184,7 +187,6 @@ export default function Home() {
             </Button>
           </div>
 
-          {/* Filter panel (collapsible) */}
           {showFilters && (
             <div className="bg-card rounded-lg p-4 mb-6 animate-slide-down shadow-sm border">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -233,7 +235,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Trending Beats Section */}
           <section className="mb-10">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
@@ -271,7 +272,6 @@ export default function Home() {
             )}
           </section>
 
-          {/* IMPROVED Weekly Picks as a List View with better responsiveness */}
           <section className="bg-card/50 p-4 sm:p-6 rounded-lg mb-10 border">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
@@ -284,7 +284,11 @@ export default function Home() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {weeklyPicks.map((beat) => (
-                <div key={beat.id} className="p-3 bg-background/50 rounded-md border border-border/50 flex items-center gap-3 hover:bg-background/80 transition-colors">
+                <div 
+                  key={beat.id} 
+                  className="p-3 bg-background/50 rounded-md border border-border/50 flex items-center gap-3 hover:bg-background/80 transition-colors cursor-pointer"
+                  onClick={() => navigate(`/beat/${beat.id}`)}
+                >
                   <div className="w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden flex-shrink-0">
                     <img 
                       src={beat.cover_image_url} 
@@ -294,7 +298,15 @@ export default function Home() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-medium text-sm md:text-base truncate">{beat.title}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{beat.producer_name}</p>
+                    <p 
+                      className="text-xs text-muted-foreground truncate hover:text-primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/producer/${beat.producer_id}`);
+                      }}
+                    >
+                      {beat.producer_name}
+                    </p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-xs py-0 px-1.5 h-5 truncate">
                         {beat.genre}
@@ -308,7 +320,10 @@ export default function Home() {
                     size="icon" 
                     variant="ghost" 
                     className="flex-shrink-0 h-8 w-8 rounded-full"
-                    onClick={() => handlePlayBeat(beat)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayBeat(beat);
+                    }}
                   >
                     <Play size={16} />
                   </Button>
@@ -317,7 +332,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* New Beats Section */}
           <section className="mb-10">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
@@ -355,7 +369,6 @@ export default function Home() {
             )}
           </section>
 
-          {/* Top Producers section - moved up from bottom */}
           <section className="mb-10 bg-background pt-4 pb-4">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -392,7 +405,6 @@ export default function Home() {
             </div>
           </section>
 
-          {/* Featured Playlists Section - UPDATED */}
           <section className="mb-10">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
@@ -434,43 +446,39 @@ export default function Home() {
             </div>
           </section>
 
-          {/* IMPROVED CTA Section for logged-in users */}
           <section className="mb-10 bg-primary/5 rounded-lg py-8 px-6">
-            <div className="text-center">
-              {user ? ( // Check if user exists instead of isAuthenticated
-                <>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
-                    Discover More Music
-                  </h2>
-                  <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-                    Explore our vast library of beats from top producers or check out your personal recommendations.
-                  </p>
-                  <div className="flex flex-wrap gap-4 justify-center">
-                    <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
-                      <Link to="/trending">Explore Trending</Link>
-                    </Button>
-                    <Button variant="outline" size="lg" className="border-primary/20 hover:bg-primary/5" asChild>
-                      <Link to="/favorites">Your Favorites</Link>
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
-                    Unlock Premium Music
-                  </h2>
-                  <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-                    Join today to access exclusive beats, save favorites, and connect with top producers.
-                  </p>
+            {user ? (
+              <>
+                <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+                  Discover More Music
+                </h2>
+                <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+                  Explore our vast library of beats from top producers or check out your personal recommendations.
+                </p>
+                <div className="flex flex-wrap gap-4 justify-center">
                   <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
-                    <Link to="/signup">Create Account</Link>
+                    <Link to="/trending">Explore Trending</Link>
                   </Button>
-                </>
-              )}
-            </div>
+                  <Button variant="outline" size="lg" className="border-primary/20 hover:bg-primary/5" asChild>
+                    <Link to="/favorites">Your Favorites</Link>
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+                  Unlock Premium Music
+                </h2>
+                <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+                  Join today to access exclusive beats, save favorites, and connect with top producers.
+                </p>
+                <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                  <Link to="/signup">Create Account</Link>
+                </Button>
+              </>
+            )}
           </section>
 
-          {/* Producer of the Week Section - MOVED TO LAST & IMPROVED RESPONSIVENESS */}
           <section className="mb-10 bg-gradient-to-br from-purple-50/10 to-transparent dark:from-purple-900/5 rounded-lg p-6 border border-purple-200/20 dark:border-purple-800/20">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
@@ -486,7 +494,6 @@ export default function Home() {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Producer Profile Card - IMPROVED FOR MOBILE */}
               <div className="md:col-span-1">
                 <div className="bg-card rounded-lg overflow-hidden border shadow-sm h-full flex flex-col">
                   <div className="relative aspect-square md:aspect-auto md:h-64 bg-gradient-to-b from-primary/5 to-primary/10">
@@ -524,7 +531,6 @@ export default function Home() {
                 </div>
               </div>
               
-              {/* Producer Beats Table - IMPROVED RESPONSIVENESS */}
               <div className="md:col-span-2">
                 <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
                   <div className="p-4 border-b bg-muted/30">

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -132,10 +133,15 @@ export function BeatCard({
     navigate('/cart');
   };
 
+  const goToBeatDetail = () => {
+    navigate(`/beat/${beat.id}`);
+  };
+
   return (
     <div
+      onClick={goToBeatDetail}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md",
+        "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md cursor-pointer",
         className
       )}
     >
