@@ -4,6 +4,34 @@ import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 
+// Add an interface to properly type the beatData object
+interface BeatUploadData {
+  producer_id: string;
+  title: string;
+  description: string;
+  genre: string;
+  track_type: string;
+  bpm: number;
+  tags: string[];
+  price_local: number;
+  price_diaspora: number;
+  status: 'draft' | 'published';
+  cover_image: string;
+  audio_preview: string;
+  audio_file: string;
+  favorites_count: number;
+  purchase_count: number;
+  plays: number;
+  license_terms: string;
+  license_type?: string;
+  basic_license_price_local?: number;
+  basic_license_price_diaspora?: number;
+  premium_license_price_local?: number;
+  premium_license_price_diaspora?: number;
+  exclusive_license_price_local?: number;
+  exclusive_license_price_diaspora?: number;
+}
+
 /**
  * Uploads a beat with all its associated files and metadata to Supabase
  */
@@ -56,7 +84,7 @@ export const uploadBeat = async (
     console.log('Inserting beat record into database...');
     
     // Prepare the beat data for insertion
-    const beatData = {
+    const beatData: BeatUploadData = {
       producer_id: producerId,
       title: beatInfo.title,
       description: beatInfo.description,

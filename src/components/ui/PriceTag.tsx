@@ -8,7 +8,7 @@ interface PriceTagProps {
   size?: "sm" | "md" | "lg";
   className?: string;
   licenseType?: string;
-  onClick?: () => void;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 export function PriceTag({ 
@@ -40,9 +40,15 @@ export function PriceTag({
     lg: "text-sm sm:text-base font-bold px-2.5 py-0.5 leading-normal"
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (onClick) {
+      onClick(e);
+    }
+  };
+
   return (
     <span 
-      onClick={onClick}
+      onClick={handleClick}
       className={cn(
         "inline-flex items-center justify-center bg-primary/10 text-primary rounded-full whitespace-nowrap", 
         sizeClasses[size],

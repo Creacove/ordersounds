@@ -19,7 +19,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal
 } from "@/components/ui/dropdown-menu";
-import { getUserPlaylists, addBeatToPlaylist } from '@/lib/playlistService';
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -233,7 +232,7 @@ export function BeatCard({
             size="sm"
             className="self-start"
             licenseType={!['basic', 'premium', 'exclusive'].includes(displayLicenseType) ? displayLicenseType : undefined}
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
               goToBeatDetail();
             }}

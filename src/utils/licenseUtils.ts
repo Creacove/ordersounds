@@ -52,3 +52,21 @@ export const getLicensePrice = (
     }
   }
 };
+
+/**
+ * Get a description for a license type
+ * @param licenseType The type of license
+ * @returns A short description of the license
+ */
+export const getLicenseDescription = (licenseType: string): string => {
+  switch (licenseType) {
+    case 'basic':
+      return 'Limited distribution rights';
+    case 'premium':
+      return 'Extended distribution & broadcasting';
+    case 'exclusive':
+      return 'Full ownership transfer';
+    default:
+      return 'Custom license terms';
+  }
+};
