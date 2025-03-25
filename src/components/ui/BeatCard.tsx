@@ -141,36 +141,48 @@ export function BeatCard({
     <div
       onClick={goToBeatDetail}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md cursor-pointer",
+        "group relative flex flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow transition-all hover:shadow-md cursor-pointer",
         className
       )}
     >
       {/* Cover image with play button overlay */}
-      <div className="relative aspect-square overflow-hidden bg-secondary/20">
+      <div className="relative aspect-square overflow-hidden">
         <img
           src={beat.cover_image_url || '/placeholder.svg'}
           alt={beat.title}
-          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={handlePlay}
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-110 shadow-md"
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-110 shadow-xl"
             aria-label={isCurrentlyPlaying ? "Pause" : "Play"}
           >
-            {isCurrentlyPlaying ? <Pause size={20} /> : <Play size={20} />}
+            {isCurrentlyPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
           </button>
         </div>
+        
+        {/* Status indicators */}
+        {isCurrentlyPlaying && (
+          <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+            Playing
+          </div>
+        )}
+        {isPurchased && (
+          <div className="absolute top-2 left-2 bg-green-500/90 text-white text-xs px-2 py-1 rounded-full">
+            Purchased
+          </div>
+        )}
       </div>
 
-      {/* Beat info section - redesigned for better mobile visibility */}
-      <div className="flex flex-col p-3 space-y-2">
-        {/* Mobile-optimized layout with price tag under title and producer name */}
+      {/* Beat info section - redesigned for better visibility */}
+      <div className="flex flex-col p-4 space-y-3">
+        {/* Title, producer and price tag */}
         <div className="flex flex-col">
-          <h3 className="font-medium text-sm leading-tight tracking-tight truncate">
+          <h3 className="font-medium text-base leading-tight tracking-tight truncate">
             {beat.title}
           </h3>
-          <p className="text-xs text-muted-foreground truncate mb-1">
+          <p className="text-sm text-muted-foreground truncate mb-2">
             {beat.producer_name}
           </p>
           <PriceTag
@@ -182,16 +194,16 @@ export function BeatCard({
         </div>
         
         {/* Action buttons */}
-        <div className="flex items-center gap-1.5 pt-1">
+        <div className="flex items-center gap-2 pt-1">
           {!isPurchased && !inCart && (
             <Button
               variant="ghost"
               size="icon"
               onClick={handleAddToCart}
-              className="h-7 w-7 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              className="h-8 w-8 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90"
               title="Add to Cart"
             >
-              <ShoppingCart size={14} />
+              <ShoppingCart size={15} />
             </Button>
           )}
 
@@ -200,10 +212,10 @@ export function BeatCard({
               variant="ghost"
               size="icon"
               onClick={goToCart}
-              className="h-7 w-7 rounded-md bg-primary/20 text-primary hover:bg-primary/30"
+              className="h-8 w-8 rounded-lg bg-primary/20 text-primary hover:bg-primary/30"
               title="Go to Cart"
             >
-              <ShoppingCart size={14} />
+              <ShoppingCart size={15} />
             </Button>
           )}
 
@@ -215,14 +227,14 @@ export function BeatCard({
                 onClick={handleToggleFavorite}
                 aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
                 className={cn(
-                  "h-7 w-7 rounded-md transition-colors",
+                  "h-8 w-8 rounded-lg transition-colors",
                   isFavorite
                     ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
                 )}
                 title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
-                <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
+                <Heart size={15} fill={isFavorite ? "currentColor" : "none"} />
               </Button>
               
               <DropdownMenu>
@@ -230,11 +242,11 @@ export function BeatCard({
                   <Button 
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                    className="h-8 w-8 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90 ml-auto"
                     aria-label="More options"
                     title="More options"
                   >
-                    <MoreVertical size={14} />
+                    <MoreVertical size={15} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
