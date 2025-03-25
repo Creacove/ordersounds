@@ -274,12 +274,9 @@ const BeatDetail = () => {
                       <Music size={12} /> {beat.genre}
                     </span>
                     {beat.key && (
-                      <>
-                        <span className="text-xs text-muted-foreground mx-1">•</span>
-                        <span className="text-xs text-muted-foreground">
-                          Key: {beat.key}
-                        </span>
-                      </>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Music size={12} className="text-primary/70" /> Key: {beat.key}
+                      </span>
                     )}
                     <span className="text-xs text-muted-foreground mx-1">•</span>
                     <span className="text-xs text-muted-foreground">
