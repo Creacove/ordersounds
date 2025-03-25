@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -156,7 +155,7 @@ export const uploadBeat = async (
       console.log('Inserting royalty splits...');
       const royaltySplits = collaborators.map(collaborator => ({
         beat_id: beatId,
-        party_id: collaborator.id === 1 ? producerId : null, // Main producer uses their ID
+        party_id: collaborator.id === 1 ? producerId : null,
         party_email: collaborator.email,
         party_name: collaborator.name,
         party_role: collaborator.role,

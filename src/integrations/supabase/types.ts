@@ -23,6 +23,7 @@ export type Database = {
           favorites_count: number | null
           genre: string | null
           id: string
+          key: string | null
           license_terms: string | null
           license_type: string | null
           plays: number | null
@@ -51,6 +52,7 @@ export type Database = {
           favorites_count?: number | null
           genre?: string | null
           id?: string
+          key?: string | null
           license_terms?: string | null
           license_type?: string | null
           plays?: number | null
@@ -79,6 +81,7 @@ export type Database = {
           favorites_count?: number | null
           genre?: string | null
           id?: string
+          key?: string | null
           license_terms?: string | null
           license_type?: string | null
           plays?: number | null

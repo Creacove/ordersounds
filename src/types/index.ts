@@ -44,7 +44,7 @@ export interface Beat {
   custom_license_price_local?: number;
   custom_license_price_diaspora?: number;
   plays?: number;
-  key?: string; // Adding the key property
+  key?: string; // Added key property to the Beat interface
 }
 
 export interface Playlist {

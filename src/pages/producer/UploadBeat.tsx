@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,7 +63,6 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
-      // Set a primary license type if multiple are selected
       const primaryLicenseType = selectedLicenseTypes[0] || "basic";
       
       const beatData = {
@@ -92,7 +90,6 @@ export default function UploadBeat() {
         throw new Error("Missing required files");
       }
 
-      // Make sure the first collaborator is the uploader
       if (collaborators[0].id === 1) {
         collaborators[0].name = user.name;
         collaborators[0].email = user.email || '';
@@ -132,7 +129,6 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
-      // Set a primary license type if multiple are selected
       const primaryLicenseType = selectedLicenseTypes[0] || "basic";
       
       const beatData = {
@@ -160,7 +156,6 @@ export default function UploadBeat() {
         throw new Error("Missing required files");
       }
 
-      // Make sure the first collaborator is the uploader
       if (collaborators[0].id === 1) {
         collaborators[0].name = user.name;
         collaborators[0].email = user.email || '';
