@@ -96,20 +96,42 @@ const Index = () => {
     enabled: true
   });
 
-  // Producer of the week - now fetched from the database
+  // Producer of the week - fetch the producer with the most beats
   const { data: producerOfWeek } = useQuery({
     queryKey: ['producerOfWeek'],
     queryFn: async () => {
-      // Get a random producer with their beat count
-      const { data, error } = await supabase
+      // First, get the count of beats for each producer
+      const { data: beatsPerProducer, error: beatsError } = await supabase
+        .from('beats')
+        .select('producer_id, count(*)')
+        .group('producer_id')
+        .order('count', { ascending: false })
+        .limit(1);
+      
+      if (beatsError || !beatsPerProducer || beatsPerProducer.length === 0) {
+        console.error('Error fetching producer beat counts:', beatsError);
+        return {
+          id: '1', 
+          name: 'JUNE', 
+          avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+          followers: 12564,
+          beatsSold: 432,
+          verified: true
+        };
+      }
+      
+      // Get the producer with the most beats
+      const topProducerId = beatsPerProducer[0].producer_id;
+      
+      // Get producer details
+      const { data: producer, error: producerError } = await supabase
         .from('users')
         .select('id, stage_name, full_name, profile_picture, bio, country')
-        .eq('role', 'producer')
-        .limit(1)
+        .eq('id', topProducerId)
         .single();
       
-      if (error) {
-        console.error('Error fetching producer of week:', error);
+      if (producerError || !producer) {
+        console.error('Error fetching top producer:', producerError);
         return {
           id: '1', 
           name: 'JUNE', 
@@ -121,10 +143,7 @@ const Index = () => {
       }
       
       // Get beat count
-      const { count: beatCount } = await supabase
-        .from('beats')
-        .select('id', { count: 'exact', head: true })
-        .eq('producer_id', data.id);
+      const beatCount = beatsPerProducer[0].count;
       
       // Get sales count
       const { count: salesCount } = await supabase
@@ -133,18 +152,19 @@ const Index = () => {
         .in('beat_id', supabase
           .from('beats')
           .select('id')
-          .eq('producer_id', data.id)
+          .eq('producer_id', producer.id)
         );
       
       return {
-        id: data.id, 
-        name: data.stage_name || data.full_name, 
-        avatar: data.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+        id: producer.id, 
+        name: producer.stage_name || producer.full_name, 
+        avatar: producer.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
         followers: Math.floor(Math.random() * 15000) + 5000, // Random followers count for now
         beatsSold: salesCount || Math.floor(Math.random() * 500) + 100,
+        beatCount: beatCount,
         verified: true,
-        bio: data.bio,
-        location: data.country
+        bio: producer.bio,
+        location: producer.country
       };
     },
     enabled: true
@@ -260,7 +280,7 @@ const Index = () => {
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {featuredPlaylists.map((playlist) => (
-              <Link key={playlist.id} to={`/playlists/${playlist.id}`} className="block">
+              <Link key={playlist.id} to={`/playlist/${playlist.id}`} className="block">
                 <div className={`aspect-square rounded-lg overflow-hidden bg-gradient-to-br ${playlist.color} relative group`}>
                   <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
                   <div className="p-4 flex flex-col h-full justify-between">
@@ -593,7 +613,14 @@ const Index = () => {
                           <span className="text-sm font-medium">{beat.title}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm">{beat.producer_name}</td>
+                      <td className="px-4 py-3 text-sm">
+                        <Link 
+                          to={`/producer/${beat.producer_id}`}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {beat.producer_name}
+                        </Link>
+                      </td>
                       <td className="px-4 py-3 text-sm">{beat.genre}</td>
                       <td className="px-4 py-3 text-sm">{beat.sales}</td>
                       <td className="px-4 py-3 text-sm">
