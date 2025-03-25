@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import { 
   Play, ExternalLink, UserPlus, Share2, Mail, MapPin, 
   Calendar, Star, Music, Heart, ShoppingCart, 
@@ -24,56 +25,100 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const ProducerProfile = () => {
   const { producerId } = useParams();
-  const { trendingBeats, newBeats, isLoading } = useBeats();
+  const { beats, isLoading } = useBeats();
   const { playBeat } = usePlayer();
   const [currentPage, setCurrentPage] = useState(1);
   const beatsPerPage = 8;
+  const [producer, setProducer] = useState(null);
+  const [producerBeats, setProducerBeats] = useState([]);
+  const [isLoadingProducer, setIsLoadingProducer] = useState(true);
 
-  const producer = {
-    id: producerId,
-    name: "JUNE",
-    fullName: "June Akesson",
-    username: "producerjune",
-    bio: "Award-winning producer specializing in Afrobeat and Amapiano fusion. I've worked with top artists across Nigeria and beyond. Known for my unique blend of traditional sounds with modern production techniques.",
-    location: "Lagos, Nigeria",
-    joinDate: "January 2020",
-    verified: true,
-    avatar: "/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png",
-    coverImage: "/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png",
-    stats: {
-      followers: 12564,
-      beats: 68,
-      sales: 432,
-      rating: 4.8
-    },
-    socialLinks: [
-      { platform: "instagram", url: "https://instagram.com/producerjune" },
-      { platform: "twitter", url: "https://twitter.com/producerjune" },
-      { platform: "youtube", url: "https://youtube.com/producerjune" },
-      { platform: "website", url: "https://producerjune.com" }
-    ],
-    genres: ["Afrobeat", "Amapiano", "Hip Hop", "R&B"],
-    profileImageUrl: "/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png"
-  };
+  // Fetch producer details
+  useEffect(() => {
+    const fetchProducer = async () => {
+      setIsLoadingProducer(true);
+      try {
+        if (!producerId) return;
 
-  const producerBeats = trendingBeats.map((beat, index) => ({
-    ...beat,
-    producer_name: producer.name,
-    plays: 1200 - (index * 50),
-    downloads: 85 - (index * 5),
-    releaseDate: "2023-11-15",
-    key: ["C Major", "D Minor", "G Major", "A Minor", "F Major"][index % 5]
-  }));
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, stage_name, full_name, bio, profile_picture, country, created_at')
+          .eq('id', producerId)
+          .single();
+
+        if (error) throw error;
+
+        // Format the producer data
+        const producerData = {
+          id: data.id,
+          name: data.stage_name || data.full_name || 'Unknown Producer',
+          fullName: data.full_name || '',
+          username: data.stage_name?.toLowerCase().replace(/\s+/g, '') || 'producer',
+          bio: data.bio || 'No bio available',
+          location: data.country || 'Unknown Location',
+          joinDate: new Date(data.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+          verified: true,
+          avatar: data.profile_picture,
+          coverImage: data.profile_picture,
+          stats: {
+            followers: Math.floor(Math.random() * 10000), // Mock data
+            beats: 0, // Will update when we get beats
+            sales: Math.floor(Math.random() * 500), // Mock data
+            rating: (4 + Math.random()).toFixed(1) // Mock data between 4 and 5
+          },
+          socialLinks: [
+            { platform: "instagram", url: `https://instagram.com/${data.stage_name?.toLowerCase().replace(/\s+/g, '')}` },
+            { platform: "twitter", url: `https://twitter.com/${data.stage_name?.toLowerCase().replace(/\s+/g, '')}` },
+            { platform: "website", url: `https://${data.stage_name?.toLowerCase().replace(/\s+/g, '')}.com` }
+          ],
+          genres: ["Afrobeat", "Amapiano", "Hip Hop", "R&B"],
+          profileImageUrl: data.profile_picture || "/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png"
+        };
+
+        setProducer(producerData);
+      } catch (error) {
+        console.error('Error fetching producer:', error);
+        toast.error('Failed to load producer information');
+      } finally {
+        setIsLoadingProducer(false);
+      }
+    };
+
+    fetchProducer();
+  }, [producerId]);
+
+  // Filter beats by this producer
+  useEffect(() => {
+    if (!isLoading && beats.length > 0 && producerId) {
+      const producerBeatsData = beats.filter(beat => beat.producer_id === producerId);
+      setProducerBeats(producerBeatsData);
+      
+      // Update producer stats with actual beat count
+      if (producer) {
+        setProducer(prev => ({
+          ...prev,
+          stats: {
+            ...prev.stats,
+            beats: producerBeatsData.length
+          }
+        }));
+      }
+    }
+  }, [beats, isLoading, producerId, producer]);
 
   const indexOfLastBeat = currentPage * beatsPerPage;
   const indexOfFirstBeat = indexOfLastBeat - beatsPerPage;
   const currentBeats = producerBeats.slice(indexOfFirstBeat, indexOfLastBeat);
   const totalPages = Math.ceil(producerBeats.length / beatsPerPage);
   
-  const popularBeats = producerBeats.slice(0, 5).sort((a, b) => b.plays - a.plays);
+  const popularBeats = [...producerBeats]
+    .sort((a, b) => (b.favorites_count || 0) - (a.favorites_count || 0))
+    .slice(0, 5);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -97,6 +142,7 @@ const ProducerProfile = () => {
     playBeat(beat);
   };
 
+  // Mock reviews for now
   const reviews = [
     {
       id: 1,
@@ -129,6 +175,41 @@ const ProducerProfile = () => {
       text: "One of the best producers I've worked with. The beats are unique and the quality is outstanding."
     }
   ];
+
+  if (isLoadingProducer) {
+    return (
+      <MainLayoutWithPlayer>
+        <div className="container py-8">
+          <div className="space-y-4">
+            <Skeleton className="h-[20vh] w-full" />
+            <div className="flex gap-4">
+              <Skeleton className="h-20 w-20 rounded-lg" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-8 w-1/3" />
+                <Skeleton className="h-4 w-1/4" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </MainLayoutWithPlayer>
+    );
+  }
+
+  // If producer is not found
+  if (!producer) {
+    return (
+      <MainLayoutWithPlayer>
+        <div className="container py-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Producer Not Found</h1>
+          <p className="text-muted-foreground mb-6">The producer you're looking for doesn't exist or has been removed.</p>
+          <Button asChild>
+            <Link to="/producers">Back to Producers</Link>
+          </Button>
+        </div>
+      </MainLayoutWithPlayer>
+    );
+  }
 
   return (
     <MainLayoutWithPlayer>
@@ -298,10 +379,15 @@ const ProducerProfile = () => {
                   Array(8).fill(0).map((_, i) => (
                     <div key={i} className="animate-pulse bg-card rounded-lg aspect-square" />
                   ))
-                ) : (
+                ) : currentBeats.length > 0 ? (
                   currentBeats.map((beat) => (
                     <BeatCard key={beat.id} beat={beat} />
                   ))
+                ) : (
+                  <div className="col-span-full text-center py-12">
+                    <h3 className="text-lg font-medium mb-2">No beats available</h3>
+                    <p className="text-muted-foreground">This producer hasn't uploaded any beats yet.</p>
+                  </div>
                 )}
               </div>
               
@@ -340,64 +426,71 @@ const ProducerProfile = () => {
             <TabsContent value="popular" className="space-y-8">
               <h2 className="text-2xl font-bold">Most Popular Beats</h2>
               
-              <div className="bg-card rounded-lg overflow-hidden border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead className="hidden md:table-cell">Genre</TableHead>
-                      <TableHead className="hidden md:table-cell">BPM</TableHead>
-                      <TableHead className="hidden md:table-cell">Key</TableHead>
-                      <TableHead>Plays</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {popularBeats.map((beat, index) => (
-                      <TableRow key={beat.id}>
-                        <TableCell className="font-medium p-2">{index + 1}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded overflow-hidden flex-shrink-0">
-                              <img 
-                                src={beat.cover_image_url} 
-                                alt={beat.title} 
-                                className="h-full w-full object-cover"
-                              />
-                            </div>
-                            <span className="font-medium truncate max-w-[140px] md:max-w-none">{beat.title}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden md:table-cell">{beat.genre}</TableCell>
-                        <TableCell className="hidden md:table-cell">{beat.bpm} BPM</TableCell>
-                        <TableCell className="hidden md:table-cell">{beat.key || 'N/A'}</TableCell>
-                        <TableCell>{beat.plays.toLocaleString()}</TableCell>
-                        <TableCell>₦{beat.price_local}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-8 w-8"
-                              onClick={() => handlePlayBeat(beat)}
-                            >
-                              <Play className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <Heart className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <ShoppingCart className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+              {popularBeats.length > 0 ? (
+                <div className="bg-card rounded-lg overflow-hidden border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Title</TableHead>
+                        <TableHead className="hidden md:table-cell">Genre</TableHead>
+                        <TableHead className="hidden md:table-cell">BPM</TableHead>
+                        <TableHead className="hidden md:table-cell">Key</TableHead>
+                        <TableHead>Plays</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    </TableHeader>
+                    <TableBody>
+                      {popularBeats.map((beat, index) => (
+                        <TableRow key={beat.id}>
+                          <TableCell className="font-medium p-2">{index + 1}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded overflow-hidden flex-shrink-0">
+                                <img 
+                                  src={beat.cover_image_url} 
+                                  alt={beat.title} 
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                              <span className="font-medium truncate max-w-[140px] md:max-w-none">{beat.title}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="hidden md:table-cell">{beat.genre}</TableCell>
+                          <TableCell className="hidden md:table-cell">{beat.bpm} BPM</TableCell>
+                          <TableCell className="hidden md:table-cell">{beat.key || 'N/A'}</TableCell>
+                          <TableCell>{beat.favorites_count || 0}</TableCell>
+                          <TableCell>₦{beat.price_local}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8"
+                                onClick={() => handlePlayBeat(beat)}
+                              >
+                                <Play className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <Heart className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <ShoppingCart className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-card rounded-lg border">
+                  <h3 className="text-lg font-medium mb-2">No popular beats yet</h3>
+                  <p className="text-muted-foreground">This producer's beats haven't received any plays yet.</p>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="about" className="space-y-8">
