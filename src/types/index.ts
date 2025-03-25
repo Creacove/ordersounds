@@ -41,6 +41,7 @@ export interface Beat {
   premium_license_price_diaspora?: number;
   exclusive_license_price_local?: number;
   exclusive_license_price_diaspora?: number;
+  plays?: number; // Adding the plays property
 }
 
 export interface Playlist {

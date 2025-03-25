@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -16,6 +15,7 @@ interface CartContextType {
   clearCart: () => void;
   isInCart: (beatId: string) => boolean;
   getCartItemCount: () => number;
+  itemCount: number;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -25,7 +25,8 @@ const CartContext = createContext<CartContextType>({
   removeFromCart: () => {},
   clearCart: () => {},
   isInCart: () => false,
-  getCartItemCount: () => 0
+  getCartItemCount: () => 0,
+  itemCount: 0
 });
 
 export const useCart = () => useContext(CartContext);
@@ -34,33 +35,41 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { user, currency } = useAuth();
   const [totalAmount, setTotalAmount] = useState(0);
+  const [itemCount, setItemCount] = useState(0);
 
-  // Load cart from local storage on mount
   useEffect(() => {
     if (user) {
       const savedCart = localStorage.getItem(`cart_${user.id}`);
       if (savedCart) {
         try {
-          setCartItems(JSON.parse(savedCart));
+          const parsedCart = JSON.parse(savedCart);
+          setCartItems(parsedCart);
+          setItemCount(parsedCart.length);
         } catch (error) {
           console.error("Error loading cart from local storage:", error);
           setCartItems([]);
+          setItemCount(0);
         }
+      } else {
+        setCartItems([]);
+        setItemCount(0);
       }
     } else {
       setCartItems([]);
+      setItemCount(0);
     }
   }, [user]);
 
-  // Calculate total whenever cart or currency changes
   useEffect(() => {
     if (cartItems.length === 0) {
       setTotalAmount(0);
+      setItemCount(0);
       return;
     }
 
+    setItemCount(cartItems.length);
+
     const newTotal = cartItems.reduce((total, item) => {
-      // Get price based on license type
       let price = 0;
       if (currency === 'NGN') {
         if (item.beat.selected_license === 'basic') {
@@ -89,7 +98,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     setTotalAmount(newTotal);
   }, [cartItems, currency]);
 
-  // Save cart to local storage whenever it changes
   useEffect(() => {
     if (user) {
       localStorage.setItem(`cart_${user.id}`, JSON.stringify(cartItems));
@@ -99,12 +107,9 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const addToCart = (beat: Beat & { selected_license?: string }) => {
     if (!user) return;
     
-    // Check if beat is already in cart
     const existingItem = cartItems.find(item => item.beat.id === beat.id);
     
     if (existingItem) {
-      // If the beat is already in the cart but with a different license,
-      // update the license
       if (existingItem.beat.selected_license !== beat.selected_license) {
         setCartItems(prevItems => 
           prevItems.map(item => 
@@ -115,7 +120,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         );
       }
     } else {
-      // Add new item to cart
       setCartItems(prevItems => [
         ...prevItems, 
         { 
@@ -150,7 +154,8 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       removeFromCart, 
       clearCart,
       isInCart,
-      getCartItemCount
+      getCartItemCount,
+      itemCount
     }}>
       {children}
     </CartContext.Provider>

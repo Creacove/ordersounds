@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -13,12 +12,13 @@ import { toast } from "sonner";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from "@/components/ui/badge";
+import { getLicensePrice } from "@/utils/licenseUtils";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
   const { user, currency } = useAuth();
   const { toggleFavorite, isFavorite } = useBeats();
-  const { isPlaying, currentBeat, playBeat, togglePlayPause } = usePlayer();
+  const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   
   const handleRemoveItem = (beatId: string) => {
@@ -37,7 +37,11 @@ export default function Cart() {
 
   const handlePlayBeat = (beat) => {
     if (currentBeat?.id === beat.id) {
-      togglePlayPause();
+      if (isPlaying) {
+        playBeat(null);
+      } else {
+        playBeat(beat);
+      }
     } else {
       playBeat(beat);
     }
@@ -220,25 +224,3 @@ export default function Cart() {
     </MainLayoutWithPlayer>
   );
 };
-
-// Helper function to get the correct price based on license type
-function getLicensePrice(beat, licenseType = 'basic', isForeign = false) {
-  if (!beat) return 0;
-  
-  const priceMap = {
-    basic: {
-      local: beat.basic_license_price_local || beat.price_local * 0.5,
-      diaspora: beat.basic_license_price_diaspora || beat.price_diaspora * 0.5
-    },
-    premium: {
-      local: beat.premium_license_price_local || beat.price_local,
-      diaspora: beat.premium_license_price_diaspora || beat.price_diaspora
-    },
-    exclusive: {
-      local: beat.exclusive_license_price_local || beat.price_local * 3,
-      diaspora: beat.exclusive_license_price_diaspora || beat.price_diaspora * 3
-    }
-  };
-  
-  return isForeign ? priceMap[licenseType].diaspora : priceMap[licenseType].local;
-}
