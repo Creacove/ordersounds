@@ -1,4 +1,6 @@
+
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Search, MusicIcon, UserIcon, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,7 @@ import { useBeats } from "@/hooks/useBeats";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -15,7 +18,32 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false);
   const { beats, isLoading } = useBeats();
   const [searchResults, setSearchResults] = useState(beats);
+  const [producers, setProducers] = useState([]);
+  const [loadingProducers, setLoadingProducers] = useState(true);
   const isMobile = useIsMobile();
+
+  // Fetch producers from the database
+  useEffect(() => {
+    const fetchProducers = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, full_name, stage_name, profile_picture, bio, country')
+          .eq('role', 'producer')
+          .limit(20);
+        
+        if (error) throw error;
+        
+        setProducers(data || []);
+      } catch (error) {
+        console.error('Error fetching producers:', error);
+      } finally {
+        setLoadingProducers(false);
+      }
+    };
+
+    fetchProducers();
+  }, []);
 
   // Process search results whenever search term changes
   useEffect(() => {
@@ -41,7 +69,7 @@ export default function SearchPage() {
   }, [searchTerm, beats, activeTab]);
 
   // Reset search when tab changes
-  const handleTabChange = (value: string) => {
+  const handleTabChange = (value) => {
     setActiveTab(value);
     if (searchTerm) {
       // Retrigger search with new tab
@@ -49,6 +77,17 @@ export default function SearchPage() {
       document.getElementById('search-input')?.dispatchEvent(event);
     }
   };
+
+  // Filter producers based on search term
+  const filteredProducers = producers.filter(producer => {
+    if (!searchTerm.trim()) return true;
+    
+    const term = searchTerm.toLowerCase().trim();
+    const matchName = (producer.stage_name || producer.full_name || '').toLowerCase().includes(term);
+    const matchCountry = (producer.country || '').toLowerCase().includes(term);
+    
+    return matchName || matchCountry;
+  });
 
   return (
     <MainLayoutWithPlayer>
@@ -215,7 +254,7 @@ export default function SearchPage() {
           </TabsContent>
 
           <TabsContent value="producers" className="mt-0">
-            {isLoading ? (
+            {loadingProducers ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {[...Array(8)].map((_, i) => (
                   <div 
@@ -225,24 +264,26 @@ export default function SearchPage() {
                   />
                 ))}
               </div>
-            ) : searchResults.length > 0 ? (
+            ) : filteredProducers.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {searchResults.map((beat) => (
-                  <div 
-                    key={beat.id}
+                {filteredProducers.map((producer) => (
+                  <Link 
+                    key={producer.id}
+                    to={`/producer/${producer.id}`}
                     className="bg-card rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow"
                   >
                     <div className="w-24 h-24 rounded-full bg-muted overflow-hidden mb-3">
                       <img 
-                        src={beat.cover_image_url} 
-                        alt={beat.producer_name}
+                        src={producer.profile_picture || '/placeholder.svg'} 
+                        alt={producer.stage_name || producer.full_name}
                         className="w-full h-full object-cover"
                       />
                     </div>
-                    <h3 className="font-medium">{beat.producer_name}</h3>
+                    <h3 className="font-medium">{producer.stage_name || producer.full_name}</h3>
                     <p className="text-sm text-muted-foreground mb-2">Producer</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{producer.country || 'Unknown location'}</p>
                     <Button variant="outline" size="sm" className="w-full">View Profile</Button>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (

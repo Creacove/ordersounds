@@ -237,10 +237,10 @@ const BeatDetail = () => {
           </div>
           
           <div className="rounded-xl bg-card/50 backdrop-blur-sm border shadow-sm overflow-hidden mb-4">
-            <div className="px-4 pt-4 pb-3">
-              <div className="flex items-start gap-3 mb-2">
+            <div className="p-4">
+              <div className="flex gap-4">
                 <div 
-                  className="h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm"
+                  className="h-20 w-20 sm:h-24 sm:w-24 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm"
                   onClick={() => handlePlay()}
                 >
                   <div className="relative group cursor-pointer h-full">
@@ -258,47 +258,60 @@ const BeatDetail = () => {
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-xl sm:text-2xl font-bold mb-0.5 truncate">{beat.title}</h1>
+                  <h1 className="text-2xl font-bold mb-1 truncate">{beat.title}</h1>
                   <Link 
                     to={`/producer/${beat.producer_id}`} 
                     className="text-sm font-medium text-primary hover:text-primary/80 transition-colors inline-block"
                   >
                     {beat.producer_name}
                   </Link>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Clock size={12} /> {beat.bpm} BPM
-                    </span>
-                    <span className="text-xs text-muted-foreground mx-1">•</span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Music size={12} /> {beat.genre}
-                    </span>
+                  
+                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock size={14} className="text-primary/70" /> 
+                      <span>{beat.bpm} BPM</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Music size={14} className="text-primary/70" /> 
+                      <span>{beat.genre}</span>
+                    </div>
                     {beat.key && (
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Music size={12} className="text-primary/70" /> Key: {beat.key}
-                      </span>
+                      <>
+                        <div className="h-4 w-px bg-border"></div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Music size={14} className="text-primary/70" /> 
+                          <span>Key: {beat.key}</span>
+                        </div>
+                      </>
                     )}
-                    <span className="text-xs text-muted-foreground mx-1">•</span>
-                    <span className="text-xs text-muted-foreground">
-                      {beat.track_type}
-                    </span>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Tag size={14} className="text-primary/70" /> 
+                      <span>{beat.track_type}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mt-3">
+                    <div className="flex items-center gap-1 text-sm">
+                      <Globe size={14} className="text-primary/70" /> 
+                      <span>{beat.purchase_count || 0} downloads</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <User size={14} className="text-primary/70" /> 
+                      <span>{beat.favorites_count || 0} likes</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <AudioWaveform size={14} className="text-primary/70" /> 
+                      <span>{beat.plays || 0} plays</span>
+                    </div>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 my-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Globe size={12} className="text-primary/70" /> {beat.purchase_count || 0} downloads
-                </span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <User size={12} className="text-primary/70" /> {beat.favorites_count || 0} likes
-                </span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <AudioWaveform size={12} className="text-primary/70" /> {beat.plays || 0} plays
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-2 mt-4">
                 <Button 
                   size={isMobile ? "sm" : "default"}
                   onClick={() => handlePlay()}

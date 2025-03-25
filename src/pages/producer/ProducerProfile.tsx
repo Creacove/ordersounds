@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
@@ -132,11 +133,11 @@ const ProducerProfile = () => {
             <Button 
               variant="ghost" 
               size="icon" 
-              as={Link}
-              to="/producers"
               className="h-8 w-8 rounded-full"
             >
-              <ArrowLeft size={16} />
+              <Link to="/producers">
+                <ArrowLeft size={16} />
+              </Link>
             </Button>
             <div className="flex text-xs">
               <Link to="/producers" className="text-muted-foreground hover:text-foreground">
@@ -150,9 +151,9 @@ const ProducerProfile = () => {
           </div>
           
           <div className="rounded-xl bg-card/50 backdrop-blur-sm border shadow-sm overflow-hidden mb-4">
-            <div className="px-4 pt-4 pb-3">
-              <div className="flex items-start gap-3 mb-2">
-                <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm">
+            <div className="p-4">
+              <div className="flex gap-4">
+                <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-lg overflow-hidden flex-shrink-0 border shadow-sm">
                   <img 
                     src={producer.profileImageUrl} 
                     alt={producer.name}
@@ -160,55 +161,65 @@ const ProducerProfile = () => {
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex flex-col md:flex-row md:items-center gap-2 mb-1">
-                    <h1 className="text-xl sm:text-2xl font-bold truncate">{producer.name}</h1>
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h1 className="text-2xl font-bold truncate">{producer.name}</h1>
                     {producer.verified && (
                       <Badge variant="outline" className="bg-primary/20 text-primary-foreground border-primary/10">
-                        Verified Producer
+                        Verified
                       </Badge>
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-2">{producer.bio}</p>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <MapPin size={12} /> {producer.location}
-                    </span>
-                    <span className="text-xs text-muted-foreground mx-1">•</span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Music size={12} /> {producer.genres.join(', ')}
-                    </span>
-                    <span className="text-xs text-muted-foreground mx-1">•</span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Calendar size={12} /> Joined {producer.joinDate}
-                    </span>
-                    <span className="text-xs text-muted-foreground mx-1">•</span>
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Star size={12} className="text-yellow-400" /> {producer.stats.rating}
-                    </span>
+                  
+                  <div className="flex flex-wrap items-center gap-3 mt-3">
+                    <div className="flex items-center gap-1 text-sm">
+                      <MapPin size={14} className="text-primary/70" /> 
+                      <span>{producer.location}</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Music size={14} className="text-primary/70" /> 
+                      <span>{producer.genres.join(', ')}</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Calendar size={14} className="text-primary/70" /> 
+                      <span>Joined {producer.joinDate}</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Star size={14} className="text-yellow-400" /> 
+                      <span>{producer.stats.rating}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-3 mt-3">
+                    <div className="flex items-center gap-1 text-sm">
+                      <Music size={14} className="text-primary/70" /> 
+                      <span>{producer.stats.beats} beats</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <UserPlus size={14} className="text-primary/70" /> 
+                      <span>{producer.stats.followers.toLocaleString()} followers</span>
+                    </div>
+                    <div className="h-4 w-px bg-border"></div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <ShoppingCart size={14} className="text-primary/70" /> 
+                      <span>{producer.stats.sales} sales</span>
+                    </div>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center gap-3 my-2">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Music size={12} className="text-primary/70" /> {producer.stats.beats} beats
-                </span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <UserPlus size={12} className="text-primary/70" /> {producer.stats.followers.toLocaleString()} followers
-                </span>
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <ShoppingCart size={12} className="text-primary/70" /> {producer.stats.sales} sales
-                </span>
-              </div>
-              
-              <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-2 mt-4">
                 <Button className="flex-none sm:flex-none rounded-full">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Follow
                 </Button>
                 
                 <Button 
-                  variant="outline" 
+                  variant="ghost"
                   size="icon"
                   className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
                 >
@@ -216,7 +227,7 @@ const ProducerProfile = () => {
                 </Button>
                 
                 <Button 
-                  variant="outline"
+                  variant="ghost"
                   size="icon"
                   className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
                 >
