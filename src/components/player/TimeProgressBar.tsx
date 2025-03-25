@@ -1,0 +1,46 @@
+
+import React from 'react';
+import { cn } from '@/lib/utils';
+
+interface TimeProgressBarProps {
+  currentTime: number;
+  duration: number;
+  seek: (time: number) => void;
+  isMobile: boolean;
+}
+
+export function TimeProgressBar({ currentTime, duration, seek, isMobile }: TimeProgressBarProps) {
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return '0:00';
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className={cn("flex items-center gap-1 md:gap-2 w-full max-w-lg", isMobile ? "hidden" : "flex")}>
+      <span className="text-xs text-muted-foreground w-8 md:w-10 text-right hidden xs:block">
+        {formatTime(currentTime)}
+      </span>
+      
+      <div className="relative w-full h-1 bg-muted rounded-full">
+        <div 
+          className="absolute top-0 left-0 h-full bg-primary rounded-full"
+          style={{ width: `${(currentTime / duration) * 100}%` }}
+        />
+        <input 
+          type="range"
+          min={0}
+          max={duration || 0}
+          value={currentTime}
+          onChange={(e) => seek(parseFloat(e.target.value))}
+          className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+        />
+      </div>
+      
+      <span className="text-xs text-muted-foreground w-8 md:w-10 hidden xs:block">
+        {formatTime(duration)}
+      </span>
+    </div>
+  );
+}

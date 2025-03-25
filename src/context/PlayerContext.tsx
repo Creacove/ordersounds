@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAudio } from '@/hooks/useAudio';
 
@@ -15,6 +16,7 @@ interface PlayerContextType {
   setVolume: (volume: number) => void;
   setProgress: (progress: number) => void;
   togglePlayPause: () => void;
+  togglePlay: () => void; // Adding this to fix the error
   seek: (time: number) => void;
   addToQueue: (beat: Beat) => void;
   removeFromQueue: (beatId: string) => void;
@@ -36,6 +38,7 @@ const PlayerContext = createContext<PlayerContextType>({
   setVolume: () => {},
   setProgress: () => {},
   togglePlayPause: () => {},
+  togglePlay: () => {}, // Adding default implementation
   seek: () => {},
   addToQueue: () => {},
   removeFromQueue: () => {},
@@ -170,6 +173,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setVolume,
       setProgress,
       togglePlayPause,
+      togglePlay, // Exposing the togglePlay function
       seek,
       addToQueue,
       removeFromQueue,

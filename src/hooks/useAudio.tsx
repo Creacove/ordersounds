@@ -1,47 +1,66 @@
 
 import { useState, useRef, useEffect } from 'react';
 
-export const useAudio = (url: string) => {
+interface UseAudioReturn {
+  playing: boolean;
+  duration: number;
+  currentTime: number;
+  togglePlay: () => void;
+  stop: () => void;
+  seek: (time: number) => void;
+}
+
+export const useAudio = (url: string): UseAudioReturn => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
 
+  // Initialize audio element and event listeners
   useEffect(() => {
-    // Create audio element if it doesn't exist
     if (!audioRef.current) {
       audioRef.current = new Audio(url);
       
       // Set up event listeners
-      audioRef.current.addEventListener('loadedmetadata', () => {
+      const handleLoadedMetadata = () => {
         setDuration(audioRef.current?.duration || 0);
-      });
+      };
       
-      audioRef.current.addEventListener('timeupdate', () => {
+      const handleTimeUpdate = () => {
         setCurrentTime(audioRef.current?.currentTime || 0);
-      });
+      };
       
-      audioRef.current.addEventListener('ended', () => {
+      const handleEnded = () => {
         setPlaying(false);
-      });
+      };
+      
+      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+      audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
+      audioRef.current.addEventListener('ended', handleEnded);
+      
+      // Cleanup function
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+          audioRef.current.removeEventListener('ended', handleEnded);
+        }
+      };
     }
-    
-    // Update source if URL changes
-    if (audioRef.current.src !== url && url) {
+  }, []);
+  
+  // Update source if URL changes
+  useEffect(() => {
+    if (audioRef.current && audioRef.current.src !== url && url) {
       audioRef.current.src = url;
       audioRef.current.load();
+      setCurrentTime(0);
+      setDuration(0);
     }
-    
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.removeEventListener('loadedmetadata', () => {});
-        audioRef.current.removeEventListener('timeupdate', () => {});
-        audioRef.current.removeEventListener('ended', () => {});
-      }
-    };
   }, [url]);
 
+  // Play/pause toggle function
   const togglePlay = () => {
     if (!audioRef.current) return;
     
@@ -56,18 +75,22 @@ export const useAudio = (url: string) => {
     }
   };
 
+  // Stop function (pause and reset time)
   const stop = () => {
     if (!audioRef.current) return;
     
     audioRef.current.pause();
     audioRef.current.currentTime = 0;
     setPlaying(false);
+    setCurrentTime(0);
   };
 
+  // Seek function to set current playback position
   const seek = (time: number) => {
     if (!audioRef.current) return;
     
     audioRef.current.currentTime = time;
+    setCurrentTime(time);
   };
 
   return {
