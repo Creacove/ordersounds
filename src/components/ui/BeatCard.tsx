@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -132,18 +131,13 @@ export function BeatCard({
     e.stopPropagation();
     navigate('/cart');
   };
-  
-  const goToBeatDetail = () => {
-    navigate(`/beat/${beat.id}`);
-  };
 
   return (
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md cursor-pointer",
+        "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-sm transition-all hover:shadow-md",
         className
       )}
-      onClick={goToBeatDetail}
     >
       {/* Cover image with play button overlay */}
       <div className="relative aspect-square overflow-hidden bg-secondary/20">
@@ -181,118 +175,103 @@ export function BeatCard({
           />
         </div>
         
-        {/* Action buttons - Buy button now more prominent */}
-        <div className="flex items-center gap-1 pt-1">
+        {/* Action buttons */}
+        <div className="flex items-center gap-1.5 pt-1">
           {!isPurchased && !inCart && (
             <Button
-              variant="default"
-              size="sm"
+              variant="ghost"
+              size="icon"
               onClick={handleAddToCart}
-              className="h-8 text-xs flex-1"
+              className="h-7 w-7 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
               title="Add to Cart"
             >
-              <ShoppingCart size={12} className="mr-1" /> Buy
+              <ShoppingCart size={14} />
             </Button>
           )}
 
           {inCart && (
             <Button
-              variant="outline"
-              size="sm"
-              onClick={goToCart}
-              className="h-8 text-xs flex-1"
-              title="Go to Cart"
-            >
-              <ShoppingCart size={12} className="mr-1" /> View Cart
-            </Button>
-          )}
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handlePlay}
-            className="h-8 w-8 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
-            title={isCurrentlyPlaying ? "Pause" : "Play"}
-          >
-            {isCurrentlyPlaying ? <Pause size={14} /> : <Play size={14} />}
-          </Button>
-
-          {user && (
-            <Button
               variant="ghost"
               size="icon"
-              onClick={handleToggleFavorite}
-              aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-              className={cn(
-                "h-8 w-8 rounded-md transition-colors",
-                isFavorite
-                  ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-              )}
-              title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+              onClick={goToCart}
+              className="h-7 w-7 rounded-md bg-primary/20 text-primary hover:bg-primary/30"
+              title="Go to Cart"
             >
-              <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
+              <ShoppingCart size={14} />
             </Button>
           )}
-              
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
+
+          {user && (
+            <>
+              <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                aria-label="More options"
-                title="More options"
+                onClick={handleToggleFavorite}
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                className={cn(
+                  "h-7 w-7 rounded-md transition-colors",
+                  isFavorite
+                    ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                )}
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
-                <MoreVertical size={14} />
+                <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer text-xs">
-                Add to queue
-              </DropdownMenuItem>
-              <DropdownMenuSub onOpenChange={loadPlaylists}>
-                <DropdownMenuSubTrigger className="flex items-center cursor-pointer text-xs">
-                  <Plus className="mr-2 h-3 w-3" />
-                  <span>Add to Playlist</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent>
-                    {loadingPlaylists ? (
-                      <DropdownMenuItem disabled className="text-xs">
-                        Loading playlists...
-                      </DropdownMenuItem>
-                    ) : playlists.length === 0 ? (
-                      <DropdownMenuItem disabled className="text-xs">
-                        No playlists found
-                      </DropdownMenuItem>
-                    ) : (
-                      playlists.map(playlist => (
-                        <DropdownMenuItem
-                          key={playlist.id}
-                          onClick={() => handleAddToPlaylist(playlist.id)}
-                          className="cursor-pointer text-xs"
-                        >
-                          {playlist.name}
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  navigate(`/beat/${beat.id}`);
-                }} 
-                className="cursor-pointer text-xs"
-              >
-                View Details
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                    aria-label="More options"
+                    title="More options"
+                  >
+                    <MoreVertical size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer text-xs">
+                    Add to queue
+                  </DropdownMenuItem>
+                  <DropdownMenuSub onOpenChange={loadPlaylists}>
+                    <DropdownMenuSubTrigger className="flex items-center cursor-pointer text-xs">
+                      <Plus className="mr-2 h-3 w-3" />
+                      <span>Add to Playlist</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {loadingPlaylists ? (
+                          <DropdownMenuItem disabled className="text-xs">
+                            Loading playlists...
+                          </DropdownMenuItem>
+                        ) : playlists.length === 0 ? (
+                          <DropdownMenuItem disabled className="text-xs">
+                            No playlists found
+                          </DropdownMenuItem>
+                        ) : (
+                          playlists.map(playlist => (
+                            <DropdownMenuItem
+                              key={playlist.id}
+                              onClick={() => handleAddToPlaylist(playlist.id)}
+                              className="cursor-pointer text-xs"
+                            >
+                              {playlist.name}
+                            </DropdownMenuItem>
+                          ))
+                        )}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handlePlay} className="cursor-pointer text-xs">
+                    {isCurrentlyPlaying ? "Pause" : "Play"}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
         </div>
       </div>
     </div>

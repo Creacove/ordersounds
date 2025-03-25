@@ -1,291 +1,596 @@
 
-import React, { useEffect, useState } from 'react';
-import { MainLayoutWithPlayer } from '@/components/layout/MainLayoutWithPlayer';
-import { useBeats } from '@/hooks/useBeats';
-import { BeatCard } from '@/components/ui/BeatCard';
-import { Button } from '@/components/ui/button';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { PlaylistCard } from '@/components/library/PlaylistCard';
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { FeaturedBeatBanner } from '@/components/ui/FeaturedBeatBanner';
-import { Beat } from '@/types';
-import { BeatListItem } from '@/components/ui/BeatListItem';
-import { supabase } from '@/integrations/supabase/client';
-import { User } from '@/types';
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Play, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Bookmark } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
+import { BeatCard } from "@/components/ui/BeatCard";
+import { BeatListItem } from "@/components/ui/BeatListItem";
+import { useBeats } from "@/hooks/useBeats";
+import { usePlayer } from "@/context/PlayerContext";
+import { useAuthState } from "@/hooks/auth/useAuthState";
+import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import { 
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
 
 export default function Home() {
-  const { trendingBeats, newBeats, featuredBeat, isFavorite, toggleFavorite } = useBeats();
+  const { featuredBeat, trendingBeats, newBeats, isLoading } = useBeats();
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const { playBeat } = usePlayer();
+  const { isAuthenticated, user } = useAuthState();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [playlists, setPlaylists] = useState([]);
-  const [producerOfTheWeek, setProducerOfTheWeek] = useState<{
-    id: string;
-    name: string;
-    avatar_url?: string;
-    bio?: string;
-    beats: Beat[];
-  } | null>(null);
 
-  useEffect(() => {
-    // Fetch playlists
-    const fetchPlaylists = async () => {
-      const { data } = await supabase
-        .from('playlists')
-        .select('*')
-        .eq('is_public', true)
-        .limit(6);
-      
-      setPlaylists(data || []);
-    };
+  const handlePlayFeatured = () => {
+    if (featuredBeat) {
+      playBeat(featuredBeat);
+    }
+    setIsPlaying(!isPlaying);
+  };
 
-    // Fetch producer of the week
-    const fetchProducerOfTheWeek = async () => {
-      // First get a random producer
-      const { data: producerData } = await supabase
-        .from('users')
-        .select('id, full_name, stage_name, profile_picture, bio')
-        .eq('role', 'producer')
-        .limit(1);
-      
-      if (producerData && producerData.length > 0) {
-        const producer = producerData[0];
-        
-        // Then get their beats
-        const { data: producerBeats } = await supabase
-          .from('beats')
-          .select(`
-            id, 
-            title, 
-            producer_id,
-            cover_image,
-            audio_preview,
-            audio_file,
-            price_local,
-            price_diaspora,
-            genre,
-            track_type,
-            bpm,
-            tags,
-            description,
-            upload_date,
-            favorites_count,
-            purchase_count,
-            status
-          `)
-          .eq('producer_id', producer.id)
-          .eq('status', 'published')
-          .limit(5);
-        
-        if (producerBeats) {
-          // Transform the beats data to match our Beat type
-          const transformedBeats: Beat[] = producerBeats.map(beat => ({
-            id: beat.id,
-            title: beat.title,
-            producer_id: beat.producer_id,
-            producer_name: producer.stage_name || producer.full_name,
-            cover_image_url: beat.cover_image,
-            preview_url: beat.audio_preview,
-            full_track_url: beat.audio_file,
-            price_local: beat.price_local,
-            price_diaspora: beat.price_diaspora,
-            genre: beat.genre,
-            track_type: beat.track_type,
-            bpm: beat.bpm,
-            tags: beat.tags || [],
-            description: beat.description,
-            created_at: beat.upload_date,
-            favorites_count: beat.favorites_count || 0,
-            purchase_count: beat.purchase_count || 0,
-            status: beat.status as 'draft' | 'published',
-            is_featured: false,
-          }));
-          
-          setProducerOfTheWeek({
-            id: producer.id,
-            name: producer.stage_name || producer.full_name,
-            avatar_url: producer.profile_picture,
-            bio: producer.bio,
-            beats: transformedBeats
-          });
-        }
-      }
-    };
+  const handlePlayBeat = (beat) => {
+    playBeat(beat);
+  };
 
-    fetchPlaylists();
-    fetchProducerOfTheWeek();
-  }, []);
+  // Categories for quick browsing
+  const categories = [
+    { name: "Afrobeat", icon: <Sparkles size={16} /> },
+    { name: "Hip Hop", icon: <Flame size={16} /> },
+    { name: "R&B", icon: <Clock size={16} /> },
+    { name: "Amapiano", icon: <Sparkles size={16} /> },
+  ];
+
+  // Weekly picks in list format
+  const weeklyPicks = trendingBeats.slice(0, 6);
+
+  // Producer of the week
+  const producerOfWeek = {
+    id: '1', 
+    name: 'JUNE', 
+    avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+    followers: 12564,
+    beatsSold: 432,
+    bio: "Award-winning producer specializing in Afrobeat and Amapiano fusion. Worked with top artists across Nigeria and beyond.",
+    verified: true,
+    beats: trendingBeats.slice(0, 4)
+  };
+
+  // Top producers (moved lower in the page)
+  const topProducers = [
+    { id: '1', name: 'Metro Boomin', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+    { id: '2', name: 'JUNE', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+    { id: '3', name: 'DJ Eazie', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
+    { id: '4', name: 'Beats by Dre', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: true },
+    { id: '5', name: 'KBeatz', avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', verified: false },
+  ];
+
+  // Featured playlists
+  const featuredPlaylists = [
+    { id: '1', title: 'Piano Vibes', color: 'from-blue-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 12 },
+    { id: '2', title: 'Guitar Classics', color: 'from-orange-500 to-red-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 8 },
+    { id: '3', title: 'Afro Fusion', color: 'from-green-500 to-emerald-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 15 },
+    { id: '4', title: 'Smooth R&B', color: 'from-pink-500 to-purple-500', image: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png', tracks: 10 },
+  ];
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container py-6">
-        {/* Hero section with featured beat */}
+      <div className="min-h-screen">
+        {/* Hero section with featured beat - SHORTER HEIGHT */}
         {featuredBeat && (
-          <div className="mb-10">
-            <FeaturedBeatBanner beat={featuredBeat} />
-          </div>
-        )}
-        
-        {/* Weekly Picks Carousel */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Weekly Picks</h2>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/trending">View All</Link>
-            </Button>
-          </div>
-          
-          <Carousel className="w-full">
-            <CarouselContent className="-ml-4">
-              {trendingBeats.slice(0, 8).map((beat) => (
-                <CarouselItem key={beat.id} className="pl-4 basis-full sm:basis-1/2 md:basis-1/3 lg:basis-1/4">
-                  <div className="p-1">
-                    <BeatCard
-                      beat={beat}
-                      isFavorite={isFavorite(beat.id)}
-                      onToggleFavorite={toggleFavorite}
-                    />
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden sm:flex" />
-            <CarouselNext className="hidden sm:flex" />
-          </Carousel>
-        </div>
-        
-        {/* New Arrivals Section */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">New Arrivals</h2>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/new">View All</Link>
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {newBeats.slice(0, 6).map((beat) => (
-              <BeatCard
-                key={beat.id}
-                beat={beat}
-                isFavorite={isFavorite(beat.id)}
-                onToggleFavorite={toggleFavorite}
+          <section className="relative h-[200px] md:h-[250px] lg:h-[300px] overflow-hidden">
+            {/* Background image with overlay */}
+            <div className="absolute inset-0 z-0">
+              <img 
+                src={featuredBeat.cover_image_url} 
+                alt={featuredBeat.title}
+                className="w-full h-full object-cover transition-transform duration-10000 transform-gpu hover:scale-110"
               />
-            ))}
-          </div>
-        </div>
-        
-        {/* Playlists Section */}
-        <div className="mb-12">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Playlists</h2>
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/playlists">View All</Link>
-            </Button>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {playlists.slice(0, 4).map((playlist) => (
-              <PlaylistCard
-                key={playlist.id}
-                playlist={playlist}
-                onClick={() => navigate(`/playlists/${playlist.id}`)}
-              />
-            ))}
-          </div>
-        </div>
-        
-        {/* CTA Section - Different for logged in vs non-logged in users */}
-        <div className="my-16 p-8 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-lg text-center">
-          <h2 className="text-3xl font-bold mb-4">
-            {user ? "Elevate Your Music Production" : "Join Our Beat Marketplace"}
-          </h2>
-          <p className="max-w-lg mx-auto mb-6 text-muted-foreground">
-            {user 
-              ? "Explore thousands of high-quality beats, connect with top producers, and find the perfect sound for your next project."
-              : "Sign up today to browse thousands of high-quality beats, save your favorites, and connect with top producers from around the world."
-            }
-          </p>
-          {user ? (
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg" asChild>
-                <Link to="/trending">Explore Trending Beats</Link>
-              </Button>
-              {user.role === 'producer' ? (
-                <Button size="lg" variant="outline" asChild>
-                  <Link to="/producer/upload">Upload Your Beats</Link>
-                </Button>
-              ) : (
-                <Button size="lg" variant="outline" asChild>
-                  <Link to="/genres">Browse by Genre</Link>
-                </Button>
-              )}
+              <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
             </div>
-          ) : (
-            <div className="flex flex-wrap justify-center gap-4">
-              <Button size="lg" asChild>
-                <Link to="/signup">Create Account</Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link to="/login">Sign In</Link>
-              </Button>
+            
+            {/* Content */}
+            <div className="relative z-10 h-full container flex flex-col justify-center">
+              <div className="max-w-2xl">
+                <div className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium mb-3 animate-pulse-gentle">
+                  Featured Beat
+                </div>
+                <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 text-white">
+                  {featuredBeat.title}
+                </h1>
+                <div className="text-md font-medium mb-2 text-white/90">
+                  {featuredBeat.producer_name}
+                </div>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="text-sm text-white/60">
+                    {featuredBeat.bpm} BPM
+                  </div>
+                  <div className="text-sm text-white/60">
+                    •
+                  </div>
+                  <div className="text-sm text-white/60">
+                    {featuredBeat.genre}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button 
+                    onClick={handlePlayFeatured} 
+                    className="gap-2 bg-primary hover:bg-primary/90 shadow-md"
+                    size="sm"
+                  >
+                    {isPlaying ? <span>Pause</span> : (
+                      <>
+                        <Play size={16} className="ml-1" />
+                        <span>Listen now</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2 bg-white/10 backdrop-blur-sm text-white border-white/20 hover:bg-white/20">
+                    Add to favourite
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Quick category browse section */}
+        <div className="container py-4 overflow-hidden bg-black/5 dark:bg-white/5">
+          <div className="flex overflow-x-auto pb-2 scrollbar-hide -mx-2 px-6">
+            <div className="flex gap-2">
+              {categories.map((category, index) => (
+                <Link 
+                  key={index} 
+                  to={`/genres?filter=${category.name.toLowerCase()}`}
+                  className="flex-shrink-0 px-4 py-2 border border-input rounded-full flex items-center gap-2 hover:bg-accent transition-colors text-sm"
+                >
+                  {category.icon}
+                  <span>{category.name}</span>
+                </Link>
+              ))}
+              <Link 
+                to="/genres" 
+                className="flex-shrink-0 px-4 py-2 border border-input rounded-full flex items-center gap-2 text-primary hover:bg-primary/10 transition-colors text-sm"
+              >
+                <span>All genres</span>
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="container py-6">
+          {/* Filter and search controls */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold">Browse Beats</h2>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter size={16} />
+              <span>Filter</span>
+            </Button>
+          </div>
+
+          {/* Filter panel (collapsible) */}
+          {showFilters && (
+            <div className="bg-card rounded-lg p-4 mb-6 animate-slide-down shadow-sm border">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Price Range</label>
+                  <select className="w-full rounded-md bg-muted border-border p-2">
+                    <option>Any price</option>
+                    <option>Under ₦5,000</option>
+                    <option>₦5,000 - ₦10,000</option>
+                    <option>₦10,000 - ₦15,000</option>
+                    <option>Over ₦15,000</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Genre</label>
+                  <select className="w-full rounded-md bg-muted border-border p-2">
+                    <option>All genres</option>
+                    <option>Afrobeat</option>
+                    <option>Amapiano</option>
+                    <option>Hip Hop</option>
+                    <option>R&B</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Track Type</label>
+                  <select className="w-full rounded-md bg-muted border-border p-2">
+                    <option>All types</option>
+                    <option>Single</option>
+                    <option>Mix</option>
+                    <option>Loop</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Sort By</label>
+                  <select className="w-full rounded-md bg-muted border-border p-2">
+                    <option>Most Popular</option>
+                    <option>Newest</option>
+                    <option>Price: Low to High</option>
+                    <option>Price: High to Low</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button size="sm" className="shadow-sm">Apply Filters</Button>
+              </div>
             </div>
           )}
-        </div>
-        
-        {/* Producer of the Week */}
-        {producerOfTheWeek && (
-          <div className="mb-12">
-            <h2 className="text-2xl font-bold mb-4">Producer of the Week</h2>
-            
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6 bg-card rounded-lg border p-5">
-              {/* Producer Profile */}
-              <div className="md:col-span-1 flex flex-col items-center md:items-start">
-                <div className="w-28 h-28 md:w-32 md:h-32 rounded-full overflow-hidden bg-muted mb-4">
-                  <img 
-                    src={producerOfTheWeek.avatar_url || '/placeholder.svg'} 
-                    alt={producerOfTheWeek.name}
-                    className="w-full h-full object-cover"
-                  />
+
+          {/* Trending Beats Section */}
+          <section className="mb-10">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Trending Beats</h2>
+                <div className="bg-rose-500/10 text-rose-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Flame size={12} />
+                  <span>Hot</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-2 text-center md:text-left">{producerOfTheWeek.name}</h3>
-                {producerOfTheWeek.bio && (
-                  <p className="text-sm text-muted-foreground text-center md:text-left mb-4 line-clamp-3">
-                    {producerOfTheWeek.bio}
-                  </p>
-                )}
-                <Button 
-                  variant="outline" 
-                  className="mt-auto w-full md:w-auto"
-                  onClick={() => navigate(`/producer/${producerOfTheWeek.id}`)}
-                >
-                  View Profile
-                </Button>
               </div>
-              
-              {/* Producer Beats */}
-              <div className="md:col-span-4 space-y-2">
-                {producerOfTheWeek.beats.length === 0 ? (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground">No beats available</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {producerOfTheWeek.beats.map(beat => (
-                      <div key={beat.id} onClick={() => navigate(`/beat/${beat.id}`)} className="cursor-pointer">
-                        <BeatListItem 
-                          beat={beat}
-                          isFavorite={isFavorite(beat.id)}
-                          onToggleFavorite={toggleFavorite}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
+                Show all
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+            
+            {isLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {[...Array(5)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={cn(
+                      "bg-card rounded-lg aspect-square animate-pulse",
+                      "opacity-75"
+                    )}
+                    style={{ animationDelay: `${i * 0.1}s` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {trendingBeats.slice(0, 5).map((beat) => (
+                  <BeatCard key={beat.id} beat={beat} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* IMPROVED Weekly Picks as a List View with better responsiveness */}
+          <section className="bg-card/50 p-4 sm:p-6 rounded-lg mb-10 border">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Weekly Picks</h2>
+                <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
+                  <Star size={12} className="mr-1" /> Selected
+                </Badge>
               </div>
             </div>
-          </div>
-        )}
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {weeklyPicks.map((beat) => (
+                <div key={beat.id} className="p-3 bg-background/50 rounded-md border border-border/50 flex items-center gap-3 hover:bg-background/80 transition-colors">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden flex-shrink-0">
+                    <img 
+                      src={beat.cover_image_url} 
+                      alt={beat.title}
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium text-sm md:text-base truncate">{beat.title}</h3>
+                    <p className="text-xs text-muted-foreground truncate">{beat.producer_name}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Badge variant="outline" className="text-xs py-0 px-1.5 h-5 truncate">
+                        {beat.genre}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        ₦{beat.price_local}
+                      </span>
+                    </div>
+                  </div>
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="flex-shrink-0 h-8 w-8 rounded-full"
+                    onClick={() => handlePlayBeat(beat)}
+                  >
+                    <Play size={16} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* New Beats Section */}
+          <section className="mb-10">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">New Beats</h2>
+                <div className="bg-purple-500/10 text-purple-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Sparkles size={12} />
+                  <span>Fresh</span>
+                </div>
+              </div>
+              <Link to="/new" className="text-sm text-primary hover:underline flex items-center gap-1">
+                Show all
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+            
+            {isLoading ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {[...Array(5)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={cn(
+                      "bg-card rounded-lg aspect-square animate-pulse",
+                      "opacity-75"
+                    )}
+                    style={{ animationDelay: `${i * 0.1}s` }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {newBeats.slice(0, 5).map((beat) => (
+                  <BeatCard key={beat.id} beat={beat} />
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Top Producers section - moved up from bottom */}
+          <section className="mb-10 bg-background pt-4 pb-4">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Top Producers</h2>
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/10">
+                  <Award size={12} className="mr-1" /> Trending
+                </Badge>
+              </div>
+              <Button variant="ghost" size="sm" className="gap-1 text-primary" asChild>
+                <Link to="/producers">
+                  <span>View all</span>
+                  <ChevronRight size={16} />
+                </Link>
+              </Button>
+            </div>
+            
+            <div className="flex overflow-x-auto pb-4 gap-5 hide-scrollbar">
+              {topProducers.map((producer) => (
+                <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[90px]">
+                  <div className="relative">
+                    <Avatar className="h-[90px] w-[90px] border-2 border-background shadow-md">
+                      <AvatarImage src={producer.avatar} alt={producer.name} />
+                      <AvatarFallback>{producer.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    {producer.verified && (
+                      <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
+                        <UserCheck size={16} />
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-sm font-medium text-center truncate max-w-[90px]">{producer.name}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Featured Playlists Section - UPDATED */}
+          <section className="mb-10">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Featured Playlists</h2>
+                <Badge className="bg-purple-500/10 text-purple-500 text-xs px-2 py-0.5 rounded-full font-medium">
+                  <Star size={12} />
+                  <span className="ml-1">Curated</span>
+                </Badge>
+              </div>
+              <Link to="/playlists" className="text-sm text-primary hover:underline flex items-center gap-1">
+                View all
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {featuredPlaylists.map((playlist) => (
+                <Link to={`/playlists/${playlist.id}`} key={playlist.id} className="block rounded-lg overflow-hidden group">
+                  <div className={`aspect-square bg-gradient-to-br ${playlist.color} relative`}>
+                    <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
+                    <div className="p-4 flex flex-col h-full justify-between">
+                      <div className="flex justify-end">
+                        <Badge variant="outline" className="bg-white/20 text-white border-white/10">
+                          {playlist.tracks} tracks
+                        </Badge>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-white">{playlist.title}</h3>
+                        <div className="mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="sm" variant="secondary" className="bg-white/20 text-white hover:bg-white/30 border-none">
+                            <Play size={14} className="mr-1" /> Listen
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* IMPROVED CTA Section for logged-in users */}
+          <section className="mb-10 bg-primary/5 rounded-lg py-8 px-6">
+            <div className="text-center">
+              {isAuthenticated ? (
+                <>
+                  <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+                    Discover More Music
+                  </h2>
+                  <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+                    Explore our vast library of beats from top producers or check out your personal recommendations.
+                  </p>
+                  <div className="flex flex-wrap gap-4 justify-center">
+                    <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                      <Link to="/trending">Explore Trending</Link>
+                    </Button>
+                    <Button variant="outline" size="lg" className="border-primary/20 hover:bg-primary/5" asChild>
+                      <Link to="/favorites">Your Favorites</Link>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
+                    Unlock Premium Music
+                  </h2>
+                  <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
+                    Join today to access exclusive beats, save favorites, and connect with top producers.
+                  </p>
+                  <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                    <Link to="/signup">Create Account</Link>
+                  </Button>
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* Producer of the Week Section - MOVED TO LAST & IMPROVED RESPONSIVENESS */}
+          <section className="mb-10 bg-gradient-to-br from-purple-50/10 to-transparent dark:from-purple-900/5 rounded-lg p-6 border border-purple-200/20 dark:border-purple-800/20">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold">Producer of the Week</h2>
+                <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
+                  <Star size={12} className="mr-1" /> Featured
+                </Badge>
+              </div>
+              <Link to={`/producer/${producerOfWeek.id}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+                View profile
+                <ArrowRight size={14} />
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Producer Profile Card - IMPROVED FOR MOBILE */}
+              <div className="md:col-span-1">
+                <div className="bg-card rounded-lg overflow-hidden border shadow-sm h-full flex flex-col">
+                  <div className="relative aspect-square md:aspect-auto md:h-64 bg-gradient-to-b from-primary/5 to-primary/10">
+                    <img 
+                      src={producerOfWeek.avatar} 
+                      alt={producerOfWeek.name}
+                      className="w-full h-full object-cover" 
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                    <div className="absolute bottom-0 p-4">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-bold text-white">{producerOfWeek.name}</h3>
+                        {producerOfWeek.verified && (
+                          <Badge variant="outline" className="bg-primary/30 border-primary/30 text-white">
+                            <UserCheck size={12} className="mr-1" /> Verified
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-white/80 mt-1">
+                        {producerOfWeek.beatsSold} beats sold • {(producerOfWeek.followers / 1000).toFixed(1)}k followers
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col">
+                    <p className="text-sm text-muted-foreground">{producerOfWeek.bio}</p>
+                    <div className="mt-4 pt-4 border-t flex-1 flex flex-col justify-end">
+                      <Button variant="outline" className="w-full gap-2" asChild>
+                        <Link to={`/producer/${producerOfWeek.id}`}>
+                          <UserCheck size={16} />
+                          <span>Follow Producer</span>
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Producer Beats Table - IMPROVED RESPONSIVENESS */}
+              <div className="md:col-span-2">
+                <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+                  <div className="p-4 border-b bg-muted/30">
+                    <h3 className="font-medium">Top Beats by {producerOfWeek.name}</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead>Title</TableHead>
+                          <TableHead className="hidden sm:table-cell">Genre</TableHead>
+                          <TableHead className="hidden md:table-cell">BPM</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {producerOfWeek.beats.map((beat) => (
+                          <TableRow key={beat.id}>
+                            <TableCell className="p-2">
+                              <div className="w-10 h-10 rounded overflow-hidden">
+                                <img 
+                                  src={beat.cover_image_url} 
+                                  alt={beat.title}
+                                  className="w-full h-full object-cover" 
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium max-w-[120px] truncate">{beat.title}</TableCell>
+                            <TableCell className="hidden sm:table-cell">{beat.genre}</TableCell>
+                            <TableCell className="hidden md:table-cell">{beat.bpm} BPM</TableCell>
+                            <TableCell>₦{beat.price_local}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  onClick={() => handlePlayBeat(beat)}
+                                >
+                                  <Play size={16} />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <Bookmark size={16} />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="p-3 border-t bg-muted/20 flex justify-center">
+                    <Button variant="link" size="sm" className="gap-1" asChild>
+                      <Link to={`/producer/${producerOfWeek.id}`}>
+                        <span>Browse all beats from this producer</span>
+                        <ArrowRight size={14} />
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
       </div>
     </MainLayoutWithPlayer>
   );
