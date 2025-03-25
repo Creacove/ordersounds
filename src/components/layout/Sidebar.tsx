@@ -21,7 +21,8 @@ import {
   MoreHorizontal,
   LogOut,
   Search,
-  BookOpen
+  BookOpen,
+  PlaySquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
@@ -69,12 +70,12 @@ export function Sidebar() {
     if (path === "/") setActiveBottomTab("home");
     else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
     else if (path === "/trending") setActiveBottomTab("trending");
-    else if (path === "/favorites") setActiveBottomTab("favorites");
+    else if (path === "/playlists") setActiveBottomTab("playlists");
     else if (path === "/cart") setActiveBottomTab("cart");
     else if (path === "/producer/dashboard") setActiveBottomTab("producer");
     else if (path === "/producer/beats") setActiveBottomTab("beats");
     else if (path === "/producer/royalties") setActiveBottomTab("royalties");
-    else if (path.includes("/my-playlists") || path.includes("/purchased") || path.includes("/library")) setActiveBottomTab("library");
+    else if (path === "/library") setActiveBottomTab("library");
     else setActiveBottomTab("");
   }, [location.pathname, isMobile]);
 
@@ -165,7 +166,7 @@ export function Sidebar() {
       mobileMenuItems = [
         { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
         { icon: <BookOpen size={20} />, label: "Library", to: "/library", id: "library" },
-        { icon: <Heart size={20} />, label: "Favorites", to: "/favorites", id: "favorites" },
+        { icon: <PlaySquare size={20} />, label: "Playlists", to: "/playlists", id: "playlists" },
         { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
         { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
       ];
@@ -176,10 +177,7 @@ export function Sidebar() {
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
             const isCurrentPath = location.pathname === item.to;
-            const isActive = activeBottomTab === item.id || 
-                            (item.id === "library" && location.pathname.includes("/purchased") || 
-                             item.id === "library" && location.pathname.includes("/my-playlists") ||
-                             item.id === "library" && location.pathname.includes("/favorites"));
+            const isActive = activeBottomTab === item.id;
             
             if (item.action) {
               return (
