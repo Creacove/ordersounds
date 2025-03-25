@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -34,6 +35,7 @@ interface BeatCardProps {
   isPurchased?: boolean;
   isInCart?: boolean;
   className?: string;
+  compact?: boolean;
 }
 
 export function BeatCard({
@@ -45,6 +47,7 @@ export function BeatCard({
   isPurchased = false,
   isInCart = false,
   className,
+  compact = false,
 }: BeatCardProps) {
   const { user } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
@@ -171,7 +174,7 @@ export function BeatCard({
     <div
       onClick={goToBeatDetail}
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow transition-all hover:shadow-md cursor-pointer",
+        "group relative flex flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow transition-all hover:shadow-md cursor-pointer",
         className
       )}
     >
@@ -184,10 +187,10 @@ export function BeatCard({
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             onClick={handlePlay}
-            className="flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-110 shadow-xl"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-110 shadow-xl"
             aria-label={isCurrentlyPlaying ? "Pause" : "Play"}
           >
-            {isCurrentlyPlaying ? <Pause size={24} /> : <Play size={24} className="ml-1" />}
+            {isCurrentlyPlaying ? <Pause size={22} /> : <Play size={22} className="ml-1" />}
           </button>
         </div>
         
@@ -209,18 +212,18 @@ export function BeatCard({
         )}
       </div>
 
-      <div className="flex flex-col p-4 space-y-3">
+      <div className="flex flex-col p-3 space-y-2">
         <div className="flex flex-col">
-          <h3 className="font-medium text-base leading-tight tracking-tight truncate">
+          <h3 className="font-medium text-sm leading-tight tracking-tight truncate">
             {beat.title}
           </h3>
-          <p className="text-sm text-muted-foreground truncate mb-2">
+          <p className="text-xs text-muted-foreground truncate mb-1.5">
             {beat.producer_name}
           </p>
           <PriceTag
             localPrice={getDisplayPrice()}
             diasporaPrice={getDisplayPrice()}
-            size="sm"
+            size="xs"
             className="self-start"
             licenseType={!['basic', 'premium', 'exclusive'].includes(displayLicenseType) ? displayLicenseType : undefined}
             onClick={(e: React.MouseEvent) => {
@@ -230,16 +233,16 @@ export function BeatCard({
           />
         </div>
         
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex items-center gap-1.5 pt-1">
           {!isPurchased && !inCart && (
             <Button
               variant="ghost"
               size="icon"
               onClick={(e) => handleAddToCart(e, displayLicenseType)}
-              className="h-8 w-8 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              className="h-7 w-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90"
               title="Add to Cart"
             >
-              <ShoppingCart size={15} />
+              <ShoppingCart size={14} />
             </Button>
           )}
 
@@ -248,10 +251,10 @@ export function BeatCard({
               variant="ghost"
               size="icon"
               onClick={goToCart}
-              className="h-8 w-8 rounded-lg bg-primary/20 text-primary hover:bg-primary/30"
+              className="h-7 w-7 rounded-lg bg-primary/20 text-primary hover:bg-primary/30"
               title="Go to Cart"
             >
-              <ShoppingCart size={15} />
+              <ShoppingCart size={14} />
             </Button>
           )}
 
@@ -263,14 +266,14 @@ export function BeatCard({
                 onClick={handleToggleFavorite}
                 aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
                 className={cn(
-                  "h-8 w-8 rounded-lg transition-colors",
+                  "h-7 w-7 rounded-lg transition-colors",
                   isFavorite
                     ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
                 )}
                 title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
-                <Heart size={15} fill={isFavorite ? "currentColor" : "none"} />
+                <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
               </Button>
               
               <DropdownMenu>
@@ -278,11 +281,11 @@ export function BeatCard({
                   <Button 
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90 ml-auto"
+                    className="h-7 w-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90 ml-auto"
                     aria-label="More options"
                     title="More options"
                   >
-                    <MoreVertical size={15} />
+                    <MoreVertical size={14} />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">

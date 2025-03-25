@@ -20,23 +20,23 @@ export default function Trending() {
   return (
     <MainLayout>
       <div className={cn(
-        "container py-6 md:py-8",
-        isMobile ? "mobile-content-padding" : ""
+        "container py-4 md:py-8",
+        isMobile ? "px-3" : ""
       )}>
-        <h1 className="heading-responsive-lg mb-6 md:mb-8">Trending Beats</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">Trending Beats</h1>
         
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2">
-                <Skeleton className="h-48 w-full rounded-lg" />
-                <Skeleton className="h-6 w-2/3" />
+                <Skeleton className="aspect-square rounded-lg" />
+                <Skeleton className="h-5 w-2/3" />
                 <Skeleton className="h-4 w-1/2" />
               </div>
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
             {trendingBeats.map((beat) => (
               <BeatCard 
                 key={beat.id} 
