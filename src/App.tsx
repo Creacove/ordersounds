@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
@@ -40,6 +40,13 @@ import ProducerSettings from "./pages/producer/Settings";
 
 const queryClient = new QueryClient();
 
+// Helper component for dynamic redirect
+const PlaylistRedirect = () => {
+  const location = useLocation();
+  const playlistId = location.pathname.split('/').pop();
+  return <Navigate to={`/playlists/${playlistId}`} replace />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
@@ -58,7 +65,7 @@ const App = () => (
                   <Route path="/playlists" element={<Playlists />} />
                   <Route path="/playlists/:playlistId" element={<Playlists />} />
                   {/* Redirect for the incorrect URL format */}
-                  <Route path="/playlist/:playlistId" element={<Navigate to={(location) => `/playlists/${location.pathname.split('/').pop()}`} replace />} />
+                  <Route path="/playlist/:playlistId" element={<PlaylistRedirect />} />
                   <Route path="/genres" element={<Genres />} />
                   <Route path="/producers" element={<Producers />} />
                   <Route path="/charts" element={<Charts />} />
