@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { BeatListItem } from "@/components/ui/BeatListItem"; 
 import { useBeats } from "@/hooks/useBeats";
-import { PlusCircle, Music, Heart, ListMusic, Grid, List } from "lucide-react";
+import { PlusCircle, Music, Heart, ListMusic, Grid, List, Play, Pause } from "lucide-react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getUserPlaylists, createPlaylist, getPlaylistWithBeats } from "@/lib/playlistService";
