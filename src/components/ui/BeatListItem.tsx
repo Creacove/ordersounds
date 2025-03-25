@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -25,6 +24,7 @@ interface BeatListItemProps {
   isInCart?: boolean;
   onRemove?: (beatId: string) => void;
   onToggleFavorite?: (id: string) => void;
+  onPlay?: () => void;
 }
 
 export function BeatListItem({
@@ -32,7 +32,8 @@ export function BeatListItem({
   isFavorite = false,
   isInCart = false,
   onRemove,
-  onToggleFavorite
+  onToggleFavorite,
+  onPlay
 }: BeatListItemProps) {
   const { currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
@@ -44,7 +45,11 @@ export function BeatListItem({
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
-    playBeat(beat);
+    if (onPlay) {
+      onPlay();
+    } else {
+      playBeat(beat);
+    }
   };
 
   const handleAddToQueue = (e: React.MouseEvent) => {

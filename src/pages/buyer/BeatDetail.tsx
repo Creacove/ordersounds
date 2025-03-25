@@ -24,7 +24,7 @@ import { getLicensePrice } from '@/utils/licenseUtils';
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
   const { getBeatById, toggleFavorite, isFavorite, isPurchased, beats } = useBeats();
-  const { isPlaying, currentBeat, playBeat, pausePlayback } = usePlayer();
+  const { isPlaying, currentBeat, playBeat, togglePlayPause } = usePlayer();
   const { addToCart, isInCart } = useCart();
   const { user, currency } = useAuth();
   const navigate = useNavigate();
@@ -91,7 +91,7 @@ const BeatDetail = () => {
     
     if (beat) {
       if (isCurrentlyPlaying) {
-        pausePlayback();
+        togglePlayPause();
       } else {
         playBeat(beat);
       }
@@ -644,4 +644,3 @@ const BeatDetail = () => {
 };
 
 export default BeatDetail;
-
