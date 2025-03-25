@@ -8,7 +8,7 @@ import { BeatCard } from "@/components/ui/BeatCard";
 import { BeatListItem } from "@/components/ui/BeatListItem";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
-import { useAuthState } from "@/hooks/auth/useAuthState";
+import { useAuth } from "@/context/AuthContext"; // Change to useAuth instead of useAuthState
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +28,7 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const { playBeat } = usePlayer();
-  const { isAuthenticated, user } = useAuthState();
+  const { user } = useAuth(); // Correctly use useAuth hook
   const navigate = useNavigate();
 
   const handlePlayFeatured = () => {
@@ -437,7 +437,7 @@ export default function Home() {
           {/* IMPROVED CTA Section for logged-in users */}
           <section className="mb-10 bg-primary/5 rounded-lg py-8 px-6">
             <div className="text-center">
-              {isAuthenticated ? (
+              {user ? ( // Check if user exists instead of isAuthenticated
                 <>
                   <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
                     Discover More Music
