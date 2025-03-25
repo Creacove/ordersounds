@@ -17,5 +17,5 @@ export default function LibraryIndex() {
   }
   
   // By default, show the library with purchased beats
-  return <Navigate to="/purchased" replace />;
+  return <Navigate to="/purchased" replace state={{ fromLibrary: true }} />;
 }

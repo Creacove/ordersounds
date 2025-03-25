@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -75,7 +76,7 @@ export function Sidebar() {
     else if (path === "/producer/dashboard") setActiveBottomTab("producer");
     else if (path === "/producer/beats") setActiveBottomTab("beats");
     else if (path === "/producer/royalties") setActiveBottomTab("royalties");
-    else if (path === "/library") setActiveBottomTab("library");
+    else if (path === "/library" || path === "/purchased" || path === "/my-playlists") setActiveBottomTab("library");
     else setActiveBottomTab("");
   }, [location.pathname, isMobile]);
 
@@ -176,8 +177,12 @@ export function Sidebar() {
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
-            const isCurrentPath = location.pathname === item.to;
             const isActive = activeBottomTab === item.id;
+            const isLibraryRoute = item.id === "library" && (
+              location.pathname === "/library" || 
+              location.pathname === "/purchased" || 
+              location.pathname === "/my-playlists"
+            );
             
             if (item.action) {
               return (
@@ -211,13 +216,13 @@ export function Sidebar() {
                 to={item.to}
                 className={cn(
                   "flex flex-col items-center justify-center py-1 px-2 relative",
-                  isActive ? "text-purple-500" : "text-muted-foreground"
+                  (isActive || isLibraryRoute) ? "text-purple-500" : "text-muted-foreground"
                 )}
                 onClick={() => setActiveBottomTab(item.id)}
               >
                 <div className={cn(
                   "relative p-1.5 rounded-full transition-colors",
-                  isActive ? "bg-purple-500/20" : ""
+                  (isActive || isLibraryRoute) ? "bg-purple-500/20" : ""
                 )}>
                   {item.icon}
                   {item.badge && (
@@ -231,7 +236,7 @@ export function Sidebar() {
                 </div>
                 <span className={cn(
                   "text-xs mt-0.5",
-                  isActive ? "text-purple-500 font-medium" : ""
+                  (isActive || isLibraryRoute) ? "text-purple-500 font-medium" : ""
                 )}>
                   {item.label}
                 </span>
