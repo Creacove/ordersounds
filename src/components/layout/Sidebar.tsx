@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -67,7 +66,6 @@ export function Sidebar() {
     
     const path = location.pathname;
     
-    // Fix the highlighting issue by setting the active tab based on the exact current path
     if (path === "/") setActiveBottomTab("home");
     else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
     else if (path === "/trending") setActiveBottomTab("trending");
@@ -177,9 +175,11 @@ export function Sidebar() {
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-sidebar border-t border-sidebar-border py-1">
         <div className="flex justify-around">
           {mobileMenuItems.map((item, idx) => {
-            // Fix the highlighting logic by comparing the current pathname with item.to
             const isCurrentPath = location.pathname === item.to;
-            const isActive = activeBottomTab === item.id;
+            const isActive = activeBottomTab === item.id || 
+                            (item.id === "library" && location.pathname.includes("/purchased") || 
+                             item.id === "library" && location.pathname.includes("/my-playlists") ||
+                             item.id === "library" && location.pathname.includes("/favorites"));
             
             if (item.action) {
               return (
@@ -245,7 +245,6 @@ export function Sidebar() {
     );
   };
 
-  // Fixed the syntax issue with the DesktopSidebar component
   const DesktopSidebar = () => {
     return (
       <aside

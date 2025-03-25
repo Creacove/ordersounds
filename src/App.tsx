@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import Library from "./pages/buyer/Library";
+import LibraryIndex from "./pages/buyer/LibraryIndex";
 import Trending from "./pages/buyer/Trending";
 import New from "./pages/buyer/New";
 import Playlists from "./pages/buyer/Playlists";
@@ -69,9 +70,11 @@ const App = () => (
                   <Route path="/producer/:producerId" element={<ProducerProfile />} />
                   
                   {/* Library Routes */}
+                  <Route path="/library" element={<LibraryIndex />} />
                   <Route path="/favorites" element={<Library />} />
                   <Route path="/purchased" element={<Library />} />
                   <Route path="/my-playlists" element={<Library />} />
+                  <Route path="/my-playlists/:playlistId" element={<Library />} />
                   <Route path="/orders" element={<Orders />} />
                   
                   {/* Auth Routes */}

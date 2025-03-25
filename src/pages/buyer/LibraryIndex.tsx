@@ -16,6 +16,6 @@ export default function LibraryIndex() {
     return <Navigate to="/login" replace />;
   }
   
-  // By default, show the purchased beats
+  // By default, show the library with purchased beats
   return <Navigate to="/purchased" replace />;
 }
