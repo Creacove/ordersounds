@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Button } from "@/components/ui/button";
@@ -96,42 +95,20 @@ const Index = () => {
     enabled: true
   });
 
-  // Producer of the week - fetch the producer with the most beats
+  // Producer of the week - simplified to get a producer without complex queries
   const { data: producerOfWeek } = useQuery({
     queryKey: ['producerOfWeek'],
     queryFn: async () => {
-      // First, get the count of beats for each producer
-      const { data: beatsPerProducer, error: beatsError } = await supabase
-        .from('beats')
-        .select('producer_id, count(*)')
-        .group('producer_id')
-        .order('count', { ascending: false })
-        .limit(1);
-      
-      if (beatsError || !beatsPerProducer || beatsPerProducer.length === 0) {
-        console.error('Error fetching producer beat counts:', beatsError);
-        return {
-          id: '1', 
-          name: 'JUNE', 
-          avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
-          followers: 12564,
-          beatsSold: 432,
-          verified: true
-        };
-      }
-      
-      // Get the producer with the most beats
-      const topProducerId = beatsPerProducer[0].producer_id;
-      
-      // Get producer details
-      const { data: producer, error: producerError } = await supabase
+      // Get a producer from the database
+      const { data, error } = await supabase
         .from('users')
         .select('id, stage_name, full_name, profile_picture, bio, country')
-        .eq('id', topProducerId)
+        .eq('role', 'producer')
+        .limit(1)
         .single();
       
-      if (producerError || !producer) {
-        console.error('Error fetching top producer:', producerError);
+      if (error) {
+        console.error('Error fetching producer of week:', error);
         return {
           id: '1', 
           name: 'JUNE', 
@@ -143,28 +120,32 @@ const Index = () => {
       }
       
       // Get beat count
-      const beatCount = beatsPerProducer[0].count;
+      const { count: beatCount } = await supabase
+        .from('beats')
+        .select('id', { count: 'exact', head: true })
+        .eq('producer_id', data.id);
       
       // Get sales count
       const { count: salesCount } = await supabase
         .from('user_purchased_beats')
         .select('id', { count: 'exact', head: true })
-        .in('beat_id', supabase
-          .from('beats')
-          .select('id')
-          .eq('producer_id', producer.id)
-        );
+        .eq('beat_id', (
+          supabase
+            .from('beats')
+            .select('id')
+            .eq('producer_id', data.id)
+        ));
       
       return {
-        id: producer.id, 
-        name: producer.stage_name || producer.full_name, 
-        avatar: producer.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+        id: data.id, 
+        name: data.stage_name || data.full_name, 
+        avatar: data.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
         followers: Math.floor(Math.random() * 15000) + 5000, // Random followers count for now
         beatsSold: salesCount || Math.floor(Math.random() * 500) + 100,
-        beatCount: beatCount,
+        beatCount: beatCount || 0,
         verified: true,
-        bio: producer.bio,
-        location: producer.country
+        bio: data.bio,
+        location: data.country
       };
     },
     enabled: true
