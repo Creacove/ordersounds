@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useAuth } from "@/context/AuthContext";
@@ -36,7 +35,6 @@ export default function Library() {
   const [playlistBeats, setPlaylistBeats] = useState<Beat[]>([]);
   const [playlistLoading, setPlaylistLoading] = useState(false);
   
-  // Check if we're accessing the library from a playlist route
   const params = useParams<{ playlistId?: string }>();
   const playlistId = params.playlistId || new URLSearchParams(location.search).get('id');
 
@@ -116,7 +114,6 @@ export default function Library() {
     else if (value === "purchased") navigate("/purchased");
     else if (value === "playlists") navigate("/my-playlists");
     
-    // Clear selected playlist when changing tabs
     setSelectedPlaylist(null);
   };
   
@@ -128,7 +125,6 @@ export default function Library() {
     setPlaylistBeats(beats);
     setPlaylistLoading(false);
     
-    // Update URL without full navigation
     navigate(`/my-playlists/${playlist.id}`, { replace: true });
   };
   
@@ -226,7 +222,6 @@ export default function Library() {
     );
   };
   
-  // Render the selected playlist content
   if (selectedPlaylist && activeTab === "playlists") {
     return (
       <MainLayoutWithPlayer>
