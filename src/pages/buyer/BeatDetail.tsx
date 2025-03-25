@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -30,7 +29,7 @@ const BeatDetail = () => {
   const { user, currency } = useAuth();
   const navigate = useNavigate();
   const [similarBeats, setSimilarBeats] = useState<Beat[]>([]);
-  const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive'>('basic');
+  const [selectedLicense, setSelectedLicense] = useState<string>('basic');
   const isMobile = useIsMobile();
   
   const { data: beat, isLoading, error } = useQuery({
@@ -47,6 +46,12 @@ const BeatDetail = () => {
   useEffect(() => {
     if (beat) {
       document.title = `${beat.title} by ${beat.producer_name} | OrderSOUNDS`;
+    }
+  }, [beat]);
+
+  useEffect(() => {
+    if (beat?.license_type) {
+      setSelectedLicense(beat.license_type);
     }
   }, [beat]);
 
@@ -96,7 +101,7 @@ const BeatDetail = () => {
     }
   };
 
-  const handleAddToCart = (licenseType: 'basic' | 'premium' | 'exclusive') => {
+  const handleAddToCart = (licenseType: string) => {
     if (!beat) return;
     
     if (!user) {
@@ -139,6 +144,10 @@ const BeatDetail = () => {
       navigator.clipboard.writeText(window.location.href);
       toast.success('Link copied to clipboard');
     }
+  };
+
+  const handleSelectLicense = (licenseType: string) => {
+    setSelectedLicense(licenseType);
   };
 
   if (error) {
@@ -184,6 +193,11 @@ const BeatDetail = () => {
       </MainLayoutWithPlayer>
     );
   }
+
+  const hasBasicLicense = beat?.basic_license_price_local !== undefined || beat?.basic_license_price_diaspora !== undefined;
+  const hasPremiumLicense = beat?.premium_license_price_local !== undefined || beat?.premium_license_price_diaspora !== undefined;
+  const hasExclusiveLicense = beat?.exclusive_license_price_local !== undefined || beat?.exclusive_license_price_diaspora !== undefined;
+  const hasCustomLicense = beat?.license_type && !['basic', 'premium', 'exclusive'].includes(beat.license_type);
 
   return (
     <MainLayoutWithPlayer>
@@ -340,173 +354,242 @@ const BeatDetail = () => {
             <h2 className="text-lg font-semibold mb-3">Choose a License</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className={cn(
-                "relative rounded-xl border shadow-sm overflow-hidden",
-                selectedLicense === 'basic' ? "border-primary/50 bg-primary/5" : "bg-card"
-              )}>
-                <div className="p-4">
-                  <h3 className="font-semibold">Basic License</h3>
-                  <PriceTag 
-                    localPrice={getLicensePrice(beat, 'basic', false)}
-                    diasporaPrice={getLicensePrice(beat, 'basic', true)}
-                    size="lg"
-                    className="my-3"
-                  />
-                  <ul className="text-xs space-y-2 mt-4 mb-6">
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>MP3 Format</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Non-commercial use</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Up to 5,000 streams</span>
-                    </li>
-                    <li className="flex items-start gap-2 text-muted-foreground">
-                      <div>✕</div>
-                      <span>No radio/TV broadcasts</span>
-                    </li>
-                  </ul>
-                  <Button 
-                    className="w-full rounded-full"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedLicense('basic');
-                      handleAddToCart('basic');
-                    }}
-                    variant={isBeatPurchased ? "outline" : "default"}
-                    disabled={isBeatPurchased}
-                  >
-                    {isBeatPurchased ? (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Add to Cart
-                      </>
-                    )}
-                  </Button>
+              {(hasBasicLicense || !hasCustomLicense) && (
+                <div className={cn(
+                  "relative rounded-xl border shadow-sm overflow-hidden",
+                  selectedLicense === 'basic' ? "border-primary/50 bg-primary/5" : "bg-card"
+                )}>
+                  <div className="p-4">
+                    <h3 className="font-semibold">Basic License</h3>
+                    <PriceTag 
+                      localPrice={getLicensePrice(beat, 'basic', false)}
+                      diasporaPrice={getLicensePrice(beat, 'basic', true)}
+                      size="lg"
+                      className="my-3"
+                      onClick={() => handleSelectLicense('basic')}
+                    />
+                    <ul className="text-xs space-y-2 mt-4 mb-6">
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>MP3 Format</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Non-commercial use</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Up to 5,000 streams</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-muted-foreground">
+                        <div>✕</div>
+                        <span>No radio/TV broadcasts</span>
+                      </li>
+                    </ul>
+                    <Button 
+                      className="w-full rounded-full"
+                      size="sm"
+                      onClick={() => {
+                        handleSelectLicense('basic');
+                        handleAddToCart('basic');
+                      }}
+                      variant={isBeatPurchased ? "outline" : selectedLicense === 'basic' ? "default" : "secondary"}
+                      disabled={isBeatPurchased}
+                    >
+                      {isBeatPurchased ? (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Add to Cart
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
               
-              <div className={cn(
-                "relative rounded-xl border shadow-sm overflow-hidden",
-                selectedLicense === 'premium' ? "border-primary/50 bg-primary/5" : "bg-card"
-              )}>
-                <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs py-1 px-3 rounded-bl-lg">
-                  Popular
+              {(hasPremiumLicense || !hasCustomLicense) && (
+                <div className={cn(
+                  "relative rounded-xl border shadow-sm overflow-hidden",
+                  selectedLicense === 'premium' ? "border-primary/50 bg-primary/5" : "bg-card"
+                )}>
+                  <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs py-1 px-3 rounded-bl-lg">
+                    Popular
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold">Premium License</h3>
+                    <PriceTag 
+                      localPrice={getLicensePrice(beat, 'premium', false)} 
+                      diasporaPrice={getLicensePrice(beat, 'premium', true)}
+                      size="lg"
+                      className="my-3"
+                      onClick={() => handleSelectLicense('premium')}
+                    />
+                    <ul className="text-xs space-y-2 mt-4 mb-6">
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>WAV Format</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Commercial use</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Unlimited streams</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Limited broadcasting rights</span>
+                      </li>
+                    </ul>
+                    <Button 
+                      className="w-full rounded-full"
+                      size="sm"
+                      onClick={() => {
+                        handleSelectLicense('premium');
+                        handleAddToCart('premium');
+                      }}
+                      variant={isBeatPurchased ? "outline" : selectedLicense === 'premium' ? "default" : "secondary"}
+                      disabled={isBeatPurchased}
+                    >
+                      {isBeatPurchased ? (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Add to Cart
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-                <div className="p-4">
-                  <h3 className="font-semibold">Premium License</h3>
-                  <PriceTag 
-                    localPrice={getLicensePrice(beat, 'premium', false)} 
-                    diasporaPrice={getLicensePrice(beat, 'premium', true)}
-                    size="lg"
-                    className="my-3"
-                  />
-                  <ul className="text-xs space-y-2 mt-4 mb-6">
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>WAV Format</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Commercial use</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Unlimited streams</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Limited broadcasting rights</span>
-                    </li>
-                  </ul>
-                  <Button 
-                    className="w-full rounded-full"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedLicense('premium');
-                      handleAddToCart('premium');
-                    }}
-                    variant={selectedLicense === 'premium' ? "default" : "secondary"}
-                    disabled={isBeatPurchased}
-                  >
-                    {isBeatPurchased ? (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Add to Cart
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
+              )}
               
-              <div className={cn(
-                "relative rounded-xl border shadow-sm overflow-hidden",
-                selectedLicense === 'exclusive' ? "border-primary/50 bg-primary/5" : "bg-card"
-              )}>
-                <div className="p-4">
-                  <h3 className="font-semibold">Exclusive License</h3>
-                  <PriceTag 
-                    localPrice={getLicensePrice(beat, 'exclusive', false)} 
-                    diasporaPrice={getLicensePrice(beat, 'exclusive', true)}
-                    size="lg"
-                    className="my-3"
-                  />
-                  <ul className="text-xs space-y-2 mt-4 mb-6">
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>WAV + Trackout Files</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Full ownership rights</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Unlimited distribution</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <div className="text-primary">✓</div>
-                      <span>Full broadcasting rights</span>
-                    </li>
-                  </ul>
-                  <Button 
-                    className="w-full rounded-full"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedLicense('exclusive');
-                      handleAddToCart('exclusive');
-                    }}
-                    variant={selectedLicense === 'exclusive' ? "default" : "secondary"}
-                    disabled={isBeatPurchased}
-                  >
-                    {isBeatPurchased ? (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Add to Cart
-                      </>
-                    )}
-                  </Button>
+              {(hasExclusiveLicense || !hasCustomLicense) && (
+                <div className={cn(
+                  "relative rounded-xl border shadow-sm overflow-hidden",
+                  selectedLicense === 'exclusive' ? "border-primary/50 bg-primary/5" : "bg-card"
+                )}>
+                  <div className="p-4">
+                    <h3 className="font-semibold">Exclusive License</h3>
+                    <PriceTag 
+                      localPrice={getLicensePrice(beat, 'exclusive', false)} 
+                      diasporaPrice={getLicensePrice(beat, 'exclusive', true)}
+                      size="lg"
+                      className="my-3"
+                      onClick={() => handleSelectLicense('exclusive')}
+                    />
+                    <ul className="text-xs space-y-2 mt-4 mb-6">
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>WAV + Trackout Files</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Full ownership rights</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Unlimited distribution</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <div className="text-primary">✓</div>
+                        <span>Full broadcasting rights</span>
+                      </li>
+                    </ul>
+                    <Button 
+                      className="w-full rounded-full"
+                      size="sm"
+                      onClick={() => {
+                        handleSelectLicense('exclusive');
+                        handleAddToCart('exclusive');
+                      }}
+                      variant={isBeatPurchased ? "outline" : selectedLicense === 'exclusive' ? "default" : "secondary"}
+                      disabled={isBeatPurchased}
+                    >
+                      {isBeatPurchased ? (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Add to Cart
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
+              
+              {hasCustomLicense && (
+                <div className={cn(
+                  "relative rounded-xl border shadow-sm overflow-hidden",
+                  selectedLicense === beat?.license_type ? "border-primary/50 bg-primary/5" : "bg-card"
+                )}>
+                  <div className="absolute top-0 right-0 bg-purple-500 text-white text-xs py-1 px-3 rounded-bl-lg">
+                    Custom
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold capitalize">{beat?.license_type} License</h3>
+                    <PriceTag 
+                      localPrice={beat?.price_local || 0} 
+                      diasporaPrice={beat?.price_diaspora || 0}
+                      size="lg"
+                      className="my-3"
+                      licenseType={beat?.license_type}
+                      onClick={() => handleSelectLicense(beat?.license_type || '')}
+                    />
+                    <div className="text-xs mt-4 mb-6">
+                      {beat?.license_terms ? (
+                        <p className="text-muted-foreground">{beat.license_terms}</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          <li className="flex items-start gap-2">
+                            <div className="text-primary">✓</div>
+                            <span>Custom license terms</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <div className="text-primary">✓</div>
+                            <span>Contact producer for details</span>
+                          </li>
+                        </ul>
+                      )}
+                    </div>
+                    <Button 
+                      className="w-full rounded-full"
+                      size="sm"
+                      onClick={() => {
+                        handleSelectLicense(beat?.license_type || '');
+                        handleAddToCart(beat?.license_type || '');
+                      }}
+                      variant={isBeatPurchased ? "outline" : selectedLicense === beat?.license_type ? "default" : "secondary"}
+                      disabled={isBeatPurchased}
+                    >
+                      {isBeatPurchased ? (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Add to Cart
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
             
             <div className="text-xs text-muted-foreground mt-3">

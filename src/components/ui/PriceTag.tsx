@@ -8,6 +8,7 @@ interface PriceTagProps {
   size?: "sm" | "md" | "lg";
   className?: string;
   licenseType?: string;
+  onClick?: () => void;
 }
 
 export function PriceTag({ 
@@ -15,7 +16,8 @@ export function PriceTag({
   diasporaPrice, 
   size = "md", 
   className,
-  licenseType
+  licenseType,
+  onClick
 }: PriceTagProps) {
   const { currency } = useAuth();
   
@@ -40,9 +42,11 @@ export function PriceTag({
 
   return (
     <span 
+      onClick={onClick}
       className={cn(
         "inline-flex items-center justify-center bg-primary/10 text-primary rounded-full whitespace-nowrap", 
         sizeClasses[size],
+        onClick && "cursor-pointer hover:bg-primary/20 transition-colors",
         className
       )}
     >

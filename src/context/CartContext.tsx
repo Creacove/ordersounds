@@ -1,6 +1,8 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
+import { getLicensePrice } from '@/utils/licenseUtils';
 
 interface CartItem {
   beat: Beat & { selected_license?: string };
@@ -70,28 +72,18 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     setItemCount(cartItems.length);
 
     const newTotal = cartItems.reduce((total, item) => {
+      const licenseType = item.beat.selected_license || 'basic';
       let price = 0;
-      if (currency === 'NGN') {
-        if (item.beat.selected_license === 'basic') {
-          price = item.beat.basic_license_price_local || item.beat.price_local * 0.5;
-        } else if (item.beat.selected_license === 'premium') {
-          price = item.beat.premium_license_price_local || item.beat.price_local;
-        } else if (item.beat.selected_license === 'exclusive') {
-          price = item.beat.exclusive_license_price_local || item.beat.price_local * 3;
-        } else {
-          price = item.beat.price_local;
-        }
+      
+      // Handle custom license types
+      if (!['basic', 'premium', 'exclusive'].includes(licenseType)) {
+        // For custom license types, use the direct prices
+        price = currency === 'NGN' ? item.beat.price_local : item.beat.price_diaspora;
       } else {
-        if (item.beat.selected_license === 'basic') {
-          price = item.beat.basic_license_price_diaspora || item.beat.price_diaspora * 0.5;
-        } else if (item.beat.selected_license === 'premium') {
-          price = item.beat.premium_license_price_diaspora || item.beat.price_diaspora;
-        } else if (item.beat.selected_license === 'exclusive') {
-          price = item.beat.exclusive_license_price_diaspora || item.beat.price_diaspora * 3;
-        } else {
-          price = item.beat.price_diaspora;
-        }
+        // For standard license types, use the utility function
+        price = getLicensePrice(item.beat, licenseType, currency === 'USD');
       }
+      
       return total + price;
     }, 0);
 

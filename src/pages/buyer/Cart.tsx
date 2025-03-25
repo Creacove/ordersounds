@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -50,6 +51,20 @@ export default function Cart() {
   useEffect(() => {
     document.title = "Shopping Cart | OrderSOUNDS";
   }, []);
+
+  // Helper function to get the correct price based on license type
+  const getItemPrice = (item) => {
+    const licenseType = item.beat.selected_license || 'basic';
+    
+    // Custom license (neither basic, premium, nor exclusive)
+    if (!['basic', 'premium', 'exclusive'].includes(licenseType)) {
+      // Use the beat's direct price for custom licenses
+      return currency === 'NGN' ? item.beat.price_local : item.beat.price_diaspora;
+    }
+    
+    // Standard license types use the utility function
+    return getLicensePrice(item.beat, licenseType, currency === 'USD');
+  };
 
   if (!user) {
     return (
@@ -136,9 +151,7 @@ export default function Cart() {
                         <div className="flex flex-col items-end">
                           <span className="font-semibold text-sm">
                             {currency === 'NGN' ? '₦' : '$'}
-                            {currency === 'NGN' 
-                              ? getLicensePrice(item.beat, item.beat.selected_license || 'basic', false).toLocaleString() 
-                              : getLicensePrice(item.beat, item.beat.selected_license || 'basic', true).toLocaleString()}
+                            {getItemPrice(item).toLocaleString()}
                           </span>
                           
                           <Button 

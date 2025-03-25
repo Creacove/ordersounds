@@ -4,7 +4,7 @@ import { Beat } from '@/types';
 /**
  * Calculates the price for a specific license type based on the beat and user location
  * @param beat The beat object
- * @param licenseType The type of license: 'basic', 'premium', or 'exclusive'
+ * @param licenseType The type of license: 'basic', 'premium', 'exclusive' or custom
  * @param isDiaspora Whether to use diaspora (USD) pricing or local (NGN) pricing
  * @returns The calculated price for the license
  */
@@ -20,6 +20,11 @@ export const getLicensePrice = (
     premium: 1,
     exclusive: 3
   };
+
+  // Handle custom license types
+  if (licenseType && !['basic', 'premium', 'exclusive'].includes(licenseType)) {
+    return isDiaspora ? beat.price_diaspora : beat.price_local;
+  }
 
   if (isDiaspora) {
     // Diaspora pricing (USD)

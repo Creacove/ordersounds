@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getLicensePrice } from '@/utils/licenseUtils';
 
 interface BeatCardProps {
   beat: Beat;
@@ -66,16 +67,33 @@ export function BeatCard({
     }
   };
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent, licenseType: string = beat.license_type || 'basic') => {
     e.preventDefault();
     e.stopPropagation();
+    
+    if (!user) {
+      toast.error('Please log in to add to cart');
+      navigate('/login');
+      return;
+    }
+    
+    if (isPurchased) {
+      toast.info('You already own this beat');
+      return;
+    }
     
     if (onAddToCart) {
       onAddToCart(beat);
     } 
     else if (!inCart) {
-      addToCart(beat);
-      toast.success(`Added "${beat.title}" to cart`);
+      const beatWithLicense = {
+        ...beat,
+        selected_license: licenseType
+      };
+      addToCart(beatWithLicense);
+      toast.success(`Added "${beat.title}" (${licenseType} license) to cart`);
+    } else {
+      navigate('/cart');
     }
   };
 
@@ -136,6 +154,23 @@ export function BeatCard({
   const goToBeatDetail = () => {
     navigate(`/beat/${beat.id}`);
   };
+  
+  // Determine the license type to display
+  const displayLicenseType = beat.license_type || 'basic';
+  
+  // Get the appropriate price for this license
+  const getDisplayPrice = () => {
+    const { currency } = useAuth();
+    const isDiaspora = currency === 'USD';
+    
+    if (displayLicenseType && !['basic', 'premium', 'exclusive'].includes(displayLicenseType)) {
+      // For custom license types, use the base price
+      return isDiaspora ? beat.price_diaspora : beat.price_local;
+    }
+    
+    // For standard license types, use the utility function
+    return getLicensePrice(beat, displayLicenseType, isDiaspora);
+  };
 
   return (
     <div
@@ -173,9 +208,16 @@ export function BeatCard({
             Purchased
           </div>
         )}
+        
+        {/* License badge if it's a custom license */}
+        {displayLicenseType && !['basic', 'premium', 'exclusive'].includes(displayLicenseType) && (
+          <div className="absolute bottom-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded-full capitalize">
+            {displayLicenseType}
+          </div>
+        )}
       </div>
 
-      {/* Beat info section - redesigned for better visibility */}
+      {/* Beat info section */}
       <div className="flex flex-col p-4 space-y-3">
         {/* Title, producer and price tag */}
         <div className="flex flex-col">
@@ -186,10 +228,15 @@ export function BeatCard({
             {beat.producer_name}
           </p>
           <PriceTag
-            localPrice={beat.price_local}
-            diasporaPrice={beat.price_diaspora}
+            localPrice={getDisplayPrice()}
+            diasporaPrice={getDisplayPrice()}
             size="sm"
             className="self-start"
+            licenseType={!['basic', 'premium', 'exclusive'].includes(displayLicenseType) ? displayLicenseType : undefined}
+            onClick={(e) => {
+              e.stopPropagation();
+              goToBeatDetail();
+            }}
           />
         </div>
         
@@ -199,7 +246,7 @@ export function BeatCard({
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleAddToCart}
+              onClick={(e) => handleAddToCart(e, displayLicenseType)}
               className="h-8 w-8 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90"
               title="Add to Cart"
             >
@@ -285,6 +332,16 @@ export function BeatCard({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handlePlay} className="cursor-pointer text-xs">
                     {isCurrentlyPlaying ? "Pause" : "Play"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      goToBeatDetail();
+                    }} 
+                    className="cursor-pointer text-xs"
+                  >
+                    View Details
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

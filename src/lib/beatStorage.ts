@@ -54,34 +54,64 @@ export const uploadBeat = async (
 
     // Step 2: Insert beat record into database
     console.log('Inserting beat record into database...');
+    
+    // Prepare the beat data for insertion
+    const beatData = {
+      producer_id: producerId,
+      title: beatInfo.title,
+      description: beatInfo.description,
+      genre: beatInfo.genre,
+      track_type: beatInfo.track_type,
+      bpm: beatInfo.bpm,
+      tags: beatInfo.tags,
+      price_local: beatInfo.price_local,
+      price_diaspora: beatInfo.price_diaspora,
+      status: beatInfo.status,
+      cover_image: coverImageUrl,
+      audio_preview: previewUrl,
+      audio_file: fullTrackUrl,
+      favorites_count: 0,
+      purchase_count: 0,
+      plays: 0,
+      license_terms: beatInfo.license_terms || ''
+    };
+    
+    // Add license information
+    if (beatInfo.license_type && beatInfo.license_type !== 'custom') {
+      // For standard licenses, add the license type and prices
+      beatData.license_type = beatInfo.license_type;
+      
+      if (beatInfo.basic_license_price_local > 0) {
+        beatData.basic_license_price_local = beatInfo.basic_license_price_local;
+      }
+      
+      if (beatInfo.basic_license_price_diaspora > 0) {
+        beatData.basic_license_price_diaspora = beatInfo.basic_license_price_diaspora;
+      }
+      
+      if (beatInfo.premium_license_price_local > 0) {
+        beatData.premium_license_price_local = beatInfo.premium_license_price_local;
+      }
+      
+      if (beatInfo.premium_license_price_diaspora > 0) {
+        beatData.premium_license_price_diaspora = beatInfo.premium_license_price_diaspora;
+      }
+      
+      if (beatInfo.exclusive_license_price_local > 0) {
+        beatData.exclusive_license_price_local = beatInfo.exclusive_license_price_local;
+      }
+      
+      if (beatInfo.exclusive_license_price_diaspora > 0) {
+        beatData.exclusive_license_price_diaspora = beatInfo.exclusive_license_price_diaspora;
+      }
+    } else if (beatInfo.license_type === 'custom') {
+      // For custom licenses, just set the license type and let the base price be used
+      beatData.license_type = beatInfo.license_type;
+    }
+
     const { data: beatRecord, error: beatError } = await supabase
       .from('beats')
-      .insert({
-        producer_id: producerId,
-        title: beatInfo.title,
-        description: beatInfo.description,
-        genre: beatInfo.genre,
-        track_type: beatInfo.track_type,
-        bpm: beatInfo.bpm,
-        tags: beatInfo.tags,
-        price_local: beatInfo.price_local,
-        price_diaspora: beatInfo.price_diaspora,
-        basic_license_price_local: beatInfo.basic_license_price_local,
-        basic_license_price_diaspora: beatInfo.basic_license_price_diaspora,
-        premium_license_price_local: beatInfo.premium_license_price_local,
-        premium_license_price_diaspora: beatInfo.premium_license_price_diaspora,
-        exclusive_license_price_local: beatInfo.exclusive_license_price_local,
-        exclusive_license_price_diaspora: beatInfo.exclusive_license_price_diaspora,
-        status: beatInfo.status,
-        cover_image: coverImageUrl,
-        audio_preview: previewUrl,
-        audio_file: fullTrackUrl,
-        favorites_count: 0,
-        purchase_count: 0,
-        plays: 0,
-        license_type: beatInfo.license_type || 'basic',
-        license_terms: beatInfo.license_terms || ''
-      })
+      .insert(beatData)
       .select('id')
       .single();
 
