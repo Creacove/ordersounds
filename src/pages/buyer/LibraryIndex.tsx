@@ -15,6 +15,6 @@ export default function LibraryIndex() {
     return <Navigate to="/login" replace />;
   }
   
-  // By default, show the library with purchased beats
-  return <Navigate to="/purchased" replace state={{ fromLibrary: true }} />;
+  // By default, show the playlists page
+  return <Navigate to="/playlists" replace />;
 }

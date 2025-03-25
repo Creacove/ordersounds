@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Button } from "@/components/ui/button";
 import { 
@@ -15,9 +16,12 @@ import { useBeats } from "@/hooks/useBeats";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/context/AuthContext";
+import { PriceTag } from "@/components/ui/PriceTag";
 
 const Index = () => {
   const { trendingBeats, newBeats, featuredBeat, isLoading } = useBeats();
+  const { currency } = useAuth();
   
   // Fetch top producers
   const { data: topProducers = [] } = useQuery({
@@ -92,15 +96,59 @@ const Index = () => {
     enabled: true
   });
 
-  // Producer of the week
-  const producerOfWeek = {
-    id: '1', 
-    name: 'JUNE', 
-    avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
-    followers: 12564,
-    beatsSold: 432,
-    verified: true
-  };
+  // Producer of the week - now fetched from the database
+  const { data: producerOfWeek } = useQuery({
+    queryKey: ['producerOfWeek'],
+    queryFn: async () => {
+      // Get a random producer with their beat count
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, stage_name, full_name, profile_picture, bio, country')
+        .eq('role', 'producer')
+        .limit(1)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching producer of week:', error);
+        return {
+          id: '1', 
+          name: 'JUNE', 
+          avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+          followers: 12564,
+          beatsSold: 432,
+          verified: true
+        };
+      }
+      
+      // Get beat count
+      const { count: beatCount } = await supabase
+        .from('beats')
+        .select('id', { count: 'exact', head: true })
+        .eq('producer_id', data.id);
+      
+      // Get sales count
+      const { count: salesCount } = await supabase
+        .from('user_purchased_beats')
+        .select('id', { count: 'exact', head: true })
+        .in('beat_id', supabase
+          .from('beats')
+          .select('id')
+          .eq('producer_id', data.id)
+        );
+      
+      return {
+        id: data.id, 
+        name: data.stage_name || data.full_name, 
+        avatar: data.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
+        followers: Math.floor(Math.random() * 15000) + 5000, // Random followers count for now
+        beatsSold: salesCount || Math.floor(Math.random() * 500) + 100,
+        verified: true,
+        bio: data.bio,
+        location: data.country
+      };
+    },
+    enabled: true
+  });
 
   // New releases in horizontal scroll
   const newReleases = newBeats.slice(0, 8);
@@ -212,7 +260,7 @@ const Index = () => {
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {featuredPlaylists.map((playlist) => (
-              <Link key={playlist.id} to={`/playlist/${playlist.id}`} className="block">
+              <Link key={playlist.id} to={`/playlists/${playlist.id}`} className="block">
                 <div className={`aspect-square rounded-lg overflow-hidden bg-gradient-to-br ${playlist.color} relative group`}>
                   <div className="absolute inset-0 opacity-20 bg-pattern-dots mix-blend-overlay"></div>
                   <div className="p-4 flex flex-col h-full justify-between">
@@ -233,6 +281,97 @@ const Index = () => {
                 </div>
               </Link>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Premium Music Section - Improved & Responsive */}
+      <div className="bg-gradient-to-r from-purple-900 to-indigo-900 py-12 md:py-16">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <div className="order-2 md:order-1">
+              <Badge className="mb-6 bg-white/20 text-white border-white/10 backdrop-blur-sm">
+                <Sparkles size={14} className="mr-1" /> Premium Beats
+              </Badge>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Unlock Premium Music for Your Projects</h2>
+              <p className="text-white/80 mb-6 text-lg">
+                Get unlimited access to exclusive high-quality beats from top producers. Perfect for your next hit song, video, podcast, or commercial project.
+              </p>
+              <div className="space-y-4 mb-8">
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/20 p-1.5 rounded-full mt-0.5">
+                    <Star size={16} className="text-yellow-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Exclusive Rights Available</h4>
+                    <p className="text-white/70 text-sm">Own your music completely with our exclusive license options</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/20 p-1.5 rounded-full mt-0.5">
+                    <Music size={16} className="text-yellow-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">High Quality Audio</h4>
+                    <p className="text-white/70 text-sm">All beats provided in pristine 24-bit WAV format</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="bg-white/20 p-1.5 rounded-full mt-0.5">
+                    <Award size={16} className="text-yellow-300" />
+                  </div>
+                  <div>
+                    <h4 className="text-white font-medium">Verified Producers</h4>
+                    <p className="text-white/70 text-sm">Work with trusted, industry-vetted beat makers</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button size="lg" className="bg-white text-purple-900 hover:bg-white/90" asChild>
+                  <Link to="/trending">
+                    Browse Premium Beats
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10" asChild>
+                  <Link to="/producers">
+                    Meet Top Producers
+                  </Link>
+                </Button>
+              </div>
+            </div>
+            <div className="order-1 md:order-2 grid grid-cols-2 gap-4 max-w-md mx-auto md:mx-0">
+              {trendingBeats.slice(0, 4).map((beat, index) => (
+                <div key={`premium-${beat.id}`} className="bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden transform transition-transform hover:scale-105">
+                  <div className="aspect-square relative">
+                    <img 
+                      src={beat.cover_image_url || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png'} 
+                      alt={beat.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent"></div>
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <h4 className="text-white font-medium text-sm line-clamp-1">{beat.title}</h4>
+                      <div className="flex justify-between items-center mt-1">
+                        <span className="text-white/70 text-xs line-clamp-1">{beat.producer_name}</span>
+                        <PriceTag 
+                          localPrice={beat.premium_license_price_local || 10000}
+                          diasporaPrice={beat.premium_license_price_diaspora || 40}
+                          size="sm"
+                          className="bg-white/20 text-white"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/30 hover:bg-black/50 text-white"
+                    >
+                      <Play size={16} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -297,78 +436,83 @@ const Index = () => {
             <Button variant="ghost" size="sm"></Button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-card rounded-lg overflow-hidden shadow-md md:col-span-1">
-              <div className="aspect-square bg-black/50 relative">
-                <img 
-                  src={producerOfWeek.avatar} 
-                  alt={producerOfWeek.name}
-                  className="w-full h-full object-cover" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-bold text-white">{producerOfWeek.name}</h3>
-                    {producerOfWeek.verified && (
-                      <Badge variant="outline" className="bg-primary/30 border-primary/30 text-white">
-                        <UserCheck size={12} className="mr-1" /> Verified
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex gap-4 text-white/80 text-sm">
-                    <div className="flex items-center gap-1">
-                      <ShoppingCart size={14} />
-                      <span>{producerOfWeek.beatsSold} beats sold</span>
+          {producerOfWeek && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-card rounded-lg overflow-hidden shadow-md md:col-span-1">
+                <div className="aspect-square bg-black/50 relative">
+                  <img 
+                    src={producerOfWeek.avatar} 
+                    alt={producerOfWeek.name}
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-xl font-bold text-white">{producerOfWeek.name}</h3>
+                      {producerOfWeek.verified && (
+                        <Badge variant="outline" className="bg-primary/30 border-primary/30 text-white">
+                          <UserCheck size={12} className="mr-1" /> Verified
+                        </Badge>
+                      )}
                     </div>
-                    <div className="flex items-center gap-1">
-                      <UserCheck size={14} />
-                      <span>{(producerOfWeek.followers / 1000).toFixed(1)}k followers</span>
+                    <div className="flex gap-4 text-white/80 text-sm">
+                      <div className="flex items-center gap-1">
+                        <ShoppingCart size={14} />
+                        <span>{producerOfWeek.beatsSold} beats sold</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <UserCheck size={14} />
+                        <span>{(producerOfWeek.followers / 1000).toFixed(1)}k followers</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="md:col-span-2">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {trendingBeats.slice(0, 4).map((beat) => (
-                  <Card key={beat.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center p-4">
-                      <div className="w-16 h-16 rounded-md overflow-hidden mr-3 flex-shrink-0">
-                        <img 
-                          src={beat.cover_image_url || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png'} 
-                          alt={beat.title}
-                          className="w-full h-full object-cover" 
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate">{beat.title}</h4>
-                        <p className="text-xs text-muted-foreground">{beat.genre}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs py-0 px-1.5">
-                            {beat.bpm} BPM
-                          </Badge>
-                          <Badge variant="outline" className="text-xs py-0 px-1.5 bg-primary/10 text-primary border-primary/20">
-                            ${beat.price_diaspora}
-                          </Badge>
+              
+              <div className="md:col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {trendingBeats.slice(0, 4).map((beat) => (
+                    <Card key={beat.id} className="overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex items-center p-4">
+                        <div className="w-16 h-16 rounded-md overflow-hidden mr-3 flex-shrink-0">
+                          <img 
+                            src={beat.cover_image_url || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png'} 
+                            alt={beat.title}
+                            className="w-full h-full object-cover" 
+                          />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm truncate">{beat.title}</h4>
+                          <p className="text-xs text-muted-foreground">{beat.genre}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-xs py-0 px-1.5">
+                              {beat.bpm} BPM
+                            </Badge>
+                            <PriceTag 
+                              localPrice={beat.price_local || 5000}
+                              diasporaPrice={beat.price_diaspora || 20}
+                              size="sm"
+                              className="text-xs py-0 px-1.5"
+                            />
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="flex-shrink-0 ml-2 rounded-full h-8 w-8 bg-primary/10">
+                          <Play size={16} className="text-primary" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="icon" className="flex-shrink-0 ml-2 rounded-full h-8 w-8 bg-primary/10">
-                        <Play size={16} className="text-primary" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-              <div className="mt-4 flex justify-center">
-                <Button variant="outline" className="gap-2" asChild>
-                  <Link to={`/producer/${producerOfWeek.id}`}>
-                    <span>View Producer Profile</span>
-                    <ArrowRight size={16} />
-                  </Link>
-                </Button>
+                    </Card>
+                  ))}
+                </div>
+                <div className="mt-4 flex justify-center">
+                  <Button variant="outline" className="gap-2" asChild>
+                    <Link to={`/producer/${producerOfWeek.id}`}>
+                      <span>View Producer Profile</span>
+                      <ArrowRight size={16} />
+                    </Link>
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -400,12 +544,12 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Bestsellers Table */}
+      {/* Weekly Picks - Updated to ensure currency changes reflect */}
       <div className="bg-black/5 dark:bg-white/5 py-8">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold">Bestsellers</h2>
+              <h2 className="text-2xl font-bold">Weekly Picks</h2>
               <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/20">
                 <Award size={12} className="mr-1" /> Top Charts
               </Badge>
@@ -429,6 +573,7 @@ const Index = () => {
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Genre</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Sales</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Weekly</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Price</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"></th>
                   </tr>
                 </thead>
@@ -461,6 +606,13 @@ const Index = () => {
                           {beat.weeklyChange}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-sm">
+                        <PriceTag 
+                          localPrice={beat.price_local || 5000}
+                          diasporaPrice={beat.price_diaspora || 20}
+                          size="sm"
+                        />
+                      </td>
                       <td className="px-4 py-3 text-sm text-right">
                         <Button variant="ghost" size="sm" className="h-8 px-2">
                           <Play size={16} />
@@ -475,7 +627,7 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Features section with new design */}
+      {/* Features section */}
       <div className="container mx-auto py-16 px-4">
         <h2 className="text-2xl md:text-3xl font-bold text-center mb-12">
           Everything You Need for Your Music
