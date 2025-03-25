@@ -4,6 +4,7 @@ import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
+import { Link, useNavigate } from 'react-router-dom';
 import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
@@ -37,10 +38,12 @@ export function BeatListItem({
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
   const { addToCart } = useCart();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
 
-  const handlePlay = () => {
+  const handlePlay = (e: React.MouseEvent) => {
+    e.stopPropagation();
     playBeat(beat);
   };
 
@@ -73,8 +76,15 @@ export function BeatListItem({
     }
   };
 
+  const handleClick = () => {
+    navigate(`/beat/${beat.id}`);
+  };
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors shadow-sm hover:shadow">
+    <div 
+      onClick={handleClick} 
+      className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors shadow-sm hover:shadow cursor-pointer"
+    >
       {/* Thumbnail with play button */}
       <div className="relative h-16 w-full sm:w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted">
         <img 
@@ -96,7 +106,13 @@ export function BeatListItem({
       {/* Beat details */}
       <div className="flex-1 min-w-0">
         <h3 className="font-medium truncate">{beat.title}</h3>
-        <p className="text-sm text-muted-foreground truncate">{beat.producer_name}</p>
+        <Link 
+          to={`/producer/${beat.producer_id}`} 
+          onClick={(e) => e.stopPropagation()}
+          className="text-sm text-muted-foreground hover:text-primary truncate block"
+        >
+          {beat.producer_name}
+        </Link>
         <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
           <span>{beat.genre}</span>
           <span>•</span>
@@ -158,11 +174,12 @@ export function BeatListItem({
               variant="ghost"
               size="icon"
               className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+              onClick={(e) => e.stopPropagation()}
             >
               <MoreVertical size={18} />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
             <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer">
               <Plus className="mr-2 h-4 w-4" />
               <span>Add to queue</span>

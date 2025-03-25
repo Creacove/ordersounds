@@ -29,6 +29,7 @@ import Settings from "./pages/user/Settings";
 import Contact from "./pages/Contact";
 import BuyerProfile from "./pages/buyer/BuyerProfile";
 import ProducerProfile from "./pages/producer/ProducerProfile";
+import BeatDetail from "./pages/buyer/BeatDetail";
 
 // Producer pages
 import ProducerDashboard from "./pages/producer/Dashboard";
@@ -62,6 +63,7 @@ const App = () => (
                   <Route path="/search" element={<Search />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/cart" element={<Cart />} />
+                  <Route path="/beat/:beatId" element={<BeatDetail />} />
                   
                   {/* Profile Routes */}
                   <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
