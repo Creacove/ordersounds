@@ -27,8 +27,7 @@ import Cart from "./pages/buyer/Cart";
 import Search from "./pages/buyer/Search";
 import Settings from "./pages/user/Settings";
 import Contact from "./pages/Contact";
-import BuyerProfile from "./pages/buyer/BuyerProfile";
-import ProducerProfile from "./pages/producer/ProducerProfile";
+import ProfilePage from "./pages/user/ProfilePage";
 import BeatDetail from "./pages/buyer/BeatDetail";
 
 // Producer pages
@@ -73,9 +72,11 @@ const App = () => (
                   <Route path="/cart" element={<Cart />} />
                   <Route path="/beat/:beatId" element={<BeatDetail />} />
                   
-                  {/* Profile Routes */}
-                  <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
-                  <Route path="/producer/:producerId" element={<ProducerProfile />} />
+                  {/* Profile Routes - Unified profiles */}
+                  <Route path="/profile/:userId" element={<ProfilePage />} />
+                  {/* Legacy profile routes with redirects */}
+                  <Route path="/buyer/:buyerId" element={<Navigate to={`/profile/:buyerId`} replace />} />
+                  <Route path="/producer/:producerId" element={<Navigate to={`/profile/:producerId`} replace />} />
                   
                   {/* Library Routes */}
                   <Route path="/library" element={<LibraryIndex />} />

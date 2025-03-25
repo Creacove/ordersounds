@@ -126,22 +126,13 @@ export function Sidebar() {
           { icon: Search, title: "Search", href: "/search" },
         ]
       });
-
-      sections.push({ 
-        title: "Library", 
-        items: [
-          { icon: Heart, title: "Favorites", href: "/favorites" },
-          { icon: LayoutGrid, title: "My Playlists", href: "/my-playlists" },
-          { icon: Music, title: "Purchased", href: "/purchased" },
-        ]
-      });
     }
 
     if (user) {
       sections.push({
         title: "Account",
         items: [
-          { icon: User, title: "Profile", href: user.role === "producer" ? `/producer/${user.id}` : `/buyer/${user.id}` },
+          { icon: User, title: "Profile", href: `/profile/${user.id}` },
           { icon: Settings, title: "Settings", href: "/settings" },
           { icon: LogOut, title: "Sign Out", href: "#", onClick: handleSignOut },
         ]
