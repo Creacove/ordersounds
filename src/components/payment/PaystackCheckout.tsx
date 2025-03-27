@@ -44,8 +44,24 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         }
       ]
     },
+    onSuccess: (reference) => {
+      // Get the orderId from localStorage that we stored before
+      const orderId = localStorage.getItem('pendingOrderId');
+      if (orderId) {
+        handlePaymentSuccess(reference.reference, orderId);
+      } else {
+        console.error('No pending order ID found');
+        toast.error('Payment tracking error. Please contact support.');
+      }
+    },
+    onClose: () => {
+      setIsProcessing(false);
+      toast.error("Payment canceled. You can try again when you're ready.");
+      onClose();
+    }
   };
 
+  // Initialize the Paystack payment hook
   const initializePayment = usePaystackPayment(config);
 
   const handlePaymentStart = async () => {
@@ -90,23 +106,13 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error(`Line items creation failed: ${lineItemError.message}`);
       }
       
-      // Initialize Paystack payment
       // Store the order ID in localStorage so we can access it after redirect
       localStorage.setItem('pendingOrderId', orderData.id);
       localStorage.setItem('paystackReference', reference);
       
-      // Function to call the Paystack popup
-      initializePayment({
-        onSuccess: () => {
-          // This runs after a successful payment
-          handlePaymentSuccess(reference, orderData.id);
-        },
-        onClose: () => {
-          setIsProcessing(false);
-          toast.error("Payment canceled. You can try again when you're ready.");
-          onClose();
-        },
-      });
+      // Call the Paystack popup
+      // This will use the config we provided including the callbacks
+      initializePayment();
     } catch (error) {
       console.error('Payment initialization error:', error);
       setIsProcessing(false);
