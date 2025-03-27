@@ -63,9 +63,9 @@ export function Sidebar() {
     if (isMobile) {
       setIsOpen(false);
     }
-    
+
     const path = location.pathname;
-    
+
     if (path === "/") setActiveBottomTab("home");
     else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
     else if (path === "/trending") setActiveBottomTab("trending");
@@ -235,7 +235,7 @@ export function Sidebar() {
                       variant="destructive" 
                       className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center p-0 text-[10px]"
                     >
-                      {item.badge > 9 ? '9+' : item.badge}
+                      {item.badge > 9 ? "9+" : item.badge}
                     </Badge>
                   )}
                 </div>
@@ -276,7 +276,6 @@ export function Sidebar() {
               )}
               <nav className="flex flex-col gap-1">
                 {section.items.map((item, idx) => {
-                  // For buttons (like Sign Out)
                   if (item.onClick) {
                     const isActive = location.pathname === item.href;
                     return (
@@ -314,7 +313,6 @@ export function Sidebar() {
                     );
                   }
                   
-                  // For NavLinks
                   return (
                     <TooltipProvider key={idx} delayDuration={isCollapsed ? 100 : 1000}>
                       <Tooltip>
@@ -386,7 +384,6 @@ export function Sidebar() {
 
       {isMobile && (
         <>
-          {/* Mobile Sidebar */}
           <aside
             className={cn(
               "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out w-[80%] max-w-[300px]",
@@ -465,7 +462,6 @@ export function Sidebar() {
         </>
       )}
 
-      {/* Desktop Sidebar */}
       {!isMobile && <DesktopSidebar />}
     </>
   );
