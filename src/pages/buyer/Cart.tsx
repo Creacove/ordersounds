@@ -1,11 +1,9 @@
-
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
 import { Button } from "@/components/ui/button";
-import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Separator } from "@/components/ui/separator";
 import { ShoppingCart, AlertCircle, Play, Pause, Music, Tag, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from "@/components/ui/badge";
 import { getLicensePrice } from "@/utils/licenseUtils";
+import { PaymentHandler } from "@/components/payment/PaymentHandler";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
@@ -28,7 +27,6 @@ export default function Cart() {
   };
   
   const handleCheckout = () => {
-    // Placeholder for checkout functionality
     toast.info("Checkout functionality coming soon!");
   };
   
@@ -52,17 +50,13 @@ export default function Cart() {
     document.title = "Shopping Cart | OrderSOUNDS";
   }, []);
 
-  // Helper function to get the correct price based on license type
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';
     
-    // Custom license (neither basic, premium, nor exclusive)
     if (!['basic', 'premium', 'exclusive'].includes(licenseType)) {
-      // Use the beat's direct price for custom licenses
       return currency === 'NGN' ? item.beat.price_local : item.beat.price_diaspora;
     }
     
-    // Standard license types use the utility function
     return getLicensePrice(item.beat, licenseType, currency === 'USD');
   };
 
@@ -213,13 +207,7 @@ export default function Cart() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-2">
-                  <Button 
-                    className="w-full" 
-                    size="lg"
-                    onClick={handleCheckout}
-                  >
-                    Proceed to Checkout
-                  </Button>
+                  <PaymentHandler totalAmount={totalAmount} />
                   
                   <Button 
                     variant="outline" 
