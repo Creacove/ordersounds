@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -286,10 +287,9 @@ export function Sidebar() {
                               onClick={item.onClick}
                               className={cn(
                                 "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
-                                "hover:bg-[#1c1c1c]",
                                 isActive
-                                  ? "border-r-4 border-purple-500 bg-[#181818] text-purple-500 font-medium"
-                                  : "text-gray-400",
+                                  ? "border-r-[5px] border-purple-500 text-white font-medium"
+                                  : "text-gray-400 hover:text-gray-200",
                                 isCollapsed ? "justify-center" : ""
                               )}
                             >
@@ -297,7 +297,7 @@ export function Sidebar() {
                                 size={18}
                                 className={cn(
                                   "transition-colors",
-                                  isActive ? "text-purple-500" : "text-gray-400"
+                                  isActive ? "text-white" : "text-gray-400"
                                 )}
                               />
                               {!isCollapsed && <span>{item.title}</span>}
@@ -322,10 +322,9 @@ export function Sidebar() {
                             className={({ isActive }) =>
                               cn(
                                 "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
-                                "hover:bg-[#1c1c1c]",
                                 isActive
-                                  ? "border-r-4 border-purple-500 bg-[#181818] text-purple-500 font-medium"
-                                  : "text-gray-400",
+                                  ? "border-r-[5px] border-purple-500 text-white font-medium"
+                                  : "text-gray-400 hover:text-gray-200",
                                 isCollapsed ? "justify-center" : ""
                               )
                             }
@@ -336,7 +335,7 @@ export function Sidebar() {
                                   size={18}
                                   className={cn(
                                     "transition-colors",
-                                    isActive ? "text-purple-500" : "text-gray-400"
+                                    isActive ? "text-white" : "text-gray-400"
                                   )}
                                 />
                                 {!isCollapsed && <span>{item.title}</span>}
@@ -466,3 +465,5 @@ export function Sidebar() {
     </>
   );
 }
+
+export { Sidebar };
