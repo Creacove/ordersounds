@@ -1,4 +1,3 @@
-
 export const getLicensePrice = (
   beat: any, 
   licenseType: 'basic' | 'premium' | 'exclusive' | 'custom' | string, 
@@ -59,4 +58,36 @@ export const hasLicensePricing = (
   } else {
     return !!beat[`${licenseType}_license_price_local`] || !!beat[`${licenseType}_license_price_diaspora`];
   }
+};
+
+// Get all available license types for a beat
+export const getAvailableLicenseTypes = (beat: any): string[] => {
+  if (!beat) return ['basic'];
+  
+  // If license_type is populated, use that
+  if (beat.license_type && typeof beat.license_type === 'string') {
+    return beat.license_type.split(',');
+  }
+  
+  // Otherwise, detect licenses based on price fields
+  const available = [];
+  
+  if (hasLicensePricing(beat, 'basic')) {
+    available.push('basic');
+  }
+  
+  if (hasLicensePricing(beat, 'premium')) {
+    available.push('premium');
+  }
+  
+  if (hasLicensePricing(beat, 'exclusive')) {
+    available.push('exclusive');
+  }
+  
+  if (hasLicensePricing(beat, 'custom')) {
+    available.push('custom');
+  }
+  
+  // If nothing is found, default to basic
+  return available.length > 0 ? available : ['basic'];
 };

@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { getLicensePrice } from '@/utils/licenseUtils';
+import { getLicensePrice, getAvailableLicenseTypes } from '@/utils/licenseUtils';
 
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
@@ -52,7 +52,8 @@ const BeatDetail = () => {
 
   useEffect(() => {
     if (beat?.license_type) {
-      setSelectedLicense(beat.license_type);
+      const availableLicenses = getAvailableLicenseTypes(beat);
+      setSelectedLicense(availableLicenses[0] || 'basic');
     }
   }, [beat]);
 
@@ -215,13 +216,7 @@ const BeatDetail = () => {
     );
   }
 
-  const hasBasicLicense = beat?.basic_license_price_local !== undefined || beat?.basic_license_price_diaspora !== undefined;
-  const hasPremiumLicense = beat?.premium_license_price_local !== undefined || beat?.premium_license_price_diaspora !== undefined;
-  const hasExclusiveLicense = beat?.exclusive_license_price_local !== undefined || beat?.exclusive_license_price_diaspora !== undefined;
-  const hasCustomLicense = beat?.license_type && !['basic', 'premium', 'exclusive'].includes(beat.license_type);
-  
-  // Parse the license types from the comma-separated string
-  const availableLicenseTypes = beat?.license_type ? beat.license_type.split(',') : ['basic'];
+  const availableLicenseTypes = getAvailableLicenseTypes(beat);
 
   return (
     <MainLayoutWithPlayer>
@@ -400,7 +395,6 @@ const BeatDetail = () => {
             <h2 className="text-lg font-semibold mb-3">Choose a License</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Render license options based on what's available */}
               {availableLicenseTypes.includes('basic') && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
@@ -589,8 +583,8 @@ const BeatDetail = () => {
                   <div className="p-4">
                     <h3 className="font-semibold capitalize">Custom License</h3>
                     <PriceTag 
-                      localPrice={beat?.custom_license_price_local || beat?.price_local || 0} 
-                      diasporaPrice={beat?.custom_license_price_diaspora || beat?.price_diaspora || 0}
+                      localPrice={getLicensePrice(beat, 'custom', false)} 
+                      diasporaPrice={getLicensePrice(beat, 'custom', true)}
                       size="lg"
                       className="my-3"
                       licenseType="custom"
