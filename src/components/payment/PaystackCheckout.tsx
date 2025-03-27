@@ -6,7 +6,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 // TypeScript interfaces for our component
@@ -20,9 +20,11 @@ interface PaystackProps {
 // Main PaystackCheckout component
 export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: PaystackProps) {
   const { user } = useAuth();
-  const { cartItems, clearCart } = useCart();
+  const { cartItems, clearCart, refreshCart } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [reference] = useState(() => `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
   
   // Configure Paystack parameters
@@ -30,7 +32,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     reference,
     email: user?.email || '',
     amount: totalAmount * 100, // Paystack requires amount in kobo (smallest unit)
-    publicKey: 'pk_test_d996ff0c1d293de498a1eaded92eade25d31c74a', // Switched to test public key
+    publicKey: 'pk_test_d996ff0c1d293de498a1eaded92eade25d31c74a', // Test public key
     onSuccess: (response: any) => {
       // Handle successful payment
       const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
@@ -43,6 +45,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     },
     onClose: () => {
       setIsProcessing(false);
+      setValidationError(null);
       toast.error("Payment canceled. You can try again when you're ready.");
       onClose();
     },
@@ -75,28 +78,37 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     };
   }, [isProcessing]);
 
-  const handlePaymentStart = async () => {
-    if (!user) {
-      toast.error('You must be logged in to complete this purchase.');
-      return;
+  // Reset validation error when dialog is opened
+  useEffect(() => {
+    if (isOpen) {
+      setValidationError(null);
     }
-    
-    if (cartItems.length === 0) {
-      toast.error('Your cart is empty. Add items before checkout.');
-      return;
-    }
-    
-    setIsProcessing(true);
+  }, [isOpen]);
+
+  const validateCartItems = async () => {
+    setIsValidating(true);
+    setValidationError(null);
     
     try {
-      // Validate that all beats in cart actually exist in the database
+      if (!user) {
+        throw new Error('You must be logged in to complete this purchase.');
+      }
+      
+      if (cartItems.length === 0) {
+        throw new Error('Your cart is empty. Add items before checkout.');
+      }
+      
+      // Extract beat IDs from cart
       const beatIds = cartItems.map(item => item.beat.id);
+      
+      // Validate beats exist in the database
       const { data: beatsExist, error: beatCheckError } = await supabase
         .from('beats')
         .select('id')
         .in('id', beatIds);
       
       if (beatCheckError) {
+        console.error('Error checking beats existence:', beatCheckError);
         throw new Error(`Failed to validate beats: ${beatCheckError.message}`);
       }
       
@@ -109,13 +121,41 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error('Some items in your cart are no longer available. Please refresh your cart.');
       }
       
-      // Create a pending order in the database first
+      return true;
+    } catch (error) {
+      console.error('Cart validation error:', error);
+      setValidationError(error.message);
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleRefreshCart = () => {
+    refreshCart();
+    setValidationError(null);
+    toast.success("Cart refreshed");
+  };
+
+  const handlePaymentStart = async () => {
+    if (isProcessing || isValidating) return;
+    
+    setIsProcessing(true);
+    
+    try {
+      // First validate the cart items
+      const isValid = await validateCartItems();
+      if (!isValid) {
+        throw new Error(validationError || 'Cart validation failed. Please try again.');
+      }
+      
+      // Create a pending order in the database
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
           buyer_id: user.id,
           total_price: totalAmount,
-          payment_method: 'Paystack', // Changed to match the expected value in the database
+          payment_method: 'Paystack',
           status: 'pending',
           currency_used: 'NGN',
         })
@@ -159,7 +199,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     } catch (error) {
       console.error('Payment initialization error:', error);
       setIsProcessing(false);
-      toast.error('Failed to initialize payment. Please try again.');
+      toast.error(error.message || 'Failed to initialize payment. Please try again.');
     }
   };
 
@@ -306,10 +346,24 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           <p className="text-xs text-muted-foreground mt-1">Test Mode - No real charges will be made</p>
         </div>
         
+        {validationError && (
+          <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-md mb-4">
+            <p className="text-sm font-medium text-destructive">{validationError}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="mt-2 w-full"
+              onClick={handleRefreshCart}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" /> Refresh Cart
+            </Button>
+          </div>
+        )}
+        
         <div className="flex flex-col gap-4">
           <Button 
             onClick={handlePaymentStart}
-            disabled={isProcessing}
+            disabled={isProcessing || isValidating}
             className="w-full"
             size="lg"
           >
@@ -317,6 +371,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Processing...
+              </>
+            ) : isValidating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Validating...
               </>
             ) : (
               'Pay with Paystack (Test Mode)'
@@ -326,7 +385,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           <Button 
             variant="outline" 
             onClick={onClose}
-            disabled={isProcessing}
+            disabled={isProcessing || isValidating}
           >
             Cancel
           </Button>

@@ -1,8 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
 import { getLicensePrice } from '@/utils/licenseUtils';
+import { supabase } from '@/utils/supabase';
+import { toast } from 'react-toastify';
 
 interface CartItem {
   beat: Beat & { selected_license?: string };
@@ -18,6 +19,7 @@ interface CartContextType {
   isInCart: (beatId: string) => boolean;
   getCartItemCount: () => number;
   itemCount: number;
+  refreshCart: () => void;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -28,7 +30,8 @@ const CartContext = createContext<CartContextType>({
   clearCart: () => {},
   isInCart: () => false,
   getCartItemCount: () => 0,
-  itemCount: 0
+  itemCount: 0,
+  refreshCart: () => {}
 });
 
 export const useCart = () => useContext(CartContext);
@@ -131,17 +134,50 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     return cartItems.length;
   };
 
+  const refreshCart = async () => {
+    if (cartItems.length === 0) return;
+    
+    const beatIds = cartItems.map(item => item.beat.id);
+    
+    try {
+      const { data: existingBeats, error } = await supabase
+        .from('beats')
+        .select('id')
+        .in('id', beatIds);
+        
+      if (error) {
+        console.error('Error refreshing cart:', error);
+        toast.error('Failed to refresh cart. Please try again.');
+        return;
+      }
+      
+      if (existingBeats && existingBeats.length !== beatIds.length) {
+        const existingIds = existingBeats.map(beat => beat.id);
+        const updatedCart = cartItems.filter(item => existingIds.includes(item.beat.id));
+        
+        setCartItems(updatedCart);
+        
+        localStorage.setItem('cart', JSON.stringify(updatedCart));
+        
+        const removedCount = cartItems.length - updatedCart.length;
+        toast.info(`Removed ${removedCount} unavailable item${removedCount !== 1 ? 's' : ''} from your cart.`);
+      }
+    } catch (err) {
+      console.error('Error during cart refresh:', err);
+    }
+  };
+
+  const contextValue = {
+    cartItems,
+    addToCart,
+    removeFromCart,
+    clearCart,
+    totalAmount,
+    refreshCart
+  };
+
   return (
-    <CartContext.Provider value={{ 
-      cartItems, 
-      totalAmount,
-      addToCart, 
-      removeFromCart, 
-      clearCart,
-      isInCart,
-      getCartItemCount,
-      itemCount
-    }}>
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, AlertCircle, Play, Pause, Music, Tag, Trash2 } from "lucide-react";
+import { ShoppingCart, AlertCircle, Play, Pause, Music, Tag, Trash2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { getLicensePrice } from "@/utils/licenseUtils";
 import { PaymentHandler } from "@/components/payment/PaymentHandler";
 
 export default function Cart() {
-  const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
+  const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
   const { user, currency } = useAuth();
   const { toggleFavorite, isFavorite, fetchPurchasedBeats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
@@ -50,9 +50,13 @@ export default function Cart() {
     }
   };
 
+  // Refresh cart items when the component mounts
   useEffect(() => {
     document.title = "Shopping Cart | OrderSOUNDS";
-  }, []);
+    if (cartItems.length > 0) {
+      refreshCart();
+    }
+  }, [refreshCart]);
 
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';
@@ -82,9 +86,23 @@ export default function Cart() {
   return (
     <MainLayoutWithPlayer>
       <div className="container py-8 pb-32 md:pb-8">
-        <div className="flex items-center mb-6">
-          <ShoppingCart className="mr-2 h-6 w-6" />
-          <h1 className="text-2xl font-bold">Your Cart</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <ShoppingCart className="mr-2 h-6 w-6" />
+            <h1 className="text-2xl font-bold">Your Cart</h1>
+          </div>
+          
+          {cartItems.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={refreshCart}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw size={14} />
+              <span>Refresh</span>
+            </Button>
+          )}
         </div>
 
         {cartItems.length === 0 ? (
