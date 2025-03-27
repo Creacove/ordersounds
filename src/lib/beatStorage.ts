@@ -3,7 +3,6 @@ import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 
-// Add an interface to properly type the beatData object
 interface BeatUploadData {
   producer_id: string;
   title: string;
@@ -74,7 +73,6 @@ export const uploadBeat = async (
   }>
 ): Promise<{success: boolean; beatId?: string; error?: string}> => {
   try {
-    // Step 1: Upload all files to storage
     console.log('Uploading files to storage...');
     const uploadPromises = [
       uploadFile(coverImageFile, 'covers', 'beats'),
@@ -85,10 +83,8 @@ export const uploadBeat = async (
     const [coverImageUrl, previewUrl, fullTrackUrl] = await Promise.all(uploadPromises);
     console.log('Files uploaded successfully:', { coverImageUrl, previewUrl, fullTrackUrl });
 
-    // Step 2: Insert beat record into database
     console.log('Inserting beat record into database...');
     
-    // Prepare the beat data for insertion
     const beatData: BeatUploadData = {
       producer_id: producerId,
       title: beatInfo.title,
@@ -110,11 +106,9 @@ export const uploadBeat = async (
       license_terms: beatInfo.license_terms || ''
     };
     
-    // Add license information - store as comma-separated values if multiple licenses
     if (beatInfo.license_type) {
       beatData.license_type = beatInfo.license_type;
       
-      // Add license pricing based on which license types are selected
       if (beatInfo.license_type.includes('basic') && beatInfo.basic_license_price_local > 0) {
         beatData.basic_license_price_local = beatInfo.basic_license_price_local;
         beatData.basic_license_price_diaspora = beatInfo.basic_license_price_diaspora;
@@ -150,7 +144,6 @@ export const uploadBeat = async (
     const beatId = beatRecord.id;
     console.log('Beat record inserted successfully:', beatId);
 
-    // Step 3: Insert royalty splits if there are collaborators
     if (collaborators.length > 0) {
       console.log('Inserting royalty splits...');
       const royaltySplits = collaborators.map(collaborator => ({
@@ -217,7 +210,6 @@ export const getProducerBeats = async (producerId: string): Promise<Beat[]> => {
       throw error;
     }
 
-    // Transform the data to match the Beat type
     return data.map(beat => {
       const userData = beat.users;
       const producerName = userData && userData.stage_name ? userData.stage_name : 
@@ -257,7 +249,6 @@ export const getProducerBeats = async (producerId: string): Promise<Beat[]> => {
  */
 export const getProducerRoyaltySplits = async (producerId: string): Promise<RoyaltySplit[]> => {
   try {
-    // First get all beats where the producer is the owner
     const { data: producerBeats, error: beatsError } = await supabase
       .from('beats')
       .select('id, title, cover_image')
@@ -271,10 +262,8 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
       return [];
     }
 
-    // Get beat IDs
     const beatIds = producerBeats.map(beat => beat.id);
 
-    // Get royalty splits for all these beats
     const { data: royaltySplits, error: royaltyError } = await supabase
       .from('royalty_splits')
       .select('*')
@@ -288,7 +277,6 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
       return [];
     }
 
-    // Create a map of beat details for easy lookup
     const beatDetailsMap = producerBeats.reduce((map, beat) => {
       map[beat.id] = {
         title: beat.title,
@@ -297,7 +285,6 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
       return map;
     }, {});
 
-    // Transform the data to match the RoyaltySplit type
     return royaltySplits.map(split => ({
       id: split.id,
       beat_id: split.beat_id,

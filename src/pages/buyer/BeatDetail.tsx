@@ -220,6 +220,7 @@ const BeatDetail = () => {
   const hasExclusiveLicense = beat?.exclusive_license_price_local !== undefined || beat?.exclusive_license_price_diaspora !== undefined;
   const hasCustomLicense = beat?.license_type && !['basic', 'premium', 'exclusive'].includes(beat.license_type);
   
+  // Parse the license types from the comma-separated string
   const availableLicenseTypes = beat?.license_type ? beat.license_type.split(',') : ['basic'];
 
   return (
@@ -399,7 +400,8 @@ const BeatDetail = () => {
             <h2 className="text-lg font-semibold mb-3">Choose a License</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {(availableLicenseTypes.includes('basic') || !hasCustomLicense) && (
+              {/* Render license options based on what's available */}
+              {availableLicenseTypes.includes('basic') && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
                   selectedLicense === 'basic' ? "border-primary/50 bg-primary/5" : "bg-card"
@@ -457,7 +459,7 @@ const BeatDetail = () => {
                 </div>
               )}
               
-              {(availableLicenseTypes.includes('premium') || !hasCustomLicense) && (
+              {availableLicenseTypes.includes('premium') && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
                   selectedLicense === 'premium' ? "border-primary/50 bg-primary/5" : "bg-card"
@@ -518,7 +520,7 @@ const BeatDetail = () => {
                 </div>
               )}
               
-              {(availableLicenseTypes.includes('exclusive') || !hasCustomLicense) && (
+              {availableLicenseTypes.includes('exclusive') && (
                 <div className={cn(
                   "relative rounded-xl border shadow-sm overflow-hidden",
                   selectedLicense === 'exclusive' ? "border-primary/50 bg-primary/5" : "bg-card"

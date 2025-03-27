@@ -53,10 +53,6 @@ export default function Cart() {
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';
     
-    if (!['basic', 'premium', 'exclusive'].includes(licenseType)) {
-      return currency === 'NGN' ? item.beat.price_local : item.beat.price_diaspora;
-    }
-    
     return getLicensePrice(item.beat, licenseType, currency === 'USD');
   };
 

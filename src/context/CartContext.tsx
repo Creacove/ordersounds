@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -73,16 +72,9 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
     const newTotal = cartItems.reduce((total, item) => {
       const licenseType = item.beat.selected_license || 'basic';
-      let price = 0;
       
-      // Handle custom license types
-      if (!['basic', 'premium', 'exclusive'].includes(licenseType)) {
-        // For custom license types, use the direct prices
-        price = currency === 'NGN' ? item.beat.price_local : item.beat.price_diaspora;
-      } else {
-        // For standard license types, use the utility function
-        price = getLicensePrice(item.beat, licenseType, currency === 'USD');
-      }
+      // Always use the getLicensePrice function for consistency
+      const price = getLicensePrice(item.beat, licenseType, currency === 'USD');
       
       return total + price;
     }, 0);

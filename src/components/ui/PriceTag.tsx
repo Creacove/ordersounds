@@ -56,7 +56,7 @@ export function PriceTag({
         className
       )}
     >
-      {licenseType && <span className="mr-1 opacity-80">{licenseType}:</span>}
+      {licenseType && <span className="mr-1 opacity-80 capitalize">{licenseType}:</span>}
       {displayPrice}
     </span>
   );
