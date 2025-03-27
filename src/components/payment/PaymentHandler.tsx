@@ -36,6 +36,9 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     );
   }
 
+  // Disable payment button if cart is empty or total amount is 0
+  const isDisabled = totalAmount <= 0;
+
   return (
     <div className="space-y-4">
       {currency === 'NGN' ? (
@@ -44,6 +47,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
             onClick={() => setIsPaystackOpen(true)}
             className="w-full"
             size="lg"
+            disabled={isDisabled}
           >
             Pay with Paystack (₦)
           </Button>
@@ -59,6 +63,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
         <Button 
           className="w-full"
           size="lg"
+          disabled={isDisabled}
           onClick={() => {
             // This will be replaced with Stripe implementation
             alert('Stripe payment integration for USD will be implemented separately');

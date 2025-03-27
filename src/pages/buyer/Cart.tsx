@@ -96,7 +96,10 @@ export default function Cart() {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={refreshCart}
+              onClick={() => {
+                refreshCart();
+                toast.success("Cart refreshed");
+              }}
               className="flex items-center gap-1"
             >
               <RefreshCw size={14} />

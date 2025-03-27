@@ -286,7 +286,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       // Update purchase count for each beat using the Edge Function
       for (const item of items) {
         try {
-          // Call the update-beat-purchase edge function instead of direct RPC
+          // Call the update-beat-purchase edge function
           const { data: updateResult, error: updateError } = await supabase.functions.invoke('update-beat-purchase', {
             body: { 
               beatId: item.beat.id,
@@ -298,7 +298,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
             console.error(`Failed to update purchase count for beat ${item.beat.id}:`, updateError);
             // Continue with other beats even if one fails
           } else {
-            console.log(`Updated purchase count for beat ${item.beat.id} to:`, updateResult.new_count);
+            console.log(`Updated purchase count for beat ${item.beat.id}:`, updateResult);
           }
         } catch (err) {
           console.error(`Error updating purchase count for beat ${item.beat.id}:`, err);

@@ -1,9 +1,10 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
 import { getLicensePrice } from '@/utils/licenseUtils';
-import { supabase } from '@/utils/supabase';
-import { toast } from 'react-toastify';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface CartItem {
   beat: Beat & { selected_license?: string };
@@ -19,7 +20,7 @@ interface CartContextType {
   isInCart: (beatId: string) => boolean;
   getCartItemCount: () => number;
   itemCount: number;
-  refreshCart: () => void;
+  refreshCart: () => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -31,7 +32,7 @@ const CartContext = createContext<CartContextType>({
   isInCart: () => false,
   getCartItemCount: () => 0,
   itemCount: 0,
-  refreshCart: () => {}
+  refreshCart: async () => {}
 });
 
 export const useCart = () => useContext(CartContext);
@@ -157,7 +158,9 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         
         setCartItems(updatedCart);
         
-        localStorage.setItem('cart', JSON.stringify(updatedCart));
+        if (user) {
+          localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedCart));
+        }
         
         const removedCount = cartItems.length - updatedCart.length;
         toast.info(`Removed ${removedCount} unavailable item${removedCount !== 1 ? 's' : ''} from your cart.`);
@@ -173,7 +176,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     removeFromCart,
     clearCart,
     totalAmount,
-    refreshCart
+    refreshCart,
+    isInCart,
+    getCartItemCount,
+    itemCount
   };
 
   return (
