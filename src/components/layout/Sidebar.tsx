@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -42,7 +41,7 @@ interface MobileMenuItem {
   action?: () => void;
 }
 
-export function Sidebar() {
+function Sidebar() {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
@@ -151,8 +150,6 @@ export function Sidebar() {
     return sections;
   };
 
-  // --------------------- Mobile Bottom Nav ---------------------
-  // (No changes here, as requested)
   const MobileBottomNav = () => {
     let mobileMenuItems: MobileMenuItem[] = [];
 
@@ -256,7 +253,6 @@ export function Sidebar() {
     );
   };
 
-  // --------------------- Desktop Sidebar (CHANGES HERE) ---------------------
   const DesktopSidebar = () => {
     return (
       <aside
@@ -266,7 +262,6 @@ export function Sidebar() {
           isCollapsed ? "w-[70px]" : "w-[240px]"
         )}
       >
-        {/* Scrollable content */}
         <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
           {getSidebarContent().map((section, index) => (
             <div key={index} className="mb-6">
@@ -357,7 +352,6 @@ export function Sidebar() {
           ))}
         </div>
 
-        {/* Toggle button at bottom */}
         <div className="flex items-center justify-center p-4 border-t border-[#272727]">
           <Button
             variant="ghost"
