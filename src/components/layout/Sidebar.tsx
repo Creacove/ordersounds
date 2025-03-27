@@ -43,7 +43,8 @@ const getSidebarContent = () => {
   return sections;
 };
 
-const DesktopSidebar = () => {
+// Let's rename this to Sidebar and export it both as default and named export
+const Sidebar = () => {
   const location = useLocation();
 
   return (
@@ -84,4 +85,6 @@ const DesktopSidebar = () => {
   );
 };
 
-export default DesktopSidebar;
+// Export both as default and named export
+export { Sidebar };
+export default Sidebar;
