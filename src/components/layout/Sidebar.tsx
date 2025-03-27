@@ -1,7 +1,6 @@
-
 import { 
   Home, 
-  TrendingUp, 
+  Flame, 
   Star, 
   ListMusic, 
   LayoutGrid, 
@@ -10,8 +9,8 @@ import {
   Heart, 
   ShoppingBag 
 } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom"; // Adjust based on your routing library
-import { cn } from "@/lib/utils"; // Assuming a utility for className concatenation
+import { NavLink, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
 
 const getSidebarContent = () => {
   const sections = [];
@@ -21,7 +20,7 @@ const getSidebarContent = () => {
     title: "EXPLORE Beats",
     items: [
       { icon: Home, title: "Home", href: "/" },
-      { icon: TrendingUp, title: "Trending", href: "/trending" },
+      { icon: Flame, title: "Trending", href: "/trending" },
       { icon: Star, title: "New", href: "/new" },
       { icon: ListMusic, title: "Playlist", href: "/playlist" },
       { icon: LayoutGrid, title: "Genres", href: "/genres" },
@@ -43,8 +42,7 @@ const getSidebarContent = () => {
   return sections;
 };
 
-// Let's rename this to Sidebar and export it both as default and named export
-const Sidebar = () => {
+const DesktopSidebar = () => {
   const location = useLocation();
 
   return (
@@ -52,7 +50,7 @@ const Sidebar = () => {
       <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
         {getSidebarContent().map((section, index) => (
           <div key={index} className="mb-6">
-            <h2 className="px-3 mb-2 text-xs font-medium text-sidebar-foreground/60">
+            <h2 className="px-3 mb-2 text-xs font-bold text-white uppercase">
               {section.title}
             </h2>
             <nav className="flex flex-col gap-1">
@@ -66,12 +64,12 @@ const Sidebar = () => {
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200",
                       isActive
                         ? "bg-purple-600 text-white border-l-4 border-purple-500"
-                        : "text-muted-foreground hover:bg-purple-500/20 hover:text-purple-500"
+                        : "text-white hover:bg-purple-500/20 hover:text-purple-500"
                     )}
                   >
                     <item.icon
                       size={18}
-                      className={isActive ? "text-white" : "text-muted-foreground"}
+                      className={isActive ? "text-white" : "text-white"}
                     />
                     <span>{item.title}</span>
                   </NavLink>
@@ -85,6 +83,4 @@ const Sidebar = () => {
   );
 };
 
-// Export both as default and named export
-export { Sidebar };
-export default Sidebar;
+export default DesktopSidebar;
