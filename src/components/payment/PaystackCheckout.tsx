@@ -180,10 +180,22 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       console.log('Verification response:', data);
       
       if (data.verified) {
-        // Clear the cart after successful purchase
-        clearCart();
-        toast.success('Payment successful! Your beats are now in your library.');
-        onSuccess(paymentReference);
+        // Process successful purchase
+        const { error: purchaseError } = await processSuccessfulPurchase(orderId, user!.id, cartItems);
+        
+        if (purchaseError) {
+          console.error('Error processing purchase:', purchaseError);
+          toast.error('There was an issue completing your purchase. Please contact support.');
+        } else {
+          // Clear the cart after successful purchase
+          clearCart();
+          toast.success('Payment successful! Your beats are now in your library.');
+          
+          // Create notification for the user
+          createPurchaseNotification(user!.id, cartItems.length);
+          
+          onSuccess(paymentReference);
+        }
       } else {
         toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);
       }
@@ -196,6 +208,77 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       // Clear stored order ID and reference
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
+    }
+  };
+
+  // Process successful purchase by adding beats to user's purchased beats
+  const processSuccessfulPurchase = async (orderId: string, userId: string, items: any[]) => {
+    try {
+      // Update order status to completed
+      const { error: orderUpdateError } = await supabase
+        .from('orders')
+        .update({ status: 'completed' })
+        .eq('id', orderId);
+      
+      if (orderUpdateError) {
+        console.error('Failed to update order status:', orderUpdateError);
+        return { error: orderUpdateError };
+      }
+      
+      // Add purchased beats to user_purchased_beats table
+      const purchasedBeatsData = items.map(item => ({
+        user_id: userId,
+        beat_id: item.beat.id,
+        order_id: orderId,
+        license_type: item.beat.selected_license || 'basic',
+        currency_code: 'NGN',
+      }));
+      
+      const { error: purchaseInsertError } = await supabase
+        .from('user_purchased_beats')
+        .insert(purchasedBeatsData);
+      
+      if (purchaseInsertError) {
+        console.error('Failed to insert purchased beats:', purchaseInsertError);
+        return { error: purchaseInsertError };
+      }
+      
+      // Update purchase count for each beat
+      for (const item of items) {
+        const { error: beatUpdateError } = await supabase
+          .from('beats')
+          .update({ 
+            purchase_count: supabase.rpc('increment', { row_id: item.beat.id, table_name: 'beats', column_name: 'purchase_count' })
+          })
+          .eq('id', item.beat.id);
+        
+        if (beatUpdateError) {
+          console.error(`Failed to update purchase count for beat ${item.beat.id}:`, beatUpdateError);
+          // Continue with other beats even if one fails
+        }
+      }
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Error processing successful purchase:', error);
+      return { error };
+    }
+  };
+
+  // Create a notification for the user after successful purchase
+  const createPurchaseNotification = async (userId: string, itemCount: number) => {
+    try {
+      await supabase
+        .from('notifications')
+        .insert({
+          recipient_id: userId,
+          title: 'Purchase Successful',
+          body: `You've successfully purchased ${itemCount} beat${itemCount === 1 ? '' : 's'}. Check your library to download them.`,
+          is_read: false
+        });
+    } catch (error) {
+      console.error('Failed to create notification:', error);
+      // Don't throw error here, as the purchase was successful
     }
   };
 

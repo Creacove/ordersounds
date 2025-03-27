@@ -147,18 +147,28 @@ export function useBeats() {
   };
 
   const fetchPurchasedBeats = async () => {
+    if (!user) return;
+    
     try {
       const { data: purchasedData, error: purchasedError } = await supabase
         .from('user_purchased_beats')
         .select('beat_id')
-        .eq('user_id', user!.id);
+        .eq('user_id', user.id);
       
-      if (!purchasedError && purchasedData) {
+      if (purchasedError) {
+        console.error('Error fetching purchased beats:', purchasedError);
+        return;
+      }
+      
+      if (purchasedData) {
         const purchasedIds = purchasedData.map(item => item.beat_id);
         setPurchasedBeats(purchasedIds);
+        
+        console.log('Fetched purchased beats:', purchasedIds);
+        return purchasedIds;
       }
     } catch (error) {
-      console.error('Error fetching purchased beats:', error);
+      console.error('Error in fetchPurchasedBeats:', error);
     }
   };
 
@@ -424,6 +434,7 @@ export function useBeats() {
     filteredBeats,
     updateFilters,
     clearFilters,
-    hasFilters: !!activeFilters
+    hasFilters: !!activeFilters,
+    fetchPurchasedBeats
   };
 }

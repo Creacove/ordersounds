@@ -6,7 +6,7 @@ import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
-import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical } from 'lucide-react';
+import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   DropdownMenu,
@@ -157,6 +157,31 @@ export function BeatCard({
     navigate(`/beat/${beat.id}`);
   };
   
+  const downloadBeat = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!isPurchased) {
+      toast.error('You need to purchase this beat first');
+      return;
+    }
+    
+    try {
+      // Create a temporary anchor element
+      const link = document.createElement('a');
+      link.href = beat.full_track_url;
+      link.download = `${beat.title} - ${beat.producer_name}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Download started');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download beat');
+    }
+  };
+  
   const displayLicenseType = beat.license_type || 'basic';
   
   const getDisplayPrice = () => {
@@ -258,6 +283,18 @@ export function BeatCard({
             </Button>
           )}
 
+          {isPurchased && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={downloadBeat}
+              className="h-7 w-7 rounded-lg bg-green-500/20 text-green-600 hover:bg-green-500/30"
+              title="Download Beat"
+            >
+              <Download size={14} />
+            </Button>
+          )}
+
           {user && (
             <>
               <Button
@@ -325,6 +362,11 @@ export function BeatCard({
                   <DropdownMenuItem onClick={handlePlay} className="cursor-pointer text-xs">
                     {isCurrentlyPlaying ? "Pause" : "Play"}
                   </DropdownMenuItem>
+                  {isPurchased && (
+                    <DropdownMenuItem onClick={downloadBeat} className="cursor-pointer text-xs">
+                      Download Beat
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem 
                     onClick={(e) => {
                       e.preventDefault();

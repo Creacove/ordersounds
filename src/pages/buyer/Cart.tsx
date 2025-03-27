@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -17,7 +18,7 @@ import { PaymentHandler } from "@/components/payment/PaymentHandler";
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
   const { user, currency } = useAuth();
-  const { toggleFavorite, isFavorite } = useBeats();
+  const { toggleFavorite, isFavorite, fetchPurchasedBeats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   
@@ -26,8 +27,11 @@ export default function Cart() {
     toast.success("Item removed from cart");
   };
   
-  const handleCheckout = () => {
-    toast.info("Checkout functionality coming soon!");
+  const handlePaymentSuccess = () => {
+    // Refresh purchased beats after successful payment
+    fetchPurchasedBeats();
+    // Navigate to library
+    navigate('/buyer/library');
   };
   
   const handleContinueShopping = () => {
@@ -203,7 +207,10 @@ export default function Cart() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-2">
-                  <PaymentHandler totalAmount={totalAmount} />
+                  <PaymentHandler 
+                    totalAmount={totalAmount} 
+                    onSuccess={handlePaymentSuccess}
+                  />
                   
                   <Button 
                     variant="outline" 

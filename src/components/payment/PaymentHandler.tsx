@@ -20,7 +20,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     console.log('Payment successful with reference:', reference);
     setIsPaystackOpen(false);
     if (onSuccess) onSuccess();
-    navigate('/buyer/orders');
+    else navigate('/buyer/orders');
   };
 
   const handlePaystackClose = () => {
