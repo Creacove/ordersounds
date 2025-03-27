@@ -103,7 +103,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         },
         onClose: () => {
           setIsProcessing(false);
-          toast.error('Payment canceled. You can try again when you're ready.');
+          toast.error("Payment canceled. You can try again when you're ready.");
           onClose();
         },
       });
