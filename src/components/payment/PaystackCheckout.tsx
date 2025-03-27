@@ -30,7 +30,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     reference,
     email: user?.email || '',
     amount: totalAmount * 100, // Paystack requires amount in kobo (smallest unit)
-    publicKey: 'pk_live_699eb330ab23079fd06b6567349abd7af5a758ba',
+    publicKey: 'pk_test_d996ff0c1d293de498a1eaded92eade25d31c74a', // Switched to test public key
     onSuccess: (response: any) => {
       // Handle successful payment
       const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
@@ -303,6 +303,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         <div className="p-4 bg-muted/30 rounded-md mb-4">
           <p className="text-sm font-medium">Total Amount</p>
           <p className="text-2xl font-bold">₦{totalAmount.toLocaleString()}</p>
+          <p className="text-xs text-muted-foreground mt-1">Test Mode - No real charges will be made</p>
         </div>
         
         <div className="flex flex-col gap-4">
@@ -318,7 +319,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
                 Processing...
               </>
             ) : (
-              'Pay with Paystack'
+              'Pay with Paystack (Test Mode)'
             )}
           </Button>
           
