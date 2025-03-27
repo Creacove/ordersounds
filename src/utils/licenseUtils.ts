@@ -1,8 +1,11 @@
+
 export const getLicensePrice = (
   beat: any, 
   licenseType: 'basic' | 'premium' | 'exclusive' | 'custom' | string, 
   isDiaspora: boolean
 ): number => {
+  if (!beat) return 0;
+  
   // For diaspora pricing (USD)
   if (isDiaspora) {
     switch (licenseType) {
@@ -47,6 +50,8 @@ export const hasLicensePricing = (
   beat: any,
   licenseType: 'basic' | 'premium' | 'exclusive' | 'custom' | string
 ): boolean => {
+  if (!beat) return false;
+  
   if (licenseType === 'basic') {
     return !!beat.basic_license_price_local || !!beat.basic_license_price_diaspora;
   } else if (licenseType === 'premium') {

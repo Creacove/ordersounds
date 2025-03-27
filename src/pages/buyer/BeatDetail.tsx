@@ -39,6 +39,7 @@ const BeatDetail = () => {
       if (!beatId) throw new Error('Beat ID is required');
       const result = await getBeatById(beatId);
       if (!result) throw new Error('Beat not found');
+      console.log('Beat data from API:', result);
       return result;
     },
     enabled: !!beatId,
@@ -51,8 +52,9 @@ const BeatDetail = () => {
   }, [beat]);
 
   useEffect(() => {
-    if (beat?.license_type) {
+    if (beat) {
       const availableLicenses = getAvailableLicenseTypes(beat);
+      console.log('Available licenses:', availableLicenses);
       setSelectedLicense(availableLicenses[0] || 'basic');
     }
   }, [beat]);
@@ -217,6 +219,18 @@ const BeatDetail = () => {
   }
 
   const availableLicenseTypes = getAvailableLicenseTypes(beat);
+  console.log('Available license types:', availableLicenseTypes);
+  console.log('Beat license details:', {
+    licenseType: beat?.license_type,
+    basicLocal: beat?.basic_license_price_local,
+    basicDiaspora: beat?.basic_license_price_diaspora,
+    premiumLocal: beat?.premium_license_price_local,
+    premiumDiaspora: beat?.premium_license_price_diaspora,
+    exclusiveLocal: beat?.exclusive_license_price_local,
+    exclusiveDiaspora: beat?.exclusive_license_price_diaspora,
+    customLocal: beat?.custom_license_price_local,
+    customDiaspora: beat?.custom_license_price_diaspora,
+  });
 
   return (
     <MainLayoutWithPlayer>

@@ -63,7 +63,25 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
-      const primaryLicenseType = selectedLicenseTypes[0] || "basic";
+      console.log('Publishing beat with license types:', selectedLicenseTypes);
+      console.log('License prices:', {
+        basic: {
+          local: beatDetails.basicLicensePriceLocal,
+          diaspora: beatDetails.basicLicensePriceDiaspora
+        },
+        premium: {
+          local: beatDetails.premiumLicensePriceLocal,
+          diaspora: beatDetails.premiumLicensePriceDiaspora
+        },
+        exclusive: {
+          local: beatDetails.exclusiveLicensePriceLocal,
+          diaspora: beatDetails.exclusiveLicensePriceDiaspora
+        },
+        custom: {
+          local: beatDetails.customLicensePriceLocal,
+          diaspora: beatDetails.customLicensePriceDiaspora
+        }
+      });
       
       const beatData = {
         title: beatDetails.title,
@@ -81,10 +99,14 @@ export default function UploadBeat() {
         premium_license_price_diaspora: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceDiaspora : 0,
         exclusive_license_price_local: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceLocal : 0,
         exclusive_license_price_diaspora: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceDiaspora : 0,
+        custom_license_price_local: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceLocal : undefined,
+        custom_license_price_diaspora: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceDiaspora : undefined,
         status: "published" as const,
         license_type: selectedLicenseTypes.join(','),
         license_terms: beatDetails.licenseTerms
       };
+
+      console.log('Beat data to upload:', beatData);
       
       if (!uploadedFile || !previewFile || !imageFile) {
         throw new Error("Missing required files");

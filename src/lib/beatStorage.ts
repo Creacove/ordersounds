@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -106,20 +107,22 @@ export const uploadBeat = async (
       license_terms: beatInfo.license_terms || ''
     };
     
+    // Save all specified license prices for each license type selected
     if (beatInfo.license_type) {
       beatData.license_type = beatInfo.license_type;
       
-      if (beatInfo.license_type.includes('basic') && beatInfo.basic_license_price_local > 0) {
+      // Check if each license type is included in the license_type string and save its price
+      if (beatInfo.license_type.includes('basic')) {
         beatData.basic_license_price_local = beatInfo.basic_license_price_local;
         beatData.basic_license_price_diaspora = beatInfo.basic_license_price_diaspora;
       }
       
-      if (beatInfo.license_type.includes('premium') && beatInfo.premium_license_price_local > 0) {
+      if (beatInfo.license_type.includes('premium')) {
         beatData.premium_license_price_local = beatInfo.premium_license_price_local;
         beatData.premium_license_price_diaspora = beatInfo.premium_license_price_diaspora;
       }
       
-      if (beatInfo.license_type.includes('exclusive') && beatInfo.exclusive_license_price_local > 0) {
+      if (beatInfo.license_type.includes('exclusive')) {
         beatData.exclusive_license_price_local = beatInfo.exclusive_license_price_local;
         beatData.exclusive_license_price_diaspora = beatInfo.exclusive_license_price_diaspora;
       }
@@ -129,6 +132,9 @@ export const uploadBeat = async (
         beatData.custom_license_price_diaspora = beatInfo.custom_license_price_diaspora;
       }
     }
+
+    // For debugging - log the data before insert
+    console.log('Beat data to be inserted:', beatData);
 
     const { data: beatRecord, error: beatError } = await supabase
       .from('beats')

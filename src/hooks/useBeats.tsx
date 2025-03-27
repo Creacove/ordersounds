@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -327,8 +326,99 @@ export function useBeats() {
     }
   };
 
-  const getBeatById = (id: string) => {
-    return beats.find(beat => beat.id === id) || null;
+  const getBeatById = async (beatId: string): Promise<Beat | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('beats')
+        .select(`
+          id, 
+          title, 
+          producer_id,
+          cover_image,
+          audio_preview,
+          audio_file,
+          price_local,
+          price_diaspora,
+          genre,
+          track_type,
+          bpm,
+          key,
+          tags,
+          description,
+          upload_date,
+          favorites_count,
+          purchase_count,
+          plays,
+          status,
+          license_type,
+          license_terms,
+          basic_license_price_local,
+          basic_license_price_diaspora,
+          premium_license_price_local,
+          premium_license_price_diaspora,
+          exclusive_license_price_local,
+          exclusive_license_price_diaspora,
+          custom_license_price_local,
+          custom_license_price_diaspora,
+          users (full_name, stage_name)
+        `)
+        .eq('id', beatId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching beat:', error);
+        throw error;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      const userData = data.users;
+      const producerName = userData && userData.stage_name ? userData.stage_name : 
+                            userData && userData.full_name ? userData.full_name : 'Unknown Producer';
+
+      // Create beat object with all license data included
+      const beat: Beat = {
+        id: data.id,
+        title: data.title,
+        producer_id: data.producer_id,
+        producer_name: producerName,
+        cover_image_url: data.cover_image,
+        preview_url: data.audio_preview,
+        full_track_url: data.audio_file,
+        price_local: data.price_local,
+        price_diaspora: data.price_diaspora,
+        genre: data.genre,
+        track_type: data.track_type,
+        bpm: data.bpm,
+        key: data.key,
+        tags: data.tags || [],
+        description: data.description,
+        created_at: data.upload_date,
+        favorites_count: data.favorites_count || 0,
+        purchase_count: data.purchase_count || 0,
+        plays: data.plays || 0,
+        status: data.status as 'draft' | 'published',
+        is_featured: false,
+        license_type: data.license_type,
+        license_terms: data.license_terms,
+        basic_license_price_local: data.basic_license_price_local,
+        basic_license_price_diaspora: data.basic_license_price_diaspora,
+        premium_license_price_local: data.premium_license_price_local,
+        premium_license_price_diaspora: data.premium_license_price_diaspora,
+        exclusive_license_price_local: data.exclusive_license_price_local,
+        exclusive_license_price_diaspora: data.exclusive_license_price_diaspora,
+        custom_license_price_local: data.custom_license_price_local,
+        custom_license_price_diaspora: data.custom_license_price_diaspora
+      };
+
+      console.log('Received beat details:', beat);
+      return beat;
+    } catch (error) {
+      console.error('Error in getBeatById:', error);
+      return null;
+    }
   };
 
   const getUserFavoriteBeats = () => {
