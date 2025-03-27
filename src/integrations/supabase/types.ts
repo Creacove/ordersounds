@@ -17,6 +17,8 @@ export type Database = {
           basic_license_price_local: number | null
           bpm: number | null
           cover_image: string | null
+          custom_license_price_diaspora: number | null
+          custom_license_price_local: number | null
           description: string | null
           exclusive_license_price_diaspora: number | null
           exclusive_license_price_local: number | null
@@ -46,6 +48,8 @@ export type Database = {
           basic_license_price_local?: number | null
           bpm?: number | null
           cover_image?: string | null
+          custom_license_price_diaspora?: number | null
+          custom_license_price_local?: number | null
           description?: string | null
           exclusive_license_price_diaspora?: number | null
           exclusive_license_price_local?: number | null
@@ -75,6 +79,8 @@ export type Database = {
           basic_license_price_local?: number | null
           bpm?: number | null
           cover_image?: string | null
+          custom_license_price_diaspora?: number | null
+          custom_license_price_local?: number | null
           description?: string | null
           exclusive_license_price_diaspora?: number | null
           exclusive_license_price_local?: number | null

@@ -20,7 +20,6 @@ export function useBeats() {
   const fetchBeats = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Fetch all published beats
       const { data: beatsData, error: beatsError } = await supabase
         .from('beats')
         .select(`
@@ -53,14 +52,11 @@ export function useBeats() {
       }
 
       if (beatsData) {
-        // Transform data to match Beat type
         const transformedBeats: Beat[] = beatsData.map(beat => {
-          // Get the producer data safely
           const userData = beat.users;
           const producerName = userData && userData.stage_name ? userData.stage_name : 
                               userData && userData.full_name ? userData.full_name : 'Unknown Producer';
           
-          // Force the status to be either 'draft' or 'published' to satisfy the type
           const status = beat.status === 'published' ? 'published' : 'draft';
           
           return {
@@ -88,23 +84,19 @@ export function useBeats() {
         
         setBeats(transformedBeats);
         
-        // Set trending beats (sorted by favorites_count)
         const sortedByTrending = [...transformedBeats].sort((a, b) => b.favorites_count - a.favorites_count);
         setTrendingBeats(sortedByTrending);
         
-        // Set new beats (sorted by created_at)
         const sortedByNew = [...transformedBeats].sort((a, b) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setNewBeats(sortedByNew);
         
-        // Set featured beat (first trending one for now)
         if (sortedByTrending.length > 0) {
           const featured = sortedByTrending[0];
           setFeaturedBeat({...featured, is_featured: true});
         }
         
-        // Apply filters if any are active
         if (activeFilters) {
           applyFilters(transformedBeats, activeFilters);
         } else {
@@ -112,7 +104,6 @@ export function useBeats() {
         }
       }
       
-      // Fetch user favorites if user is logged in
       if (user) {
         await fetchUserFavorites();
         await fetchPurchasedBeats();
@@ -134,31 +125,21 @@ export function useBeats() {
         .single();
       
       if (!userError && userData) {
-        // Ensure favorites is an array of strings
-        try {
-          let favorites: string[] = [];
-          
-          if (userData.favorites) {
-            // If it's already an array, use it
-            if (Array.isArray(userData.favorites)) {
-              favorites = userData.favorites as string[];
-            } 
-            // If it's a JSON object, extract values
-            else if (typeof userData.favorites === 'object') {
-              const favArray = Array.isArray(userData.favorites) 
-                ? userData.favorites 
-                : Object.values(userData.favorites || {});
-              
-              // Filter to ensure only strings are included
-              favorites = favArray.filter(id => typeof id === 'string') as string[];
-            }
+        let favorites: string[] = [];
+        
+        if (userData.favorites) {
+          if (Array.isArray(userData.favorites)) {
+            favorites = userData.favorites as string[];
+          } else if (typeof userData.favorites === 'object') {
+            const favArray = Array.isArray(userData.favorites) 
+              ? userData.favorites 
+              : Object.values(userData.favorites || {});
+            
+            favorites = favArray.filter(id => typeof id === 'string') as string[];
           }
-          
-          setUserFavorites(favorites);
-        } catch (e) {
-          console.error('Error parsing favorites:', e);
-          setUserFavorites([]);
         }
+        
+        setUserFavorites(favorites);
       }
     } catch (error) {
       console.error('Error fetching user favorites:', error);
@@ -185,11 +166,9 @@ export function useBeats() {
     fetchBeats();
   }, [fetchBeats]);
 
-  // Apply filters to beats
   const applyFilters = (beatsToFilter: Beat[], filters: FilterValues) => {
     let filtered = [...beatsToFilter];
     
-    // Apply search filter
     if (filters.search) {
       const searchLower = filters.search.toLowerCase();
       filtered = filtered.filter(beat => 
@@ -199,30 +178,25 @@ export function useBeats() {
       );
     }
     
-    // Apply genre filter
     if (filters.genre && filters.genre.length > 0) {
       filtered = filtered.filter(beat => 
         filters.genre.includes(beat.genre)
       );
     }
     
-    // Apply track type filter
     if (filters.trackType && filters.trackType.length > 0) {
       filtered = filtered.filter(beat => 
         filters.trackType.includes(beat.track_type)
       );
     }
     
-    // Apply BPM range filter
     if (filters.bpmRange) {
       filtered = filtered.filter(beat => 
         beat.bpm >= filters.bpmRange[0] && beat.bpm <= filters.bpmRange[1]
       );
     }
     
-    // Apply price range filter
     if (filters.priceRange) {
-      // Filter based on the current currency
       if (currency === 'NGN') {
         filtered = filtered.filter(beat => 
           beat.price_local >= filters.priceRange[0] && 
@@ -238,14 +212,12 @@ export function useBeats() {
     
     setFilteredBeats(filtered);
   };
-  
-  // Apply filters to current beats
+
   const updateFilters = (filters: FilterValues) => {
     setActiveFilters(filters);
     applyFilters(beats, filters);
   };
-  
-  // Clear all filters
+
   const clearFilters = () => {
     setActiveFilters(null);
     setFilteredBeats(beats);
@@ -258,19 +230,15 @@ export function useBeats() {
     }
 
     try {
-      // Check if beat is already in favorites
       const isFavorite = userFavorites.includes(beatId);
       let newFavorites: string[];
       
       if (isFavorite) {
-        // Remove from favorites
         newFavorites = userFavorites.filter(id => id !== beatId);
       } else {
-        // Add to favorites
         newFavorites = [...userFavorites, beatId];
       }
       
-      // Update favorites in database
       const { error } = await supabase
         .from('users')
         .update({ favorites: newFavorites })
@@ -280,7 +248,6 @@ export function useBeats() {
         throw error;
       }
       
-      // Update beat favorites count
       const updateOperation = isFavorite 
         ? { favorites_count: beats.find(b => b.id === beatId)?.favorites_count! - 1 }
         : { favorites_count: beats.find(b => b.id === beatId)?.favorites_count! + 1 };
@@ -294,10 +261,8 @@ export function useBeats() {
         throw beatError;
       }
       
-      // Update local state
       setUserFavorites(newFavorites);
       
-      // Update beats with new favorite count
       const updatedBeats = beats.map(beat => 
         beat.id === beatId 
           ? { 
@@ -310,7 +275,6 @@ export function useBeats() {
       );
       setBeats(updatedBeats);
       
-      // Update filtered beats if needed
       if (activeFilters) {
         applyFilters(updatedBeats, activeFilters);
       } else {
@@ -378,7 +342,6 @@ export function useBeats() {
       const producerName = userData && userData.stage_name ? userData.stage_name : 
                             userData && userData.full_name ? userData.full_name : 'Unknown Producer';
 
-      // Create beat object with all license data included
       const beat: Beat = {
         id: data.id,
         title: data.title,
