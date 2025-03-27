@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { usePaystackPayment } from 'react-paystack';
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
@@ -22,8 +22,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const { user } = useAuth();
   const { cartItems, clearCart } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [reference] = useState(() => `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [reference] = useState(() => `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
   
   // Configure Paystack parameters
   const config = {
@@ -31,6 +31,21 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     email: user?.email || '',
     amount: totalAmount * 100, // Paystack requires amount in kobo (smallest unit)
     publicKey: 'pk_live_699eb330ab23079fd06b6567349abd7af5a758ba',
+    onSuccess: (response: any) => {
+      // Handle successful payment
+      const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
+      if (storedOrderId) {
+        handlePaymentSuccess(response.reference || reference, storedOrderId);
+      } else {
+        console.error('No pending order ID found');
+        toast.error('Payment tracking error. Please contact support.');
+      }
+    },
+    onClose: () => {
+      setIsProcessing(false);
+      toast.error("Payment canceled. You can try again when you're ready.");
+      onClose();
+    },
     metadata: {
       custom_fields: [
         {
@@ -44,26 +59,21 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           })))
         }
       ]
-    },
-    onSuccess: (reference: any) => {
-      // Handle successful payment
-      const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
-      if (storedOrderId) {
-        handlePaymentSuccess(reference.reference || reference, storedOrderId);
-      } else {
-        console.error('No pending order ID found');
-        toast.error('Payment tracking error. Please contact support.');
-      }
-    },
-    onClose: () => {
-      setIsProcessing(false);
-      toast.error("Payment canceled. You can try again when you're ready.");
-      onClose();
     }
   };
 
   // Initialize the Paystack payment hook
   const initializePayment = usePaystackPayment(config);
+
+  // Clean up any stale payment data on component mount/unmount
+  useEffect(() => {
+    return () => {
+      if (!isProcessing) {
+        localStorage.removeItem('pendingOrderId');
+        localStorage.removeItem('paystackReference');
+      }
+    };
+  }, [isProcessing]);
 
   const handlePaymentStart = async () => {
     if (!user) {
@@ -79,6 +89,26 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     setIsProcessing(true);
     
     try {
+      // Validate that all beats in cart actually exist in the database
+      const beatIds = cartItems.map(item => item.beat.id);
+      const { data: beatsExist, error: beatCheckError } = await supabase
+        .from('beats')
+        .select('id')
+        .in('id', beatIds);
+      
+      if (beatCheckError) {
+        throw new Error(`Failed to validate beats: ${beatCheckError.message}`);
+      }
+      
+      // Check if all beats exist
+      if (!beatsExist || beatsExist.length !== beatIds.length) {
+        const existingIds = beatsExist?.map(b => b.id) || [];
+        const missingIds = beatIds.filter(id => !existingIds.includes(id));
+        
+        console.error('Some beats in cart no longer exist:', missingIds);
+        throw new Error('Some items in your cart are no longer available. Please refresh your cart.');
+      }
+      
       // Create a pending order in the database first
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
@@ -150,38 +180,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       console.log('Verification response:', data);
       
       if (data.verified) {
-        // Update order status in database
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({
-            status: 'completed',
-            consent_timestamp: new Date().toISOString(),
-          })
-          .eq('id', orderId);
-        
-        if (updateError) {
-          console.error('Order update error:', updateError);
-          throw new Error(`Order update failed: ${updateError.message}`);
-        }
-        
-        // Add purchased beats to user's collection
-        const purchasedItems = cartItems.map(item => ({
-          user_id: user!.id,
-          beat_id: item.beat.id,
-          license_type: item.beat.selected_license || 'basic',
-          currency_code: 'NGN',
-          order_id: orderId,
-        }));
-        
-        const { error: purchaseError } = await supabase
-          .from('user_purchased_beats')
-          .insert(purchasedItems);
-        
-        if (purchaseError) {
-          console.error('Purchase recording error:', purchaseError);
-          throw new Error(`Recording purchases failed: ${purchaseError.message}`);
-        }
-        
         // Clear the cart after successful purchase
         clearCart();
         toast.success('Payment successful! Your beats are now in your library.');
