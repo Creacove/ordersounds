@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -54,12 +55,16 @@ serve(async (req) => {
       const supabaseClient = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
         Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-        {
-          auth: {
-            persistSession: false,
-          },
-        }
       );
+
+      // Update order status
+      await supabaseClient
+        .from('orders')
+        .update({
+          status: 'completed',
+          consent_timestamp: new Date().toISOString(),
+        })
+        .eq('id', orderId);
 
       // Log transaction details for auditing
       console.log(`Payment verified for order ${orderId} with transaction reference ${reference}`);
@@ -109,24 +114,3 @@ serve(async (req) => {
     );
   }
 });
-
-// Supabase client creation function for TypeScript (needed in edge functions)
-function createClient(supabaseUrl: string, supabaseKey: string, options?: any) {
-  return { 
-    from: (table: string) => ({
-      update: (data: any) => ({
-        eq: (column: string, value: any) => 
-          fetch(`${supabaseUrl}/rest/v1/${table}?${column}=eq.${value}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`,
-              'Prefer': 'return=minimal',
-            },
-            body: JSON.stringify(data),
-          }),
-      }),
-    }),
-  };
-}

@@ -23,7 +23,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const { cartItems, clearCart } = useCart();
   const [isProcessing, setIsProcessing] = useState(false);
   const [reference] = useState(() => `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
-
+  const [orderId, setOrderId] = useState<string | null>(null);
+  
   // Configure Paystack parameters
   const config = {
     reference,
@@ -44,11 +45,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         }
       ]
     },
-    onSuccess: (reference) => {
-      // Get the orderId from localStorage that we stored before
-      const orderId = localStorage.getItem('pendingOrderId');
-      if (orderId) {
-        handlePaymentSuccess(reference.reference, orderId);
+    onSuccess: (reference: any) => {
+      // Handle successful payment
+      const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
+      if (storedOrderId) {
+        handlePaymentSuccess(reference.reference || reference, storedOrderId);
       } else {
         console.error('No pending order ID found');
         toast.error('Payment tracking error. Please contact support.');
@@ -70,6 +71,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       return;
     }
     
+    if (cartItems.length === 0) {
+      toast.error('Your cart is empty. Add items before checkout.');
+      return;
+    }
+    
     setIsProcessing(true);
     
     try {
@@ -79,7 +85,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         .insert({
           buyer_id: user.id,
           total_price: totalAmount,
-          payment_method: 'paystack',
+          payment_method: 'Paystack', // Changed to match the expected value in the database
           status: 'pending',
           currency_used: 'NGN',
         })
@@ -87,7 +93,12 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         .single();
       
       if (orderError) {
+        console.error('Order creation error:', orderError);
         throw new Error(`Order creation failed: ${orderError.message}`);
+      }
+      
+      if (!orderData || !orderData.id) {
+        throw new Error('Failed to create order: No order ID returned');
       }
       
       // Add line items for this order
@@ -103,15 +114,17 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         .insert(orderItems);
       
       if (lineItemError) {
+        console.error('Line items error:', lineItemError);
         throw new Error(`Line items creation failed: ${lineItemError.message}`);
       }
       
-      // Store the order ID in localStorage so we can access it after redirect
+      // Store order ID in state and localStorage
+      setOrderId(orderData.id);
       localStorage.setItem('pendingOrderId', orderData.id);
       localStorage.setItem('paystackReference', reference);
       
-      // Call the Paystack popup
-      // This will use the config we provided including the callbacks
+      // Initialize Paystack payment
+      console.log('Starting Paystack payment for order:', orderData.id);
       initializePayment();
     } catch (error) {
       console.error('Payment initialization error:', error);
@@ -122,14 +135,19 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
 
   const handlePaymentSuccess = async (paymentReference: string, orderId: string) => {
     try {
+      console.log('Payment success, verifying with backend...', paymentReference, orderId);
+      
       // Verify the payment was successful through our edge function
       const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
         body: { reference: paymentReference, orderId },
       });
       
       if (error) {
+        console.error('Verification error:', error);
         throw new Error(`Payment verification failed: ${error.message}`);
       }
+      
+      console.log('Verification response:', data);
       
       if (data.verified) {
         // Update order status in database
@@ -142,6 +160,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           .eq('id', orderId);
         
         if (updateError) {
+          console.error('Order update error:', updateError);
           throw new Error(`Order update failed: ${updateError.message}`);
         }
         
@@ -159,6 +178,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           .insert(purchasedItems);
         
         if (purchaseError) {
+          console.error('Purchase recording error:', purchaseError);
           throw new Error(`Recording purchases failed: ${purchaseError.message}`);
         }
         
@@ -174,6 +194,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
     } finally {
       setIsProcessing(false);
+      setOrderId(null);
       // Clear stored order ID and reference
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
