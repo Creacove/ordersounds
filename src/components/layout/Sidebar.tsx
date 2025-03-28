@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -294,7 +293,7 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                                 "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                                 "hover:bg-purple-500/20 hover:text-white",
                                 isActive
-                                  ? "bg-[#181818] text-purple-400 border-l-4 border-purple-500 font-medium"
+                                  ? "bg-[#181818] text-purple-400 border-r-4 border-purple-500 font-medium"
                                   : "text-gray-400",
                                 isCollapsed ? "justify-center" : ""
                               )}
@@ -330,7 +329,7 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                                 "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                                 "hover:bg-purple-500/20 hover:text-white",
                                 isActive
-                                  ? "bg-[#181818] text-purple-400 border-l-4 border-purple-500 font-medium"
+                                  ? "bg-[#181818] text-purple-400 border-r-4 border-purple-500 font-medium"
                                   : "text-gray-400",
                                 isCollapsed ? "justify-center" : ""
                               )
@@ -430,7 +429,7 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                             "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                             "hover:bg-purple-500/20 hover:text-white",
                             isActive
-                              ? "bg-[#181818] text-purple-400 border-l-4 border-purple-500 font-medium"
+                              ? "bg-[#181818] text-purple-400 border-r-4 border-purple-500 font-medium"
                               : "text-gray-400"
                           )}
                         >
@@ -447,7 +446,7 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                               "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                               "hover:bg-purple-500/20 hover:text-white",
                               isActive
-                                ? "bg-[#181818] text-purple-400 border-l-4 border-purple-500 font-medium"
+                                ? "bg-[#181818] text-purple-400 border-r-4 border-purple-500 font-medium"
                                 : "text-gray-400"
                             )
                           }
