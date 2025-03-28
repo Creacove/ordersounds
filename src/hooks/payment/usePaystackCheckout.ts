@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -22,7 +23,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const { user } = useAuth();
-  const { cartItems, clearCart } = useCart(); // Get cartItems directly from context
+  const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
 
   const validateCartItems = useCallback(async () => {
@@ -116,8 +117,10 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         return;
       }
       
+      // Generate a unique reference ID
       const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
+      // Store cart info for verification
       localStorage.setItem('orderItems', JSON.stringify(cartItems));
       localStorage.setItem('paystackReference', reference);
       localStorage.setItem('paystackAmount', totalAmount.toString());
@@ -132,56 +135,55 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         cartItems: cartItems
       });
       
+      // Format cart items for metadata
+      const orderItemsMetadata = cartItems.map(item => ({
+        beat_id: item.beat.id,
+        title: item.beat.title,
+        price: item.beat.basic_license_price_local,
+        license: item.beat.selected_license || 'basic'
+      }));
+      
+      // Initialize Paystack
       const handler = window.PaystackPop.setup({
-        key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8',
+        key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Public test key
         email: user?.email || '',
-        amount: totalAmount * 100,
+        amount: totalAmount * 100, // Convert to kobo
         currency: 'NGN',
         ref: reference,
         label: 'OrderSOUNDS',
-        onClose: () => {
-          setIsProcessing(false);
-          localStorage.removeItem('paymentInProgress');
-          onClose();
-        },
-        callback: (response) => {
-          console.log('Payment complete! Response:', response);
-          
-          const verifyResult = verifyPayment(response.reference);
-          
-          if (typeof verifyResult === 'object' && verifyResult.error) {
-            console.error('Payment verification failed:', verifyResult.error);
-            toast.error('Payment verification failed. Please contact support.');
-            setIsProcessing(false);
-            return;
-          }
-          
-          setIsProcessing(false);
-          
-          onSuccess(response.reference);
-
-          setTimeout(() => {
-            window.location.href = '/library';
-          }, 1500);
-        },
         metadata: {
           custom_fields: [
             {
               display_name: "Order Items",
               variable_name: "order_items",
-              value: JSON.stringify(
-                cartItems.map(item => ({
-                  beat_id: item.beat.id,
-                  title: item.beat.title,
-                  price: item.beat.basic_license_price_local,
-                  license: item.beat.selected_license || 'basic'
-                }))
-              )
+              value: JSON.stringify(orderItemsMetadata)
             }
           ]
+        },
+        onClose: function() {
+          console.log('Payment window closed');
+          setIsProcessing(false);
+          localStorage.removeItem('paymentInProgress');
+          onClose();
+        },
+        callback: function(response) {
+          console.log('Payment complete! Response:', response);
+          
+          // Verify the payment
+          localStorage.setItem('pendingVerification', 'true');
+          localStorage.setItem('purchaseSuccess', 'true');
+          localStorage.setItem('paystackReference', response.reference);
+          
+          setIsProcessing(false);
+          onSuccess(response.reference);
+          
+          setTimeout(() => {
+            window.location.href = '/library';
+          }, 1500);
         }
       });
       
+      // Explicitly open the payment iframe
       handler.openIframe();
     } catch (error) {
       console.error('Payment error:', error);
@@ -189,21 +191,6 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       setIsProcessing(false);
     }
   }, [isProcessing, isValidating, onClose, onSuccess, totalAmount, user, validateCartItems, cartItems]);
-
-  const verifyPayment = (reference: string) => {
-    try {
-      localStorage.setItem('pendingVerification', 'true');
-      localStorage.setItem('purchaseSuccess', 'true');
-      localStorage.setItem('paystackReference', reference);
-      
-      console.log(`Verifying payment with reference: ${reference}`);
-      
-      return true;
-    } catch (error) {
-      console.error('Payment verification error:', error);
-      return { error };
-    }
-  };
 
   const handleRefreshCart = async () => {
     setValidationError(null);

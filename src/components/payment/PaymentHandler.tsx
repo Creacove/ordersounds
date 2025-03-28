@@ -20,64 +20,49 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scriptError, setScriptError] = useState(false);
 
-  // Load Paystack script with better error handling
+  // Load Paystack script
   useEffect(() => {
     // Check if script is already loaded
-    if (document.getElementById('paystack-script')) {
-      // Verify that PaystackPop is actually available
-      if (window.PaystackPop) {
-        console.log('Paystack script is already loaded and PaystackPop is available');
-        setScriptLoaded(true);
-      } else {
-        console.error('Paystack script loaded but PaystackPop is not available');
-        setScriptError(true);
-        // Try reloading the script
-        loadScript();
-      }
+    const existingScript = document.getElementById('paystack-script');
+    
+    if (existingScript && window.PaystackPop) {
+      console.log('Paystack script is already loaded and PaystackPop is available');
+      setScriptLoaded(true);
       return;
     }
 
-    function loadScript() {
-      // Remove any existing script to avoid conflicts
-      const existingScript = document.getElementById('paystack-script');
-      if (existingScript) {
-        document.body.removeChild(existingScript);
-      }
-
-      const script = document.createElement('script');
-      script.src = "https://js.paystack.co/v1/inline.js";
-      script.id = "paystack-script";
-      script.async = true;
-      
-      script.onload = () => {
-        // Check if the PaystackPop object is now available
-        if (window.PaystackPop) {
-          console.log('Paystack script loaded successfully and PaystackPop is available');
-          setScriptLoaded(true);
-          setScriptError(false);
-        } else {
-          console.error('Paystack script loaded but PaystackPop is still not available');
-          setScriptError(true);
-        }
-      };
-      
-      script.onerror = () => {
-        console.error('Failed to load Paystack script');
-        setScriptError(true);
-        toast.error('Payment system failed to load. Please try again later.');
-      };
-      
-      document.body.appendChild(script);
+    // Remove any existing script to avoid conflicts
+    if (existingScript) {
+      document.body.removeChild(existingScript);
     }
 
-    loadScript();
+    const script = document.createElement('script');
+    script.src = "https://js.paystack.co/v1/inline.js";
+    script.id = "paystack-script";
+    script.async = true;
+    
+    script.onload = () => {
+      // Verify the script loaded correctly by checking for PaystackPop
+      if (window.PaystackPop) {
+        console.log('Paystack script loaded successfully');
+        setScriptLoaded(true);
+        setScriptError(false);
+      } else {
+        console.error('Paystack script loaded but PaystackPop is not available');
+        setScriptError(true);
+      }
+    };
+    
+    script.onerror = () => {
+      console.error('Failed to load Paystack script');
+      setScriptError(true);
+      toast.error('Payment system failed to load. Please try again later.');
+    };
+    
+    document.body.appendChild(script);
     
     return () => {
-      // Clean up script when component unmounts
-      const loadedScript = document.getElementById('paystack-script');
-      if (loadedScript) {
-        document.body.removeChild(loadedScript);
-      }
+      // We no longer remove the script on unmount to prevent reloading issues
     };
   }, []);
 
@@ -146,8 +131,6 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
         <>
           <Button 
             onClick={() => {
-              // Log cart state before opening the payment dialog
-              console.log('Cart items before payment:', cartItems);
               if (!cartItems || cartItems.length === 0) {
                 toast.error('Your cart is empty. Please add items before checkout.');
                 return;

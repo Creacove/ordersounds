@@ -60,7 +60,7 @@ export function PaystackDialog({
         <div className="flex flex-col gap-3 mt-2">
           <Button 
             onClick={onPaymentStart}
-            disabled={isProcessing || isValidating}
+            disabled={isProcessing || isValidating || validationError !== null}
             className="w-full py-6 text-base"
             size="lg"
           >
