@@ -11,7 +11,7 @@ import { ChevronDown } from "lucide-react";
 export default function Trending() {
   const { trendingBeats, isLoading, toggleFavorite, isFavorite, isPurchased, fetchTrendingBeats } = useBeats();
   const { isInCart } = useCart();
-  const [displayCount, setDisplayCount] = useState(10);
+  const [displayCount, setDisplayCount] = useState(30);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   useEffect(() => {
@@ -38,7 +38,7 @@ export default function Trending() {
         
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {[...Array(10)].map((_, i) => (
+            {[...Array(15)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2">
                 <Skeleton className="aspect-square rounded-lg" />
                 <Skeleton className="h-5 w-2/3" />

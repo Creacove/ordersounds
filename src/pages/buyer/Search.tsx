@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Search, MusicIcon, UserIcon, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/context/CartContext";
 
 export default function SearchPage() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialQuery = searchParams.get('q') || "";
+  const initialGenre = searchParams.get('genre') || "";
+  
+  const [searchTerm, setSearchTerm] = useState(initialQuery);
+  const [selectedGenre, setSelectedGenre] = useState(initialGenre);
   const [activeTab, setActiveTab] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
@@ -21,7 +27,18 @@ export default function SearchPage() {
   const [searchResults, setSearchResults] = useState(beats);
   const [producers, setProducers] = useState([]);
   const [loadingProducers, setLoadingProducers] = useState(true);
+  const [genres, setGenres] = useState(['Afrobeat', 'Amapiano', 'Hip Hop', 'R&B', 'Trap', 'Dancehall', 'Pop']);
   const isMobile = useIsMobile();
+
+  // Set the search term when query parameter changes
+  useEffect(() => {
+    if (initialQuery) {
+      setSearchTerm(initialQuery);
+    }
+    if (initialGenre) {
+      setSelectedGenre(initialGenre);
+    }
+  }, [initialQuery, initialGenre]);
 
   useEffect(() => {
     const fetchProducers = async () => {
@@ -45,8 +62,18 @@ export default function SearchPage() {
     fetchProducers();
   }, []);
 
+  // Extract unique genres from beats
   useEffect(() => {
-    if (!searchTerm.trim()) {
+    if (beats.length > 0) {
+      const uniqueGenres = [...new Set(beats.map(beat => beat.genre))].filter(Boolean);
+      if (uniqueGenres.length > 0) {
+        setGenres(uniqueGenres);
+      }
+    }
+  }, [beats]);
+
+  useEffect(() => {
+    if (!searchTerm.trim() && !selectedGenre) {
       setSearchResults(beats);
       return;
     }
@@ -54,21 +81,22 @@ export default function SearchPage() {
     const term = searchTerm.toLowerCase().trim();
     
     const filteredResults = beats.filter(beat => {
-      const matchTitle = beat.title.toLowerCase().includes(term);
-      const matchProducer = beat.producer_name.toLowerCase().includes(term);
-      const matchGenre = beat.genre.toLowerCase().includes(term);
+      const matchTitle = term ? beat.title.toLowerCase().includes(term) : true;
+      const matchProducer = term ? beat.producer_name.toLowerCase().includes(term) : true;
+      const matchGenre = selectedGenre ? beat.genre === selectedGenre : true;
+      const textSearch = term ? (matchTitle || matchProducer) : true;
       
-      if (activeTab === "beats") return matchTitle || matchGenre;
+      if (activeTab === "beats") return textSearch && matchGenre;
       if (activeTab === "producers") return matchProducer;
-      return matchTitle || matchProducer || matchGenre;
+      return textSearch && matchGenre;
     });
 
     setSearchResults(filteredResults);
-  }, [searchTerm, beats, activeTab]);
+  }, [searchTerm, selectedGenre, beats, activeTab]);
 
   const handleTabChange = (value) => {
     setActiveTab(value);
-    if (searchTerm) {
+    if (searchTerm || selectedGenre) {
       const event = new Event('input', { bubbles: true });
       document.getElementById('search-input')?.dispatchEvent(event);
     }
@@ -84,6 +112,28 @@ export default function SearchPage() {
     return matchName || matchCountry;
   });
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Update URL parameters
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) {
+      params.set('q', searchTerm.trim());
+    }
+    if (selectedGenre) {
+      params.set('genre', selectedGenre);
+    }
+    setSearchParams(params);
+  };
+
+  const handleGenreSelect = (genre: string) => {
+    if (selectedGenre === genre) {
+      setSelectedGenre('');
+    } else {
+      setSelectedGenre(genre);
+    }
+  };
+
   return (
     <MainLayoutWithPlayer>
       <div className={cn(
@@ -93,19 +143,20 @@ export default function SearchPage() {
         <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Search</h1>
         
         <div className="relative mb-4 sm:mb-6">
-          <div className="relative flex items-center">
+          <form onSubmit={handleSearch} className="relative flex items-center">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
             <Input 
               id="search-input"
               type="text"
               placeholder="Search beats, producers, genres..."
-              className="pl-10 pr-4 py-5 h-10 sm:h-12 bg-background border-input"
+              className="pl-10 pr-12 py-5 h-10 sm:h-12 bg-background border-input"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               autoFocus
             />
             {searchTerm && (
               <Button 
+                type="button"
                 variant="ghost" 
                 size="sm" 
                 className="absolute right-2 rounded-full"
@@ -114,7 +165,7 @@ export default function SearchPage() {
                 Clear
               </Button>
             )}
-          </div>
+          </form>
         </div>
 
         <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange} className="mb-4 sm:mb-6">
@@ -136,6 +187,23 @@ export default function SearchPage() {
             </Button>
           </div>
           
+          {/* Genre filters */}
+          <div className="mb-4 overflow-x-auto pb-2">
+            <div className="flex gap-2 flex-nowrap">
+              {genres.map((genre) => (
+                <Button
+                  key={genre}
+                  variant={selectedGenre === genre ? "default" : "outline"}
+                  size="sm"
+                  className="rounded-full whitespace-nowrap"
+                  onClick={() => handleGenreSelect(genre)}
+                >
+                  {genre}
+                </Button>
+              ))}
+            </div>
+          </div>
+          
           {showFilters && (
             <div className="bg-card rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 animate-slide-down shadow-sm border">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -151,12 +219,15 @@ export default function SearchPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium mb-1 block">Genre</label>
-                  <select className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm">
-                    <option>All genres</option>
-                    <option>Afrobeat</option>
-                    <option>Amapiano</option>
-                    <option>Hip Hop</option>
-                    <option>R&B</option>
+                  <select 
+                    className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm"
+                    value={selectedGenre}
+                    onChange={(e) => setSelectedGenre(e.target.value)}
+                  >
+                    <option value="">All genres</option>
+                    {genres.map((genre) => (
+                      <option key={genre} value={genre}>{genre}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -180,7 +251,13 @@ export default function SearchPage() {
                 </div>
               </div>
               <div className="flex justify-end mt-3 sm:mt-4">
-                <Button size="sm" className="shadow-sm text-xs sm:text-sm">Apply Filters</Button>
+                <Button 
+                  size="sm" 
+                  className="shadow-sm text-xs sm:text-sm"
+                  onClick={handleSearch}
+                >
+                  Apply Filters
+                </Button>
               </div>
             </div>
           )}
@@ -306,7 +383,7 @@ export default function SearchPage() {
           </TabsContent>
         </Tabs>
 
-        {!searchTerm && (
+        {!searchTerm && !selectedGenre && (
           <div className="mt-6 sm:mt-8">
             <h2 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Popular Searches</h2>
             <div className="flex flex-wrap gap-2">

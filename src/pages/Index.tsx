@@ -1,22 +1,23 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { BeatCard } from "@/components/marketplace/BeatCard";
 import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { usePlayer } from "@/context/PlayerContext";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlaylists } from "@/hooks/usePlaylists";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   TrendingUp,
   Flame,
   ListMusic,
   ArrowRight,
   Star,
-  CheckCircle
+  CheckCircle,
+  Search
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Beat } from "@/types";
@@ -30,6 +31,15 @@ export default function IndexPage() {
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [producerOfWeek, setProducerOfWeek] = useState<User | null>(null);
   const [producerBeats, setProducerBeats] = useState<Beat[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   useEffect(() => {
     const fetchProducerOfWeek = async () => {
@@ -43,7 +53,6 @@ export default function IndexPage() {
         }
 
         if (data && data.length > 0) {
-          // Map the database user to our User type
           const producer: User = {
             id: data[0].id,
             email: data[0].email,
@@ -54,9 +63,8 @@ export default function IndexPage() {
             created_at: data[0].created_date,
             country: data[0].country,
             producer_name: data[0].stage_name,
-            // Add default values for the missing properties
-            updated_at: data[0].created_date, // Use created_date as fallback
-            default_currency: 'NGN' as 'NGN' | 'USD' // Default to NGN
+            updated_at: data[0].created_date,
+            default_currency: 'NGN' as 'NGN' | 'USD'
           };
           
           setProducerOfWeek(producer);
@@ -80,13 +88,13 @@ export default function IndexPage() {
     if (beats.length > 0) {
       const trending = [...beats]
         .sort((a, b) => (b.favorites_count || 0) - (a.favorites_count || 0))
-        .slice(0, 12);  // Increased from 8 to 12
+        .slice(0, 12);
       setTrendingBeats(trending);
 
       const newReleases = [...beats]
         .sort((a, b) => new Date(b.created_at || Date.now()).getTime() - 
                          new Date(a.created_at || Date.now()).getTime())
-        .slice(0, 12);  // Increased from 8 to 12
+        .slice(0, 12);
       setNewBeats(newReleases);
     }
   }, [beats]);
@@ -100,6 +108,27 @@ export default function IndexPage() {
   return (
     <MainLayoutWithPlayer>
       <div className="container py-8">
+        <div className="mb-12 w-full max-w-4xl mx-auto">
+          <form onSubmit={handleSearch} className="relative">
+            <div className="flex items-center">
+              <Input
+                type="text"
+                placeholder="Search for beats, producers, genres..."
+                className="pr-12 py-6 h-14 text-base rounded-l-lg border-r-0"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              <Button 
+                type="submit" 
+                className="h-14 px-5 rounded-l-none bg-primary"
+              >
+                <Search className="mr-2 h-5 w-5" />
+                <span>Search</span>
+              </Button>
+            </div>
+          </form>
+        </div>
+
         {producerOfWeek && (
           <section className="mb-12">
             <SectionTitle 
@@ -110,14 +139,12 @@ export default function IndexPage() {
             
             <div className="bg-card rounded-lg border overflow-hidden">
               <div className="relative w-full aspect-video max-h-80 bg-gray-900">
-                {/* Producer image as background */}
                 <img 
                   src={producerOfWeek.avatar_url || "/placeholder.svg"} 
                   alt={producerOfWeek.name} 
                   className="w-full h-full object-cover opacity-75"
                 />
                 
-                {/* Producer info overlay */}
                 <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
                   <div className="flex items-center gap-3">
                     <h3 className="text-2xl font-bold text-white uppercase">

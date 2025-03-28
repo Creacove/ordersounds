@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -14,7 +15,8 @@ import {
   ChevronDown,
   Flame,
   Headphones,
-  BookOpen
+  BookOpen,
+  ShoppingCart
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -107,6 +109,27 @@ export function Topbar() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          
+          {/* Cart - Only show on desktop for buyers */}
+          {user && user.role === 'buyer' && !isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative h-8 w-8"
+              onClick={() => navigate("/cart")}
+            >
+              <ShoppingCart size={18} />
+              {itemCount > 0 && (
+                <Badge 
+                  className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]" 
+                  variant="destructive"
+                >
+                  {itemCount}
+                </Badge>
+              )}
+              <span className="sr-only">Cart</span>
+            </Button>
+          )}
           
           {/* Search - redirects to search page */}
           <Button
