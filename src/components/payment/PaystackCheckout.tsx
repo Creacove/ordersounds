@@ -125,7 +125,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       // Validate beats exist in the database
       const { data: beatsExist, error: beatCheckError } = await supabase
         .from('beats')
-        .select('id')
+        .select('id, producer_id')
         .in('id', beatIds);
       
       if (beatCheckError) {
@@ -258,6 +258,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           // Create notification for the user
           createPurchaseNotification(user!.id, cartItems.length);
           
+          // Create notifications for producers of the beats
+          notifyProducers(cartItems);
+          
           onSuccess(paymentReference);
         }
       } else {
@@ -350,6 +353,48 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         });
     } catch (error) {
       console.error('Failed to create notification:', error);
+      // Don't throw error here, as the purchase was successful
+    }
+  };
+  
+  // Create notifications for producers when their beats are purchased
+  const notifyProducers = async (items: any[]) => {
+    try {
+      // Group beats by producer_id to reduce number of notifications
+      const beatsByProducer = {};
+      
+      for (const item of items) {
+        const producerId = item.beat.producer_id;
+        if (!producerId) continue;
+        
+        if (!beatsByProducer[producerId]) {
+          beatsByProducer[producerId] = [];
+        }
+        
+        beatsByProducer[producerId].push({
+          title: item.beat.title,
+          id: item.beat.id
+        });
+      }
+      
+      // Create a notification for each producer
+      for (const producerId in beatsByProducer) {
+        const beatsCount = beatsByProducer[producerId].length;
+        const beatTitles = beatsByProducer[producerId].map(b => b.title).join(', ');
+        
+        await supabase
+          .from('notifications')
+          .insert({
+            recipient_id: producerId,
+            title: 'New Beat Sale!',
+            body: `Congratulations! ${beatsCount === 1 
+              ? `Your beat "${beatTitles}" was` 
+              : `${beatsCount} of your beats were`} just purchased.`,
+            is_read: false
+          });
+      }
+    } catch (error) {
+      console.error('Failed to notify producers:', error);
       // Don't throw error here, as the purchase was successful
     }
   };

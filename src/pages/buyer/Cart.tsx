@@ -31,7 +31,12 @@ export default function Cart() {
     // Refresh purchased beats after successful payment
     fetchPurchasedBeats();
     // Navigate to library
-    navigate('/buyer/library');
+    navigate('/buyer/library', { 
+      state: { 
+        fromPurchase: true,
+        purchaseTime: new Date().toISOString() 
+      } 
+    });
   };
   
   const handleContinueShopping = () => {
@@ -57,6 +62,22 @@ export default function Cart() {
       refreshCart();
     }
   }, [refreshCart]);
+
+  // Check if we are returning from a successful purchase
+  useEffect(() => {
+    const pendingOrderId = localStorage.getItem('pendingOrderId');
+    const paystackReference = localStorage.getItem('paystackReference');
+    
+    if (pendingOrderId && paystackReference && cartItems.length === 0) {
+      // We likely just completed a purchase but failed to redirect
+      toast.success('Your purchase was successful!');
+      localStorage.removeItem('pendingOrderId');
+      localStorage.removeItem('paystackReference');
+      
+      // Refresh purchased beats to ensure they show up in library
+      fetchPurchasedBeats();
+    }
+  }, []);
 
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';

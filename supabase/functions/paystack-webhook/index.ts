@@ -144,6 +144,28 @@ serve(async (req) => {
             console.error(`Failed to record purchases for order ${orderId}:`, purchaseError);
             continue;
           }
+          
+          // Create notification for buyer
+          const { error: buyerNotificationError } = await supabaseClient
+            .from('notifications')
+            .insert({
+              recipient_id: order.buyer_id,
+              title: 'Purchase Completed Successfully',
+              body: `Your order has been processed. ${purchasedItems.length} beat${purchasedItems.length === 1 ? '' : 's'} added to your library.`,
+              is_read: false
+            });
+            
+          if (buyerNotificationError) {
+            console.error(`Failed to create buyer notification for order ${orderId}:`, buyerNotificationError);
+          }
+          
+          // Create notifications for producers
+          await notifyProducers(supabaseClient, lineItems, order.buyer_id);
+          
+          // Update purchase count for each beat
+          for (const item of lineItems) {
+            await updateBeatPurchaseCount(supabaseClient, item.beat_id);
+          }
         } else {
           console.log(`Purchases for order ${orderId} already recorded, skipping`);
         }
@@ -165,3 +187,83 @@ serve(async (req) => {
     );
   }
 });
+
+// Helper function to notify producers of beat sales
+async function notifyProducers(supabaseClient, lineItems, buyerId) {
+  try {
+    // First, get all beats info including producer_id
+    const beatIds = lineItems.map(item => item.beat_id);
+    
+    if (beatIds.length === 0) return;
+    
+    const { data: beats, error: beatsError } = await supabaseClient
+      .from('beats')
+      .select('id, title, producer_id')
+      .in('id', beatIds);
+      
+    if (beatsError || !beats) {
+      console.error('Failed to fetch beats for producer notifications:', beatsError);
+      return;
+    }
+    
+    // Group beats by producer_id
+    const beatsByProducer = {};
+    
+    for (const beat of beats) {
+      if (!beat.producer_id) continue;
+      
+      if (!beatsByProducer[beat.producer_id]) {
+        beatsByProducer[beat.producer_id] = [];
+      }
+      
+      beatsByProducer[beat.producer_id].push({
+        id: beat.id,
+        title: beat.title
+      });
+    }
+    
+    // Create notifications for each producer
+    for (const producerId in beatsByProducer) {
+      const producerBeats = beatsByProducer[producerId];
+      
+      // Don't notify the producer if they're the buyer (self-purchase)
+      if (producerId === buyerId) continue;
+      
+      // Create the notification
+      const { error: notificationError } = await supabaseClient
+        .from('notifications')
+        .insert({
+          recipient_id: producerId,
+          title: 'New Beat Sale!',
+          body: producerBeats.length === 1
+            ? `Congratulations! Your beat "${producerBeats[0].title}" was just purchased.`
+            : `Congratulations! ${producerBeats.length} of your beats were just purchased.`,
+          is_read: false
+        });
+        
+      if (notificationError) {
+        console.error(`Failed to create notification for producer ${producerId}:`, notificationError);
+      }
+    }
+  } catch (error) {
+    console.error('Error notifying producers:', error);
+  }
+}
+
+// Helper function to update beat purchase count
+async function updateBeatPurchaseCount(supabaseClient, beatId) {
+  try {
+    // Use RPC function to increment the counter
+    const { error } = await supabaseClient.rpc('increment', {
+      row_id: beatId,
+      table_name: 'beats',
+      column_name: 'purchase_count',
+    });
+    
+    if (error) {
+      console.error(`Failed to update purchase count for beat ${beatId}:`, error);
+    }
+  } catch (error) {
+    console.error(`Error updating purchase count for beat ${beatId}:`, error);
+  }
+}

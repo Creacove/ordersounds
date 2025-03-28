@@ -21,8 +21,20 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     console.log('Payment successful with reference:', reference);
     toast.success('Payment completed successfully!');
     setIsPaystackOpen(false);
-    if (onSuccess) onSuccess();
-    else navigate('/buyer/orders');
+    
+    // Show a toast with redirect information
+    toast.success('You will be redirected to your library shortly...', {
+      duration: 3000,
+    });
+    
+    // Delay navigation slightly to allow toasts to be seen
+    setTimeout(() => {
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        navigate('/buyer/library');
+      }
+    }, 1500);
   };
 
   const handlePaystackClose = () => {
