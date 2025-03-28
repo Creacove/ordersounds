@@ -8,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { toast } from "sonner";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -211,6 +212,19 @@ export default function Signup() {
                   </Button>
                 </div>
               </form>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    Or
+                  </span>
+                </div>
+              </div>
+              
+              <GoogleAuthButton mode="signup" />
             </div>
             <p className="px-8 text-center text-sm text-muted-foreground">
               Already have an account?{" "}

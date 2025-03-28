@@ -14,6 +14,7 @@ import Home from "./pages/buyer/Home";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import AuthCallback from "./pages/auth/Callback";
 import Library from "./pages/buyer/Library";
 import Trending from "./pages/buyer/Trending";
 import New from "./pages/buyer/New";
@@ -96,6 +97,7 @@ const App = () => (
                   {/* Auth Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/settings" element={<Settings />} />
                   
                   {/* Producer Routes */}

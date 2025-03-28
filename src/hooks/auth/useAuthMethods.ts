@@ -245,7 +245,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
   const updateProfile = async (data: Partial<User>) => {
     setIsLoading(true);
     try {
-      // Update user metadata
+      // Update user metadata in auth.users
       const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: data.name,
@@ -254,6 +254,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
           country: data.country,
           profile_picture: data.avatar_url,
           default_currency: data.default_currency,
+          role: data.role,
         }
       });
 
@@ -261,35 +262,72 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         throw authError;
       }
 
-      // Update users table - need current user for this
-      const currentUser = await supabase.auth.getUser();
-      if (!currentUser.data.user) {
-        throw new Error('No user found');
+      // Get the current user session
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData.user) {
+        throw userError || new Error('No user found');
       }
 
-      const { error: profileError } = await supabase
+      // Check if user exists in the users table
+      const { data: existingUser, error: checkError } = await supabase
         .from('users')
-        .update({
-          full_name: data.name,
-          stage_name: data.producer_name,
-          bio: data.bio,
-          country: data.country,
-          profile_picture: data.avatar_url,
-        })
-        .eq('id', currentUser.data.user.id);
+        .select('id')
+        .eq('id', userData.user.id)
+        .maybeSingle();
 
-      if (profileError) {
-        throw profileError;
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+
+      // If user exists, update; otherwise insert
+      if (existingUser) {
+        // Update users table
+        const { error: profileError } = await supabase
+          .from('users')
+          .update({
+            full_name: data.name,
+            stage_name: data.producer_name,
+            bio: data.bio,
+            country: data.country,
+            profile_picture: data.avatar_url,
+            role: data.role,
+          })
+          .eq('id', userData.user.id);
+
+        if (profileError) {
+          throw profileError;
+        }
+      } else {
+        // Insert new user record
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert([
+            {
+              id: userData.user.id,
+              full_name: data.name || userData.user.user_metadata?.full_name || '',
+              email: userData.user.email || '',
+              role: data.role || 'buyer',
+              password_hash: 'managed-by-supabase',
+              profile_picture: data.avatar_url || userData.user.user_metadata?.avatar_url || '',
+              bio: data.bio || userData.user.user_metadata?.bio || '',
+              country: data.country || userData.user.user_metadata?.country || 'Nigeria',
+              stage_name: data.producer_name || userData.user.user_metadata?.stage_name || '',
+            }
+          ]);
+
+        if (insertError) {
+          throw insertError;
+        }
       }
 
       // Get the updated user
-      const { data: userData, error: userError } = await supabase.auth.getUser();
-      if (userError || !userData.user) {
-        throw userError || new Error('Failed to get updated user data');
+      const { data: updatedUserData, error: updatedUserError } = await supabase.auth.getUser();
+      if (updatedUserError || !updatedUserData.user) {
+        throw updatedUserError || new Error('Failed to get updated user data');
       }
 
       // Update local state
-      const mappedUser = mapSupabaseUser(userData.user);
+      const mappedUser = mapSupabaseUser(updatedUserData.user);
       setUser(mappedUser);
       
       // Update currency if country changed

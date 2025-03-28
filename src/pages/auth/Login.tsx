@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Label } from "@/components/ui/label";
+import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -147,11 +148,7 @@ export default function Login() {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" className="w-full">
-                  Sign in with Google
-                </Button>
-              </div>
+              <GoogleAuthButton mode="login" />
             </div>
             <p className="px-8 text-center text-sm text-muted-foreground">
               Don't have an account?{" "}
