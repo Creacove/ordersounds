@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getLicensePrice, getAvailableLicenseTypes } from '@/utils/licenseUtils';
+import { supabase } from '@/integrations/supabase/client';
 
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
@@ -39,6 +40,23 @@ const BeatDetail = () => {
       if (!beatId) throw new Error('Beat ID is required');
       const result = await getBeatById(beatId);
       if (!result) throw new Error('Beat not found');
+      
+      try {
+        const { data: result, error } = await supabase.rpc('increment', {
+          row_id: beatId,
+          table_name: 'beats',
+          column_name: 'plays'
+        });
+        
+        if (error) {
+          console.error('Error incrementing play count:', error);
+        } else {
+          console.log('Play count updated:', result);
+        }
+      } catch (err) {
+        console.error('Failed to update play count:', err);
+      }
+      
       console.log('Beat data from API:', result);
       return result;
     },
@@ -316,12 +334,12 @@ const BeatDetail = () => {
                   
                   <div className="flex items-center justify-center sm:justify-start gap-3 mt-3">
                     <div className="flex items-center gap-1 text-sm">
-                      <Globe size={14} className="text-primary/70" /> 
+                      <Download size={14} className="text-primary/70" /> 
                       <span>{beat.purchase_count || 0} downloads</span>
                     </div>
                     <div className="h-4 w-px bg-border"></div>
                     <div className="flex items-center gap-1 text-sm">
-                      <User size={14} className="text-primary/70" /> 
+                      <Heart size={14} className="text-primary/70" /> 
                       <span>{beat.favorites_count || 0} likes</span>
                     </div>
                     <div className="h-4 w-px bg-border"></div>
@@ -347,7 +365,7 @@ const BeatDetail = () => {
                 <Button 
                   variant="ghost"
                   size="icon"
-                  onClick={() => toggleFavorite(beat.id)}
+                  onClick={handleToggleFavorite}
                   className={cn(
                     "h-9 w-9 rounded-full",
                     isBeatFavorite 
