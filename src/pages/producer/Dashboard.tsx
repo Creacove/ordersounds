@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +21,6 @@ import {
   Legend,
 } from "recharts";
 
-// Mock data for charts
 const revenueData = [
   { name: "Jan", value: 4000 },
   { name: "Feb", value: 3000 },
@@ -63,7 +61,6 @@ const genreData = [
 
 const COLORS = ["#7C3AED", "#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE"];
 
-// Mock recent activity data
 const recentActivity = [
   {
     id: 1,
@@ -113,7 +110,6 @@ export default function ProducerDashboard() {
       <div className="container py-8">
         <h1 className="text-2xl font-bold mb-6">Producer Dashboard</h1>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
@@ -169,7 +165,6 @@ export default function ProducerDashboard() {
           </Card>
         </div>
 
-        {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
@@ -253,7 +248,6 @@ export default function ProducerDashboard() {
           </Card>
         </div>
 
-        {/* Recent Activity & Top Beats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
@@ -321,10 +315,10 @@ export default function ProducerDashboard() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-sm">
-                          ₦{beat.price_local.toLocaleString()}
+                          ₦{(beat.basic_license_price_local || 0).toLocaleString()}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          ${beat.price_diaspora}
+                          ${beat.basic_license_price_diaspora || 0}
                         </p>
                       </div>
                     </div>
@@ -339,7 +333,6 @@ export default function ProducerDashboard() {
   );
 }
 
-// Used icons from lucide
 function Heart(props: any) {
   return (
     <svg

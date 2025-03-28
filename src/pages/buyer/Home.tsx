@@ -363,7 +363,7 @@ export default function Home() {
                         {beat.genre}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        ₦{beat.price_local}
+                        ₦{(beat.basic_license_price_local || 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -631,7 +631,7 @@ export default function Home() {
                             <TableCell className="font-medium max-w-[120px] truncate">{beat.title}</TableCell>
                             <TableCell className="hidden sm:table-cell">{beat.genre}</TableCell>
                             <TableCell className="hidden md:table-cell">{beat.bpm} BPM</TableCell>
-                            <TableCell>₦{beat.price_local}</TableCell>
+                            <TableCell>₦{(beat.basic_license_price_local || 0).toLocaleString()}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1">
                                 <Button 

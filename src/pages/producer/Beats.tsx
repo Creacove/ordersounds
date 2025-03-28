@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -207,8 +206,8 @@ export default function ProducerBeats() {
                         <TableCell>{beat.bpm} BPM</TableCell>
                         <TableCell>{beat.key || "-"}</TableCell>
                         <TableCell>{beat.track_type}</TableCell>
-                        <TableCell className="text-right">₦{(beat.basic_license_price_local || beat.price_local || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${(beat.basic_license_price_diaspora || beat.price_diaspora || 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">₦{(beat.basic_license_price_local || 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">${(beat.basic_license_price_diaspora || 0).toLocaleString()}</TableCell>
                         <TableCell className="text-right">{beat.plays || 0}</TableCell>
                         <TableCell className="text-right">{beat.favorites_count}</TableCell>
                         <TableCell className="text-right">{beat.purchase_count}</TableCell>

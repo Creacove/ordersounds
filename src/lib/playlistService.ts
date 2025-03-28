@@ -1,4 +1,5 @@
 
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Playlist, Beat } from '@/types';
@@ -166,8 +167,14 @@ export const getPlaylistWithBeats = async (playlistId: string): Promise<{playlis
         cover_image,
         audio_preview,
         audio_file,
-        price_local,
-        price_diaspora,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
         genre,
         track_type,
         bpm,
@@ -196,8 +203,6 @@ export const getPlaylistWithBeats = async (playlistId: string): Promise<{playlis
         cover_image_url: beat.cover_image,
         preview_url: beat.audio_preview,
         full_track_url: beat.audio_file,
-        price_local: beat.price_local,
-        price_diaspora: beat.price_diaspora,
         genre: beat.genre,
         track_type: beat.track_type,
         bpm: beat.bpm,
@@ -207,7 +212,15 @@ export const getPlaylistWithBeats = async (playlistId: string): Promise<{playlis
         favorites_count: beat.favorites_count || 0,
         purchase_count: beat.purchase_count || 0,
         status: beat.status as 'draft' | 'published',
-        is_featured: false
+        is_featured: false,
+        basic_license_price_local: beat.basic_license_price_local || 0,
+        basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+        premium_license_price_local: beat.premium_license_price_local || 0,
+        premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
+        exclusive_license_price_local: beat.exclusive_license_price_local || 0,
+        exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
+        custom_license_price_local: beat.custom_license_price_local || 0,
+        custom_license_price_diaspora: beat.custom_license_price_diaspora || 0
       };
     });
     
