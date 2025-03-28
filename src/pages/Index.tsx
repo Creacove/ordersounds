@@ -80,13 +80,13 @@ export default function IndexPage() {
     if (beats.length > 0) {
       const trending = [...beats]
         .sort((a, b) => (b.favorites_count || 0) - (a.favorites_count || 0))
-        .slice(0, 8);
+        .slice(0, 12);  // Increased from 8 to 12
       setTrendingBeats(trending);
 
       const newReleases = [...beats]
         .sort((a, b) => new Date(b.created_at || Date.now()).getTime() - 
                          new Date(a.created_at || Date.now()).getTime())
-        .slice(0, 8);
+        .slice(0, 12);  // Increased from 8 to 12
       setNewBeats(newReleases);
     }
   }, [beats]);

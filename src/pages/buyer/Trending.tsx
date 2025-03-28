@@ -1,33 +1,44 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useBeats } from "@/hooks/useBeats";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useCart } from "@/context/CartContext";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
+import { ChevronDown } from "lucide-react";
 
 export default function Trending() {
-  const { trendingBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
+  const { trendingBeats, isLoading, toggleFavorite, isFavorite, isPurchased, fetchTrendingBeats } = useBeats();
   const { isInCart } = useCart();
-  const isMobile = useIsMobile();
+  const [displayCount, setDisplayCount] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   useEffect(() => {
     document.title = "Trending Beats | OrderSOUNDS";
-  }, []);
+    
+    // Ensure we have the most up-to-date trending beats
+    fetchTrendingBeats();
+  }, [fetchTrendingBeats]);
+
+  const loadMoreBeats = () => {
+    setIsLoadingMore(true);
+    // Increase the number of displayed beats
+    setDisplayCount(prevCount => prevCount + 10);
+    setIsLoadingMore(false);
+  };
 
   return (
     <MainLayout>
       <div className="container py-4 md:py-8 px-4 md:px-6">
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold">Trending Beats</h1>
-          <p className="text-sm text-muted-foreground mt-1">Discover the hottest beats right now</p>
+          <p className="text-sm text-muted-foreground mt-1">Discover the hottest beats right now based on likes and plays</p>
         </div>
         
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {[...Array(8)].map((_, i) => (
+            {[...Array(10)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2">
                 <Skeleton className="aspect-square rounded-lg" />
                 <Skeleton className="h-5 w-2/3" />
@@ -36,18 +47,41 @@ export default function Trending() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {trendingBeats.map((beat) => (
-              <BeatCard 
-                key={beat.id} 
-                beat={beat} 
-                onToggleFavorite={toggleFavorite}
-                isFavorite={isFavorite(beat.id)}
-                isInCart={isInCart(beat.id)}
-                isPurchased={isPurchased(beat.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {trendingBeats.slice(0, displayCount).map((beat) => (
+                <BeatCard 
+                  key={beat.id} 
+                  beat={beat} 
+                  onToggleFavorite={toggleFavorite}
+                  isFavorite={isFavorite(beat.id)}
+                  isInCart={isInCart(beat.id)}
+                  isPurchased={isPurchased(beat.id)}
+                />
+              ))}
+            </div>
+            
+            {trendingBeats.length > displayCount && (
+              <div className="flex justify-center mt-8">
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  onClick={loadMoreBeats}
+                  disabled={isLoadingMore}
+                  className="gap-2"
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load More Beats'}
+                  {!isLoadingMore && <ChevronDown className="h-4 w-4" />}
+                </Button>
+              </div>
+            )}
+            
+            {trendingBeats.length === 0 && (
+              <div className="text-center py-10">
+                <p className="text-muted-foreground">No trending beats available at the moment.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </MainLayout>

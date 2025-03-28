@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -99,10 +98,10 @@ export function useBeats() {
         setBeats(transformedBeats);
         
         const sortedByTrending = [...transformedBeats].sort((a, b) => b.favorites_count - a.favorites_count);
-        setTrendingBeats(sortedByTrending.slice(0, 6));
+        setTrendingBeats(sortedByTrending.slice(0, 30));
         
         const sortedByPopular = [...transformedBeats].sort((a, b) => b.purchase_count - a.purchase_count);
-        setPopularBeats(sortedByPopular.slice(0, 6));
+        setPopularBeats(sortedByPopular.slice(0, 20));
         
         const sortedByNew = [...transformedBeats].sort((a, b) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -134,8 +133,6 @@ export function useBeats() {
   }, [user, activeFilters]);
 
   const fetchTrendingBeats = useCallback(async () => {
-    if (trendingBeats.length > 0) return;
-    
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -171,7 +168,7 @@ export function useBeats() {
         `)
         .eq('status', 'published')
         .order('favorites_count', { ascending: false })
-        .limit(6);
+        .limit(30);
       
       if (error) {
         throw error;
@@ -220,7 +217,7 @@ export function useBeats() {
     } finally {
       setIsLoading(false);
     }
-  }, [trendingBeats.length]);
+  }, []);
 
   const fetchPopularBeats = useCallback(async () => {
     if (popularBeats.length > 0) return;
