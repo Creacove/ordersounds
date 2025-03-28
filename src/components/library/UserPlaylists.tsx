@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { CreatePlaylistForm } from './CreatePlaylistForm';
 import { PlaylistCard } from './PlaylistCard';
 import { useNavigate } from 'react-router-dom';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function UserPlaylists() {
   const { user } = useAuth();
@@ -19,6 +20,7 @@ export function UserPlaylists() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const fetchPlaylists = async () => {
     if (!user) return;
@@ -29,7 +31,7 @@ export function UserPlaylists() {
         .from('playlists')
         .select('*')
         .eq('owner_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false }); // Changed from created_at to created_date
         
       if (error) throw error;
       
@@ -95,8 +97,8 @@ export function UserPlaylists() {
           <h2 className="text-xl font-bold">My Playlists</h2>
           <Skeleton className="h-9 w-24" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+          {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-48 w-full" />
           ))}
         </div>
@@ -106,36 +108,37 @@ export function UserPlaylists() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 mb-4">
         <h2 className="text-xl font-bold">Your Playlists</h2>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full xs:w-auto">
           <Button 
             variant="outline" 
-            size="sm" 
+            size={isMobile ? "sm" : "default"} 
             onClick={refreshPlaylists}
             disabled={isRefreshing}
+            className="flex-1 xs:flex-none"
           >
             {isRefreshing ? (
               <>
                 <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                Refreshing...
+                <span className="whitespace-nowrap">Refreshing...</span>
               </>
             ) : (
               <>
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh
+                <span className="whitespace-nowrap">Refresh</span>
               </>
             )}
           </Button>
           
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size={isMobile ? "sm" : "default"} className="flex-1 xs:flex-none">
                 <Plus className="mr-2 h-4 w-4" />
-                New Playlist
+                <span className="whitespace-nowrap">New Playlist</span>
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-md">
               <CreatePlaylistForm onSubmit={handleCreatePlaylist} />
             </DialogContent>
           </Dialog>
@@ -148,10 +151,10 @@ export function UserPlaylists() {
           title="No playlists yet"
           description="Create playlists to organize your favorite beats"
           actionLabel="Create Playlist"
-          onAction={() => setDialogOpen(true)}
+          actionOnClick={() => setDialogOpen(true)}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
           {playlists.map((playlist) => (
             <PlaylistCard 
               key={playlist.id} 

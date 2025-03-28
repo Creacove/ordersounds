@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -10,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PurchasedBeats } from "@/components/library/PurchasedBeats";
 import { FavoriteBeats } from "@/components/library/FavoriteBeats";
 import { UserPlaylists } from "@/components/library/UserPlaylists";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 export default function Library() {
   const { user } = useAuth();
@@ -17,8 +18,8 @@ export default function Library() {
   const navigate = useNavigate();
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState("purchased");
+  const isMobile = useIsMobile();
 
-  // Set the active tab based on the current path
   useEffect(() => {
     if (location.pathname.includes("/favorites")) {
       setActiveTab("favorites");
@@ -32,21 +33,17 @@ export default function Library() {
   useEffect(() => {
     document.title = "Library | OrderSOUNDS";
     
-    // Check if we're coming from a successful purchase
     const fromPurchase = location.state?.fromPurchase;
     if (fromPurchase) {
       setShowPurchaseSuccess(true);
       
-      // Only show the success message once by replacing the current location state
       const currentPathname = location.pathname;
       navigate(currentPathname, { replace: true });
       
-      // Show a welcome toast
       toast.success('Welcome to your library! You can now enjoy your beats.', {
         duration: 5000,
       });
       
-      // Clear the success message after some time
       const timer = setTimeout(() => {
         setShowPurchaseSuccess(false);
       }, 10000);
@@ -55,13 +52,11 @@ export default function Library() {
     }
   }, [location, navigate]);
 
-  // Double check for pending orders that might need clearing
   useEffect(() => {
     const pendingOrderId = localStorage.getItem('pendingOrderId');
     const paystackReference = localStorage.getItem('paystackReference');
     
     if (pendingOrderId && paystackReference) {
-      // Remove the pending order info
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
     }
@@ -69,7 +64,6 @@ export default function Library() {
 
   const handleTabChange = (value) => {
     setActiveTab(value);
-    // Update URL to reflect the current tab
     if (value === "favorites") {
       navigate("/favorites", { replace: true });
     } else if (value === "playlists") {
@@ -82,7 +76,7 @@ export default function Library() {
   if (!user) {
     return (
       <MainLayoutWithPlayer>
-        <div className="container py-12 text-center">
+        <div className="container py-8 md:py-12 text-center">
           <div className="max-w-md mx-auto">
             <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h1 className="text-2xl font-bold mb-2">Sign in to view your library</h1>
@@ -96,8 +90,9 @@ export default function Library() {
     );
   }
 
+  const currentPath = location.pathname;
   return (
-    <MainLayoutWithPlayer>
+    <MainLayoutWithPlayer activeTab="library" currentPath={currentPath}>
       {showPurchaseSuccess && (
         <div className="w-full bg-green-500 text-white py-3 px-4">
           <div className="container flex items-center justify-between">
@@ -113,25 +108,52 @@ export default function Library() {
         </div>
       )}
       
-      <div className="container py-8">
-        <h1 className="text-2xl font-bold mb-6">Your Library</h1>
+      <div className="container py-4 md:py-8">
+        <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Your Library</h1>
         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="w-full grid grid-cols-3 mb-6">
-            <TabsTrigger value="purchased">Purchased Beats</TabsTrigger>
-            <TabsTrigger value="favorites">Favorites</TabsTrigger>
-            <TabsTrigger value="playlists">My Playlists</TabsTrigger>
+          <TabsList className={cn(
+            "w-full grid grid-cols-3 mb-4 md:mb-6", 
+            isMobile ? "sticky top-0 z-10 bg-background/80 backdrop-blur-sm p-1" : ""
+          )}>
+            <TabsTrigger 
+              value="purchased" 
+              className={cn(
+                isMobile ? "text-xs py-2 px-1" : "",
+                activeTab === "purchased" ? "text-primary" : ""
+              )}
+            >
+              Purchased Beats
+            </TabsTrigger>
+            <TabsTrigger 
+              value="favorites" 
+              className={cn(
+                isMobile ? "text-xs py-2 px-1" : "",
+                activeTab === "favorites" ? "text-primary" : ""
+              )}
+            >
+              Favorites
+            </TabsTrigger>
+            <TabsTrigger 
+              value="playlists" 
+              className={cn(
+                isMobile ? "text-xs py-2 px-1" : "",
+                activeTab === "playlists" ? "text-primary" : ""
+              )}
+            >
+              My Playlists
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="purchased" className="space-y-4">
+          <TabsContent value="purchased" className="space-y-4 focus-visible:outline-none">
             <PurchasedBeats />
           </TabsContent>
           
-          <TabsContent value="favorites" className="space-y-4">
+          <TabsContent value="favorites" className="space-y-4 focus-visible:outline-none">
             <FavoriteBeats />
           </TabsContent>
           
-          <TabsContent value="playlists" className="space-y-4">
+          <TabsContent value="playlists" className="space-y-4 focus-visible:outline-none">
             <UserPlaylists />
           </TabsContent>
         </Tabs>

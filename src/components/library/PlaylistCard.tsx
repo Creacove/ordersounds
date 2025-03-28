@@ -104,7 +104,7 @@ export function PlaylistCard({ playlist, onClick, onPlay }: PlaylistCardProps) {
     <div 
       className={cn(
         "bg-card rounded-lg border border-border shadow-sm hover:shadow-md transition-all overflow-hidden",
-        isMobile ? "max-w-[160px]" : ""
+        isMobile ? "max-w-full" : ""
       )}
     >
       <div 

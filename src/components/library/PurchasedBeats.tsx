@@ -10,6 +10,7 @@ import { DownloadIcon, RefreshCw, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function PurchasedBeats() {
   const { getUserPurchasedBeats, fetchPurchasedBeats, isPurchased, isLoading } = useBeats();
@@ -18,6 +19,7 @@ export function PurchasedBeats() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [purchaseDetails, setPurchaseDetails] = useState({});
   const [beatsLoaded, setBeatsLoaded] = useState(false);
+  const isMobile = useIsMobile();
   
   // Use memoization to prevent unnecessary re-renders
   const purchasedBeats = useMemo(() => {
@@ -184,64 +186,97 @@ export function PurchasedBeats() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 mb-4">
         <h2 className="text-xl font-bold">Your Purchased Beats</h2>
         <Button 
           variant="outline" 
-          size="sm" 
+          size={isMobile ? "sm" : "default"}
           onClick={refreshPurchasedBeats}
           disabled={isRefreshing}
+          className="w-full xs:w-auto"
         >
           {isRefreshing ? (
             <>
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Refreshing...
+              <span className="whitespace-nowrap">Refreshing...</span>
             </>
           ) : (
             <>
               <RefreshCw className="mr-2 h-4 w-4" />
-              Refresh
+              <span className="whitespace-nowrap">Refresh</span>
             </>
           )}
         </Button>
       </div>
 
-      <div className="border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[400px]">Beat</TableHead>
-              <TableHead>Producer</TableHead>
-              <TableHead>License</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {purchasedBeats.map((beat) => (
-              <TableRow key={beat.id}>
-                <TableCell>
-                  <BeatListItem beat={beat} />
-                </TableCell>
-                <TableCell>{beat.producer_name}</TableCell>
-                <TableCell className="capitalize">
-                  {purchaseDetails[beat.id]?.licenseType || 'Basic'} License
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDownload(beat)}
-                    className="flex items-center gap-1"
-                  >
-                    <DownloadIcon className="h-4 w-4" />
-                    Download
-                  </Button>
-                </TableCell>
+      {isMobile ? (
+        <div className="space-y-3">
+          {purchasedBeats.map((beat) => (
+            <div key={beat.id} className="relative">
+              <BeatListItem beat={beat} />
+              <div className="absolute top-3 right-3">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleDownload(beat)}
+                  className="flex items-center gap-1"
+                >
+                  <DownloadIcon className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="mt-1 px-3 pb-2 text-xs text-muted-foreground flex justify-between">
+                <span className="capitalize">{purchaseDetails[beat.id]?.licenseType || 'Basic'} License</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDownload(beat)}
+                  className="h-6 text-xs text-primary"
+                >
+                  <DownloadIcon className="h-3 w-3 mr-1" />
+                  Download
+                </Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[400px]">Beat</TableHead>
+                <TableHead>Producer</TableHead>
+                <TableHead>License</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {purchasedBeats.map((beat) => (
+                <TableRow key={beat.id}>
+                  <TableCell>
+                    <BeatListItem beat={beat} />
+                  </TableCell>
+                  <TableCell>{beat.producer_name}</TableCell>
+                  <TableCell className="capitalize">
+                    {purchaseDetails[beat.id]?.licenseType || 'Basic'} License
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownload(beat)}
+                      className="flex items-center gap-1"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                      Download
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

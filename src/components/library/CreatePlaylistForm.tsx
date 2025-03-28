@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PlaylistData {
   name: string;
@@ -20,6 +21,7 @@ export function CreatePlaylistForm({ onSubmit }: CreatePlaylistFormProps) {
   const [name, setName] = useState('');
   const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,7 +38,7 @@ export function CreatePlaylistForm({ onSubmit }: CreatePlaylistFormProps) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <DialogHeader>
+      <DialogHeader className={isMobile ? "text-center space-y-2" : ""}>
         <DialogTitle>Create new playlist</DialogTitle>
         <DialogDescription>
           Add a name and privacy setting for your new playlist.
@@ -52,6 +54,7 @@ export function CreatePlaylistForm({ onSubmit }: CreatePlaylistFormProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
+            className={isMobile ? "h-9" : ""}
           />
         </div>
         
@@ -65,10 +68,12 @@ export function CreatePlaylistForm({ onSubmit }: CreatePlaylistFormProps) {
         </div>
       </div>
       
-      <div className="flex justify-end gap-2">
+      <div className={`flex ${isMobile ? "justify-center" : "justify-end"} gap-2`}>
         <Button 
           type="submit" 
           disabled={!name.trim() || isSubmitting}
+          size={isMobile ? "sm" : "default"}
+          className={isMobile ? "w-full" : ""}
         >
           {isSubmitting ? 'Creating...' : 'Create Playlist'}
         </Button>
