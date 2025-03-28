@@ -12,11 +12,13 @@ import { toast } from "sonner";
 import { usePlayer } from "@/context/PlayerContext";
 import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Charts() {
   const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { addToCart, isInCart } = useCart();
   const { playBeat } = usePlayer();
+  const { currency } = useAuth();
   
   useEffect(() => {
     document.title = "Charts | OrderSOUNDS";
@@ -40,6 +42,13 @@ export default function Charts() {
 
   const handlePlayBeat = (beat) => {
     playBeat(beat);
+  };
+  
+  // Helper to get price based on currency
+  const getBasicLicensePrice = (beat) => {
+    return currency === 'USD'
+      ? beat.basic_license_price_diaspora || beat.price_diaspora || 0
+      : beat.basic_license_price_local || beat.price_local || 0;
   };
 
   return (

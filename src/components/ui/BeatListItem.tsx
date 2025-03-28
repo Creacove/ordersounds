@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -117,15 +116,11 @@ export function BeatListItem({
     }
   };
   
-  // Get the basic license price or default price
   const getBasicLicensePrice = () => {
     const isDiaspora = currency === 'USD';
-    
-    if (isDiaspora) {
-      return beat.basic_license_price_diaspora || beat.price_diaspora || 0;
-    } else {
-      return beat.basic_license_price_local || beat.price_local || 0;
-    }
+    return isDiaspora 
+      ? beat.basic_license_price_diaspora || beat.price_diaspora || 0
+      : beat.basic_license_price_local || beat.price_local || 0;
   };
 
   return (
@@ -133,7 +128,6 @@ export function BeatListItem({
       onClick={handleClick} 
       className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 rounded-lg border bg-card hover:bg-card/90 transition-colors shadow-sm hover:shadow cursor-pointer"
     >
-      {/* Thumbnail with play button */}
       <div className="relative h-16 w-full sm:w-16 flex-shrink-0 overflow-hidden rounded-md bg-muted">
         <img 
           src={beat.cover_image_url || '/placeholder.svg'} 
@@ -163,7 +157,6 @@ export function BeatListItem({
         )}
       </div>
       
-      {/* Beat details */}
       <div className="flex-1 min-w-0">
         <h3 className="font-medium truncate">{beat.title}</h3>
         <Link 
@@ -178,7 +171,6 @@ export function BeatListItem({
           <span>•</span>
           <span>{beat.bpm} BPM</span>
         </div>
-        {/* Show price tag on mobile */}
         {isMobile && (
           <div className="mt-1">
             <PriceTag
@@ -191,7 +183,6 @@ export function BeatListItem({
         )}
       </div>
       
-      {/* Action buttons */}
       <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 mt-2 sm:mt-0">
         {!isInCart && !isPurchased && (
           <Button
@@ -293,7 +284,6 @@ export function BeatListItem({
           </DropdownMenuContent>
         </DropdownMenu>
         
-        {/* Show price tag only on desktop */}
         {!isMobile && (
           <div className="ml-2 shrink-0 font-medium whitespace-nowrap">
             <PriceTag

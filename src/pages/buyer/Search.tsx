@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
@@ -11,18 +10,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
+import { useCart } from "@/context/CartContext";
 
 export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-  const { beats, isLoading } = useBeats();
+  const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
+  const { isInCart } = useCart();
   const [searchResults, setSearchResults] = useState(beats);
   const [producers, setProducers] = useState([]);
   const [loadingProducers, setLoadingProducers] = useState(true);
   const isMobile = useIsMobile();
 
-  // Fetch producers from the database
   useEffect(() => {
     const fetchProducers = async () => {
       try {
@@ -45,7 +45,6 @@ export default function SearchPage() {
     fetchProducers();
   }, []);
 
-  // Process search results whenever search term changes
   useEffect(() => {
     if (!searchTerm.trim()) {
       setSearchResults(beats);
@@ -54,7 +53,6 @@ export default function SearchPage() {
 
     const term = searchTerm.toLowerCase().trim();
     
-    // Filter based on search term and active tab
     const filteredResults = beats.filter(beat => {
       const matchTitle = beat.title.toLowerCase().includes(term);
       const matchProducer = beat.producer_name.toLowerCase().includes(term);
@@ -68,17 +66,14 @@ export default function SearchPage() {
     setSearchResults(filteredResults);
   }, [searchTerm, beats, activeTab]);
 
-  // Reset search when tab changes
   const handleTabChange = (value) => {
     setActiveTab(value);
     if (searchTerm) {
-      // Retrigger search with new tab
       const event = new Event('input', { bubbles: true });
       document.getElementById('search-input')?.dispatchEvent(event);
     }
   };
 
-  // Filter producers based on search term
   const filteredProducers = producers.filter(producer => {
     if (!searchTerm.trim()) return true;
     
@@ -97,7 +92,6 @@ export default function SearchPage() {
       )}>
         <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Search</h1>
         
-        {/* Search input */}
         <div className="relative mb-4 sm:mb-6">
           <div className="relative flex items-center">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
@@ -123,7 +117,6 @@ export default function SearchPage() {
           </div>
         </div>
 
-        {/* Tabs */}
         <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange} className="mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
             <TabsList className="tabs-mobile w-full sm:w-auto">
@@ -143,7 +136,6 @@ export default function SearchPage() {
             </Button>
           </div>
           
-          {/* Filter panel (collapsible) */}
           {showFilters && (
             <div className="bg-card rounded-lg p-3 sm:p-4 mb-4 sm:mb-6 animate-slide-down shadow-sm border">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -207,7 +199,14 @@ export default function SearchPage() {
             ) : searchResults.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 {searchResults.map((beat) => (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat}
+                    isFavorite={isFavorite(beat.id)}
+                    isInCart={isInCart(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 ))}
               </div>
             ) : (
@@ -237,7 +236,14 @@ export default function SearchPage() {
             ) : searchResults.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 {searchResults.map((beat) => (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat}
+                    isFavorite={isFavorite(beat.id)}
+                    isInCart={isInCart(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
+                    onToggleFavorite={toggleFavorite}
+                  />
                 ))}
               </div>
             ) : (
@@ -300,7 +306,6 @@ export default function SearchPage() {
           </TabsContent>
         </Tabs>
 
-        {/* Recent searches (only show when there's no active search) */}
         {!searchTerm && (
           <div className="mt-6 sm:mt-8">
             <h2 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Popular Searches</h2>

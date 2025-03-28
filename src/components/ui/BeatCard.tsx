@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -183,15 +182,12 @@ export function BeatCard({
     }
   };
   
-  // Get the basic license price or default price
+  // Get the basic license price based on the user's currency
   const getBasicLicensePrice = () => {
     const isDiaspora = currency === 'USD';
-    
-    if (isDiaspora) {
-      return beat.basic_license_price_diaspora || beat.price_diaspora || 0;
-    } else {
-      return beat.basic_license_price_local || beat.price_local || 0;
-    }
+    return isDiaspora 
+      ? beat.basic_license_price_diaspora || beat.price_diaspora || 0
+      : beat.basic_license_price_local || beat.price_local || 0;
   };
 
   return (

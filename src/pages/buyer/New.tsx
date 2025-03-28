@@ -7,13 +7,11 @@ import { BeatCard } from "@/components/ui/BeatCard";
 import { useCart } from "@/context/CartContext";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useNavigate } from "react-router-dom";
 
 export default function New() {
   const { newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { isInCart } = useCart();
   const isMobile = useIsMobile();
-  const navigate = useNavigate();
   
   useEffect(() => {
     document.title = "New Beats | OrderSOUNDS";
