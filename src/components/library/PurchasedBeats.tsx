@@ -5,7 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { EmptyState } from './EmptyState';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BeatListItem } from '@/components/ui/BeatListItem';
 import { DownloadIcon, RefreshCw, Music, Play, Pause } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -24,6 +23,34 @@ export function PurchasedBeats() {
   const [beatsLoaded, setBeatsLoaded] = useState(false);
   const location = useLocation();
   const isMobile = useIsMobile();
+  
+  // Set up a subscription to real-time database changes for purchases
+  useEffect(() => {
+    if (!user) return;
+    
+    // Set up a subscription to purchased_beats for the current user
+    const channel = supabase
+      .channel('purchased-beats-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_purchased_beats',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('New purchase detected in PurchasedBeats component:', payload);
+          // When a new purchase is detected, refresh the purchased beats list
+          refreshPurchasedBeats();
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
   
   // Use memoization to prevent unnecessary re-renders
   const purchasedBeats = useMemo(() => {
@@ -296,7 +323,28 @@ export function PurchasedBeats() {
               {purchasedBeats.map((beat) => (
                 <TableRow key={beat.id}>
                   <TableCell>
-                    <BeatListItem beat={beat} />
+                    <div className="flex items-center space-x-3">
+                      <div 
+                        className="relative h-10 w-10 flex-shrink-0 rounded-md overflow-hidden cursor-pointer group"
+                        onClick={() => handlePlayBeat(beat)}
+                      >
+                        <img
+                          src={beat.cover_image_url}
+                          alt={beat.title}
+                          className="h-full w-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          {isPlaying && currentBeat?.id === beat.id ? (
+                            <Pause className="h-4 w-4 text-white" />
+                          ) : (
+                            <Play className="h-4 w-4 ml-0.5 text-white" />
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-medium">{beat.title}</div>
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>{beat.producer_name}</TableCell>
                   <TableCell className="capitalize">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { usePaystackPayment } from 'react-paystack';
 import { Button } from "@/components/ui/button";
@@ -165,7 +164,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error(validationError || 'Cart validation failed. Please try again.');
       }
       
-      // Store order items data temporarily
+      // Store order items data temporarily for processing after payment
       localStorage.setItem('orderItems', JSON.stringify(orderItemsData));
       
       // Create an order record first
@@ -213,6 +212,27 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       localStorage.setItem('paystackReference', reference);
       
       console.log('Starting Paystack payment for order:', orderData.id);
+      
+      // Directly insert user_purchased_beats records for immediate access (will be verified later)
+      const purchasedItems = cartItems.map(item => ({
+        user_id: user.id,
+        beat_id: item.beat.id,
+        license_type: item.beat.selected_license || 'basic',
+        currency_code: 'NGN',
+        order_id: orderData.id,
+      }));
+
+      // Pre-insert purchases (will be verified by server)
+      const { error: purchaseError } = await supabase
+        .from('user_purchased_beats')
+        .insert(purchasedItems);
+      
+      if (purchaseError) {
+        console.error('Error pre-inserting purchases:', purchaseError);
+        // Non-critical error, continue with payment
+      } else {
+        console.log('Pre-inserted purchases for immediate access');
+      }
       
       // Set pre-redirect state to indicate payment in progress
       localStorage.setItem('paymentInProgress', 'true');
@@ -282,7 +302,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         navigate('/library', { 
           state: { 
             fromPurchase: true,
-            purchaseTime: new Date().toISOString()
+            purchaseTime: new Date().toISOString(),
+            activeTab: 'purchased'
           },
           replace: true // Use replace to avoid issues with back navigation
         });
@@ -302,10 +323,10 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     } finally {
       setIsProcessing(false);
       setOrderId(null);
+      // Keep redirectToLibrary flag until next page load
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('orderItems');
-      localStorage.removeItem('paymentInProgress');
     }
   };
 
@@ -343,7 +364,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         )}
         
         <div className="flex flex-col gap-3 mt-2">
-          {/* Increased tap target size for mobile */}
           <Button 
             onClick={handlePaymentStart}
             disabled={isProcessing || isValidating}
@@ -365,7 +385,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
             )}
           </Button>
           
-          {/* Increased tap target size for Cancel button */}
           <Button 
             variant="outline" 
             onClick={onClose}

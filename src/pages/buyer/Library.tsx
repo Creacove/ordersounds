@@ -13,6 +13,7 @@ import { UserPlaylists } from "@/components/library/UserPlaylists";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useBeats } from "@/hooks/useBeats";
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Library() {
   const { user } = useAuth();
@@ -22,6 +23,36 @@ export default function Library() {
   const [activeTab, setActiveTab] = useState("purchased");
   const isMobile = useIsMobile();
   const { fetchPurchasedBeats } = useBeats();
+
+  // Set up a subscription to real-time database changes for purchases
+  useEffect(() => {
+    if (!user) return;
+    
+    // Set up a subscription to purchased_beats for the current user
+    const channel = supabase
+      .channel('library-purchase-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_purchased_beats',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('New purchase detected in Library:', payload);
+          // When a new purchase is detected, refresh and show success message
+          fetchPurchasedBeats();
+          setActiveTab("purchased");
+          setShowPurchaseSuccess(true);
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchPurchasedBeats]);
 
   useEffect(() => {
     // Check the route to determine which tab should be active
@@ -81,6 +112,7 @@ export default function Library() {
     localStorage.removeItem('paystackReference');
     localStorage.removeItem('orderItems');
     localStorage.removeItem('paymentInProgress');
+    localStorage.removeItem('redirectToLibrary');
   }, []);
 
   const handleTabChange = (value) => {

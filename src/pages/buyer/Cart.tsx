@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -14,6 +13,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from "@/components/ui/badge";
 import { getLicensePrice } from "@/utils/licenseUtils";
 import { PaymentHandler } from "@/components/payment/PaymentHandler";
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
@@ -50,32 +50,67 @@ export default function Cart() {
   };
 
   useEffect(() => {
+    if (!user) return;
+    
+    const channel = supabase
+      .channel('purchased-beats-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'user_purchased_beats',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('New purchase detected:', payload);
+          fetchPurchasedBeats().then(() => {
+            clearCart();
+            localStorage.setItem('purchaseSuccess', 'true');
+            localStorage.setItem('purchaseTime', new Date().toISOString());
+            navigate('/library', { 
+              state: { 
+                fromPurchase: true,
+                purchaseTime: new Date().toISOString(),
+                activeTab: 'purchased'
+              },
+              replace: true
+            });
+            toast.success('Your purchase was successful! Your beats are now in your library.');
+          });
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchPurchasedBeats, navigate, clearCart]);
+
+  useEffect(() => {
     document.title = "Shopping Cart | OrderSOUNDS";
     if (cartItems.length > 0) {
       refreshCart();
     }
     
-    // Check if we're in the middle of a payment process
     const pendingOrderId = localStorage.getItem('pendingOrderId');
     const paystackReference = localStorage.getItem('paystackReference');
     const paymentInProgress = localStorage.getItem('paymentInProgress');
+    const redirectToLibrary = localStorage.getItem('redirectToLibrary');
     
     if ((pendingOrderId && paystackReference) || paymentInProgress === 'true') {
       setRedirectingFromPayment(true);
       
-      // Redirect to library with purchased tab
       console.log('Detected payment in progress, redirecting to library...');
       
-      // Clean up payment data before redirect
-      localStorage.removeItem('pendingOrderId');
-      localStorage.removeItem('paystackReference');
-      localStorage.removeItem('paymentInProgress');
-      
-      // Set purchase success flag
       localStorage.setItem('purchaseSuccess', 'true');
       localStorage.setItem('purchaseTime', new Date().toISOString());
       
-      // Redirect to library with purchased tab active
+      localStorage.removeItem('pendingOrderId');
+      localStorage.removeItem('paystackReference');
+      localStorage.removeItem('paymentInProgress');
+      localStorage.removeItem('redirectToLibrary');
+      
       navigate('/library', { 
         state: { 
           fromPurchase: true,
@@ -87,7 +122,6 @@ export default function Cart() {
     }
   }, [refreshCart, cartItems.length, navigate, fetchPurchasedBeats]);
 
-  // Clean up any leftover payment data
   useEffect(() => {
     return () => {
       if (!redirectingFromPayment) {
@@ -95,6 +129,7 @@ export default function Cart() {
         localStorage.removeItem('paystackReference');
         localStorage.removeItem('orderItems');
         localStorage.removeItem('paymentInProgress');
+        localStorage.removeItem('redirectToLibrary');
       }
     };
   }, [redirectingFromPayment]);
