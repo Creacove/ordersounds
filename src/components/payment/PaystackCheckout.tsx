@@ -50,7 +50,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     reference,
     email: user?.email || '',
     amount: Math.round(totalAmount * 100), // Paystack requires amount in kobo (smallest unit)
-    publicKey: 'pk_test_d996ff0c1d293de498a1eaded92eade25d31c74a',
+    publicKey: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Updated with the correct test public key
     currency: 'NGN', // Now it's a valid Currency type
     channels: ['card'], // Now it's a valid Channels type
     label: 'Payment for beats',
