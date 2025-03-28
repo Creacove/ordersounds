@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -31,7 +32,7 @@ serve(async (req) => {
       throw new Error('Invalid request body');
     }
 
-    const { reference, orderId } = body;
+    const { reference, orderId, orderItems } = body;
     
     if (!reference) {
       console.error('Missing payment reference');
@@ -39,6 +40,7 @@ serve(async (req) => {
     }
 
     console.log(`Processing verification for reference: ${reference}, order: ${orderId}`);
+    console.log('Order items:', orderItems);
 
     // Verify the payment with Paystack
     console.log(`Making request to Paystack API: https://api.paystack.co/transaction/verify/${reference}`);
@@ -132,30 +134,18 @@ serve(async (req) => {
         
         // Only add purchases if they don't exist yet
         if (!existingPurchases || existingPurchases.length === 0) {
-          // Get license information from cart items if available
+          // Get license information from order items passed in the request
           const beatLicenses = {};
-        
-          try {
-            // Try to get license info from metadata
-            const { data: orderData, error: orderError } = await supabaseClient
-              .from('orders')
-              .select('metadata')
-              .eq('id', orderId)
-              .single();
-            
-            if (!orderError && orderData?.metadata?.items) {
-              // Extract license info from metadata if available
-              const items = orderData.metadata.items;
-              items.forEach(item => {
-                if (item.beat_id && item.license) {
-                  beatLicenses[item.beat_id] = item.license;
-                }
-              });
-            }
-          } catch (licenseError) {
-            console.error('Error getting license info:', licenseError);
-            // Continue with basic license as fallback
+          
+          if (orderItems && Array.isArray(orderItems)) {
+            orderItems.forEach(item => {
+              if (item.beat_id && item.license) {
+                beatLicenses[item.beat_id] = item.license;
+              }
+            });
           }
+          
+          console.log('License information:', beatLicenses);
         
           // Add purchased beats to user's collection
           const purchasedItems = lineItems.map(item => ({

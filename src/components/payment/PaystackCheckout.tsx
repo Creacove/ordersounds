@@ -156,6 +156,13 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error(validationError || 'Cart validation failed. Please try again.');
       }
       
+      const orderItems = cartItems.map(item => ({
+        beat_id: item.beat.id,
+        title: item.beat.title,
+        price: item.beat.price_local,
+        license: item.beat.selected_license || 'basic'
+      }));
+      
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -163,15 +170,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           total_price: totalAmount,
           payment_method: 'Paystack',
           status: 'pending',
-          currency_used: 'NGN',
-          metadata: {
-            items: cartItems.map(item => ({
-              beat_id: item.beat.id,
-              title: item.beat.title,
-              price: item.beat.price_local,
-              license: item.beat.selected_license || 'basic'
-            }))
-          }
+          currency_used: 'NGN'
         })
         .select('id')
         .single();
@@ -185,7 +184,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error('Failed to create order: No order ID returned');
       }
       
-      const orderItems = cartItems.map(item => ({
+      const lineItems = cartItems.map(item => ({
         order_id: orderData.id,
         beat_id: item.beat.id,
         price_charged: item.beat.price_local,
@@ -194,12 +193,14 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       
       const { error: lineItemError } = await supabase
         .from('line_items')
-        .insert(orderItems);
+        .insert(lineItems);
       
       if (lineItemError) {
         console.error('Line items error:', lineItemError);
         throw new Error(`Line items creation failed: ${lineItemError.message}`);
       }
+      
+      localStorage.setItem('orderItems', JSON.stringify(orderItems));
       
       setOrderId(orderData.id);
       localStorage.setItem('pendingOrderId', orderData.id);
@@ -220,8 +221,15 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     try {
       console.log('Payment success, verifying with backend...', paymentReference, orderId);
       
+      const storedItems = localStorage.getItem('orderItems');
+      const orderItems = storedItems ? JSON.parse(storedItems) : [];
+      
       const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
-        body: { reference: paymentReference, orderId },
+        body: { 
+          reference: paymentReference, 
+          orderId,
+          orderItems
+        },
       });
       
       if (error) {
@@ -250,6 +258,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       } else {
         toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);
       }
+      
+      localStorage.removeItem('orderItems');
+      
     } catch (error) {
       console.error('Payment success handling error:', error);
       toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
@@ -258,6 +269,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       setOrderId(null);
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
+      localStorage.removeItem('orderItems');
     }
   };
 

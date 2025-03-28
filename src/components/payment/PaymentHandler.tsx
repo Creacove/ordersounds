@@ -40,7 +40,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
         onSuccess();
       } else {
         // Use the correct path to the library page
-        navigate('/library', { 
+        navigate('/buyer/library', { 
           state: { 
             fromPurchase: true,
             purchaseTime: new Date().toISOString() 

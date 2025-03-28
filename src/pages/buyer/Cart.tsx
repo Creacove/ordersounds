@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -5,8 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, AlertCircle, Play, Pause, Music, Tag, Trash2, RefreshCw } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ShoppingCart, AlertCircle, Play, Pause, Music, Trash2, RefreshCw } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePlayer } from "@/context/PlayerContext";
@@ -21,6 +22,7 @@ export default function Cart() {
   const { toggleFavorite, isFavorite, fetchPurchasedBeats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const handleRemoveItem = (beatId: string) => {
     removeFromCart(beatId);
@@ -35,7 +37,7 @@ export default function Cart() {
     fetchPurchasedBeats();
     
     // Navigate to library using the correct path
-    navigate('/library', { 
+    navigate('/buyer/library', { 
       state: { 
         fromPurchase: true,
         purchaseTime: new Date().toISOString() 
@@ -72,15 +74,19 @@ export default function Cart() {
   useEffect(() => {
     const pendingOrderId = localStorage.getItem('pendingOrderId');
     const paystackReference = localStorage.getItem('paystackReference');
+    const orderItems = localStorage.getItem('orderItems');
     
     if (pendingOrderId && paystackReference && user) {
       // Try to verify the payment one more time
       const verifyPayment = async () => {
         try {
+          const parsedOrderItems = orderItems ? JSON.parse(orderItems) : [];
+          
           const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
             body: {
               reference: paystackReference,
-              orderId: pendingOrderId
+              orderId: pendingOrderId,
+              orderItems: parsedOrderItems
             }
           });
           
@@ -91,7 +97,7 @@ export default function Cart() {
             // Refresh purchased beats to ensure they show up in library
             await fetchPurchasedBeats();
             // Navigate to library with the correct path
-            navigate('/library', { 
+            navigate('/buyer/library', { 
               state: { 
                 fromPurchase: true,
                 purchaseTime: new Date().toISOString() 
@@ -105,6 +111,7 @@ export default function Cart() {
           // Clear the pending order from localStorage
           localStorage.removeItem('pendingOrderId');
           localStorage.removeItem('paystackReference');
+          localStorage.removeItem('orderItems');
         }
       };
       
