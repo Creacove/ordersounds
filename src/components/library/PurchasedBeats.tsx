@@ -6,7 +6,7 @@ import { EmptyState } from './EmptyState';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BeatListItem } from '@/components/ui/BeatListItem';
-import { DownloadIcon, RefreshCw } from 'lucide-react';
+import { DownloadIcon, RefreshCw, Music } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -125,6 +125,7 @@ export function PurchasedBeats() {
   if (!purchasedBeats || purchasedBeats.length === 0) {
     return (
       <EmptyState
+        icon={Music}
         title="No purchased beats yet"
         description="When you purchase beats, they will appear here for you to download."
         actionLabel="Browse Beats"
