@@ -30,7 +30,19 @@ export function usePlaylists() {
       }
 
       if (data) {
-        setPlaylists(data as Playlist[]);
+        // Transform the data to match the Playlist type expected by the application
+        const transformedPlaylists: Playlist[] = data.map(item => ({
+          id: item.id,
+          name: item.name,
+          owner_id: item.owner_id,
+          cover_image: item.cover_image,
+          is_public: item.is_public,
+          beats: item.beats || [],
+          created_at: item.created_date, // Map created_date to created_at
+          updated_at: item.updated_at
+        }));
+        
+        setPlaylists(transformedPlaylists);
       }
     } catch (error) {
       console.error('Error fetching playlists:', error);
@@ -64,7 +76,14 @@ export function usePlaylists() {
 
       const { error } = await supabase
         .from('playlists')
-        .insert(newPlaylist);
+        .insert({
+          id: newPlaylist.id,
+          name: newPlaylist.name,
+          owner_id: newPlaylist.owner_id,
+          is_public: newPlaylist.is_public,
+          beats: newPlaylist.beats,
+          created_date: newPlaylist.created_at // Use created_date for the database
+        });
 
       if (error) {
         throw error;
