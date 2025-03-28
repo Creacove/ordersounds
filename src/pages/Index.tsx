@@ -253,24 +253,24 @@ export default function Index() {
 
   const getLicenseLocalPrice = (beat: any) => {
     if (beat.license_type === 'basic') {
-      return beat.basic_license_price_local || beat.price_local;
+      return beat.basic_license_price_local || beat.price_local || 0;
     } else if (beat.license_type === 'premium') {
-      return beat.premium_license_price_local || beat.price_local;
+      return beat.premium_license_price_local || beat.price_local || 0;
     } else if (beat.license_type === 'exclusive') {
-      return beat.exclusive_license_price_local || beat.price_local;
+      return beat.exclusive_license_price_local || beat.price_local || 0;
     }
-    return beat.price_local;
+    return beat.price_local || 0;
   };
   
   const getLicenseDiasporaPrice = (beat: any) => {
     if (beat.license_type === 'basic') {
-      return beat.basic_license_price_diaspora || beat.price_diaspora;
+      return beat.basic_license_price_diaspora || beat.price_diaspora || 0;
     } else if (beat.license_type === 'premium') {
-      return beat.premium_license_price_diaspora || beat.price_diaspora;
+      return beat.premium_license_price_diaspora || beat.price_diaspora || 0;
     } else if (beat.license_type === 'exclusive') {
-      return beat.exclusive_license_price_diaspora || beat.price_diaspora;
+      return beat.exclusive_license_price_diaspora || beat.price_diaspora || 0;
     }
-    return beat.price_diaspora;
+    return beat.price_diaspora || 0;
   };
 
   return (

@@ -13,6 +13,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { PriceTag } from "@/components/ui/PriceTag";
 
 export default function Charts() {
   const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
