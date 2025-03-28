@@ -167,7 +167,6 @@ export function BeatCard({
     }
     
     try {
-      // Create a temporary anchor element
       const link = document.createElement('a');
       link.href = beat.full_track_url;
       link.download = `${beat.title} - ${beat.producer_name}.mp3`;
@@ -181,13 +180,10 @@ export function BeatCard({
       toast.error('Failed to download beat');
     }
   };
-  
-  // Get the basic license price based on the user's currency
-  const getBasicLicensePrice = () => {
-    const isDiaspora = currency === 'USD';
-    return isDiaspora 
-      ? beat.basic_license_price_diaspora || beat.price_diaspora || 0
-      : beat.basic_license_price_local || beat.price_local || 0;
+
+  const licensePrice = {
+    local: getLicensePrice(beat, 'basic', false),
+    diaspora: getLicensePrice(beat, 'basic', true)
   };
 
   return (
@@ -235,8 +231,8 @@ export function BeatCard({
             {beat.producer_name}
           </p>
           <PriceTag
-            localPrice={getBasicLicensePrice()}
-            diasporaPrice={getBasicLicensePrice()}
+            localPrice={licensePrice.local}
+            diasporaPrice={licensePrice.diaspora}
             size="sm"
             className="self-start"
             licenseType="basic"
