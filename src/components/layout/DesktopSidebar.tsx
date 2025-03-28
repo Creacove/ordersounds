@@ -37,7 +37,7 @@ export function DesktopSidebar({
             <nav className="flex flex-col gap-1">
               {section.items.map((item, idx) => {
                 if (item.onClick) {
-                  const isActive = location.pathname === item.href;
+                  // For items with onClick (e.g., "Sign Out"), they should not be "active"
                   return (
                     <TooltipProvider key={idx} delayDuration={isCollapsed ? 100 : 1000}>
                       <Tooltip>
@@ -47,18 +47,13 @@ export function DesktopSidebar({
                             className={cn(
                               "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                               "hover:bg-purple-500/20 hover:text-white",
-                              isActive
-                                ? "text-purple-500 border-r-4 border-purple-500 font-medium"
-                                : "text-[#b3b3b3]",
+                              "text-[#b3b3b3] border-r-0",
                               isCollapsed ? "justify-center" : ""
                             )}
                           >
                             <item.icon
                               size={18}
-                              className={cn(
-                                "transition-colors",
-                                isActive ? "text-purple-500" : "text-[#b3b3b3]"
-                              )}
+                              className="text-[#b3b3b3]"
                             />
                             {!isCollapsed && <span>{item.title}</span>}
                           </button>
@@ -79,16 +74,16 @@ export function DesktopSidebar({
                       <TooltipTrigger asChild>
                         <NavLink
                           to={item.href}
-                          className={({ isActive }) =>
-                            cn(
+                          className={({ isActive }) => {
+                            return cn(
                               "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                               "hover:bg-purple-500/20 hover:text-white",
                               isActive
-                                ? "text-purple-500 border-r-4 border-purple-500 font-medium"
-                                : "text-[#b3b3b3]",
+                                ? "text-purple-500 border-r-4 border-purple-500 font-medium rounded-r-none"
+                                : "text-[#b3b3b3] border-r-0",
                               isCollapsed ? "justify-center" : ""
-                            )
-                          }
+                            );
+                          }}
                         >
                           {({ isActive }) => (
                             <>

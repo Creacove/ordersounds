@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
-import { SidebarContentSections } from "./SidebarContentSections";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -59,29 +58,31 @@ export function MobileSidebar({
               </h2>
               <nav className="flex flex-col gap-1">
                 {section.items.map((item, idx) => {
-                  const isActive = location.pathname === item.href;
-                  return item.onClick ? (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        item.onClick && item.onClick();
-                        setIsOpen(false);
-                      }}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
-                        "hover:bg-purple-500/20 hover:text-white",
-                        isActive
-                          ? "text-purple-500 border-r-4 border-purple-500 font-medium"
-                          : "text-[#b3b3b3]"
-                      )}
-                    >
-                      <item.icon 
-                        size={18} 
-                        className={isActive ? "text-purple-500" : "text-[#b3b3b3]"}
-                      />
-                      <span>{item.title}</span>
-                    </button>
-                  ) : (
+                  // For items with onClick (like Sign Out), they shouldn't be "active"
+                  if (item.onClick) {
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          item.onClick && item.onClick();
+                          setIsOpen(false);
+                        }}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
+                          "hover:bg-purple-500/20 hover:text-white",
+                          "text-[#b3b3b3]"
+                        )}
+                      >
+                        <item.icon 
+                          size={18} 
+                          className="text-[#b3b3b3]"
+                        />
+                        <span>{item.title}</span>
+                      </button>
+                    );
+                  }
+                  
+                  return (
                     <NavLink
                       key={idx}
                       to={item.href}
@@ -91,8 +92,8 @@ export function MobileSidebar({
                           "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                           "hover:bg-purple-500/20 hover:text-white",
                           isActive
-                            ? "text-purple-500 border-r-4 border-purple-500 font-medium"
-                            : "text-[#b3b3b3]"
+                            ? "text-purple-500 border-r-4 border-purple-500 font-medium rounded-r-none"
+                            : "text-[#b3b3b3] border-r-0"
                         )
                       }
                     >
