@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -18,14 +18,10 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
     try {
       setIsLoading(true);
       
-      // Use app.ordersounds.com as the redirect domain instead of Supabase's domain
-      const redirectUrl = `https://app.ordersounds.com/auth/callback`;
-      console.log("Redirecting to:", redirectUrl);
-      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
+          redirectTo: 'https://app.ordersounds.com/auth/callback',
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
