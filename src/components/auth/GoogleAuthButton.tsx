@@ -17,7 +17,10 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
+      console.log("Starting Google authentication flow...");
       
+      // The redirectTo URL must match EXACTLY what's configured in Google Cloud Console
+      // AND in the Supabase Auth settings as an authorized redirect URL
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
