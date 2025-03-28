@@ -1,10 +1,11 @@
+
 import React from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart } from 'lucide-react';
+import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ interface BeatListItemProps {
   beat: Beat;
   isFavorite?: boolean;
   isInCart?: boolean;
+  isPurchased?: boolean;
   onRemove?: (beatId: string) => void;
   onToggleFavorite?: (id: string) => void;
   onPlay?: () => void;
@@ -31,6 +33,7 @@ export function BeatListItem({
   beat,
   isFavorite = false,
   isInCart = false,
+  isPurchased = false,
   onRemove,
   onToggleFavorite,
   onPlay
@@ -61,8 +64,14 @@ export function BeatListItem({
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isInCart) {
-      addToCart(beat);
+      const beatWithLicense = {
+        ...beat,
+        selected_license: 'basic'
+      };
+      addToCart(beatWithLicense);
       toast.success(`Added "${beat.title}" to cart`);
+    } else {
+      navigate('/cart');
     }
   };
 
@@ -83,6 +92,40 @@ export function BeatListItem({
 
   const handleClick = () => {
     navigate(`/beat/${beat.id}`);
+  };
+  
+  const downloadBeat = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!isPurchased) {
+      toast.error('You need to purchase this beat first');
+      return;
+    }
+    
+    try {
+      const link = document.createElement('a');
+      link.href = beat.full_track_url;
+      link.download = `${beat.title} - ${beat.producer_name}.mp3`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success('Download started');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download beat');
+    }
+  };
+  
+  // Get the basic license price or default price
+  const getBasicLicensePrice = () => {
+    const isDiaspora = currency === 'USD';
+    
+    if (isDiaspora) {
+      return beat.basic_license_price_diaspora || beat.price_diaspora || 0;
+    } else {
+      return beat.basic_license_price_local || beat.price_local || 0;
+    }
   };
 
   return (
@@ -106,6 +149,18 @@ export function BeatListItem({
             <Play className="h-6 w-6 text-white" />
           }
         </button>
+        
+        {isCurrentlyPlaying && (
+          <div className="absolute top-1 right-1 bg-primary/80 text-primary-foreground text-[10px] px-1 py-0.5 rounded-full">
+            Playing
+          </div>
+        )}
+        
+        {isPurchased && (
+          <div className="absolute top-1 left-1 bg-green-500/80 text-white text-[10px] px-1 py-0.5 rounded-full">
+            Owned
+          </div>
+        )}
       </div>
       
       {/* Beat details */}
@@ -127,8 +182,9 @@ export function BeatListItem({
         {isMobile && (
           <div className="mt-1">
             <PriceTag
-              localPrice={beat.price_local}
-              diasporaPrice={beat.price_diaspora}
+              localPrice={getBasicLicensePrice()}
+              diasporaPrice={getBasicLicensePrice()}
+              licenseType="basic"
               size="sm"
             />
           </div>
@@ -137,7 +193,7 @@ export function BeatListItem({
       
       {/* Action buttons */}
       <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 mt-2 sm:mt-0">
-        {!isInCart && (
+        {!isInCart && !isPurchased && (
           <Button
             variant="ghost"
             size="icon"
@@ -145,6 +201,31 @@ export function BeatListItem({
             className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <ShoppingCart size={18} />
+          </Button>
+        )}
+        
+        {isInCart && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('/cart');
+            }}
+            className="rounded-full bg-primary/20 text-primary hover:bg-primary/30"
+          >
+            <ShoppingCart size={18} />
+          </Button>
+        )}
+        
+        {isPurchased && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={downloadBeat}
+            className="rounded-full bg-green-500/20 text-green-600 hover:bg-green-500/30"
+          >
+            <Download size={18} />
           </Button>
         )}
         
@@ -203,6 +284,12 @@ export function BeatListItem({
                 </>
               )}
             </DropdownMenuItem>
+            {isPurchased && (
+              <DropdownMenuItem onClick={downloadBeat} className="cursor-pointer">
+                <Download className="mr-2 h-4 w-4" />
+                <span>Download</span>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
         
@@ -210,8 +297,9 @@ export function BeatListItem({
         {!isMobile && (
           <div className="ml-2 shrink-0 font-medium whitespace-nowrap">
             <PriceTag
-              localPrice={beat.price_local}
-              diasporaPrice={beat.price_diaspora}
+              localPrice={getBasicLicensePrice()}
+              diasporaPrice={getBasicLicensePrice()}
+              licenseType="basic"
               size="sm"
             />
           </div>

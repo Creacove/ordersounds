@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/context/CartContext";
 
 export default function Genres() {
-  const { beats, isLoading, toggleFavorite, isFavorite } = useBeats();
+  const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { isInCart } = useCart();
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(window.innerWidth < 768 ? 'list' : 'grid');
@@ -78,6 +78,7 @@ export default function Genres() {
                 beat={beat} 
                 isFavorite={isFavorite(beat.id)}
                 isInCart={isInCart(beat.id)}
+                isPurchased={isPurchased(beat.id)}
                 onToggleFavorite={toggleFavorite}
               />
             ))}
@@ -90,6 +91,7 @@ export default function Genres() {
                 beat={beat} 
                 isFavorite={isFavorite(beat.id)}
                 isInCart={isInCart(beat.id)}
+                isPurchased={isPurchased(beat.id)}
                 onToggleFavorite={toggleFavorite}
               />
             ))}

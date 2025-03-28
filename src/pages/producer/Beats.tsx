@@ -20,12 +20,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useCart } from "@/context/CartContext";
 
 type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
-  const { beats, isLoading } = useBeats();
+  const { beats, isLoading, isPurchased, isFavorite } = useBeats();
+  const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
@@ -141,6 +143,9 @@ export default function ProducerBeats() {
                   <BeatCard 
                     key={beat.id} 
                     beat={beat}
+                    isFavorite={isFavorite(beat.id)}
+                    isInCart={isInCart(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
                     className="h-full shadow-sm hover:shadow"
                   />
                 ))}
@@ -154,6 +159,9 @@ export default function ProducerBeats() {
                   <BeatListItem
                     key={beat.id}
                     beat={beat}
+                    isFavorite={isFavorite(beat.id)}
+                    isInCart={isInCart(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
                   />
                 ))}
               </div>
@@ -199,8 +207,8 @@ export default function ProducerBeats() {
                         <TableCell>{beat.bpm} BPM</TableCell>
                         <TableCell>{beat.key || "-"}</TableCell>
                         <TableCell>{beat.track_type}</TableCell>
-                        <TableCell className="text-right">₦{beat.price_local.toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${beat.price_diaspora.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">₦{(beat.basic_license_price_local || beat.price_local || 0).toLocaleString()}</TableCell>
+                        <TableCell className="text-right">${(beat.basic_license_price_diaspora || beat.price_diaspora || 0).toLocaleString()}</TableCell>
                         <TableCell className="text-right">{beat.plays || 0}</TableCell>
                         <TableCell className="text-right">{beat.favorites_count}</TableCell>
                         <TableCell className="text-right">{beat.purchase_count}</TableCell>

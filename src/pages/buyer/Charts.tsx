@@ -14,7 +14,7 @@ import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Charts() {
-  const { beats, isLoading, toggleFavorite, isFavorite } = useBeats();
+  const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { addToCart, isInCart } = useCart();
   const { playBeat } = usePlayer();
   
@@ -146,6 +146,7 @@ export default function Charts() {
                         beat={beat} 
                         isFavorite={isFavorite(beat.id)}
                         isInCart={isInCart(beat.id)}
+                        isPurchased={isPurchased(beat.id)}
                         onToggleFavorite={toggleFavorite}
                       />
                     </div>
