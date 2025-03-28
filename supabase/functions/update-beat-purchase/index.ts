@@ -28,8 +28,9 @@ serve(async (req) => {
       );
     }
 
-    // Increment the purchase count for the beat
-    const { data, error } = await supabase.rpc("increment_counter", {
+    // Increment the purchase count for the beat using the RPC function with proper typing
+    // Using "any" type assertion to bypass TypeScript RPC function name check
+    const { data, error } = await supabase.rpc("increment_counter" as any, {
       p_table_name: "beats",
       p_column_name: "purchase_count",
       p_id: beatId

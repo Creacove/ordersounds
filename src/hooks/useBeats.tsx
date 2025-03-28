@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -539,7 +540,8 @@ export function useBeats() {
       
       const countUpdate = isFavorite ? -1 : 1;
       if (countUpdate > 0) {
-        await supabase.rpc("increment_counter", {
+        // Fix the RPC call by using a type assertion
+        await supabase.rpc("increment_counter" as any, {
           p_table_name: "beats",
           p_column_name: "favorites_count",
           p_id: beatId
