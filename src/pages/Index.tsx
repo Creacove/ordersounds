@@ -14,6 +14,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
 import { PriceTag } from "@/components/ui/PriceTag";
 import { cn } from "@/lib/utils";
+import { getLicensePrice } from '@/utils/licenseUtils';
 
 export default function Index() {
   const { 
@@ -47,8 +48,8 @@ export default function Index() {
           ),
           cover_image,
           audio_preview,
-          price_local,
-          price_diaspora,
+          basic_license_price_local,
+          basic_license_price_diaspora,
           genre,
           bpm,
           status
@@ -68,8 +69,8 @@ export default function Index() {
         producer_name: beat.users?.stage_name || beat.users?.full_name || 'Unknown Producer',
         cover_image_url: beat.cover_image,
         preview_url: beat.audio_preview,
-        price_local: beat.price_local,
-        price_diaspora: beat.price_diaspora,
+        basic_license_price_local: beat.basic_license_price_local || 0,
+        basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
         genre: beat.genre,
         bpm: beat.bpm,
         status: beat.status as 'draft' | 'published',
@@ -196,8 +197,6 @@ export default function Index() {
           ),
           favorites_count,
           purchase_count,
-          price_local,
-          price_diaspora,
           basic_license_price_local,
           basic_license_price_diaspora,
           premium_license_price_local,
@@ -222,8 +221,6 @@ export default function Index() {
         producer_name: beat.users?.stage_name || beat.users?.full_name || 'Unknown Producer',
         favorites_count: beat.favorites_count || 0,
         purchase_count: beat.purchase_count || 0,
-        price_local: beat.price_local || 0,
-        price_diaspora: beat.price_diaspora || 0,
         basic_license_price_local: beat.basic_license_price_local || 0,
         basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
         premium_license_price_local: beat.premium_license_price_local || 0,
@@ -252,25 +249,11 @@ export default function Index() {
   };
 
   const getLicenseLocalPrice = (beat: any) => {
-    if (beat.license_type === 'basic') {
-      return beat.basic_license_price_local || beat.price_local || 0;
-    } else if (beat.license_type === 'premium') {
-      return beat.premium_license_price_local || beat.price_local || 0;
-    } else if (beat.license_type === 'exclusive') {
-      return beat.exclusive_license_price_local || beat.price_local || 0;
-    }
-    return beat.price_local || 0;
+    return getLicensePrice(beat, beat.license_type || 'basic', false);
   };
   
   const getLicenseDiasporaPrice = (beat: any) => {
-    if (beat.license_type === 'basic') {
-      return beat.basic_license_price_diaspora || beat.price_diaspora || 0;
-    } else if (beat.license_type === 'premium') {
-      return beat.premium_license_price_diaspora || beat.price_diaspora || 0;
-    } else if (beat.license_type === 'exclusive') {
-      return beat.exclusive_license_price_diaspora || beat.price_diaspora || 0;
-    }
-    return beat.price_diaspora || 0;
+    return getLicensePrice(beat, beat.license_type || 'basic', true);
   };
 
   return (

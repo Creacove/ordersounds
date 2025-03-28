@@ -20,8 +20,6 @@ export interface Beat {
   cover_image_url: string;
   preview_url: string;
   full_track_url: string;
-  price_local: number; // NGN
-  price_diaspora: number; // USD
   genre: string;
   track_type: string;
   bpm: number;

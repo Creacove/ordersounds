@@ -47,9 +47,7 @@ export default function Charts() {
   
   // Helper to get price based on currency
   const getBasicLicensePrice = (beat) => {
-    return currency === 'USD'
-      ? beat.basic_license_price_diaspora || 0
-      : beat.basic_license_price_local || 0;
+    return getLicensePrice(beat, 'basic', currency === 'USD');
   };
 
   return (
