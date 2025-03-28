@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -37,7 +36,8 @@ const BeatDetail = () => {
   const [playCount, setPlayCount] = useState<number>(0);
   const [favoritesCount, setFavoritesCount] = useState<number>(0);
   const [purchaseCount, setPurchaseCount] = useState<number>(0);
-  
+  const [played, setPlayed] = useState<boolean>(false);
+
   const { data: beat, isLoading, error } = useQuery({
     queryKey: ['beat', beatId],
     queryFn: async () => {
@@ -97,30 +97,23 @@ const BeatDetail = () => {
   }, [beat, beats]);
 
   const incrementPlayCount = async () => {
-    if (!beatId) return;
-    
     try {
-      // Update local state immediately for better UX
-      setPlayCount(prev => prev + 1);
-      
-      // Update the database using the increment_counter function
-      const { data, error } = await supabase
-        .rpc('increment_counter', {
-          p_table_name: 'beats',
-          p_column_name: 'plays',
-          p_id: beatId
+      if (beat && played) {
+        await supabase.rpc("increment_counter", {
+          p_table_name: "beats",
+          p_column_name: "plays",
+          p_id: beat.id
         });
-      
-      if (error) {
-        console.error('Error updating play count:', error);
-        // Revert the local state if the update fails
-        setPlayCount(prev => prev - 1);
-      } else {
-        console.log('Play count updated successfully');
+        
+        if (beat.plays !== undefined) {
+          setBeat({
+            ...beat,
+            plays: beat.plays + 1
+          });
+        }
       }
-    } catch (err) {
-      console.error('Failed to update play count:', err);
-      setPlayCount(prev => prev - 1);
+    } catch (error) {
+      console.error('Error incrementing play count:', error);
     }
   };
 
@@ -153,7 +146,6 @@ const BeatDetail = () => {
     if (beat) {
       const wasAdded = await toggleFavorite(beat.id);
       
-      // Update local favorites count based on action result
       if (wasAdded) {
         setFavoritesCount(prev => prev + 1);
       } else {

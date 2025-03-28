@@ -539,9 +539,9 @@ export function useBeats() {
       
       const countUpdate = isFavorite ? -1 : 1;
       if (countUpdate > 0) {
-        await supabase.rpc('increment_counter', {
-          p_table_name: 'beats',
-          p_column_name: 'favorites_count',
+        await supabase.rpc("increment_counter", {
+          p_table_name: "beats",
+          p_column_name: "favorites_count",
           p_id: beatId
         });
       } else {

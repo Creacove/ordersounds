@@ -29,10 +29,10 @@ serve(async (req) => {
     }
 
     // Increment the purchase count for the beat
-    const { data, error } = await supabase.rpc("increment", {
-      row_id: beatId,
-      table_name: "beats",
-      column_name: "purchase_count",
+    const { data, error } = await supabase.rpc("increment_counter", {
+      p_table_name: "beats",
+      p_column_name: "purchase_count",
+      p_id: beatId
     });
 
     if (error) {
