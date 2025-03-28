@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -108,22 +109,24 @@ export default function IndexPage() {
   return (
     <MainLayoutWithPlayer>
       <div className="container py-8">
-        <div className="mb-12 w-full max-w-4xl mx-auto">
+        {/* Updated search bar to match the design */}
+        <div className="mb-12 w-full max-w-3xl mx-auto">
           <form onSubmit={handleSearch} className="relative">
-            <div className="flex items-center">
+            <div className="flex items-center bg-muted/70 rounded-full border shadow-sm overflow-hidden">
               <Input
                 type="text"
-                placeholder="Search for beats, producers, genres..."
-                className="pr-12 py-6 h-14 text-base rounded-l-lg border-r-0"
+                placeholder="Search beat, producer, playlist or #tag"
+                className="py-6 h-14 text-base bg-transparent border-0 focus-visible:ring-0 rounded-l-full pl-6"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               <Button 
                 type="submit" 
-                className="h-14 px-5 rounded-l-none bg-primary"
+                size="icon"
+                className="h-14 w-14 rounded-full m-0 bg-transparent hover:bg-muted"
               >
-                <Search className="mr-2 h-5 w-5" />
-                <span>Search</span>
+                <Search className="h-5 w-5" />
+                <span className="sr-only">Search</span>
               </Button>
             </div>
           </form>
@@ -203,6 +206,13 @@ export default function IndexPage() {
               <BeatCard key={beat.id} beat={beat} />
             ))}
           </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/trending">
+                View all <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </section>
 
         <section className="mb-12">
@@ -211,6 +221,13 @@ export default function IndexPage() {
             {newBeats.map((beat) => (
               <BeatCard key={beat.id} beat={beat} />
             ))}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/new">
+                View all <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </section>
 
