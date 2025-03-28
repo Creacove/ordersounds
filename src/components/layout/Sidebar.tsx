@@ -41,7 +41,12 @@ interface MobileMenuItem {
   action?: () => void;
 }
 
-function Sidebar() {
+interface SidebarProps {
+  activeTab?: string;
+  currentPath?: string;
+}
+
+function Sidebar({ activeTab, currentPath }: SidebarProps) {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
@@ -49,7 +54,7 @@ function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
-  const [activeBottomTab, setActiveBottomTab] = useState("");
+  const [activeBottomTab, setActiveBottomTab] = useState(activeTab || "");
 
   useEffect(() => {
     if (!isMobile) {
@@ -64,19 +69,23 @@ function Sidebar() {
       setIsOpen(false);
     }
 
-    const path = location.pathname;
+    if (activeTab) {
+      setActiveBottomTab(activeTab);
+    } else {
+      const path = currentPath || location.pathname;
 
-    if (path === "/") setActiveBottomTab("home");
-    else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
-    else if (path === "/trending") setActiveBottomTab("trending");
-    else if (path === "/playlists") setActiveBottomTab("playlists");
-    else if (path === "/cart") setActiveBottomTab("cart");
-    else if (path === "/producer/dashboard") setActiveBottomTab("producer");
-    else if (path === "/producer/beats") setActiveBottomTab("beats");
-    else if (path === "/producer/royalties") setActiveBottomTab("royalties");
-    else if (path === "/library" || path === "/purchased" || path === "/my-playlists") setActiveBottomTab("library");
-    else setActiveBottomTab("");
-  }, [location.pathname, isMobile]);
+      if (path === "/") setActiveBottomTab("home");
+      else if (path === "/genres" || path === "/discover") setActiveBottomTab("discover");
+      else if (path === "/trending") setActiveBottomTab("trending");
+      else if (path === "/playlists") setActiveBottomTab("playlists");
+      else if (path === "/cart") setActiveBottomTab("cart");
+      else if (path === "/producer/dashboard") setActiveBottomTab("producer");
+      else if (path === "/producer/beats") setActiveBottomTab("beats");
+      else if (path === "/producer/royalties") setActiveBottomTab("royalties");
+      else if (path === "/library" || path === "/purchased" || path === "/my-playlists") setActiveBottomTab("library");
+      else setActiveBottomTab("");
+    }
+  }, [location.pathname, isMobile, activeTab, currentPath]);
 
   const handleSignOut = () => {
     logout && logout();
