@@ -1,13 +1,9 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { User } from '@/types';
 
 // Use the correct Supabase URL and anon key
 const supabaseUrl = 'https://uoezlwkxhbzajdivrlby.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk';
-
-// Configure the Google OAuth client ID
-const googleClientId = '103620292148-ek0q7i9f5o5pjmt5iurn7f1ncvtrog.apps.googleusercontent.com';
 
 // Create a single instance of the supabase client to avoid duplicates
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -16,7 +12,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     storage: localStorage,
     flowType: 'implicit',  // Disable email confirmation
-    detectSessionInUrl: true // Look for the session in the URL after OAuth redirects
+    detectSessionInUrl: true, // Look for the session in the URL after OAuth redirects
+    // Add this for OAuth specifics
+    redirectTo: 'https://app.ordersounds.com/auth/callback',
   }
 });
 
