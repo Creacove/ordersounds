@@ -18,8 +18,8 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
     try {
       setIsLoading(true);
       
-      // Get the current origin for the redirect URL
-      const redirectUrl = `${window.location.origin}/auth/callback`;
+      // Use app.ordersounds.com as the redirect domain instead of Supabase's domain
+      const redirectUrl = `https://app.ordersounds.com/auth/callback`;
       console.log("Redirecting to:", redirectUrl);
       
       const { error } = await supabase.auth.signInWithOAuth({
