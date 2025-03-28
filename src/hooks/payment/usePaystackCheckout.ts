@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -6,7 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 
-// Add type declaration for the PaystackPop object on window
 declare global {
   interface Window {
     PaystackPop: any;
@@ -39,13 +37,11 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     try {
       console.log('Validating cart items:', cartItems);
       
-      // Check if cart is empty using the cartItems from context
       if (!cartItems || cartItems.length === 0) {
         setValidationError('Your cart is empty');
         return false;
       }
 
-      // Verify that the beats in the cart are still available
       const beatIds = cartItems.map(item => item.beat.id);
       const { data: beatsData, error: beatsError } = await supabase
         .from('beats')
@@ -58,7 +54,6 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         return false;
       }
 
-      // Check if any beats are no longer available
       const availableBeats = beatsData.filter(beat => beat.status === 'published');
       if (availableBeats.length !== beatIds.length) {
         const unavailableBeats = beatIds.filter(
@@ -69,7 +64,6 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         return false;
       }
 
-      // Check if user already purchased any of these beats
       const { data: purchasedData, error: purchasedError } = await supabase
         .from('user_purchased_beats')
         .select('beat_id')
@@ -115,7 +109,6 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     }
 
     try {
-      // Check if PaystackPop is available
       if (!window.PaystackPop) {
         console.error('PaystackPop not found. Make sure the script is loaded.');
         toast.error('Payment system not ready. Please refresh the page and try again.');
@@ -123,10 +116,8 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         return;
       }
       
-      // Generate a unique transaction reference
       const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
-      // Store cart items in localStorage for verification
       localStorage.setItem('orderItems', JSON.stringify(cartItems));
       localStorage.setItem('paystackReference', reference);
       localStorage.setItem('paystackAmount', totalAmount.toString());
@@ -134,7 +125,6 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       localStorage.setItem('redirectToLibrary', 'true');
       localStorage.setItem('purchaseTime', Date.now().toString());
       
-      // Console log for debugging
       console.log('Starting Paystack payment with:', {
         reference,
         amount: totalAmount,
@@ -142,11 +132,10 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         cartItems: cartItems
       });
       
-      // Start PayStack checkout
-      const config = {
-        key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Updated to the correct test public key
+      const handler = window.PaystackPop.setup({
+        key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8',
         email: user?.email || '',
-        amount: totalAmount * 100, // convert to kobo
+        amount: totalAmount * 100,
         currency: 'NGN',
         ref: reference,
         label: 'OrderSOUNDS',
@@ -158,7 +147,6 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         callback: (response) => {
           console.log('Payment complete! Response:', response);
           
-          // Verify payment on the server
           const verifyResult = verifyPayment(response.reference);
           
           if (typeof verifyResult === 'object' && verifyResult.error) {
@@ -168,13 +156,10 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
             return;
           }
           
-          // Handle successful payment
           setIsProcessing(false);
           
-          // Important: Call onSuccess to trigger the cart clearing
           onSuccess(response.reference);
 
-          // Add a small delay before redirect to ensure all state updates have time to complete
           setTimeout(() => {
             window.location.href = '/library';
           }, 1500);
@@ -195,10 +180,8 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
             }
           ]
         }
-      };
+      });
       
-      // Initialize paystack 
-      const handler = window.PaystackPop.setup(config);
       handler.openIframe();
     } catch (error) {
       console.error('Payment error:', error);
@@ -209,12 +192,10 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
 
   const verifyPayment = (reference: string) => {
     try {
-      // Set verification flags
       localStorage.setItem('pendingVerification', 'true');
       localStorage.setItem('purchaseSuccess', 'true');
       localStorage.setItem('paystackReference', reference);
       
-      // Log verification
       console.log(`Verifying payment with reference: ${reference}`);
       
       return true;
