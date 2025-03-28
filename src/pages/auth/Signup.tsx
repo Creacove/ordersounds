@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -101,14 +102,14 @@ export default function Signup() {
           <div className="relative z-20 mt-auto">
             <div className="mb-4">
               <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
-              <h2 className="text-2xl font-bold tracking-tight text-white mb-2">BeatMarket</h2>
-              <p className="text-white/70">Your music production marketplace</p>
+              <h2 className="text-2xl font-bold tracking-tight text-white mb-2">OrderSounds</h2>
+              <p className="text-white/70">Your ultimate sound experience</p>
             </div>
             <blockquote className="space-y-2">
               <p className="text-lg">
-                "The perfect platform to find beats that inspire your creativity or share your productions with the world."
+                "Join our creative community and explore a world of professional audio that will bring your projects to life. Elevate your craft with premium sound quality."
               </p>
-              <footer className="text-sm text-white/70">Tyler Wright</footer>
+              <footer className="text-sm text-white/70">Head of Design</footer>
             </blockquote>
           </div>
         </div>
@@ -117,7 +118,7 @@ export default function Signup() {
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold tracking-tight text-center">Create an account</CardTitle>
               <CardDescription className="text-center">
-                Sign up to access the beat marketplace
+                Sign up to access premium sound content
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6">

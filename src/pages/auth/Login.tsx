@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -73,14 +74,14 @@ export default function Login() {
           <div className="relative z-20 mt-auto">
             <div className="mb-4">
               <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
-              <h2 className="text-2xl font-bold tracking-tight text-white mb-2">BeatMarket</h2>
-              <p className="text-white/70">Your music production marketplace</p>
+              <h2 className="text-2xl font-bold tracking-tight text-white mb-2">OrderSounds</h2>
+              <p className="text-white/70">Your ultimate sound experience</p>
             </div>
             <blockquote className="space-y-2">
               <p className="text-lg">
-                "Discover, create, and sell beats that define the sound of tomorrow. Join the community of talented producers and passionate artists."
+                "Discover premium audio that transforms your creative projects. Join our community of passionate creators and elevate your sound experience."
               </p>
-              <footer className="text-sm text-white/70">Sofia Davis</footer>
+              <footer className="text-sm text-white/70">Creative Director</footer>
             </blockquote>
           </div>
         </div>
