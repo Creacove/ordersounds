@@ -2,10 +2,8 @@
 import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { AlertCircle } from 'lucide-react';
-import { toast } from 'sonner';
 import { useCart } from '@/context/CartContext';
 
 interface PaymentHandlerProps {
@@ -17,7 +15,6 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   const [isPaystackOpen, setIsPaystackOpen] = useState(false);
   const { currency, user } = useAuth();
   const { clearCart } = useCart();
-  const navigate = useNavigate();
 
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
@@ -25,30 +22,13 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     // Clear the cart after successful payment
     clearCart();
     
-    // Show success message
-    toast.success('Payment completed successfully!');
+    // Show success message via toast is handled in PaystackCheckout
     setIsPaystackOpen(false);
     
-    // Show a toast with redirect information
-    toast.success('You will be redirected to your library shortly...', {
-      duration: 3000,
-    });
-    
-    // Delay navigation slightly to allow toasts to be seen
-    setTimeout(() => {
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        // Navigate to the library page with the correct path
-        navigate('/library', { 
-          state: { 
-            fromPurchase: true,
-            purchaseTime: new Date().toISOString() 
-          },
-          replace: true // Use replace to avoid issues with back navigation
-        });
-      }
-    }, 1000);
+    // Call onSuccess callback if provided
+    if (onSuccess) {
+      onSuccess();
+    }
   };
 
   const handlePaystackClose = () => {

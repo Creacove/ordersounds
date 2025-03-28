@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useNavigate } from 'react-router-dom';
 
 interface PaystackProps {
   onSuccess: (reference: string) => void;
@@ -40,6 +41,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const [orderId, setOrderId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [reference] = useState(() => `tr_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
+  const navigate = useNavigate();
   
   // Prepare order items data for temporary storage
   const orderItemsData = cartItems.map(item => ({
@@ -226,6 +228,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     try {
       console.log('Payment success, verifying with backend...', paymentReference, orderId);
       
+      // Clear cart immediately
+      clearCart();
+      
       // Get the stored order items data
       const storedItems = localStorage.getItem('orderItems');
       const orderItems = storedItems ? JSON.parse(storedItems) : [];
@@ -247,9 +252,21 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       console.log('Verification response:', data);
       
       if (data.verified) {
-        clearCart();
         toast.success('Payment successful! Your beats are now in your library.');
-        onSuccess(paymentReference);
+        
+        // Close the dialog
+        onClose();
+        
+        // Instead of calling onSuccess, directly navigate to library
+        setTimeout(() => {
+          navigate('/library', { 
+            state: { 
+              fromPurchase: true,
+              purchaseTime: new Date().toISOString() 
+            },
+            replace: true // Use replace to avoid issues with back navigation
+          });
+        }, 500);
       } else {
         toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);
       }

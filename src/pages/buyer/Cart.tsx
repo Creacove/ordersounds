@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -30,20 +29,7 @@ export default function Cart() {
   };
   
   const handlePaymentSuccess = () => {
-    // Clear cart
-    clearCart();
-    
-    // Refresh purchased beats after successful payment
-    fetchPurchasedBeats();
-    
-    // Navigate to library using the correct path
-    navigate('/buyer/library', { 
-      state: { 
-        fromPurchase: true,
-        purchaseTime: new Date().toISOString() 
-      },
-      replace: true // Use replace to avoid issues with back navigation
-    });
+    console.log("Payment success handler in Cart called");
   };
   
   const handleContinueShopping = () => {
@@ -62,7 +48,6 @@ export default function Cart() {
     }
   };
 
-  // Refresh cart items when the component mounts
   useEffect(() => {
     document.title = "Shopping Cart | OrderSOUNDS";
     if (cartItems.length > 0) {
@@ -70,14 +55,12 @@ export default function Cart() {
     }
   }, [refreshCart, cartItems.length]);
 
-  // Check if we are returning from a successful purchase
   useEffect(() => {
     const pendingOrderId = localStorage.getItem('pendingOrderId');
     const paystackReference = localStorage.getItem('paystackReference');
     const orderItems = localStorage.getItem('orderItems');
     
     if (pendingOrderId && paystackReference && user) {
-      // Try to verify the payment one more time
       const verifyPayment = async () => {
         try {
           const parsedOrderItems = orderItems ? JSON.parse(orderItems) : [];
@@ -92,12 +75,9 @@ export default function Cart() {
           
           if (!error && data?.verified) {
             toast.success('Your purchase was successful!');
-            // Clear cart
             clearCart();
-            // Refresh purchased beats to ensure they show up in library
             await fetchPurchasedBeats();
-            // Navigate to library with the correct path
-            navigate('/buyer/library', { 
+            navigate('/library', { 
               state: { 
                 fromPurchase: true,
                 purchaseTime: new Date().toISOString() 
@@ -108,7 +88,6 @@ export default function Cart() {
         } catch (err) {
           console.error('Error verifying payment:', err);
         } finally {
-          // Clear the pending order from localStorage
           localStorage.removeItem('pendingOrderId');
           localStorage.removeItem('paystackReference');
           localStorage.removeItem('orderItems');
