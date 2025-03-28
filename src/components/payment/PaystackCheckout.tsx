@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { usePaystackPayment } from 'react-paystack';
+import { usePaystackPayment, PaystackProps as LibraryPaystackProps } from 'react-paystack';
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -25,14 +25,17 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const [isValidating, setIsValidating] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [reference] = useState(() => `order_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
+  const [reference] = useState(() => `tr_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
   
-  // Configure Paystack parameters
-  const config = {
+  // Configure Paystack parameters - ensuring correct format and all required parameters
+  const paystackConfig: LibraryPaystackProps = {
     reference,
     email: user?.email || '',
-    amount: totalAmount * 100, // Paystack requires amount in kobo (smallest unit)
-    publicKey: 'pk_test_d996ff0c1d293de498a1eaded92eade25d31c74a', // Test public key
+    amount: Math.round(totalAmount * 100), // Paystack requires amount in kobo (smallest unit)
+    publicKey: 'pk_test_d996ff0c1d293de498a1eaded92eade25d31c74a',
+    currency: 'NGN',
+    channels: ['card'],
+    label: 'Payment for beats',
     onSuccess: (response: any) => {
       // Handle successful payment
       const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
@@ -66,7 +69,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   };
 
   // Initialize the Paystack payment hook
-  const initializePayment = usePaystackPayment(config);
+  const initializePayment = usePaystackPayment(paystackConfig);
 
   // Clean up any stale payment data on component mount/unmount
   useEffect(() => {
@@ -195,7 +198,15 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       
       // Initialize Paystack payment
       console.log('Starting Paystack payment for order:', orderData.id);
-      initializePayment();
+      
+      // Call the initialization function with an empty callback to ensure proper type handling
+      const response = initializePayment(() => {}, () => {});
+      
+      // If the response is undefined or null, Paystack may not be properly initialized
+      if (!response) {
+        console.error('Paystack initialization failed');
+        throw new Error('Payment service initialization failed. Please try again later.');
+      }
     } catch (error) {
       console.error('Payment initialization error:', error);
       setIsProcessing(false);
@@ -343,7 +354,10 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         <div className="p-4 bg-muted/30 rounded-md mb-4">
           <p className="text-sm font-medium">Total Amount</p>
           <p className="text-2xl font-bold">₦{totalAmount.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-1">Test Mode - No real charges will be made</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded-sm font-medium">Test Mode</span>
+            {" "}- No real charges will be made
+          </p>
         </div>
         
         {validationError && (

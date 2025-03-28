@@ -5,6 +5,7 @@ import { PaystackCheckout } from './PaystackCheckout';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface PaymentHandlerProps {
   totalAmount: number;
@@ -18,6 +19,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
 
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
+    toast.success('Payment completed successfully!');
     setIsPaystackOpen(false);
     if (onSuccess) onSuccess();
     else navigate('/buyer/orders');
