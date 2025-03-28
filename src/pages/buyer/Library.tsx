@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -44,9 +45,6 @@ export default function Library() {
           fetchPurchasedBeats();
           setActiveTab("purchased");
           setShowPurchaseSuccess(true);
-          
-          // Force refresh to update the UI
-          window.location.reload();
         }
       )
       .subscribe();

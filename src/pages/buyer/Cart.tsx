@@ -3,16 +3,16 @@ import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { ShoppingCart, AlertCircle, Play, Pause, Music, Trash2, RefreshCw } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { ShoppingCart, AlertCircle, Music, Play, Pause, Trash2, RefreshCw } from 'lucide-react';
 import { useNavigate, useLocation } from "react-router-dom";
-import { toast } from "sonner";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { usePlayer } from "@/context/PlayerContext";
-import { Badge } from "@/components/ui/badge";
-import { getLicensePrice } from "@/utils/licenseUtils";
-import { PaymentHandler } from "@/components/payment/PaymentHandler";
+import { toast } from 'sonner';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { usePlayer } from '@/context/PlayerContext';
+import { Badge } from '@/components/ui/badge';
+import { getLicensePrice } from '@/utils/licenseUtils';
+import { PaymentHandler } from '@/components/payment/PaymentHandler';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Cart() {
@@ -97,26 +97,22 @@ export default function Cart() {
     const pendingOrderId = localStorage.getItem('pendingOrderId');
     const paystackReference = localStorage.getItem('paystackReference');
     const paymentInProgress = localStorage.getItem('paymentInProgress');
-    const redirectToLibrary = localStorage.getItem('redirectToLibrary');
+    const purchaseSuccess = localStorage.getItem('purchaseSuccess');
     
-    if ((pendingOrderId && paystackReference) || paymentInProgress === 'true') {
+    if (purchaseSuccess === 'true' && !redirectingFromPayment) {
       setRedirectingFromPayment(true);
       
-      console.log('Detected payment in progress, redirecting to library...');
-      
-      localStorage.setItem('purchaseSuccess', 'true');
-      localStorage.setItem('purchaseTime', new Date().toISOString());
+      console.log('Detected successful purchase, redirecting to library...');
       
       clearCart();
       
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('paymentInProgress');
-      localStorage.removeItem('redirectToLibrary');
       
       window.location.href = '/library';
     }
-  }, [refreshCart, cartItems.length, navigate, fetchPurchasedBeats, clearCart]);
+  }, [refreshCart, cartItems.length, navigate, fetchPurchasedBeats, clearCart, redirectingFromPayment]);
 
   useEffect(() => {
     return () => {
@@ -124,8 +120,6 @@ export default function Cart() {
         localStorage.removeItem('pendingOrderId');
         localStorage.removeItem('paystackReference');
         localStorage.removeItem('orderItems');
-        localStorage.removeItem('paymentInProgress');
-        localStorage.removeItem('redirectToLibrary');
       }
     };
   }, [redirectingFromPayment]);

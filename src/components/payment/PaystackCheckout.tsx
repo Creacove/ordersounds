@@ -74,6 +74,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       setIsProcessing(false);
       setValidationError(null);
       toast.error("Payment canceled. You can try again when you're ready.");
+      
+      // Remove any payment-in-progress flags when user cancels
+      localStorage.removeItem('paymentInProgress');
+      localStorage.removeItem('redirectToLibrary');
+      
       onClose();
     },
     metadata: {
@@ -95,6 +100,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         localStorage.removeItem('pendingOrderId');
         localStorage.removeItem('paystackReference');
         localStorage.removeItem('orderItems');
+        localStorage.removeItem('paymentInProgress');
+        localStorage.removeItem('redirectToLibrary');
       }
     };
   }, [isProcessing]);
@@ -214,33 +221,13 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       
       console.log('Starting Paystack payment for order:', orderData.id);
       
-      // Directly insert user_purchased_beats records for immediate access (will be verified later)
-      const purchasedItems = cartItems.map(item => ({
-        user_id: user.id,
-        beat_id: item.beat.id,
-        license_type: item.beat.selected_license || 'basic',
-        currency_code: 'NGN',
-        order_id: orderData.id,
-      }));
-
-      // Pre-insert purchases (will be verified by server)
-      const { error: purchaseError } = await supabase
-        .from('user_purchased_beats')
-        .insert(purchasedItems);
+      /* 
+       * IMPORTANT: We no longer pre-insert purchase records 
+       * or clear the cart before payment verification
+       */
       
-      if (purchaseError) {
-        console.error('Error pre-inserting purchases:', purchaseError);
-        // Non-critical error, continue with payment
-      } else {
-        console.log('Pre-inserted purchases for immediate access');
-      }
-      
-      // Clear cart immediately - this way even if user refreshes or navigates away, cart will be empty
-      clearCart();
-      
-      // Set pre-redirect state to indicate payment in progress
+      // Set payment-in-progress flag (but no redirect yet)
       localStorage.setItem('paymentInProgress', 'true');
-      localStorage.setItem('redirectToLibrary', 'purchased');
       
       // Use a slight delay before initializing payment to ensure UI updates
       setTimeout(() => {
@@ -278,6 +265,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         console.error('Verification error:', error);
         toast.dismiss('payment-verification');
         toast.error(`Payment verification failed: ${error.message}`);
+        
+        // Clear payment-in-progress flags on error
+        localStorage.removeItem('paymentInProgress');
+        localStorage.removeItem('redirectToLibrary');
+        
         onClose();
         return;
       }
@@ -291,6 +283,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         // Close the dialog
         onClose();
         
+        // Clear the cart only after successful payment verification
+        clearCart();
+        
         // Fetch newly purchased beats to update the library
         await fetchPurchasedBeats();
         
@@ -298,11 +293,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         localStorage.setItem('purchaseSuccess', 'true');
         localStorage.setItem('purchaseTime', new Date().toISOString());
         
-        // Clear cart one more time to be absolutely sure
-        clearCart();
-        
         // Navigate to library with state to show success notification
-        // Use 'purchased' tab as the default active tab after purchase
         navigate('/library', { 
           state: { 
             fromPurchase: true,
@@ -318,7 +309,12 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         toast.success('Payment successful! Your beats are now in your library.');
       } else {
         toast.dismiss('payment-verification');
-        toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);
+        toast.error('Payment verification failed. Please try again or contact support with your reference: ' + paymentReference);
+        
+        // Clear payment-in-progress flags on verification failure
+        localStorage.removeItem('paymentInProgress');
+        localStorage.removeItem('redirectToLibrary');
+        
         onClose();
       }
       
@@ -326,11 +322,15 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       console.error('Payment success handling error:', error);
       toast.dismiss('payment-verification');
       toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
+      
+      // Clear all payment flags on error
+      localStorage.removeItem('paymentInProgress');
+      localStorage.removeItem('redirectToLibrary');
+      
       onClose();
     } finally {
       setIsProcessing(false);
       setOrderId(null);
-      // Keep redirectToLibrary flag until next page load
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('orderItems');
