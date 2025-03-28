@@ -31,6 +31,7 @@ export default function Cart() {
   
   const handlePaymentSuccess = () => {
     console.log("Payment success handler in Cart called");
+    clearCart();
   };
   
   const handleContinueShopping = () => {
@@ -106,21 +107,16 @@ export default function Cart() {
       localStorage.setItem('purchaseSuccess', 'true');
       localStorage.setItem('purchaseTime', new Date().toISOString());
       
+      clearCart();
+      
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('paymentInProgress');
       localStorage.removeItem('redirectToLibrary');
       
-      navigate('/library', { 
-        state: { 
-          fromPurchase: true,
-          purchaseTime: new Date().toISOString(),
-          activeTab: 'purchased'
-        },
-        replace: true
-      });
+      window.location.href = '/library';
     }
-  }, [refreshCart, cartItems.length, navigate, fetchPurchasedBeats]);
+  }, [refreshCart, cartItems.length, navigate, fetchPurchasedBeats, clearCart]);
 
   useEffect(() => {
     return () => {
@@ -324,4 +320,4 @@ export default function Cart() {
       </div>
     </MainLayoutWithPlayer>
   );
-};
+}

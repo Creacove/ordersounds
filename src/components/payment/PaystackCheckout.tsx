@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { usePaystackPayment } from 'react-paystack';
 import { Button } from "@/components/ui/button";
@@ -234,6 +235,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         console.log('Pre-inserted purchases for immediate access');
       }
       
+      // Clear cart immediately - this way even if user refreshes or navigates away, cart will be empty
+      clearCart();
+      
       // Set pre-redirect state to indicate payment in progress
       localStorage.setItem('paymentInProgress', 'true');
       localStorage.setItem('redirectToLibrary', 'purchased');
@@ -253,9 +257,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const handlePaymentSuccess = async (paymentReference: string, orderId: string) => {
     try {
       console.log('Payment success, verifying with backend...', paymentReference, orderId);
-      
-      // Clear cart immediately to improve perceived performance
-      clearCart();
       
       // Show loading toast to indicate verification is in progress
       toast.loading('Verifying your payment...', { id: 'payment-verification' });
@@ -297,6 +298,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         localStorage.setItem('purchaseSuccess', 'true');
         localStorage.setItem('purchaseTime', new Date().toISOString());
         
+        // Clear cart one more time to be absolutely sure
+        clearCart();
+        
         // Navigate to library with state to show success notification
         // Use 'purchased' tab as the default active tab after purchase
         navigate('/library', { 
@@ -307,6 +311,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           },
           replace: true // Use replace to avoid issues with back navigation
         });
+        
+        // Force page reload to ensure data is fresh
+        window.location.href = '/library';
         
         toast.success('Payment successful! Your beats are now in your library.');
       } else {
