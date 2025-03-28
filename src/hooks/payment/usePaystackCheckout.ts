@@ -178,6 +178,22 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
           setTimeout(() => {
             window.location.href = '/library';
           }, 1500);
+        },
+        metadata: {
+          custom_fields: [
+            {
+              display_name: "Order Items",
+              variable_name: "order_items",
+              value: JSON.stringify(
+                cartItems.map(item => ({
+                  beat_id: item.beat.id,
+                  title: item.beat.title,
+                  price: item.beat.basic_license_price_local,
+                  license: item.beat.selected_license || 'basic'
+                }))
+              )
+            }
+          ]
         }
       };
       
