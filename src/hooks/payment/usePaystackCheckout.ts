@@ -103,17 +103,20 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     if (isProcessing || isValidating) return;
     
     setIsProcessing(true);
-    const isValid = await validateCartItems();
     
-    if (!isValid) {
-      setIsProcessing(false);
-      return;
-    }
-
     try {
-      if (!window.PaystackPop) {
+      // First, check if PaystackPop is available
+      if (typeof window === 'undefined' || !window.PaystackPop) {
         console.error('PaystackPop not found. Make sure the script is loaded.');
         toast.error('Payment system not ready. Please refresh the page and try again.');
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Then validate cart items
+      const isValid = await validateCartItems();
+      
+      if (!isValid) {
         setIsProcessing(false);
         return;
       }
@@ -155,124 +158,130 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         cartItems: orderItemsData
       });
       
-      // Initialize Paystack
-      const handler = window.PaystackPop.setup({
-        key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Public test key
-        email: user?.email || '',
-        amount: totalAmount * 100, // Convert to kobo
-        currency: 'NGN',
-        ref: reference,
-        label: 'OrderSOUNDS',
-        metadata: {
-          custom_fields: [
-            {
-              display_name: "Order Items",
-              variable_name: "order_items",
-              value: JSON.stringify(orderItemsData)
-            }
-          ]
-        },
-        onClose: function() {
-          console.log('Payment window closed');
-          setIsProcessing(false);
-          localStorage.removeItem('paymentInProgress');
-          onClose();
-        },
-        callback: async function(response) {
-          console.log('Payment complete! Response:', response);
-          
-          // Verify the payment server-side
-          try {
-            const orderId = localStorage.getItem('pendingOrderId');
+      // Initialize and open Paystack
+      try {
+        const handler = window.PaystackPop.setup({
+          key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Public test key
+          email: user?.email || '',
+          amount: totalAmount * 100, // Convert to kobo
+          currency: 'NGN',
+          ref: reference,
+          label: 'OrderSOUNDS',
+          metadata: {
+            custom_fields: [
+              {
+                display_name: "Order Items",
+                variable_name: "order_items",
+                value: JSON.stringify(orderItemsData)
+              }
+            ]
+          },
+          onClose: function() {
+            console.log('Payment window closed');
+            setIsProcessing(false);
+            localStorage.removeItem('paymentInProgress');
+            onClose();
+          },
+          callback: async function(response) {
+            console.log('Payment complete! Response:', response);
             
-            if (!orderId) {
-              toast.error('Order information missing. Please try again.');
-              setIsProcessing(false);
-              return;
-            }
-            
-            // Verify the payment with our backend
-            const verificationResult = await verifyPaystackPayment(
-              response.reference, 
-              orderId,
-              orderItemsData
-            );
-            
-            if (verificationResult.success) {
-              // Process purchased beats immediately
-              try {
-                // Get the buyer's ID
-                if (!user || !user.id) throw new Error('User information missing');
-                
-                // Add purchased beats directly to prevent waiting for webhook
-                for (const item of orderItemsData) {
-                  // Check if it's already purchased to avoid duplicates
-                  const { data: existingPurchase, error: checkError } = await supabase
-                    .from('user_purchased_beats')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .eq('beat_id', item.beat_id)
-                    .eq('order_id', orderId)
-                    .single();
-                    
-                  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-                    console.error('Error checking for existing purchase:', checkError);
-                  }
-                  
-                  // Skip if already purchased
-                  if (existingPurchase) continue;
-                  
-                  // Insert the purchase
-                  const { error: purchaseError } = await supabase
-                    .from('user_purchased_beats')
-                    .insert({
-                      user_id: user.id,
-                      beat_id: item.beat_id,
-                      license_type: item.license || 'basic',
-                      currency_code: 'NGN',
-                      order_id: orderId,
-                    });
-                    
-                  if (purchaseError) {
-                    console.error('Error recording purchase:', purchaseError);
-                  } else {
-                    console.log(`Purchase recorded for beat ${item.beat_id}`);
-                  }
-                }
-              } catch (err) {
-                console.error('Error recording purchases:', err);
-                // Continue with redirect even if local recording failed,
-                // the webhook will handle it as backup
+            // Verify the payment server-side
+            try {
+              const orderId = localStorage.getItem('pendingOrderId');
+              
+              if (!orderId) {
+                toast.error('Order information missing. Please try again.');
+                setIsProcessing(false);
+                return;
               }
               
-              localStorage.setItem('purchaseSuccess', 'true');
+              // Verify the payment with our backend
+              const verificationResult = await verifyPaystackPayment(
+                response.reference, 
+                orderId,
+                orderItemsData
+              );
               
-              // Success! Clear cart and redirect
-              clearCart();
-              setIsProcessing(false);
-              onSuccess(response.reference);
-              
-              toast.success('Your purchase was successful! Redirecting to your library...');
-              
-              // Force direct to library instead of using navigate
-              setTimeout(() => {
-                window.location.href = '/library';
-              }, 1500);
-            } else {
-              console.error('Payment verification failed:', verificationResult.error);
-              toast.error('Payment verification failed. Please contact support with your reference number.');
+              if (verificationResult.success) {
+                // Process purchased beats immediately
+                try {
+                  // Get the buyer's ID
+                  if (!user || !user.id) throw new Error('User information missing');
+                  
+                  // Add purchased beats directly to prevent waiting for webhook
+                  for (const item of orderItemsData) {
+                    // Check if it's already purchased to avoid duplicates
+                    const { data: existingPurchase, error: checkError } = await supabase
+                      .from('user_purchased_beats')
+                      .select('id')
+                      .eq('user_id', user.id)
+                      .eq('beat_id', item.beat_id)
+                      .eq('order_id', orderId)
+                      .single();
+                      
+                    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                      console.error('Error checking for existing purchase:', checkError);
+                    }
+                    
+                    // Skip if already purchased
+                    if (existingPurchase) continue;
+                    
+                    // Insert the purchase
+                    const { error: purchaseError } = await supabase
+                      .from('user_purchased_beats')
+                      .insert({
+                        user_id: user.id,
+                        beat_id: item.beat_id,
+                        license_type: item.license || 'basic',
+                        currency_code: 'NGN',
+                        order_id: orderId,
+                      });
+                      
+                    if (purchaseError) {
+                      console.error('Error recording purchase:', purchaseError);
+                    } else {
+                      console.log(`Purchase recorded for beat ${item.beat_id}`);
+                    }
+                  }
+                } catch (err) {
+                  console.error('Error recording purchases:', err);
+                  // Continue with redirect even if local recording failed,
+                  // the webhook will handle it as backup
+                }
+                
+                localStorage.setItem('purchaseSuccess', 'true');
+                
+                // Success! Clear cart and redirect
+                clearCart();
+                setIsProcessing(false);
+                onSuccess(response.reference);
+                
+                toast.success('Your purchase was successful! Redirecting to your library...');
+                
+                // Force direct to library instead of using navigate
+                setTimeout(() => {
+                  window.location.href = '/library';
+                }, 1500);
+              } else {
+                console.error('Payment verification failed:', verificationResult.error);
+                toast.error('Payment verification failed. Please contact support with your reference number.');
+                setIsProcessing(false);
+              }
+            } catch (error) {
+              console.error('Error during payment verification:', error);
+              toast.error('An error occurred during payment processing');
               setIsProcessing(false);
             }
-          } catch (error) {
-            console.error('Error during payment verification:', error);
-            toast.error('An error occurred during payment processing');
-            setIsProcessing(false);
           }
-        }
-      });
-      
-      // Explicitly open the payment iframe
-      handler.openIframe();
+        });
+        
+        // Explicitly open the payment iframe
+        handler.openIframe();
+      } catch (error) {
+        console.error('Paystack initialization error:', error);
+        toast.error('Failed to initialize payment. Please try again.');
+        setIsProcessing(false);
+      }
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Failed to start payment process');

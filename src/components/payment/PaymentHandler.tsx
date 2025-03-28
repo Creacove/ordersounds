@@ -19,52 +19,66 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   const [hasItems, setHasItems] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scriptError, setScriptError] = useState(false);
+  const [loadingScript, setLoadingScript] = useState(false);
 
   // Load Paystack script
   useEffect(() => {
-    // Check if script is already loaded
-    const existingScript = document.getElementById('paystack-script');
-    
-    if (existingScript && window.PaystackPop) {
+    // Check if script is already loaded and PaystackPop is available
+    if (window.PaystackPop) {
       console.log('Paystack script is already loaded and PaystackPop is available');
       setScriptLoaded(true);
       return;
     }
-
-    // Remove any existing script to avoid conflicts
-    if (existingScript) {
-      document.body.removeChild(existingScript);
-    }
-
-    const script = document.createElement('script');
-    script.src = "https://js.paystack.co/v1/inline.js";
-    script.id = "paystack-script";
-    script.async = true;
     
-    script.onload = () => {
-      // Verify the script loaded correctly by checking for PaystackPop
-      if (window.PaystackPop) {
-        console.log('Paystack script loaded successfully');
-        setScriptLoaded(true);
-        setScriptError(false);
-      } else {
-        console.error('Paystack script loaded but PaystackPop is not available');
-        setScriptError(true);
+    // If we're in the process of loading the script, don't try to load it again
+    if (loadingScript) return;
+    
+    const loadScript = () => {
+      setLoadingScript(true);
+      
+      // Remove any existing script to avoid conflicts
+      const existingScript = document.getElementById('paystack-script');
+      if (existingScript) {
+        document.body.removeChild(existingScript);
       }
+  
+      const script = document.createElement('script');
+      script.src = "https://js.paystack.co/v1/inline.js";
+      script.id = "paystack-script";
+      script.async = true;
+      
+      script.onload = () => {
+        // Give the script a moment to initialize
+        setTimeout(() => {
+          // Verify the script loaded correctly by checking for PaystackPop
+          if (window.PaystackPop) {
+            console.log('Paystack script loaded successfully');
+            setScriptLoaded(true);
+            setScriptError(false);
+          } else {
+            console.error('Paystack script loaded but PaystackPop is not available');
+            setScriptError(true);
+          }
+          setLoadingScript(false);
+        }, 500);
+      };
+      
+      script.onerror = () => {
+        console.error('Failed to load Paystack script');
+        setScriptError(true);
+        setLoadingScript(false);
+        toast.error('Payment system failed to load. Please try again later.');
+      };
+      
+      document.body.appendChild(script);
     };
     
-    script.onerror = () => {
-      console.error('Failed to load Paystack script');
-      setScriptError(true);
-      toast.error('Payment system failed to load. Please try again later.');
-    };
-    
-    document.body.appendChild(script);
+    loadScript();
     
     return () => {
       // We no longer remove the script on unmount to prevent reloading issues
     };
-  }, []);
+  }, [loadingScript]);
 
   // Check if cart has items
   useEffect(() => {
