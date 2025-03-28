@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -50,10 +51,37 @@ export default function ProducerSettings() {
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Producer Settings</h1>
         
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="payment">Payment</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+          <TabsList className={cn(
+            "grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 tabs-standard",
+            isMobile ? "mobile-tabs-standard" : ""
+          )}>
+            <TabsTrigger 
+              value="profile" 
+              className={cn(
+                "tab-trigger-standard",
+                isMobile ? "mobile-tab-trigger" : ""
+              )}
+            >
+              Profile
+            </TabsTrigger>
+            <TabsTrigger 
+              value="payment" 
+              className={cn(
+                "tab-trigger-standard",
+                isMobile ? "mobile-tab-trigger" : ""
+              )}
+            >
+              Payment
+            </TabsTrigger>
+            <TabsTrigger 
+              value="preferences" 
+              className={cn(
+                "tab-trigger-standard",
+                isMobile ? "mobile-tab-trigger" : ""
+              )}
+            >
+              Preferences
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile">
@@ -93,7 +121,7 @@ export default function ProducerSettings() {
                   />
                 </div>
                 
-                <Button>
+                <Button className={cn(isMobile ? "mobile-btn-standard" : "btn-standard")}>
                   Save Changes
                 </Button>
               </CardContent>

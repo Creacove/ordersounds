@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
 
 @tailwind base;
@@ -205,7 +204,6 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
     @apply text-2xl md:text-3xl font-bold;
   }
   
-  /* Updated with more consistent spacing utilities */
   .section-spacing {
     @apply mb-6 md:mb-8 lg:mb-10;
   }
@@ -223,39 +221,48 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   }
 }
 
+/* Standardized UI components for consistency */
+@layer components {
+  .btn-standard {
+    @apply h-10 rounded-md px-4 flex items-center justify-center gap-2 font-medium transition-colors;
+  }
+  
+  .tabs-standard {
+    @apply bg-muted rounded-md p-1 overflow-hidden;
+  }
+  
+  .tab-trigger-standard {
+    @apply h-9 px-3 rounded-sm inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors;
+  }
+}
+
 /* Mobile-specific styles */
 @media (max-width: 768px) {
   .content-with-bottom-nav {
     padding-bottom: 5rem;
   }
   
-  /* Add space for player above bottom nav */
   .has-player .fixed-bottom-nav {
     bottom: 84px;
   }
   
-  /* Size utility for extra small screens */
   .xs\:block {
     display: block;
   }
   
-  /* Create space when both player and nav are present */
   .pb-40 {
     padding-bottom: 10rem;
   }
   
-  /* Fix for player and navigation overlap on mobile */
   .player-above-nav {
     bottom: 5rem !important;
     z-index: 40;
   }
   
-  /* Mobile content bottom padding - consistent across app */
   .mobile-content-padding {
     padding-bottom: 6rem;
   }
   
-  /* Ensure proper text sizing in small containers */
   .truncate {
     text-overflow: ellipsis;
     overflow: hidden;
@@ -263,57 +270,46 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
     max-width: 100%;
   }
   
-  /* Prevent text from being cut off in price tag */
   .leading-normal {
     line-height: 1.5;
   }
   
-  /* Make mobile menu items more touchable */
   .mobile-menu-item {
     @apply py-2.5 px-3;
   }
   
-  /* Fix spacing for mobile buttons */
   .mobile-btn {
     @apply h-10 min-w-[2.5rem] px-3;
   }
   
-  /* Library page responsive grid */
   .library-grid {
     @apply grid-cols-2 gap-3;
   }
   
-  /* Make tab list more mobile friendly */
   .tabs-mobile {
     @apply overflow-x-auto flex-nowrap justify-start;
   }
   
-  /* Add more breathing room to mobile cards */
   .mobile-card-spacing {
     @apply gap-y-4;
   }
   
-  /* Fix for mobile bottom navigation */
   .mobile-bottom-nav {
     @apply fixed bottom-0 left-0 right-0 z-45 bg-sidebar border-t py-1;
   }
   
-  /* Bottom indicator for active tab */
   .mobile-nav-active {
     @apply relative after:absolute after:bottom-0 after:left-1/2 after:-translate-x-1/2 after:w-1/2 after:h-0.5 after:bg-primary after:rounded-full;
   }
   
-  /* Make mobile sidebar overlay take full screen */
   .mobile-sidebar-overlay {
     @apply fixed inset-0 bg-background/80 backdrop-blur-sm z-50;
   }
   
-  /* Mobile sidebar improved styling */
   .mobile-sidebar {
     @apply fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-sidebar transition-all duration-300 ease-in-out w-[80%] max-w-[300px];
   }
   
-  /* Better text truncation on small screens */
   .text-truncate-1 {
     display: -webkit-box;
     -webkit-line-clamp: 1;
@@ -328,22 +324,18 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
     overflow: hidden;
   }
   
-  /* Consistent card spacing for mobile */
   .card-mobile-padding {
     @apply p-3 md:p-4 lg:p-5;
   }
   
-  /* Consistent spacing for page sections */
   .section-mobile-spacing {
     @apply mb-6 md:mb-8 lg:mb-10;
   }
   
-  /* Consistent spacing for headers */
   .header-mobile-spacing {
     @apply mb-4 md:mb-6;
   }
   
-  /* Consistent grid layouts */
   .responsive-grid-2 {
     @apply grid-cols-2 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4;
   }
@@ -352,38 +344,43 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
     @apply grid-cols-2 sm:grid-cols-2 lg:grid-cols-3;
   }
   
-  /* Mobile playlists and trending grid */
   .mobile-playlists-grid {
     @apply grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5;
   }
   
-  /* Mobile playlist header */
   .mobile-playlist-header {
     @apply flex flex-col space-y-2 md:flex-row md:justify-between md:items-center md:space-y-0;
   }
   
-  /* Prevent content from being hidden under fixed elements */
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 1rem);
   }
   
-  /* Compact mobile cards */
   .playlist-card-mobile {
     @apply max-w-[140px] text-sm;
   }
   
-  /* Fix for small items in tight grids */
   .tight-grid {
     @apply gap-2;
   }
   
-  /* Better spacing for mobile playlist grid */
   .mobile-playlist-grid {
     @apply grid-cols-2 xs:grid-cols-3 gap-2 xs:gap-3;
   }
+  
+  .mobile-tabs-standard {
+    @apply p-1 rounded-md sticky top-0 z-10 bg-background/80 backdrop-blur-sm;
+  }
+  
+  .mobile-tab-trigger {
+    @apply py-2 px-2 h-10 text-sm font-medium rounded-sm;
+  }
+  
+  .mobile-btn-standard {
+    @apply h-9 px-3 rounded-md flex items-center justify-center;
+  }
 }
 
-/* Z-index organization */
 .z-45 {
   z-index: 45;
 }

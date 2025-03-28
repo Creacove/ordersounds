@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -24,11 +23,9 @@ export default function Library() {
   const isMobile = useIsMobile();
   const { fetchPurchasedBeats } = useBeats();
 
-  // Set up a subscription to real-time database changes for purchases
   useEffect(() => {
     if (!user) return;
     
-    // Set up a subscription to purchased_beats for the current user
     const channel = supabase
       .channel('library-purchase-channel')
       .on(
@@ -41,12 +38,10 @@ export default function Library() {
         },
         (payload) => {
           console.log('New purchase detected in Library:', payload);
-          // When a new purchase is detected, refresh and show success message
           fetchPurchasedBeats();
           setActiveTab("purchased");
           setShowPurchaseSuccess(true);
           
-          // Set a timeout to show the success message for 10 seconds
           setTimeout(() => {
             setShowPurchaseSuccess(false);
           }, 10000);
@@ -60,7 +55,6 @@ export default function Library() {
   }, [user, fetchPurchasedBeats]);
 
   useEffect(() => {
-    // Check the route to determine which tab should be active
     if (location.pathname.includes("/favorites")) {
       setActiveTab("favorites");
     } else if (location.pathname.includes("/my-playlists")) {
@@ -69,7 +63,6 @@ export default function Library() {
       setActiveTab("purchased");
     }
     
-    // Check if activeTab is explicitly provided in state
     if (location.state?.activeTab) {
       setActiveTab(location.state.activeTab);
     }
@@ -78,7 +71,6 @@ export default function Library() {
   useEffect(() => {
     document.title = "Library | OrderSOUNDS";
     
-    // Check for purchase success from various sources
     const fromPurchase = location.state?.fromPurchase;
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
     const redirectToLibrary = localStorage.getItem('redirectToLibrary');
@@ -86,20 +78,16 @@ export default function Library() {
     if (fromPurchase || purchaseSuccess === 'true' || redirectToLibrary === 'true') {
       setShowPurchaseSuccess(true);
       
-      // If we have a pending purchase, ensure we're on the purchased tab
       setActiveTab("purchased");
       
-      // Clear the state to prevent showing the success message again on refresh
       const currentPathname = location.pathname;
       navigate(currentPathname, { replace: true, state: { activeTab: "purchased" } });
       
-      // Remove localStorage flags
       localStorage.removeItem('purchaseSuccess');
       localStorage.removeItem('purchaseTime');
       localStorage.removeItem('redirectToLibrary');
       localStorage.removeItem('paymentInProgress');
       
-      // Refresh purchased beats data to ensure latest purchases are visible
       fetchPurchasedBeats().then(() => {
         toast.success('Your purchase was successful! Your beats are now in your library.', {
           duration: 5000,
@@ -115,7 +103,6 @@ export default function Library() {
   }, [location, navigate, fetchPurchasedBeats]);
 
   useEffect(() => {
-    // Clean up any leftover payment data
     localStorage.removeItem('pendingOrderId');
     localStorage.removeItem('paystackReference');
     localStorage.removeItem('orderItems');
@@ -174,13 +161,14 @@ export default function Library() {
         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className={cn(
-            "w-full grid grid-cols-3 mb-4 md:mb-6", 
-            isMobile ? "sticky top-0 z-10 bg-background/80 backdrop-blur-sm" : ""
+            "w-full grid grid-cols-3 mb-4 md:mb-6 tabs-standard", 
+            isMobile ? "mobile-tabs-standard" : ""
           )}>
             <TabsTrigger 
               value="purchased" 
               className={cn(
-                isMobile ? "text-xs py-2 px-1" : "",
+                "tab-trigger-standard",
+                isMobile ? "mobile-tab-trigger" : "",
                 activeTab === "purchased" ? "text-primary" : ""
               )}
             >
@@ -189,7 +177,8 @@ export default function Library() {
             <TabsTrigger 
               value="favorites" 
               className={cn(
-                isMobile ? "text-xs py-2 px-1" : "",
+                "tab-trigger-standard",
+                isMobile ? "mobile-tab-trigger" : "",
                 activeTab === "favorites" ? "text-primary" : ""
               )}
             >
@@ -198,7 +187,8 @@ export default function Library() {
             <TabsTrigger 
               value="playlists" 
               className={cn(
-                isMobile ? "text-xs py-2 px-1" : "",
+                "tab-trigger-standard",
+                isMobile ? "mobile-tab-trigger" : "",
                 activeTab === "playlists" ? "text-primary" : ""
               )}
             >
