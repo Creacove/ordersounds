@@ -61,7 +61,7 @@ export function RoleSelectionDialog({ open, onOpenChange }: RoleSelectionDialogP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" showClose={false}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Welcome to OrderSOUNDS!</DialogTitle>
           <DialogDescription>
