@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
 import { useAuth } from '@/context/AuthContext';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 
@@ -20,8 +20,22 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scriptError, setScriptError] = useState(false);
   const [loadingScript, setLoadingScript] = useState(false);
+  const [initiatingPayment, setInitiatingPayment] = useState(false);
   const scriptLoadAttempts = useRef(0);
   const maxScriptLoadAttempts = 3;
+  const paystackCheckTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Function to verify Paystack is available and properly initialized
+  const verifyPaystackAvailable = () => {
+    try {
+      return window.PaystackPop && 
+             typeof window.PaystackPop === 'object' && 
+             typeof window.PaystackPop.setup === 'function';
+    } catch (e) {
+      console.error('Error checking PaystackPop:', e);
+      return false;
+    }
+  };
 
   // Function to load the Paystack script
   const loadPaystackScript = () => {
@@ -48,24 +62,39 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     script.async = true;
     
     script.onload = () => {
-      // Give the script a moment to initialize
-      setTimeout(() => {
-        // Verify the script loaded correctly by checking for PaystackPop
-        if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
+      // Start a timer to check if PaystackPop is available
+      if (paystackCheckTimer.current) {
+        clearTimeout(paystackCheckTimer.current);
+      }
+      
+      let checkCount = 0;
+      const maxChecks = 5;
+      
+      const checkPaystackLoaded = () => {
+        checkCount++;
+        if (verifyPaystackAvailable()) {
           console.log('Paystack script loaded successfully');
           setScriptLoaded(true);
           setScriptError(false);
+          setLoadingScript(false);
+        } else if (checkCount < maxChecks) {
+          // Continue checking every 500ms, up to maxChecks times
+          console.log(`PaystackPop not available yet, checking again (${checkCount}/${maxChecks})`);
+          paystackCheckTimer.current = setTimeout(checkPaystackLoaded, 500);
         } else {
-          console.error('Paystack script loaded but PaystackPop is not available');
+          console.error('Paystack script loaded but PaystackPop is not available after multiple checks');
           setScriptError(true);
+          setLoadingScript(false);
           
           // Try loading again after a short delay
           setTimeout(() => {
             loadPaystackScript();
           }, 2000);
         }
-        setLoadingScript(false);
-      }, 1000); // Increased timeout to ensure proper initialization
+      };
+      
+      // Start checking for PaystackPop
+      paystackCheckTimer.current = setTimeout(checkPaystackLoaded, 500);
     };
     
     script.onerror = () => {
@@ -85,8 +114,8 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
 
   // Load Paystack script
   useEffect(() => {
-    // Check if script is already loaded and PaystackPop is available
-    if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
+    // Initial verification for Paystack
+    if (verifyPaystackAvailable()) {
       console.log('Paystack script is already loaded and PaystackPop is available');
       setScriptLoaded(true);
       return;
@@ -98,7 +127,10 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     loadPaystackScript();
     
     return () => {
-      // We no longer remove the script on unmount to prevent reloading issues
+      // Cleanup timer
+      if (paystackCheckTimer.current) {
+        clearTimeout(paystackCheckTimer.current);
+      }
     };
   }, [loadingScript]);
 
@@ -106,11 +138,6 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   useEffect(() => {
     setHasItems(cartItems && cartItems.length > 0);
   }, [cartItems]);
-
-  // Function to test if Paystack is properly loaded
-  const verifyPaystackAvailable = () => {
-    return window.PaystackPop && typeof window.PaystackPop.setup === 'function';
-  };
 
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
@@ -145,6 +172,33 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     toast.info('Reloading payment system...');
   };
 
+  const handleStartPayment = () => {
+    if (!cartItems || cartItems.length === 0) {
+      toast.error('Your cart is empty. Please add items before checkout.');
+      return;
+    }
+    
+    if (loadingScript) {
+      toast.error('Payment system is still loading. Please wait a moment and try again.');
+      return;
+    }
+    
+    // Double-check Paystack availability before proceeding
+    if (!verifyPaystackAvailable()) {
+      toast.error('Payment system not properly initialized. Attempting to reload...');
+      handleReloadScript();
+      return;
+    }
+    
+    setInitiatingPayment(true);
+    
+    // Give a small delay to ensure everything is ready
+    setTimeout(() => {
+      setIsPaystackOpen(true);
+      setInitiatingPayment(false);
+    }, 300);
+  };
+
   if (!user) {
     return (
       <div className="flex items-center gap-2 p-4 border rounded-md bg-muted/30 text-muted-foreground">
@@ -155,7 +209,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   }
 
   // Disable payment button if cart is empty or total amount is 0 or script not loaded
-  const isDisabled = totalAmount <= 0 || !hasItems || !scriptLoaded;
+  const isDisabled = totalAmount <= 0 || !hasItems || !scriptLoaded || loadingScript || initiatingPayment;
 
   return (
     <div className="space-y-4">
@@ -178,7 +232,8 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
       
       {loadingScript && !scriptError && (
         <div className="p-3 border border-primary/20 bg-primary/5 rounded-md mb-4">
-          <p className="text-sm text-primary/80">
+          <p className="text-sm text-primary/80 flex items-center gap-2">
+            <Loader2 size={14} className="animate-spin" />
             Loading payment system... Please wait.
           </p>
         </div>
@@ -187,36 +242,21 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
       {currency === 'NGN' ? (
         <>
           <Button 
-            onClick={() => {
-              if (!cartItems || cartItems.length === 0) {
-                toast.error('Your cart is empty. Please add items before checkout.');
-                return;
-              }
-              
-              if (loadingScript) {
-                toast.error('Payment system is still loading. Please wait a moment and try again.');
-                return;
-              }
-              
-              if (!scriptLoaded) {
-                toast.error('Payment system is not loaded. Please reload the page and try again.');
-                handleReloadScript();
-                return;
-              }
-              
-              if (!verifyPaystackAvailable()) {
-                toast.error('Payment system not properly initialized. Attempting to reload...');
-                handleReloadScript();
-                return;
-              }
-              
-              setIsPaystackOpen(true);
-            }}
+            onClick={handleStartPayment}
             className="w-full py-6 text-base"
             size="lg"
-            disabled={isDisabled || loadingScript}
+            disabled={isDisabled}
           >
-            {loadingScript ? 'Loading Payment System...' : 'Pay with Paystack (₦)'}
+            {initiatingPayment ? (
+              <>
+                <Loader2 size={16} className="mr-2 animate-spin" />
+                Initializing Payment...
+              </>
+            ) : loadingScript ? (
+              'Loading Payment System...'
+            ) : (
+              'Pay with Paystack (₦)'
+            )}
           </Button>
           
           <PaystackCheckout 
