@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useBeats } from '@/hooks/useBeats';
 import { useAuth } from '@/context/AuthContext';
 import { EmptyState } from './EmptyState';
@@ -14,19 +14,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function PurchasedBeats() {
   const { getUserPurchasedBeats, fetchPurchasedBeats, isPurchased, isLoading } = useBeats();
   const { user } = useAuth();
-  const [purchasedBeats, setPurchasedBeats] = useState([]);
   const [downloadUrls, setDownloadUrls] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [purchaseDetails, setPurchaseDetails] = useState({});
+  const [beatsLoaded, setBeatsLoaded] = useState(false);
+  
+  // Use memoization to prevent unnecessary re-renders
+  const purchasedBeats = useMemo(() => {
+    if (!user || !beatsLoaded) return [];
+    return getUserPurchasedBeats();
+  }, [user, getUserPurchasedBeats, beatsLoaded]);
 
+  // Split initial loading into separate effects for better performance
   useEffect(() => {
+    // Only set the flag to indicate beats are loaded
     if (user) {
-      // Set the purchased beats from the context
-      setPurchasedBeats(getUserPurchasedBeats());
-      // Fetch purchase details for each beat (license type)
+      setBeatsLoaded(true);
+    }
+  }, [user]);
+
+  // Load purchase details separately from beats to improve performance
+  useEffect(() => {
+    if (user && beatsLoaded && purchasedBeats.length > 0) {
       fetchPurchaseDetails();
     }
-  }, [user, getUserPurchasedBeats]);
+  }, [user, beatsLoaded, purchasedBeats]);
 
   const fetchPurchaseDetails = async () => {
     if (!user) return;
@@ -58,8 +70,8 @@ export function PurchasedBeats() {
     setIsRefreshing(true);
     try {
       await fetchPurchasedBeats();
-      setPurchasedBeats(getUserPurchasedBeats());
       await fetchPurchaseDetails();
+      setBeatsLoaded(true);
       toast.success('Your library has been refreshed');
     } catch (error) {
       console.error('Error refreshing library:', error);
@@ -79,6 +91,9 @@ export function PurchasedBeats() {
       // Extract the file path from the full URL
       const filePath = fullTrackUrl.replace('https://uoezlwkxhbzajdivrlby.supabase.co/storage/v1/object/public/beats/', '');
       
+      // Add loading toast
+      toast.loading('Generating download link...');
+      
       // Get a secure download URL that expires after some time
       const { data, error } = await supabase.storage.from('beats').createSignedUrl(filePath, 3600);
 
@@ -92,9 +107,11 @@ export function PurchasedBeats() {
         [beatId]: data.signedUrl
       }));
 
+      toast.dismiss();
       return data.signedUrl;
     } catch (error) {
       console.error('Error getting download URL:', error);
+      toast.dismiss();
       toast.error('Unable to generate download link');
       return null;
     }
@@ -108,13 +125,10 @@ export function PurchasedBeats() {
         return;
       }
 
-      toast.loading('Preparing your download...');
-      
       // Get the download URL
       const downloadUrl = await getDownloadUrl(beat.id, beat.full_track_url);
       
       if (!downloadUrl) {
-        toast.dismiss();
         toast.error('Failed to generate download link');
         return;
       }
@@ -132,16 +146,15 @@ export function PurchasedBeats() {
       link.click();
       document.body.removeChild(link);
       
-      toast.dismiss();
       toast.success('Download started!');
     } catch (error) {
       console.error('Download error:', error);
-      toast.dismiss();
       toast.error('Failed to download file');
     }
   };
 
-  if (isLoading) {
+  // Show a loading skeleton while initial data is being loaded
+  if (isLoading || !beatsLoaded) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
