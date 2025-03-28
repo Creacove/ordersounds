@@ -142,56 +142,30 @@ export default function SearchPage() {
       )}>
         <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Search</h1>
         
-        {/* Updated search bar */}
         <div className="relative mb-4 sm:mb-6">
           <form onSubmit={handleSearch} className="relative flex items-center">
-            <div className="relative flex-1 flex items-center rounded-full border overflow-hidden">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
-              <Input 
-                id="search-input"
-                type="text"
-                placeholder="Search beats, producers, genres..."
-                className="pl-12 pr-12 py-5 h-12 sm:h-14 bg-background rounded-full border-0 focus-visible:ring-0"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                autoFocus
-              />
-              {searchTerm && (
-                <Button 
-                  type="button"
-                  variant="ghost" 
-                  size="sm" 
-                  className="absolute right-2 rounded-full"
-                  onClick={() => setSearchTerm("")}
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-            <Button 
-              type="submit" 
-              className="ml-2 h-12 sm:h-14 px-4 sm:px-6"
-            >
-              Search
-            </Button>
-          </form>
-        </div>
-
-        {/* Genre filters - moved outside tabs for better visibility */}
-        <div className="mb-6 overflow-x-auto pb-2">
-          <div className="flex gap-2 flex-nowrap">
-            {genres.map((genre) => (
-              <Button
-                key={genre}
-                variant={selectedGenre === genre ? "default" : "outline"}
-                size="sm"
-                className="rounded-full whitespace-nowrap"
-                onClick={() => handleGenreSelect(genre)}
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+            <Input 
+              id="search-input"
+              type="text"
+              placeholder="Search beats, producers, genres..."
+              className="pl-10 pr-12 py-5 h-10 sm:h-12 bg-background border-input"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+            {searchTerm && (
+              <Button 
+                type="button"
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 rounded-full"
+                onClick={() => setSearchTerm("")}
               >
-                {genre}
+                Clear
               </Button>
-            ))}
-          </div>
+            )}
+          </form>
         </div>
 
         <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange} className="mb-4 sm:mb-6">
@@ -209,8 +183,25 @@ export default function SearchPage() {
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter size={16} />
-              <span>More Filters</span>
+              <span>Filter</span>
             </Button>
+          </div>
+          
+          {/* Genre filters */}
+          <div className="mb-4 overflow-x-auto pb-2">
+            <div className="flex gap-2 flex-nowrap">
+              {genres.map((genre) => (
+                <Button
+                  key={genre}
+                  variant={selectedGenre === genre ? "default" : "outline"}
+                  size="sm"
+                  className="rounded-full whitespace-nowrap"
+                  onClick={() => handleGenreSelect(genre)}
+                >
+                  {genre}
+                </Button>
+              ))}
+            </div>
           </div>
           
           {showFilters && (

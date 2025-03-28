@@ -117,7 +117,6 @@ export function Topbar() {
               size="icon"
               className="relative h-8 w-8"
               onClick={() => navigate("/cart")}
-              aria-label="View Cart"
             >
               <ShoppingCart size={18} />
               {itemCount > 0 && (
@@ -138,7 +137,6 @@ export function Topbar() {
             size="icon"
             className="relative h-8 w-8"
             onClick={() => navigate("/search")}
-            aria-label="Search"
           >
             <Search size={18} />
             <span className="sr-only">Search</span>
