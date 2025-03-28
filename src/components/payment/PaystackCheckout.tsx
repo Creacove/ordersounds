@@ -17,14 +17,18 @@ interface PaystackProps {
   totalAmount: number;
 }
 
+// Define the types based on what react-paystack expects
+type Currency = 'NGN' | 'GHS' | 'USD' | 'ZAR';
+type Channels = Array<'card' | 'bank' | 'ussd' | 'qr' | 'mobile_money' | 'bank_transfer' | 'eft'>;
+
 // Define the configuration interface based on the actual library requirements
 interface PaystackConfig {
   reference: string;
   email: string;
   amount: number;
   publicKey: string;
-  currency?: string;
-  channels?: string[];
+  currency?: Currency; // Updated to use the Currency type
+  channels?: Channels; // Updated to use the Channels type
   label?: string;
   onSuccess: (response: any) => void;
   onClose: () => void;
@@ -47,8 +51,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     email: user?.email || '',
     amount: Math.round(totalAmount * 100), // Paystack requires amount in kobo (smallest unit)
     publicKey: 'pk_test_d996ff0c1d293de498a1eaded92eade25d31c74a',
-    currency: 'NGN',
-    channels: ['card'],
+    currency: 'NGN', // Now it's a valid Currency type
+    channels: ['card'], // Now it's a valid Channels type
     label: 'Payment for beats',
     onSuccess: (response: any) => {
       // Handle successful payment
@@ -214,7 +218,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       console.log('Starting Paystack payment for order:', orderData.id);
       
       // Call the initialization function properly
-      initializePayment(() => {}, () => {});
+      initializePayment();
       
     } catch (error) {
       console.error('Payment initialization error:', error);
