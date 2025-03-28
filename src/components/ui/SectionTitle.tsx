@@ -12,7 +12,7 @@ export const SectionTitle: React.FC<SectionTitleProps> = ({
   className 
 }) => {
   return (
-    <h2 className={cn("text-lg md:text-xl font-bold", className)}>
+    <h2 className={cn("text-lg md:text-xl font-bold tracking-tight", className)}>
       {children}
     </h2>
   );

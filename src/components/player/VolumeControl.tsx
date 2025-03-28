@@ -20,10 +20,10 @@ export function VolumeControl({ volume, setVolume }: VolumeControlProps) {
       <Button 
         variant="ghost" 
         size="icon" 
-        className="h-7 w-7 md:h-8 md:w-8" 
+        className="h-8 w-8 rounded-full" 
         onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
       >
-        <VolumeIcon size={16} className="md:size-18" />
+        <VolumeIcon size={16} />
       </Button>
       
       <div className="relative w-full h-1 bg-muted rounded-full">
