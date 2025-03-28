@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { supabase } from '@/integrations/supabase/client';
+import { createOrder, verifyPaystackPayment } from '@/utils/payment/paystackUtils';
 
 declare global {
   interface Window {
@@ -120,8 +121,26 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       // Generate a unique reference ID
       const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
-      // Store cart info for verification
-      localStorage.setItem('orderItems', JSON.stringify(cartItems));
+      // Format cart items for metadata and order creation
+      const orderItemsData = cartItems.map(item => ({
+        beat_id: item.beat.id,
+        title: item.beat.title,
+        price: item.beat.basic_license_price_local,
+        license: item.beat.selected_license || 'basic'
+      }));
+      
+      // Create order in database first
+      const { orderId, error: orderError } = await createOrder(user, totalAmount, orderItemsData);
+      
+      if (orderError) {
+        toast.error('Failed to create order: ' + orderError);
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Store order ID and cart info for verification
+      localStorage.setItem('pendingOrderId', orderId);
+      localStorage.setItem('orderItems', JSON.stringify(orderItemsData));
       localStorage.setItem('paystackReference', reference);
       localStorage.setItem('paystackAmount', totalAmount.toString());
       localStorage.setItem('paymentInProgress', 'true');
@@ -132,16 +151,9 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         reference,
         amount: totalAmount,
         email: user?.email,
-        cartItems: cartItems
+        orderId,
+        cartItems: orderItemsData
       });
-      
-      // Format cart items for metadata
-      const orderItemsMetadata = cartItems.map(item => ({
-        beat_id: item.beat.id,
-        title: item.beat.title,
-        price: item.beat.basic_license_price_local,
-        license: item.beat.selected_license || 'basic'
-      }));
       
       // Initialize Paystack
       const handler = window.PaystackPop.setup({
@@ -156,7 +168,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
             {
               display_name: "Order Items",
               variable_name: "order_items",
-              value: JSON.stringify(orderItemsMetadata)
+              value: JSON.stringify(orderItemsData)
             }
           ]
         },
@@ -166,20 +178,47 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
           localStorage.removeItem('paymentInProgress');
           onClose();
         },
-        callback: function(response) {
+        callback: async function(response) {
           console.log('Payment complete! Response:', response);
           
-          // Verify the payment
-          localStorage.setItem('pendingVerification', 'true');
-          localStorage.setItem('purchaseSuccess', 'true');
-          localStorage.setItem('paystackReference', response.reference);
-          
-          setIsProcessing(false);
-          onSuccess(response.reference);
-          
-          setTimeout(() => {
-            window.location.href = '/library';
-          }, 1500);
+          // Verify the payment server-side
+          try {
+            const orderId = localStorage.getItem('pendingOrderId');
+            
+            if (!orderId) {
+              toast.error('Order information missing. Please try again.');
+              setIsProcessing(false);
+              return;
+            }
+            
+            // Verify the payment with our backend
+            const verificationResult = await verifyPaystackPayment(
+              response.reference, 
+              orderId,
+              orderItemsData
+            );
+            
+            if (verificationResult.success) {
+              localStorage.setItem('purchaseSuccess', 'true');
+              
+              // Success! Clear cart and redirect
+              clearCart();
+              setIsProcessing(false);
+              onSuccess(response.reference);
+              
+              setTimeout(() => {
+                window.location.href = '/library';
+              }, 1500);
+            } else {
+              console.error('Payment verification failed:', verificationResult.error);
+              toast.error('Payment verification failed. Please contact support with your reference number.');
+              setIsProcessing(false);
+            }
+          } catch (error) {
+            console.error('Error during payment verification:', error);
+            toast.error('An error occurred during payment processing');
+            setIsProcessing(false);
+          }
         }
       });
       
@@ -190,7 +229,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       toast.error('Failed to start payment process');
       setIsProcessing(false);
     }
-  }, [isProcessing, isValidating, onClose, onSuccess, totalAmount, user, validateCartItems, cartItems]);
+  }, [isProcessing, isValidating, onClose, onSuccess, totalAmount, user, validateCartItems, cartItems, clearCart]);
 
   const handleRefreshCart = async () => {
     setValidationError(null);
