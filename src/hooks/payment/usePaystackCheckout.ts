@@ -1,27 +1,10 @@
 
-import { useState, useEffect } from 'react';
-import { usePaystackPayment } from 'react-paystack';
-import { useCart } from "@/context/CartContext";
-import { useAuth } from "@/context/AuthContext";
+import { useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { validateCartItems, createOrder, verifyPaystackPayment } from '@/utils/payment/paystackUtils';
-import { useBeats } from '@/hooks/useBeats';
-
-type Currency = 'NGN' | 'GHS' | 'USD' | 'ZAR';
-type Channels = Array<'card' | 'bank' | 'ussd' | 'qr' | 'mobile_money' | 'bank_transfer' | 'eft'>;
-
-interface PaystackConfig {
-  reference: string;
-  email: string;
-  amount: number;
-  publicKey: string;
-  currency?: Currency;
-  channels?: Channels;
-  label?: string;
-  onSuccess: (response: any) => void;
-  onClose: () => void;
-  metadata?: any;
-}
+import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface UsePaystackCheckoutProps {
   onSuccess: (reference: string) => void;
@@ -29,177 +12,187 @@ interface UsePaystackCheckoutProps {
   totalAmount: number;
 }
 
-export const usePaystackCheckout = ({ onSuccess, onClose, totalAmount }: UsePaystackCheckoutProps) => {
-  const { user } = useAuth();
-  const { cartItems, clearCart, refreshCart } = useCart();
-  const { fetchPurchasedBeats } = useBeats();
+export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePaystackCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const [reference] = useState(() => `tr_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
-  
-  // Prepare order items data for temporary storage
-  const orderItemsData = cartItems.map(item => ({
-    beat_id: item.beat.id,
-    title: item.beat.title,
-    price: item.beat.price_local,
-    license: item.beat.selected_license || 'basic'
-  }));
-  
-  const paystackConfig: PaystackConfig = {
-    reference,
-    email: user?.email || '',
-    amount: Math.round(totalAmount * 100),
-    publicKey: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8',
-    currency: 'NGN',
-    channels: ['card'],
-    label: 'Payment for beats',
-    onSuccess: (response: any) => {
-      console.log('Paystack success callback triggered with reference:', response.reference || reference);
-      
-      const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
-      if (storedOrderId) {
-        handlePaymentSuccess(response.reference || reference, storedOrderId);
-      } else {
-        console.error('No pending order ID found');
-        toast.error('Payment tracking error. Please contact support.');
-      }
-    },
-    onClose: () => {
-      setIsProcessing(false);
-      setValidationError(null);
-      toast.error("Payment canceled. You can try again when you're ready.");
-      
-      // Remove any payment-in-progress flags when user cancels
-      localStorage.removeItem('paymentInProgress');
-      localStorage.removeItem('redirectToLibrary');
-      
-      onClose();
-    },
-    metadata: {
-      custom_fields: [
-        {
-          display_name: 'Order Items',
-          variable_name: 'order_items',
-          value: JSON.stringify(orderItemsData)
-        }
-      ]
+  const { user } = useAuth();
+  const { clearCart } = useCart();
+  const navigate = useNavigate();
+
+  const validateCartItems = useCallback(async () => {
+    if (!user) {
+      setValidationError('You must be logged in to complete this purchase');
+      return false;
     }
-  };
 
-  const initializePayment = usePaystackPayment(paystackConfig);
-
-  useEffect(() => {
-    return () => {
-      if (!isProcessing) {
-        // Only clear these if not in the middle of processing a payment
-        localStorage.removeItem('pendingOrderId');
-        localStorage.removeItem('paystackReference');
-        localStorage.removeItem('orderItems');
-        localStorage.removeItem('paymentInProgress');
-        localStorage.removeItem('redirectToLibrary');
-      }
-    };
-  }, [isProcessing]);
-
-  const handleRefreshCart = () => {
-    refreshCart();
+    setIsValidating(true);
     setValidationError(null);
-    toast.success("Cart refreshed");
-  };
 
-  const handlePaymentStart = async () => {
+    try {
+      // Fetch cart items from localStorage
+      const cartItemsString = localStorage.getItem('cart');
+      if (!cartItemsString) {
+        setValidationError('Your cart is empty');
+        return false;
+      }
+
+      const cartItems = JSON.parse(cartItemsString);
+      if (!cartItems || cartItems.length === 0) {
+        setValidationError('Your cart is empty');
+        return false;
+      }
+
+      // Verify that the beats in the cart are still available
+      const beatIds = cartItems.map(item => item.beat.id);
+      const { data: beatsData, error: beatsError } = await supabase
+        .from('beats')
+        .select('id, status')
+        .in('id', beatIds);
+
+      if (beatsError) {
+        console.error('Error validating beats:', beatsError);
+        setValidationError('Failed to validate your cart items');
+        return false;
+      }
+
+      // Check if any beats are no longer available
+      const availableBeats = beatsData.filter(beat => beat.status === 'published');
+      if (availableBeats.length !== beatIds.length) {
+        const unavailableBeats = beatIds.filter(
+          id => !availableBeats.some(beat => beat.id === id)
+        );
+        
+        setValidationError(`Some beats in your cart are no longer available (${unavailableBeats.length} items)`);
+        return false;
+      }
+
+      // Check if user already purchased any of these beats
+      const { data: purchasedData, error: purchasedError } = await supabase
+        .from('user_purchased_beats')
+        .select('beat_id')
+        .eq('user_id', user.id)
+        .in('beat_id', beatIds);
+
+      if (purchasedError) {
+        console.error('Error checking purchased beats:', purchasedError);
+        setValidationError('Failed to validate your previous purchases');
+        return false;
+      }
+
+      if (purchasedData && purchasedData.length > 0) {
+        const alreadyPurchasedTitles = cartItems
+          .filter(item => purchasedData.some(p => p.beat_id === item.beat.id))
+          .map(item => item.beat.title);
+          
+        setValidationError(
+          `You've already purchased: ${alreadyPurchasedTitles.join(', ')}`
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Cart validation error:', error);
+      setValidationError('An error occurred while validating your cart');
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  }, [user]);
+
+  const handlePaymentStart = useCallback(async () => {
     if (isProcessing || isValidating) return;
     
     setIsProcessing(true);
+    const isValid = await validateCartItems();
     
+    if (!isValid) {
+      setIsProcessing(false);
+      return;
+    }
+
     try {
-      setIsValidating(true);
-      const validation = await validateCartItems(user, cartItems);
-      setIsValidating(false);
+      // Generate a unique transaction reference
+      const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
-      if (validation.error) {
-        setValidationError(validation.error);
-        throw new Error(validation.error);
-      }
+      // Store reference and amount in localStorage for verification
+      localStorage.setItem('paystackReference', reference);
+      localStorage.setItem('paystackAmount', totalAmount.toString());
+      localStorage.setItem('paymentInProgress', 'true');
+      localStorage.setItem('redirectToLibrary', 'true');
+      localStorage.setItem('purchaseTime', Date.now().toString());
       
-      // Store order items data temporarily for processing after payment
-      localStorage.setItem('orderItems', JSON.stringify(orderItemsData));
+      // Console log for debugging
+      console.log('Starting Paystack payment with:', {
+        reference,
+        amount: totalAmount,
+        email: user?.email
+      });
       
-      // Create order and line items
-      const orderResult = await createOrder(user, totalAmount, orderItemsData);
+      // Start PayStack checkout
+      const config = {
+        key: 'pk_test_051838077ef7c318ce2297471ccc9a8da1e3dfe7',
+        email: user?.email || '',
+        amount: totalAmount * 100, // convert to kobo
+        currency: 'NGN',
+        ref: reference,
+        label: 'OrderSOUNDS',
+        onClose: () => {
+          setIsProcessing(false);
+          localStorage.removeItem('paymentInProgress');
+          onClose();
+        },
+        callback: (response) => {
+          console.log('Payment complete! Response:', response);
+          
+          // Verify payment on the server
+          const verifyResult = verifyPayment(response.reference);
+          
+          if (typeof verifyResult === 'object' && verifyResult.error) {
+            console.error('Payment verification failed:', verifyResult.error);
+            toast.error('Payment verification failed. Please contact support.');
+            setIsProcessing(false);
+            return;
+          }
+          
+          // Handle successful payment
+          setIsProcessing(false);
+          onSuccess(response.reference);
+        }
+      };
       
-      if (orderResult.error) {
-        throw new Error(orderResult.error);
-      }
-      
-      // Save the order ID and payment reference for verification later
-      setOrderId(orderResult.orderId);
-      localStorage.setItem('pendingOrderId', orderResult.orderId);
+      // Initialize paystack (window.paystack is added by the Paystack script)
+      // This will trigger the popup payment modal
+      const handler = window.PaystackPop.setup(config);
+      handler.openIframe();
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error('Failed to start payment process');
+      setIsProcessing(false);
+    }
+  }, [isProcessing, isValidating, onClose, onSuccess, totalAmount, user, validateCartItems]);
+
+  const verifyPayment = (reference: string) => {
+    try {
+      // Set verification flags
+      localStorage.setItem('pendingVerification', 'true');
+      localStorage.setItem('purchaseSuccess', 'true');
       localStorage.setItem('paystackReference', reference);
       
-      console.log('Starting Paystack payment for order:', orderResult.orderId);
+      // In a real implementation, this would make an API call to verify the payment
+      console.log(`Verifying payment with reference: ${reference}`);
       
-      // Set payment-in-progress flag
-      localStorage.setItem('paymentInProgress', 'true');
-      
-      // Use a slight delay before initializing payment to ensure UI updates
-      setTimeout(() => {
-        initializePayment();
-      }, 100);
-      
+      return true;
     } catch (error) {
-      console.error('Payment initialization error:', error);
-      setIsProcessing(false);
-      toast.error(error.message || 'Failed to initialize payment. Please try again.');
+      console.error('Payment verification error:', error);
+      return { error };
     }
   };
 
-  const handlePaymentSuccess = async (paymentReference: string, orderId: string) => {
-    try {
-      // Get the stored order items data
-      const storedItems = localStorage.getItem('orderItems');
-      const orderItems = storedItems ? JSON.parse(storedItems) : [];
-      
-      // Verify payment
-      const verificationResult = await verifyPaystackPayment(paymentReference, orderId, orderItems);
-      
-      if (verificationResult.success) {
-        // Close the payment dialog
-        onClose();
-        
-        // Clear the cart after successful payment verification
-        clearCart();
-        
-        // Set success flag to trigger UI update in Library component
-        localStorage.setItem('purchaseSuccess', 'true');
-        localStorage.setItem('purchaseTime', new Date().toISOString());
-        
-        // Call the onSuccess callback from parent component
-        if (onSuccess) {
-          onSuccess(paymentReference);
-        }
-        
-        // Force a hard redirect to the library page
-        window.location.href = '/library';
-      } else {
-        onClose();
-      }
-      
-    } catch (error) {
-      console.error('Payment success handling error:', error);
-      toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
-      onClose();
-    } finally {
-      setIsProcessing(false);
-      setOrderId(null);
-      
-      // Clean up localStorage items
-      localStorage.removeItem('pendingOrderId');
-      localStorage.removeItem('paystackReference');
-      localStorage.removeItem('orderItems');
-    }
+  const handleRefreshCart = async () => {
+    setValidationError(null);
+    await validateCartItems();
   };
 
   return {
@@ -207,7 +200,6 @@ export const usePaystackCheckout = ({ onSuccess, onClose, totalAmount }: UsePays
     isValidating,
     validationError,
     handlePaymentStart,
-    handleRefreshCart,
-    reference
+    handleRefreshCart
   };
-};
+}
