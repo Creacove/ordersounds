@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -33,6 +34,7 @@ const BeatDetail = () => {
   const [similarBeats, setSimilarBeats] = useState<Beat[]>([]);
   const [selectedLicense, setSelectedLicense] = useState<string>('basic');
   const isMobile = useIsMobile();
+  const [playCount, setPlayCount] = useState<number>(0);
   
   const { data: beat, isLoading, error } = useQuery({
     queryKey: ['beat', beatId],
@@ -41,23 +43,8 @@ const BeatDetail = () => {
       const result = await getBeatById(beatId);
       if (!result) throw new Error('Beat not found');
       
-      try {
-        const { data: result, error } = await supabase.rpc('increment', {
-          row_id: beatId,
-          table_name: 'beats',
-          column_name: 'plays'
-        });
-        
-        if (error) {
-          console.error('Error incrementing play count:', error);
-        } else {
-          console.log('Play count updated:', result);
-        }
-      } catch (err) {
-        console.error('Failed to update play count:', err);
-      }
+      setPlayCount(result.plays || 0);
       
-      console.log('Beat data from API:', result);
       return result;
     },
     enabled: !!beatId,
@@ -105,6 +92,33 @@ const BeatDetail = () => {
     }
   }, [beat, beats]);
 
+  const incrementPlayCount = async () => {
+    if (!beatId) return;
+    
+    try {
+      // Update local state immediately for better UX
+      setPlayCount(prev => prev + 1);
+      
+      // Update the database 
+      const { data, error } = await supabase
+        .from('beats')
+        .update({ plays: playCount + 1 })
+        .eq('id', beatId)
+        .select();
+      
+      if (error) {
+        console.error('Error updating play count:', error);
+        // Revert the local state if the update fails
+        setPlayCount(prev => prev - 1);
+      } else {
+        console.log('Play count updated successfully');
+      }
+    } catch (err) {
+      console.error('Failed to update play count:', err);
+      setPlayCount(prev => prev - 1);
+    }
+  };
+
   const handlePlay = (similarBeat?: Beat) => {
     if (similarBeat) {
       playBeat(similarBeat);
@@ -116,6 +130,7 @@ const BeatDetail = () => {
         togglePlayPause();
       } else {
         playBeat(beat);
+        incrementPlayCount();
       }
     }
   };
@@ -237,18 +252,6 @@ const BeatDetail = () => {
   }
 
   const availableLicenseTypes = getAvailableLicenseTypes(beat);
-  console.log('Available license types:', availableLicenseTypes);
-  console.log('Beat license details:', {
-    licenseType: beat?.license_type,
-    basicLocal: beat?.basic_license_price_local,
-    basicDiaspora: beat?.basic_license_price_diaspora,
-    premiumLocal: beat?.premium_license_price_local,
-    premiumDiaspora: beat?.premium_license_price_diaspora,
-    exclusiveLocal: beat?.exclusive_license_price_local,
-    exclusiveDiaspora: beat?.exclusive_license_price_diaspora,
-    customLocal: beat?.custom_license_price_local,
-    customDiaspora: beat?.custom_license_price_diaspora,
-  });
 
   return (
     <MainLayoutWithPlayer>
@@ -345,7 +348,7 @@ const BeatDetail = () => {
                     <div className="h-4 w-px bg-border"></div>
                     <div className="flex items-center gap-1 text-sm">
                       <AudioWaveform size={14} className="text-primary/70" /> 
-                      <span>{beat.plays || 0} plays</span>
+                      <span>{playCount || 0} plays</span>
                     </div>
                   </div>
                 </div>

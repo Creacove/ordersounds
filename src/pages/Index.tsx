@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -24,12 +25,6 @@ const Home = () => {
     toggleFavorite(beatId);
   };
 
-  const handleAddToCart = (e: React.MouseEvent, beatId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Adding to cart:', beatId);
-  };
-
   const featuredProducer = {
     id: "1",
     name: "DJ Mixer",
@@ -40,7 +35,7 @@ const Home = () => {
     salesCount: 1.2
   };
 
-  const ProducerFeature = ({ producer }) => (
+  const ProducerFeature = ({ producer }: { producer: any }) => (
     <div className="flex flex-col md:flex-row items-center gap-6 bg-card/50 backdrop-blur-sm border rounded-xl p-6 relative overflow-hidden">
       <div 
         className="absolute inset-0 opacity-5 bg-repeat z-0" 
@@ -106,7 +101,7 @@ const Home = () => {
               beat={featuredBeat}
               isFavorite={isFavorite(featuredBeat.id)}
               isInCart={isPurchased(featuredBeat.id)}
-              onToggleFavorite={toggleFavorite}
+              onToggleFavorite={(e) => handleToggleFavorite(e, featuredBeat.id)}
               onPlay={() => handlePlay(featuredBeat)}
             />
           ) : (
@@ -130,7 +125,7 @@ const Home = () => {
                 beat={beat}
                 isFavorite={isFavorite(beat.id)}
                 isInCart={isPurchased(beat.id)}
-                onToggleFavorite={toggleFavorite}
+                onToggleFavorite={(e) => handleToggleFavorite(e, beat.id)}
                 onPlay={() => handlePlay(beat)}
               />
             ))}
@@ -153,7 +148,7 @@ const Home = () => {
                 beat={beat}
                 isFavorite={isFavorite(beat.id)}
                 isInCart={isPurchased(beat.id)}
-                onToggleFavorite={toggleFavorite}
+                onToggleFavorite={(e) => handleToggleFavorite(e, beat.id)}
                 onPlay={() => handlePlay(beat)}
               />
             ))}
