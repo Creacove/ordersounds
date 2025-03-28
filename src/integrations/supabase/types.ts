@@ -373,6 +373,7 @@ export type Database = {
           featured_beats: Json | null
           full_name: string
           id: string
+          is_producer_of_week: boolean | null
           notifications_opt_in: boolean | null
           password_hash: string
           paystack_id: string | null
@@ -392,6 +393,7 @@ export type Database = {
           featured_beats?: Json | null
           full_name: string
           id?: string
+          is_producer_of_week?: boolean | null
           notifications_opt_in?: boolean | null
           password_hash: string
           paystack_id?: string | null
@@ -411,6 +413,7 @@ export type Database = {
           featured_beats?: Json | null
           full_name?: string
           id?: string
+          is_producer_of_week?: boolean | null
           notifications_opt_in?: boolean | null
           password_hash?: string
           paystack_id?: string | null
@@ -428,7 +431,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_producer_of_week: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          bio: string | null
+          country: string | null
+          created_date: string | null
+          email: string
+          favorites: Json | null
+          featured_beats: Json | null
+          full_name: string
+          id: string
+          is_producer_of_week: boolean | null
+          notifications_opt_in: boolean | null
+          password_hash: string
+          paystack_id: string | null
+          profile_picture: string | null
+          role: string
+          settings: Json | null
+          stage_name: string | null
+          storefront_url: string | null
+          stripe_id: string | null
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
