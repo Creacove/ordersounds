@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
 import { useAuth } from '@/context/AuthContext';
@@ -15,7 +15,13 @@ interface PaymentHandlerProps {
 export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) {
   const [isPaystackOpen, setIsPaystackOpen] = useState(false);
   const { currency, user } = useAuth();
-  const { clearCart } = useCart();
+  const { clearCart, cartItems } = useCart();
+  const [hasItems, setHasItems] = useState(false);
+
+  // Check if cart has items
+  useEffect(() => {
+    setHasItems(cartItems && cartItems.length > 0);
+  }, [cartItems]);
 
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
@@ -53,15 +59,22 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   }
 
   // Disable payment button if cart is empty or total amount is 0
-  const isDisabled = totalAmount <= 0;
+  const isDisabled = totalAmount <= 0 || !hasItems;
 
   return (
     <div className="space-y-4">
       {currency === 'NGN' ? (
         <>
-          {/* Increased tap target size for pay button */}
           <Button 
-            onClick={() => setIsPaystackOpen(true)}
+            onClick={() => {
+              // Log cart state before opening the payment dialog
+              console.log('Cart items before payment:', cartItems);
+              if (!cartItems || cartItems.length === 0) {
+                toast.error('Your cart is empty. Please add items before checkout.');
+                return;
+              }
+              setIsPaystackOpen(true);
+            }}
             className="w-full py-6 text-base"
             size="lg"
             disabled={isDisabled}

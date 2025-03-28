@@ -24,7 +24,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const { user } = useAuth();
-  const { clearCart } = useCart();
+  const { cartItems, clearCart } = useCart(); // Get cartItems directly from context
   const navigate = useNavigate();
 
   const validateCartItems = useCallback(async () => {
@@ -37,14 +37,9 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     setValidationError(null);
 
     try {
-      // Fetch cart items from localStorage
-      const cartItemsString = localStorage.getItem('cart');
-      if (!cartItemsString) {
-        setValidationError('Your cart is empty');
-        return false;
-      }
-
-      const cartItems = JSON.parse(cartItemsString);
+      console.log('Validating cart items:', cartItems);
+      
+      // Check if cart is empty using the cartItems from context
       if (!cartItems || cartItems.length === 0) {
         setValidationError('Your cart is empty');
         return false;
@@ -106,7 +101,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     } finally {
       setIsValidating(false);
     }
-  }, [user]);
+  }, [user, cartItems]);
 
   const handlePaymentStart = useCallback(async () => {
     if (isProcessing || isValidating) return;
@@ -123,7 +118,8 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       // Generate a unique transaction reference
       const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
-      // Store reference and amount in localStorage for verification
+      // Store cart items in localStorage for verification
+      localStorage.setItem('orderItems', JSON.stringify(cartItems));
       localStorage.setItem('paystackReference', reference);
       localStorage.setItem('paystackAmount', totalAmount.toString());
       localStorage.setItem('paymentInProgress', 'true');
@@ -134,7 +130,8 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       console.log('Starting Paystack payment with:', {
         reference,
         amount: totalAmount,
-        email: user?.email
+        email: user?.email,
+        cartItems: cartItems
       });
       
       // Start PayStack checkout
@@ -172,7 +169,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
           // Add a small delay before redirect to ensure all state updates have time to complete
           setTimeout(() => {
             window.location.href = '/library';
-          }, 500);
+          }, 1000);
         }
       };
       
@@ -184,7 +181,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       toast.error('Failed to start payment process');
       setIsProcessing(false);
     }
-  }, [isProcessing, isValidating, onClose, onSuccess, totalAmount, user, validateCartItems]);
+  }, [isProcessing, isValidating, onClose, onSuccess, totalAmount, user, validateCartItems, cartItems]);
 
   const verifyPayment = (reference: string) => {
     try {
