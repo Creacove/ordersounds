@@ -175,7 +175,7 @@ export default function Library() {
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className={cn(
             "w-full grid grid-cols-3 mb-4 md:mb-6", 
-            isMobile ? "sticky top-0 z-10 bg-background/80 backdrop-blur-sm p-1" : ""
+            isMobile ? "sticky top-0 z-10 bg-background/80 backdrop-blur-sm" : ""
           )}>
             <TabsTrigger 
               value="purchased" 
