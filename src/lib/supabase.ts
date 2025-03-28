@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User } from '@/types';
 
@@ -13,8 +14,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: localStorage,
     flowType: 'implicit',  // Disable email confirmation
     detectSessionInUrl: true, // Look for the session in the URL after OAuth redirects
-    // Add this for OAuth specifics
-    redirectTo: 'https://app.ordersounds.com/auth/callback',
   }
 });
 
