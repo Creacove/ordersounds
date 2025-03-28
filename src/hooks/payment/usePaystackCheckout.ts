@@ -144,7 +144,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       
       // Start PayStack checkout
       const config = {
-        key: 'pk_test_051838077ef7c318ce2297471ccc9a8da1e3dfe7',
+        key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Updated to the correct test public key
         email: user?.email || '',
         amount: totalAmount * 100, // convert to kobo
         currency: 'NGN',
