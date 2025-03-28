@@ -18,10 +18,14 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
     try {
       setIsLoading(true);
       
+      // Get the current origin for the redirect URL
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      console.log("Redirecting to:", redirectUrl);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
