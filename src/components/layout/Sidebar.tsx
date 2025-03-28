@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { NavLink, useLocation, Link } from "react-router-dom";
 import { 
@@ -291,9 +292,10 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                               onClick={item.onClick}
                               className={cn(
                                 "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
+                                "hover:bg-purple-500/20 hover:text-white",
                                 isActive
-                                  ? "border-r-[5px] border-purple-500 text-white font-medium"
-                                  : "text-gray-400 hover:text-gray-200",
+                                  ? "bg-[#181818] text-purple-400 border-l-4 border-purple-500 font-medium"
+                                  : "text-gray-400",
                                 isCollapsed ? "justify-center" : ""
                               )}
                             >
@@ -301,7 +303,7 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                                 size={18}
                                 className={cn(
                                   "transition-colors",
-                                  isActive ? "text-white" : "text-gray-400"
+                                  isActive ? "text-purple-400" : "text-gray-400"
                                 )}
                               />
                               {!isCollapsed && <span>{item.title}</span>}
@@ -326,9 +328,10 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                             className={({ isActive }) =>
                               cn(
                                 "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
+                                "hover:bg-purple-500/20 hover:text-white",
                                 isActive
-                                  ? "border-r-[5px] border-purple-500 text-white font-medium"
-                                  : "text-gray-400 hover:text-gray-200",
+                                  ? "bg-[#181818] text-purple-400 border-l-4 border-purple-500 font-medium"
+                                  : "text-gray-400",
                                 isCollapsed ? "justify-center" : ""
                               )
                             }
@@ -339,7 +342,7 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
                                   size={18}
                                   className={cn(
                                     "transition-colors",
-                                    isActive ? "text-white" : "text-gray-400"
+                                    isActive ? "text-purple-400" : "text-gray-400"
                                   )}
                                 />
                                 {!isCollapsed && <span>{item.title}</span>}
