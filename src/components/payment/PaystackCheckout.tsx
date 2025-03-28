@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { usePaystackPayment, PaystackProps as LibraryPaystackProps } from 'react-paystack';
+import { usePaystackPayment } from 'react-paystack';
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +17,20 @@ interface PaystackProps {
   totalAmount: number;
 }
 
+// Define the configuration interface based on the actual library requirements
+interface PaystackConfig {
+  reference: string;
+  email: string;
+  amount: number;
+  publicKey: string;
+  currency?: string;
+  channels?: string[];
+  label?: string;
+  onSuccess: (response: any) => void;
+  onClose: () => void;
+  metadata?: any;
+}
+
 // Main PaystackCheckout component
 export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: PaystackProps) {
   const { user } = useAuth();
@@ -28,7 +42,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const [reference] = useState(() => `tr_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
   
   // Configure Paystack parameters - ensuring correct format and all required parameters
-  const paystackConfig: LibraryPaystackProps = {
+  const paystackConfig: PaystackConfig = {
     reference,
     email: user?.email || '',
     amount: Math.round(totalAmount * 100), // Paystack requires amount in kobo (smallest unit)
@@ -199,14 +213,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       // Initialize Paystack payment
       console.log('Starting Paystack payment for order:', orderData.id);
       
-      // Call the initialization function with an empty callback to ensure proper type handling
-      const response = initializePayment(() => {}, () => {});
+      // Call the initialization function properly
+      initializePayment(() => {}, () => {});
       
-      // If the response is undefined or null, Paystack may not be properly initialized
-      if (!response) {
-        console.error('Paystack initialization failed');
-        throw new Error('Payment service initialization failed. Please try again later.');
-      }
     } catch (error) {
       console.error('Payment initialization error:', error);
       setIsProcessing(false);
