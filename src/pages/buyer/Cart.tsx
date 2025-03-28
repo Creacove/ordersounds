@@ -13,7 +13,6 @@ import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from "@/components/ui/badge";
 import { getLicensePrice } from "@/utils/licenseUtils";
 import { PaymentHandler } from "@/components/payment/PaymentHandler";
-import { supabase } from "@/integrations/supabase/client";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
@@ -54,49 +53,6 @@ export default function Cart() {
       refreshCart();
     }
   }, [refreshCart, cartItems.length]);
-
-  useEffect(() => {
-    const pendingOrderId = localStorage.getItem('pendingOrderId');
-    const paystackReference = localStorage.getItem('paystackReference');
-    const orderItems = localStorage.getItem('orderItems');
-    
-    if (pendingOrderId && paystackReference && user) {
-      const verifyPayment = async () => {
-        try {
-          const parsedOrderItems = orderItems ? JSON.parse(orderItems) : [];
-          
-          const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
-            body: {
-              reference: paystackReference,
-              orderId: pendingOrderId,
-              orderItems: parsedOrderItems
-            }
-          });
-          
-          if (!error && data?.verified) {
-            toast.success('Your purchase was successful!');
-            clearCart();
-            await fetchPurchasedBeats();
-            navigate('/library', { 
-              state: { 
-                fromPurchase: true,
-                purchaseTime: new Date().toISOString() 
-              },
-              replace: true
-            });
-          }
-        } catch (err) {
-          console.error('Error verifying payment:', err);
-        } finally {
-          localStorage.removeItem('pendingOrderId');
-          localStorage.removeItem('paystackReference');
-          localStorage.removeItem('orderItems');
-        }
-      };
-      
-      verifyPayment();
-    }
-  }, [clearCart, navigate, fetchPurchasedBeats, user]);
 
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';

@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useNavigate } from 'react-router-dom';
+import { useBeats } from '@/hooks/useBeats';
 
 interface PaystackProps {
   onSuccess: (reference: string) => void;
@@ -36,6 +37,7 @@ interface PaystackConfig {
 export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: PaystackProps) {
   const { user } = useAuth();
   const { cartItems, clearCart, refreshCart } = useCart();
+  const { fetchPurchasedBeats } = useBeats();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
@@ -228,8 +230,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     try {
       console.log('Payment success, verifying with backend...', paymentReference, orderId);
       
-      // Clear cart immediately
+      // Clear cart immediately to improve perceived performance
       clearCart();
+      
+      // Show loading toast to indicate verification is in progress
+      toast.loading('Verifying your payment...', { id: 'payment-verification' });
       
       // Get the stored order items data
       const storedItems = localStorage.getItem('orderItems');
@@ -246,18 +251,26 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       
       if (error) {
         console.error('Verification error:', error);
-        throw new Error(`Payment verification failed: ${error.message}`);
+        toast.dismiss('payment-verification');
+        toast.error(`Payment verification failed: ${error.message}`);
+        onClose();
+        return;
       }
       
       console.log('Verification response:', data);
       
       if (data.verified) {
+        // Dismiss the loading toast
+        toast.dismiss('payment-verification');
         toast.success('Payment successful! Your beats are now in your library.');
         
         // Close the dialog
         onClose();
         
-        // Instead of calling onSuccess, directly navigate to library
+        // Fetch newly purchased beats to update the library
+        await fetchPurchasedBeats();
+        
+        // Navigate to library with state to show success notification
         setTimeout(() => {
           navigate('/library', { 
             state: { 
@@ -266,14 +279,18 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
             },
             replace: true // Use replace to avoid issues with back navigation
           });
-        }, 500);
+        }, 300);
       } else {
+        toast.dismiss('payment-verification');
         toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);
+        onClose();
       }
       
     } catch (error) {
       console.error('Payment success handling error:', error);
+      toast.dismiss('payment-verification');
       toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
+      onClose();
     } finally {
       setIsProcessing(false);
       setOrderId(null);
