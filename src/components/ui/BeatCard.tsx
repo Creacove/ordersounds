@@ -191,8 +191,6 @@ export function BeatCard({
     beatTitle: beat.title,
     basic_local: beat.basic_license_price_local,
     basic_diaspora: beat.basic_license_price_diaspora,
-    price_local: beat.price_local,
-    price_diaspora: beat.price_diaspora,
     calculatedLocal: licensePrice.local,
     calculatedDiaspora: licensePrice.diaspora
   });

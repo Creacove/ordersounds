@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -10,7 +9,7 @@ import { ShoppingCart, AlertCircle, Music, Play, Pause, Trash2, RefreshCw } from
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from 'sonner';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { usePlayer } from '@/context/PlayerContext';
+import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from '@/components/ui/badge';
 import { getLicensePrice } from '@/utils/licenseUtils';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
@@ -147,29 +146,9 @@ export default function Cart() {
 
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';
-    
     return getLicensePrice(item.beat, licenseType, currency === 'USD');
   };
-
-  if (!user) {
-    return (
-      <MainLayoutWithPlayer>
-        <div className="container py-12 text-center">
-          <div className="max-w-md mx-auto">
-            <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-            <h1 className="text-2xl font-bold mb-2">Sign in to view your cart</h1>
-            <p className="text-muted-foreground mb-6">
-              You need to be logged in to add items to your cart and complete purchases.
-            </p>
-            <Button asChild>
-              <a href="/login">Sign In</a>
-            </Button>
-          </div>
-        </div>
-      </MainLayoutWithPlayer>
-    );
-  }
-
+  
   return (
     <MainLayoutWithPlayer>
       <div className="container py-8 pb-32 md:pb-8">

@@ -31,8 +31,6 @@ export type Database = {
           plays: number | null
           premium_license_price_diaspora: number | null
           premium_license_price_local: number | null
-          price_diaspora: number | null
-          price_local: number | null
           producer_id: string
           purchase_count: number | null
           status: string | null
@@ -62,8 +60,6 @@ export type Database = {
           plays?: number | null
           premium_license_price_diaspora?: number | null
           premium_license_price_local?: number | null
-          price_diaspora?: number | null
-          price_local?: number | null
           producer_id: string
           purchase_count?: number | null
           status?: string | null
@@ -93,8 +89,6 @@ export type Database = {
           plays?: number | null
           premium_license_price_diaspora?: number | null
           premium_license_price_local?: number | null
-          price_diaspora?: number | null
-          price_local?: number | null
           producer_id?: string
           purchase_count?: number | null
           status?: string | null

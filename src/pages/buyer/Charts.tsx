@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useBeats } from "@/hooks/useBeats";
@@ -14,6 +13,7 @@ import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { PriceTag } from "@/components/ui/PriceTag";
+import { getLicensePrice } from '@/utils/licenseUtils';
 
 export default function Charts() {
   const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
@@ -48,8 +48,8 @@ export default function Charts() {
   // Helper to get price based on currency
   const getBasicLicensePrice = (beat) => {
     return currency === 'USD'
-      ? beat.basic_license_price_diaspora || beat.price_diaspora || 0
-      : beat.basic_license_price_local || beat.price_local || 0;
+      ? beat.basic_license_price_diaspora || 0
+      : beat.basic_license_price_local || 0;
   };
 
   return (

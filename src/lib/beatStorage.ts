@@ -12,8 +12,6 @@ interface BeatUploadData {
   bpm: number;
   key?: string;
   tags: string[];
-  price_local: number;
-  price_diaspora: number;
   status: 'draft' | 'published';
   cover_image: string;
   audio_preview: string;
@@ -45,8 +43,6 @@ export const uploadBeat = async (
     bpm: number;
     key?: string;
     tags: string[];
-    price_local: number;
-    price_diaspora: number;
     basic_license_price_local: number;
     basic_license_price_diaspora: number;
     premium_license_price_local: number;
@@ -94,8 +90,6 @@ export const uploadBeat = async (
       bpm: beatInfo.bpm,
       key: beatInfo.key,
       tags: beatInfo.tags,
-      price_local: beatInfo.price_local,
-      price_diaspora: beatInfo.price_diaspora,
       status: beatInfo.status,
       cover_image: coverImageUrl,
       audio_preview: previewUrl,

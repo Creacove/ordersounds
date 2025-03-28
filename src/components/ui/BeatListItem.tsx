@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from '@/hooks/use-mobile';
+import { getLicensePrice } from '@/utils/licenseUtils';
 
 interface BeatListItemProps {
   beat: Beat;
@@ -119,8 +120,8 @@ export function BeatListItem({
   const getBasicLicensePrice = () => {
     const isDiaspora = currency === 'USD';
     return isDiaspora 
-      ? beat.basic_license_price_diaspora || beat.price_diaspora || 0
-      : beat.basic_license_price_local || beat.price_local || 0;
+      ? beat.basic_license_price_diaspora || 0
+      : beat.basic_license_price_local || 0;
   };
 
   return (

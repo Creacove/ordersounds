@@ -33,8 +33,14 @@ export function useBeats() {
           cover_image,
           audio_preview,
           audio_file,
-          price_local,
-          price_diaspora,
+          basic_license_price_local,
+          basic_license_price_diaspora,
+          premium_license_price_local,
+          premium_license_price_diaspora,
+          exclusive_license_price_local,
+          exclusive_license_price_diaspora,
+          custom_license_price_local,
+          custom_license_price_diaspora,
           genre,
           track_type,
           bpm,
@@ -67,8 +73,14 @@ export function useBeats() {
             cover_image_url: beat.cover_image,
             preview_url: beat.audio_preview,
             full_track_url: beat.audio_file,
-            price_local: beat.price_local,
-            price_diaspora: beat.price_diaspora,
+            basic_license_price_local: beat.basic_license_price_local,
+            basic_license_price_diaspora: beat.basic_license_price_diaspora,
+            premium_license_price_local: beat.premium_license_price_local,
+            premium_license_price_diaspora: beat.premium_license_price_diaspora,
+            exclusive_license_price_local: beat.exclusive_license_price_local,
+            exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
+            custom_license_price_local: beat.custom_license_price_local,
+            custom_license_price_diaspora: beat.custom_license_price_diaspora,
             genre: beat.genre,
             track_type: beat.track_type,
             bpm: beat.bpm,
@@ -181,8 +193,14 @@ export function useBeats() {
               cover_image,
               audio_preview,
               audio_file,
-              price_local,
-              price_diaspora,
+              basic_license_price_local,
+              basic_license_price_diaspora,
+              premium_license_price_local,
+              premium_license_price_diaspora,
+              exclusive_license_price_local,
+              exclusive_license_price_diaspora,
+              custom_license_price_local,
+              custom_license_price_diaspora,
               genre,
               track_type,
               bpm,
@@ -213,8 +231,14 @@ export function useBeats() {
                 cover_image_url: beat.cover_image,
                 preview_url: beat.audio_preview,
                 full_track_url: beat.audio_file,
-                price_local: beat.price_local,
-                price_diaspora: beat.price_diaspora,
+                basic_license_price_local: beat.basic_license_price_local,
+                basic_license_price_diaspora: beat.basic_license_price_diaspora,
+                premium_license_price_local: beat.premium_license_price_local,
+                premium_license_price_diaspora: beat.premium_license_price_diaspora,
+                exclusive_license_price_local: beat.exclusive_license_price_local,
+                exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
+                custom_license_price_local: beat.custom_license_price_local,
+                custom_license_price_diaspora: beat.custom_license_price_diaspora,
                 genre: beat.genre,
                 track_type: beat.track_type,
                 bpm: beat.bpm,
@@ -282,13 +306,13 @@ export function useBeats() {
     if (filters.priceRange) {
       if (currency === 'NGN') {
         filtered = filtered.filter(beat => 
-          beat.price_local >= filters.priceRange[0] && 
-          beat.price_local <= filters.priceRange[1]
+          beat.basic_license_price_local >= filters.priceRange[0] && 
+          beat.basic_license_price_local <= filters.priceRange[1]
         );
       } else {
         filtered = filtered.filter(beat => 
-          beat.price_diaspora >= filters.priceRange[0] && 
-          beat.price_diaspora <= filters.priceRange[1]
+          beat.basic_license_price_diaspora >= filters.priceRange[0] && 
+          beat.basic_license_price_diaspora <= filters.priceRange[1]
         );
       }
     }
@@ -384,8 +408,14 @@ export function useBeats() {
           cover_image,
           audio_preview,
           audio_file,
-          price_local,
-          price_diaspora,
+          basic_license_price_local,
+          basic_license_price_diaspora,
+          premium_license_price_local,
+          premium_license_price_diaspora,
+          exclusive_license_price_local,
+          exclusive_license_price_diaspora,
+          custom_license_price_local,
+          custom_license_price_diaspora,
           genre,
           track_type,
           bpm,
@@ -399,14 +429,6 @@ export function useBeats() {
           status,
           license_type,
           license_terms,
-          basic_license_price_local,
-          basic_license_price_diaspora,
-          premium_license_price_local,
-          premium_license_price_diaspora,
-          exclusive_license_price_local,
-          exclusive_license_price_diaspora,
-          custom_license_price_local,
-          custom_license_price_diaspora,
           users (full_name, stage_name)
         `)
         .eq('id', beatId)
@@ -433,8 +455,14 @@ export function useBeats() {
         cover_image_url: data.cover_image,
         preview_url: data.audio_preview,
         full_track_url: data.audio_file,
-        price_local: data.price_local,
-        price_diaspora: data.price_diaspora,
+        basic_license_price_local: data.basic_license_price_local,
+        basic_license_price_diaspora: data.basic_license_price_diaspora,
+        premium_license_price_local: data.premium_license_price_local,
+        premium_license_price_diaspora: data.premium_license_price_diaspora,
+        exclusive_license_price_local: data.exclusive_license_price_local,
+        exclusive_license_price_diaspora: data.exclusive_license_price_diaspora,
+        custom_license_price_local: data.custom_license_price_local,
+        custom_license_price_diaspora: data.custom_license_price_diaspora,
         genre: data.genre,
         track_type: data.track_type,
         bpm: data.bpm,
@@ -448,15 +476,7 @@ export function useBeats() {
         status: data.status as 'draft' | 'published',
         is_featured: false,
         license_type: data.license_type,
-        license_terms: data.license_terms,
-        basic_license_price_local: data.basic_license_price_local,
-        basic_license_price_diaspora: data.basic_license_price_diaspora,
-        premium_license_price_local: data.premium_license_price_local,
-        premium_license_price_diaspora: data.premium_license_price_diaspora,
-        exclusive_license_price_local: data.exclusive_license_price_local,
-        exclusive_license_price_diaspora: data.exclusive_license_price_diaspora,
-        custom_license_price_local: data.custom_license_price_local,
-        custom_license_price_diaspora: data.custom_license_price_diaspora
+        license_terms: data.license_terms
       };
 
       console.log('Received beat details:', beat);
