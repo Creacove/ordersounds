@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -54,7 +53,7 @@ export default function Login() {
 
   return (
     <MainLayout hideSidebar>
-      <div className="container relative h-[calc(100vh-4rem)] flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+      <div className="container relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
         <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
           <div className="absolute inset-0 bg-zinc-900">
             <div className="absolute inset-0 bg-gradient-to-br from-purple-900/90 to-zinc-900/70" />
@@ -63,22 +62,6 @@ export default function Login() {
               alt="Authentication"
               className="object-cover w-full h-full opacity-30 mix-blend-overlay"
             />
-          </div>
-          <div className="relative z-20 flex items-center text-lg font-medium">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-6 w-6 mr-2"
-            >
-              <path d="M12 3c-1.83 0-3.5.62-4.83 1.65L12 9.48l4.83-4.83C15.5 3.62 13.83 3 12 3zm0 18c1.83 0 3.5-.62 4.83-1.65L12 14.52l-4.83 4.83C8.5 20.38 10.17 21 12 21z" />
-              <path opacity="0.7" d="M3 12c0 1.83.62 3.5 1.65 4.83L9.48 12l-4.83-4.83C3.62 8.5 3 10.17 3 12zm18 0c0-1.83-.62-3.5-1.65-4.83L14.52 12l4.83 4.83C20.38 15.5 21 13.83 21 12z" />
-            </svg>
-            Creacove
           </div>
           <div className="relative z-20 mt-auto">
             <blockquote className="space-y-2">
@@ -89,8 +72,8 @@ export default function Login() {
             </blockquote>
           </div>
         </div>
-        <div className="lg:p-8">
-          <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
+        <div className="lg:p-8 flex items-center justify-center w-full">
+          <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px] p-4 md:p-0">
             <div className="flex flex-col space-y-2 text-center">
               <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
               <p className="text-sm text-muted-foreground">
