@@ -17,6 +17,41 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   const { currency, user } = useAuth();
   const { clearCart, cartItems } = useCart();
   const [hasItems, setHasItems] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  // Load Paystack script
+  useEffect(() => {
+    // Check if script is already loaded
+    if (document.getElementById('paystack-script')) {
+      setScriptLoaded(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = "https://js.paystack.co/v1/inline.js";
+    script.id = "paystack-script";
+    script.async = true;
+    
+    script.onload = () => {
+      console.log('Paystack script loaded successfully');
+      setScriptLoaded(true);
+    };
+    
+    script.onerror = () => {
+      console.error('Failed to load Paystack script');
+      toast.error('Payment system failed to load. Please try again later.');
+    };
+    
+    document.body.appendChild(script);
+    
+    return () => {
+      // Clean up script when component unmounts
+      const loadedScript = document.getElementById('paystack-script');
+      if (loadedScript) {
+        document.body.removeChild(loadedScript);
+      }
+    };
+  }, []);
 
   // Check if cart has items
   useEffect(() => {
@@ -58,8 +93,8 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     );
   }
 
-  // Disable payment button if cart is empty or total amount is 0
-  const isDisabled = totalAmount <= 0 || !hasItems;
+  // Disable payment button if cart is empty or total amount is 0 or script not loaded
+  const isDisabled = totalAmount <= 0 || !hasItems || !scriptLoaded;
 
   return (
     <div className="space-y-4">
@@ -73,6 +108,12 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
                 toast.error('Your cart is empty. Please add items before checkout.');
                 return;
               }
+              
+              if (!scriptLoaded) {
+                toast.error('Payment system is still loading. Please try again in a moment.');
+                return;
+              }
+              
               setIsPaystackOpen(true);
             }}
             className="w-full py-6 text-base"

@@ -115,6 +115,14 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     }
 
     try {
+      // Check if PaystackPop is available
+      if (!window.PaystackPop) {
+        console.error('PaystackPop not found. Make sure the script is loaded.');
+        toast.error('Payment system not ready. Please refresh the page and try again.');
+        setIsProcessing(false);
+        return;
+      }
+      
       // Generate a unique transaction reference
       const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
@@ -169,7 +177,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
           // Add a small delay before redirect to ensure all state updates have time to complete
           setTimeout(() => {
             window.location.href = '/library';
-          }, 1000);
+          }, 1500);
         }
       };
       
