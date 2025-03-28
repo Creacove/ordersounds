@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { usePaystackPayment } from 'react-paystack';
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,14 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const [validationError, setValidationError] = useState<string | null>(null);
   const [reference] = useState(() => `tr_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
   
+  // Prepare order items data for temporary storage
+  const orderItemsData = cartItems.map(item => ({
+    beat_id: item.beat.id,
+    title: item.beat.title,
+    price: item.beat.price_local,
+    license: item.beat.selected_license || 'basic'
+  }));
+  
   const paystackConfig: PaystackConfig = {
     reference,
     email: user?.email || '',
@@ -68,12 +77,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         {
           display_name: 'Order Items',
           variable_name: 'order_items',
-          value: JSON.stringify(cartItems.map(item => ({
-            beat_id: item.beat.id,
-            title: item.beat.title,
-            price: item.beat.price_local,
-            license: item.beat.selected_license || 'basic'
-          })))
+          value: JSON.stringify(orderItemsData)
         }
       ]
     }
@@ -86,6 +90,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       if (!isProcessing) {
         localStorage.removeItem('pendingOrderId');
         localStorage.removeItem('paystackReference');
+        localStorage.removeItem('orderItems');
       }
     };
   }, [isProcessing]);
@@ -156,13 +161,10 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error(validationError || 'Cart validation failed. Please try again.');
       }
       
-      const orderItems = cartItems.map(item => ({
-        beat_id: item.beat.id,
-        title: item.beat.title,
-        price: item.beat.price_local,
-        license: item.beat.selected_license || 'basic'
-      }));
+      // Store order items data temporarily
+      localStorage.setItem('orderItems', JSON.stringify(orderItemsData));
       
+      // Create an order record first
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -184,6 +186,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error('Failed to create order: No order ID returned');
       }
       
+      // Create line items for each beat in the cart
       const lineItems = cartItems.map(item => ({
         order_id: orderData.id,
         beat_id: item.beat.id,
@@ -200,8 +203,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error(`Line items creation failed: ${lineItemError.message}`);
       }
       
-      localStorage.setItem('orderItems', JSON.stringify(orderItems));
-      
+      // Save the order ID and payment reference for verification later
       setOrderId(orderData.id);
       localStorage.setItem('pendingOrderId', orderData.id);
       localStorage.setItem('paystackReference', reference);
@@ -221,9 +223,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     try {
       console.log('Payment success, verifying with backend...', paymentReference, orderId);
       
+      // Get the stored order items data
       const storedItems = localStorage.getItem('orderItems');
       const orderItems = storedItems ? JSON.parse(storedItems) : [];
       
+      // Call the verification edge function with explicit order items data
       const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
         body: { 
           reference: paymentReference, 
@@ -240,26 +244,12 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       console.log('Verification response:', data);
       
       if (data.verified) {
-        const { error: purchaseError } = await processSuccessfulPurchase(orderId, user!.id, cartItems);
-        
-        if (purchaseError) {
-          console.error('Error processing purchase:', purchaseError);
-          toast.error('There was an issue completing your purchase. Please contact support.');
-        } else {
-          clearCart();
-          toast.success('Payment successful! Your beats are now in your library.');
-          
-          createPurchaseNotification(user!.id, cartItems.length);
-          
-          notifyProducers(cartItems);
-          
-          onSuccess(paymentReference);
-        }
+        clearCart();
+        toast.success('Payment successful! Your beats are now in your library.');
+        onSuccess(paymentReference);
       } else {
         toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);
       }
-      
-      localStorage.removeItem('orderItems');
       
     } catch (error) {
       console.error('Payment success handling error:', error);
@@ -270,114 +260,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('orderItems');
-    }
-  };
-
-  const processSuccessfulPurchase = async (orderId: string, userId: string, items: any[]) => {
-    try {
-      const { error: orderUpdateError } = await supabase
-        .from('orders')
-        .update({ status: 'completed' })
-        .eq('id', orderId);
-      
-      if (orderUpdateError) {
-        console.error('Failed to update order status:', orderUpdateError);
-        return { error: orderUpdateError };
-      }
-      
-      const purchasedBeatsData = items.map(item => ({
-        user_id: userId,
-        beat_id: item.beat.id,
-        order_id: orderId,
-        license_type: item.beat.selected_license || 'basic',
-        currency_code: 'NGN',
-      }));
-      
-      const { error: purchaseInsertError } = await supabase
-        .from('user_purchased_beats')
-        .insert(purchasedBeatsData);
-      
-      if (purchaseInsertError) {
-        console.error('Failed to insert purchased beats:', purchaseInsertError);
-        return { error: purchaseInsertError };
-      }
-      
-      for (const item of items) {
-        try {
-          const { data: updateResult, error: updateError } = await supabase.functions.invoke('update-beat-purchase', {
-            body: { 
-              beatId: item.beat.id,
-              userId: userId
-            }
-          });
-          
-          if (updateError) {
-            console.error(`Failed to update purchase count for beat ${item.beat.id}:`, updateError);
-          } else {
-            console.log(`Updated purchase count for beat ${item.beat.id}:`, updateResult);
-          }
-        } catch (err) {
-          console.error(`Error updating purchase count for beat ${item.beat.id}:`, err);
-        }
-      }
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Error processing successful purchase:', error);
-      return { error };
-    }
-  };
-
-  const createPurchaseNotification = async (userId: string, itemCount: number) => {
-    try {
-      await supabase
-        .from('notifications')
-        .insert({
-          recipient_id: userId,
-          title: 'Purchase Successful',
-          body: `You've successfully purchased ${itemCount} beat${itemCount === 1 ? '' : 's'}. Check your library to download them.`,
-          is_read: false
-        });
-    } catch (error) {
-      console.error('Failed to create notification:', error);
-    }
-  };
-
-  const notifyProducers = async (items: any[]) => {
-    try {
-      const beatsByProducer = {};
-      
-      for (const item of items) {
-        const producerId = item.beat.producer_id;
-        if (!producerId) continue;
-        
-        if (!beatsByProducer[producerId]) {
-          beatsByProducer[producerId] = [];
-        }
-        
-        beatsByProducer[producerId].push({
-          title: item.beat.title,
-          id: item.beat.id
-        });
-      }
-      
-      for (const producerId in beatsByProducer) {
-        const beatsCount = beatsByProducer[producerId].length;
-        const beatTitles = beatsByProducer[producerId].map(b => b.title).join(', ');
-        
-        await supabase
-          .from('notifications')
-          .insert({
-            recipient_id: producerId,
-            title: 'New Beat Sale!',
-            body: `Congratulations! ${beatsCount === 1 
-              ? `Your beat "${beatTitles}" was` 
-              : `${beatsCount} of your beats were`} just purchased.`,
-            is_read: false
-          });
-      }
-    } catch (error) {
-      console.error('Failed to notify producers:', error);
     }
   };
 

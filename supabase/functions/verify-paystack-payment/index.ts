@@ -39,8 +39,13 @@ serve(async (req) => {
       throw new Error('Missing payment reference');
     }
 
+    if (!orderId) {
+      console.error('Missing order ID');
+      throw new Error('Missing order ID');
+    }
+
     console.log(`Processing verification for reference: ${reference}, order: ${orderId}`);
-    console.log('Order items:', orderItems);
+    console.log('Order items received:', orderItems);
 
     // Verify the payment with Paystack
     console.log(`Making request to Paystack API: https://api.paystack.co/transaction/verify/${reference}`);
@@ -134,7 +139,7 @@ serve(async (req) => {
         
         // Only add purchases if they don't exist yet
         if (!existingPurchases || existingPurchases.length === 0) {
-          // Get license information from order items passed in the request
+          // Create a map of beat licenses from the order items
           const beatLicenses = {};
           
           if (orderItems && Array.isArray(orderItems)) {
@@ -145,7 +150,7 @@ serve(async (req) => {
             });
           }
           
-          console.log('License information:', beatLicenses);
+          console.log('License information map:', beatLicenses);
         
           // Add purchased beats to user's collection
           const purchasedItems = lineItems.map(item => ({

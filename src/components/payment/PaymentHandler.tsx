@@ -39,7 +39,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
       if (onSuccess) {
         onSuccess();
       } else {
-        // Use the correct path to the library page
+        // Navigate to the library page with the correct path
         navigate('/buyer/library', { 
           state: { 
             fromPurchase: true,
@@ -48,7 +48,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
           replace: true // Use replace to avoid issues with back navigation
         });
       }
-    }, 1000); // Reduced delay for better UX
+    }, 1000);
   };
 
   const handlePaystackClose = () => {
