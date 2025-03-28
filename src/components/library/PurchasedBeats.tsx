@@ -34,7 +34,7 @@ export function PurchasedBeats() {
     try {
       const { data, error } = await supabase
         .from('user_purchased_beats')
-        .select('beat_id, license_type, created_at')
+        .select('beat_id, license_type, purchase_date')
         .eq('user_id', user.id);
         
       if (error) throw error;
@@ -44,7 +44,7 @@ export function PurchasedBeats() {
       data.forEach(item => {
         detailsMap[item.beat_id] = {
           licenseType: item.license_type || 'basic',
-          purchaseDate: item.created_at
+          purchaseDate: item.purchase_date
         };
       });
       
