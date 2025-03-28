@@ -24,7 +24,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   // Load Paystack script
   useEffect(() => {
     // Check if script is already loaded and PaystackPop is available
-    if (window.PaystackPop) {
+    if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
       console.log('Paystack script is already loaded and PaystackPop is available');
       setScriptLoaded(true);
       return;
@@ -51,7 +51,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
         // Give the script a moment to initialize
         setTimeout(() => {
           // Verify the script loaded correctly by checking for PaystackPop
-          if (window.PaystackPop) {
+          if (window.PaystackPop && typeof window.PaystackPop.setup === 'function') {
             console.log('Paystack script loaded successfully');
             setScriptLoaded(true);
             setScriptError(false);
@@ -60,7 +60,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
             setScriptError(true);
           }
           setLoadingScript(false);
-        }, 500);
+        }, 1000); // Increased timeout to ensure proper initialization
       };
       
       script.onerror = () => {
@@ -141,6 +141,14 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
         </div>
       )}
       
+      {!scriptLoaded && !scriptError && (
+        <div className="p-3 border border-primary/20 bg-primary/5 rounded-md mb-4">
+          <p className="text-sm text-primary/80">
+            Loading payment system... Please wait.
+          </p>
+        </div>
+      )}
+      
       {currency === 'NGN' ? (
         <>
           <Button 
@@ -155,7 +163,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
                 return;
               }
               
-              if (!window.PaystackPop) {
+              if (!window.PaystackPop || typeof window.PaystackPop.setup !== 'function') {
                 toast.error('Payment system not fully loaded. Please refresh the page and try again.');
                 return;
               }
