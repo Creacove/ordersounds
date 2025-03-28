@@ -199,6 +199,52 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
             );
             
             if (verificationResult.success) {
+              // Process purchased beats immediately
+              try {
+                // Get the buyer's ID
+                if (!user || !user.id) throw new Error('User information missing');
+                
+                // Add purchased beats directly to prevent waiting for webhook
+                for (const item of orderItemsData) {
+                  // Check if it's already purchased to avoid duplicates
+                  const { data: existingPurchase, error: checkError } = await supabase
+                    .from('user_purchased_beats')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('beat_id', item.beat_id)
+                    .eq('order_id', orderId)
+                    .single();
+                    
+                  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+                    console.error('Error checking for existing purchase:', checkError);
+                  }
+                  
+                  // Skip if already purchased
+                  if (existingPurchase) continue;
+                  
+                  // Insert the purchase
+                  const { error: purchaseError } = await supabase
+                    .from('user_purchased_beats')
+                    .insert({
+                      user_id: user.id,
+                      beat_id: item.beat_id,
+                      license_type: item.license || 'basic',
+                      currency_code: 'NGN',
+                      order_id: orderId,
+                    });
+                    
+                  if (purchaseError) {
+                    console.error('Error recording purchase:', purchaseError);
+                  } else {
+                    console.log(`Purchase recorded for beat ${item.beat_id}`);
+                  }
+                }
+              } catch (err) {
+                console.error('Error recording purchases:', err);
+                // Continue with redirect even if local recording failed,
+                // the webhook will handle it as backup
+              }
+              
               localStorage.setItem('purchaseSuccess', 'true');
               
               // Success! Clear cart and redirect
@@ -206,6 +252,9 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
               setIsProcessing(false);
               onSuccess(response.reference);
               
+              toast.success('Your purchase was successful! Redirecting to your library...');
+              
+              // Force direct to library instead of using navigate
               setTimeout(() => {
                 window.location.href = '/library';
               }, 1500);

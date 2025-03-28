@@ -150,6 +150,7 @@ export function useBeats() {
     if (!user) return;
     
     try {
+      console.log('Fetching purchased beats');
       const { data: purchasedData, error: purchasedError } = await supabase
         .from('user_purchased_beats')
         .select('beat_id')
@@ -165,6 +166,78 @@ export function useBeats() {
         setPurchasedBeats(purchasedIds);
         
         console.log('Fetched purchased beats:', purchasedIds);
+        
+        if (purchasedIds.length > 0 && beats.length === 0) {
+          const { data: beatsData, error: beatsError } = await supabase
+            .from('beats')
+            .select(`
+              id,
+              title,
+              producer_id,
+              users (
+                full_name,
+                stage_name
+              ),
+              cover_image,
+              audio_preview,
+              audio_file,
+              price_local,
+              price_diaspora,
+              genre,
+              track_type,
+              bpm,
+              tags,
+              description,
+              upload_date,
+              favorites_count,
+              purchase_count,
+              status
+            `)
+            .in('id', purchasedIds);
+            
+          if (beatsError) {
+            console.error('Error fetching beat details for purchased beats:', beatsError);
+          } else if (beatsData) {
+            console.log('Got beat details for purchased beats:', beatsData.length);
+            
+            const transformedBeats: Beat[] = beatsData.map(beat => {
+              const userData = beat.users;
+              const producerName = userData && userData.stage_name ? userData.stage_name : 
+                                userData && userData.full_name ? userData.full_name : 'Unknown Producer';
+              
+              return {
+                id: beat.id,
+                title: beat.title,
+                producer_id: beat.producer_id,
+                producer_name: producerName,
+                cover_image_url: beat.cover_image,
+                preview_url: beat.audio_preview,
+                full_track_url: beat.audio_file,
+                price_local: beat.price_local,
+                price_diaspora: beat.price_diaspora,
+                genre: beat.genre,
+                track_type: beat.track_type,
+                bpm: beat.bpm,
+                tags: beat.tags || [],
+                description: beat.description,
+                created_at: beat.upload_date,
+                favorites_count: beat.favorites_count,
+                purchase_count: beat.purchase_count,
+                status: beat.status === 'published' ? 'published' : 'draft',
+                is_featured: false,
+              };
+            });
+            
+            if (transformedBeats.length > 0) {
+              setBeats(prevBeats => {
+                const existingIds = new Set(prevBeats.map(b => b.id));
+                const newBeats = transformedBeats.filter(b => !existingIds.has(b.id));
+                return [...prevBeats, ...newBeats];
+              });
+            }
+          }
+        }
+        
         return purchasedIds;
       }
     } catch (error) {

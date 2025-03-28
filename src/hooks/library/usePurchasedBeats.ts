@@ -53,14 +53,19 @@ export function usePurchasedBeats() {
   // Split initial loading into separate effects for better performance
   useEffect(() => {
     if (user) {
+      console.log('Initial load of purchased beats');
       // Force fetch purchased beats on initial load to make sure we have the latest data
       fetchPurchasedBeats().then(() => {
+        console.log('Purchased beats fetched successfully');
         setBeatsLoaded(true);
+      }).catch(error => {
+        console.error('Error fetching purchased beats:', error);
       });
       
       // If we came from a purchase, make sure to refresh the list
       const fromPurchase = location.state?.fromPurchase || localStorage.getItem('purchaseSuccess') === 'true';
       if (fromPurchase) {
+        console.log('Coming from a purchase, refreshing beats list');
         refreshPurchasedBeats();
       }
     }
@@ -77,6 +82,7 @@ export function usePurchasedBeats() {
     if (!user) return;
     
     try {
+      console.log('Fetching purchase details');
       const { data, error } = await supabase
         .from('user_purchased_beats')
         .select('beat_id, license_type, purchase_date')
@@ -93,6 +99,7 @@ export function usePurchasedBeats() {
         };
       });
       
+      console.log('Purchase details fetched:', detailsMap);
       setPurchaseDetails(detailsMap);
     } catch (error) {
       console.error('Error fetching purchase details:', error);
