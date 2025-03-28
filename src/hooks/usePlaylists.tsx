@@ -39,7 +39,7 @@ export function usePlaylists() {
           is_public: item.is_public,
           beats: item.beats || [],
           created_at: item.created_date, // Map created_date to created_at
-          updated_at: item.updated_at || item.created_date // Use updated_at if available, otherwise fall back to created_date
+          updated_at: item.created_date // Use created_date for updated_at since it doesn't exist in the database
         }));
         
         setPlaylists(transformedPlaylists);
