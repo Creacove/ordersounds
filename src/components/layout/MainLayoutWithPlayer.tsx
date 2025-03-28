@@ -10,9 +10,16 @@ import { useLocation } from "react-router-dom";
 
 interface MainLayoutWithPlayerProps extends PropsWithChildren {
   className?: string;
+  activeTab?: string; // Add this property to fix the TypeScript error
+  currentPath?: string; // Making this optional as well for consistency
 }
 
-export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlayerProps) {
+export function MainLayoutWithPlayer({ 
+  children, 
+  className,
+  activeTab,
+  currentPath 
+}: MainLayoutWithPlayerProps) {
   const { currentBeat } = usePlayer();
   const isMobile = useIsMobile();
   const hasPlayer = !!currentBeat;
@@ -32,7 +39,7 @@ export function MainLayoutWithPlayer({ children, className }: MainLayoutWithPlay
       <Topbar />
       
       <div className="flex flex-1">
-        <Sidebar />
+        <Sidebar activeTab={activeTab} currentPath={currentPath} />
         
         <main className={cn(
           "flex-1 transition-all duration-300 w-full animate-fade-in", 
