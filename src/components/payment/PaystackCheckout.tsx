@@ -271,15 +271,13 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         await fetchPurchasedBeats();
         
         // Navigate to library with state to show success notification
-        setTimeout(() => {
-          navigate('/library', { 
-            state: { 
-              fromPurchase: true,
-              purchaseTime: new Date().toISOString() 
-            },
-            replace: true // Use replace to avoid issues with back navigation
-          });
-        }, 300);
+        navigate('/library', { 
+          state: { 
+            fromPurchase: true,
+            purchaseTime: new Date().toISOString() 
+          },
+          replace: true // Use replace to avoid issues with back navigation
+        });
       } else {
         toast.dismiss('payment-verification');
         toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -11,6 +12,7 @@ import { FavoriteBeats } from "@/components/library/FavoriteBeats";
 import { UserPlaylists } from "@/components/library/UserPlaylists";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
+import { useBeats } from "@/hooks/useBeats";
 
 export default function Library() {
   const { user } = useAuth();
@@ -19,6 +21,7 @@ export default function Library() {
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState("purchased");
   const isMobile = useIsMobile();
+  const { fetchPurchasedBeats } = useBeats();
 
   useEffect(() => {
     if (location.pathname.includes("/favorites")) {
@@ -37,11 +40,15 @@ export default function Library() {
     if (fromPurchase) {
       setShowPurchaseSuccess(true);
       
+      // Clear the state to prevent showing the success message again on refresh
       const currentPathname = location.pathname;
-      navigate(currentPathname, { replace: true });
+      navigate(currentPathname, { replace: true, state: {} });
       
-      toast.success('Welcome to your library! You can now enjoy your beats.', {
-        duration: 5000,
+      // Refresh purchased beats data to ensure latest purchases are visible
+      fetchPurchasedBeats().then(() => {
+        toast.success('Your purchase was successful! Your beats are now in your library.', {
+          duration: 5000,
+        });
       });
       
       const timer = setTimeout(() => {
@@ -50,16 +57,13 @@ export default function Library() {
       
       return () => clearTimeout(timer);
     }
-  }, [location, navigate]);
+  }, [location, navigate, fetchPurchasedBeats]);
 
   useEffect(() => {
-    const pendingOrderId = localStorage.getItem('pendingOrderId');
-    const paystackReference = localStorage.getItem('paystackReference');
-    
-    if (pendingOrderId && paystackReference) {
-      localStorage.removeItem('pendingOrderId');
-      localStorage.removeItem('paystackReference');
-    }
+    // Clean up any leftover payment data
+    localStorage.removeItem('pendingOrderId');
+    localStorage.removeItem('paystackReference');
+    localStorage.removeItem('orderItems');
   }, []);
 
   const handleTabChange = (value) => {

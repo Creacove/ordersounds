@@ -52,7 +52,21 @@ export default function Cart() {
     if (cartItems.length > 0) {
       refreshCart();
     }
-  }, [refreshCart, cartItems.length]);
+    
+    const pendingOrderId = localStorage.getItem('pendingOrderId');
+    const paystackReference = localStorage.getItem('paystackReference');
+    
+    if (pendingOrderId && paystackReference) {
+      console.log('Detected payment in progress, redirecting to library...');
+      navigate('/library', { 
+        state: { 
+          fromPurchase: true,
+          purchaseTime: new Date().toISOString() 
+        },
+        replace: true
+      });
+    }
+  }, [refreshCart, cartItems.length, navigate]);
 
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';

@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useLocation } from 'react-router-dom';
 
 export function PurchasedBeats() {
   const { getUserPurchasedBeats, fetchPurchasedBeats, isPurchased, isLoading } = useBeats();
@@ -19,6 +20,7 @@ export function PurchasedBeats() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [purchaseDetails, setPurchaseDetails] = useState({});
   const [beatsLoaded, setBeatsLoaded] = useState(false);
+  const location = useLocation();
   const isMobile = useIsMobile();
   
   // Use memoization to prevent unnecessary re-renders
@@ -32,8 +34,13 @@ export function PurchasedBeats() {
     // Only set the flag to indicate beats are loaded
     if (user) {
       setBeatsLoaded(true);
+      
+      // If we came from a purchase, make sure to refresh the list
+      if (location.state?.fromPurchase) {
+        refreshPurchasedBeats();
+      }
     }
-  }, [user]);
+  }, [user, location.state]);
 
   // Load purchase details separately from beats to improve performance
   useEffect(() => {
