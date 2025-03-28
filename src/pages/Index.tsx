@@ -9,12 +9,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Link, useNavigate } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowRight, ChevronRight, Music, Disc2, Disc3, Trophy, FlameKindling } from "lucide-react";
+import { ArrowRight, ChevronRight, Music, Disc2, Disc3, Trophy, FlameKindling, Heart, Play, Pause } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/context/AuthContext";
 import { PriceTag } from "@/components/ui/PriceTag";
 import { cn } from "@/lib/utils";
 import { getLicensePrice } from '@/utils/licenseUtils';
+import { usePlayer } from "@/context/PlayerContext";
+import { toast } from "sonner";
 
 export default function Index() {
   const { 
@@ -26,6 +28,7 @@ export default function Index() {
     isPurchased
   } = useBeats();
   const { user, currency } = useAuth();
+  const { playBeat, isPlaying, currentBeat } = usePlayer();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
@@ -248,6 +251,22 @@ export default function Index() {
     }
   };
 
+  const handleToggleFavorite = (beatId: string) => {
+    if (!user) {
+      toast.error("Please log in to add favorites");
+      return;
+    }
+    toggleFavorite(beatId);
+  };
+  
+  const handlePlayWeeklyPick = (beat) => {
+    playBeat(beat);
+  };
+
+  const isCurrentlyPlaying = (beatId: string) => {
+    return isPlaying && currentBeat?.id === beatId;
+  };
+
   const getLicenseLocalPrice = (beat: any) => {
     return getLicensePrice(beat, beat.license_type || 'basic', false);
   };
@@ -299,39 +318,39 @@ export default function Index() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-1 aspect-square md:aspect-auto relative overflow-hidden">
                   <img 
-                    src={producerOfWeek.image || "/placeholder.svg"} 
-                    alt={producerOfWeek.name} 
+                    src={producerOfWeek?.image || "/placeholder.svg"} 
+                    alt={producerOfWeek?.name} 
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent md:hidden flex items-end p-4">
-                    <h3 className="text-xl font-bold text-white">{producerOfWeek.name}</h3>
+                    <h3 className="text-xl font-bold text-white">{producerOfWeek?.name}</h3>
                   </div>
                 </div>
                 <div className="md:col-span-2 p-4 md:p-6 flex flex-col justify-between">
                   <div>
-                    <h3 className="text-xl md:text-2xl font-bold hidden md:block mb-2">{producerOfWeek.name}</h3>
+                    <h3 className="text-xl md:text-2xl font-bold hidden md:block mb-2">{producerOfWeek?.name}</h3>
                     <div className="flex flex-wrap gap-3 mb-2 md:mb-4">
-                      {producerOfWeek.country && (
+                      {producerOfWeek?.country && (
                         <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-full">
-                          {producerOfWeek.country}
+                          {producerOfWeek?.country}
                         </span>
                       )}
                       <span className="text-xs font-medium px-2 py-1 bg-muted rounded-full">
-                        {producerOfWeek.beatsCount} {producerOfWeek.beatsCount === 1 ? 'Beat' : 'Beats'}
+                        {producerOfWeek?.beatsCount} {producerOfWeek?.beatsCount === 1 ? 'Beat' : 'Beats'}
                       </span>
                       <span className="text-xs font-medium px-2 py-1 bg-muted rounded-full">
-                        {producerOfWeek.salesCount} {producerOfWeek.salesCount === 1 ? 'Sale' : 'Sales'}
+                        {producerOfWeek?.salesCount} {producerOfWeek?.salesCount === 1 ? 'Sale' : 'Sales'}
                       </span>
                     </div>
                     <p className="text-muted-foreground mb-4 line-clamp-3 md:line-clamp-5">
-                      {producerOfWeek.bio || "Join our weekly beat challenge and showcase your talent!"}
+                      {producerOfWeek?.bio || "Join our weekly beat challenge and showcase your talent!"}
                     </p>
                   </div>
                   <div className="flex flex-col xs:flex-row gap-2">
                     <Button onClick={handleProducerClick}>
                       View Profile
                     </Button>
-                    <Button variant="outline" onClick={() => navigate(`/producer/${producerOfWeek.id}/beats`, { state: { from: '/' } })}>
+                    <Button variant="outline" onClick={() => navigate(`/producer/${producerOfWeek?.id}/beats`, { state: { from: '/' } })}>
                       Browse All Beats
                     </Button>
                   </div>
@@ -404,13 +423,45 @@ export default function Index() {
                     isMobile && "text-xs"
                   )}>
                     <span className="flex items-center gap-1">
-                      <Music className="h-4 w-4 text-muted-foreground" />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleFavorite(beat.id);
+                        }}
+                      >
+                        <Heart 
+                          className={cn(
+                            "h-4 w-4",
+                            isFavorite(beat.id) ? "text-purple-500 fill-purple-500" : "text-muted-foreground"
+                          )} 
+                        />
+                      </Button>
                       <span>{beat.favorites_count} likes</span>
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {beat.purchase_count} downloads
-                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayWeeklyPick(beat);
+                      }}
+                    >
+                      {isCurrentlyPlaying(beat.id) ? (
+                        <Pause className="h-4 w-4" />
+                      ) : (
+                        <Play className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
+                  {isPurchased(beat.id) && (
+                    <div className="absolute top-2 right-2 bg-green-500/90 text-white text-xs px-2 py-1 rounded-full">
+                      Purchased
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -523,6 +574,139 @@ export default function Index() {
               ))}
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="mb-10 bg-gradient-to-br from-purple-50/10 to-transparent dark:from-purple-900/5 rounded-lg p-6 border border-purple-200/20 dark:border-purple-800/20">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Producer of the Week</h2>
+            <Badge className="bg-yellow-500/20 text-yellow-500 border-yellow-500/30">
+              <Star size={12} className="mr-1" /> Featured
+            </Badge>
+          </div>
+          <Link to={`/producer/${producerOfWeek?.id}`} className="text-sm text-primary hover:underline flex items-center gap-1">
+            View profile
+            <ArrowRight size={14} />
+          </Link>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-1">
+            <div className="bg-card rounded-lg overflow-hidden border shadow-sm h-full flex flex-col">
+              <div className="relative aspect-square md:aspect-auto md:h-64 bg-gradient-to-b from-primary/5 to-primary/10">
+                <img 
+                  src={producerOfWeek?.image} 
+                  alt={producerOfWeek?.name}
+                  className="w-full h-full object-cover" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                <div className="absolute bottom-0 p-4">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-white">{producerOfWeek?.name}</h3>
+                  </div>
+                  <div className="text-sm text-white/80 mt-1">
+                    {producerOfWeek?.beatsCount} beats • {(producerOfWeek?.salesCount / 1000).toFixed(1)}k sales
+                  </div>
+                </div>
+              </div>
+              <div className="p-4 flex-1 flex flex-col">
+                <p className="text-sm text-muted-foreground">{producerOfWeek?.bio}</p>
+                <div className="mt-4 pt-4 border-t flex-1 flex flex-col justify-end">
+                  <Button variant="outline" className="w-full gap-2" asChild>
+                    <Link to={`/producer/${producerOfWeek?.id}`}>
+                      <span>View Profile</span>
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div className="md:col-span-2">
+            <div className="bg-card rounded-lg border shadow-sm overflow-hidden">
+              <div className="p-4 border-b bg-muted/30">
+                <h3 className="font-medium">Top Beats by {producerOfWeek?.name}</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="w-12 px-4 py-3 text-left font-medium text-sm"></th>
+                      <th className="px-4 py-3 text-left font-medium text-sm">Title</th>
+                      <th className="hidden sm:table-cell px-4 py-3 text-left font-medium text-sm">Genre</th>
+                      <th className="hidden md:table-cell px-4 py-3 text-left font-medium text-sm">BPM</th>
+                      <th className="px-4 py-3 text-left font-medium text-sm">Price</th>
+                      <th className="px-4 py-3 text-right font-medium text-sm">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {producerOfWeek?.beats.map((beat) => (
+                      <tr key={beat.id} className="border-b hover:bg-muted/20 transition-colors">
+                        <td className="p-4">
+                          <div className="w-10 h-10 rounded overflow-hidden">
+                            <img 
+                              src={beat.cover_image_url} 
+                              alt={beat.title}
+                              className="w-full h-full object-cover" 
+                            />
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-medium max-w-[120px] truncate">{beat.title}</td>
+                        <td className="hidden sm:table-cell px-4 py-3">{beat.genre}</td>
+                        <td className="hidden md:table-cell px-4 py-3">{beat.bpm} BPM</td>
+                        <td className="px-4 py-3">₦{(beat.basic_license_price_local || 0).toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                playBeat(beat);
+                              }}
+                            >
+                              {isCurrentlyPlaying(beat.id) ? (
+                                <Pause size={16} />
+                              ) : (
+                                <Play size={16} />
+                              )}
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className={cn(
+                                "h-8 w-8",
+                                isFavorite(beat.id) ? "text-purple-500" : ""
+                              )}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFavorite(beat.id);
+                              }}
+                            >
+                              <Heart 
+                                size={16} 
+                                fill={isFavorite(beat.id) ? "currentColor" : "none"} 
+                              />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="p-3 border-t bg-muted/20 flex justify-center">
+                <Button variant="link" size="sm" className="gap-1" asChild>
+                  <Link to={`/producer/${producerOfWeek?.id}`}>
+                    <span>Browse all beats from this producer</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     </MainLayoutWithPlayer>

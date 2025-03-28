@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Play, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Bookmark } from "lucide-react";
+import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { BeatCard } from "@/components/ui/BeatCard";
@@ -25,12 +25,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { getUserPlaylists } from "@/lib/playlistService";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
+import { toast } from "sonner";
 
 export default function Home() {
-  const { featuredBeat, trendingBeats, newBeats, isLoading } = useBeats();
+  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const { playBeat } = usePlayer();
+  const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -103,6 +104,14 @@ export default function Home() {
     playBeat(beat);
   };
 
+  const handleToggleFavorite = (beatId) => {
+    if (!user) {
+      toast.error("Please log in to add favorites");
+      return;
+    }
+    toggleFavorite(beatId);
+  };
+
   const navigateToBeat = (beatId) => {
     navigate(`/beat/${beatId}`);
   };
@@ -119,6 +128,10 @@ export default function Home() {
   ];
 
   const weeklyPicks = trendingBeats.slice(0, 6);
+
+  const isCurrentlyPlaying = (beatId) => {
+    return isPlayerPlaying && currentBeat?.id === beatId;
+  };
 
   const producerOfWeek = {
     id: '1', 
@@ -317,7 +330,13 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {trendingBeats.slice(0, 5).map((beat) => (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat}
+                    onToggleFavorite={toggleFavorite}
+                    isFavorite={isFavorite(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
+                  />
                 ))}
               </div>
             )}
@@ -340,12 +359,17 @@ export default function Home() {
                   className="p-3 bg-background/50 rounded-md border border-border/50 flex items-center gap-3 hover:bg-background/80 transition-colors cursor-pointer"
                   onClick={() => navigate(`/beat/${beat.id}`)}
                 >
-                  <div className="w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden flex-shrink-0">
+                  <div className="w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden flex-shrink-0 relative">
                     <img 
                       src={beat.cover_image_url} 
                       alt={beat.title}
                       className="w-full h-full object-cover" 
                     />
+                    {isPurchased(beat.id) && (
+                      <div className="absolute top-0 left-0 bg-green-500/90 text-white text-[10px] px-1 py-0.5 rounded-br-sm">
+                        Owned
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h3 className="font-medium text-sm md:text-base truncate">{beat.title}</h3>
@@ -367,17 +391,40 @@ export default function Home() {
                       </span>
                     </div>
                   </div>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="flex-shrink-0 h-8 w-8 rounded-full"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayBeat(beat);
-                    }}
-                  >
-                    <Play size={16} />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className="flex-shrink-0 h-8 w-8 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayBeat(beat);
+                      }}
+                    >
+                      {isCurrentlyPlaying(beat.id) ? (
+                        <Pause size={16} />
+                      ) : (
+                        <Play size={16} />
+                      )}
+                    </Button>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      className={cn(
+                        "flex-shrink-0 h-8 w-8 rounded-full",
+                        isFavorite(beat.id) ? "text-purple-500" : ""
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleFavorite(beat.id);
+                      }}
+                    >
+                      <Heart 
+                        size={16} 
+                        fill={isFavorite(beat.id) ? "currentColor" : "none"} 
+                      />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -414,7 +461,13 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {newBeats.slice(0, 5).map((beat) => (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat}
+                    onToggleFavorite={toggleFavorite}
+                    isFavorite={isFavorite(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
+                  />
                 ))}
               </div>
             )}
@@ -619,7 +672,7 @@ export default function Home() {
                       <TableBody>
                         {producerOfWeek.beats.map((beat) => (
                           <TableRow key={beat.id}>
-                            <TableCell className="p-2">
+                            <TableCell className="p-2 relative">
                               <div className="w-10 h-10 rounded overflow-hidden">
                                 <img 
                                   src={beat.cover_image_url} 
@@ -627,6 +680,11 @@ export default function Home() {
                                   className="w-full h-full object-cover" 
                                 />
                               </div>
+                              {isPurchased(beat.id) && (
+                                <div className="absolute top-0 left-0 bg-green-500/90 text-white text-[10px] px-1 py-0.5 rounded-br-sm">
+                                  Owned
+                                </div>
+                              )}
                             </TableCell>
                             <TableCell className="font-medium max-w-[120px] truncate">{beat.title}</TableCell>
                             <TableCell className="hidden sm:table-cell">{beat.genre}</TableCell>
@@ -638,12 +696,33 @@ export default function Home() {
                                   variant="ghost" 
                                   size="icon" 
                                   className="h-8 w-8"
-                                  onClick={() => handlePlayBeat(beat)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePlayBeat(beat);
+                                  }}
                                 >
-                                  <Play size={16} />
+                                  {isCurrentlyPlaying(beat.id) ? (
+                                    <Pause size={16} />
+                                  ) : (
+                                    <Play size={16} />
+                                  )}
                                 </Button>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <Bookmark size={16} />
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className={cn(
+                                    "h-8 w-8",
+                                    isFavorite(beat.id) ? "text-purple-500" : ""
+                                  )}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleFavorite(beat.id);
+                                  }}
+                                >
+                                  <Heart 
+                                    size={16} 
+                                    fill={isFavorite(beat.id) ? "currentColor" : "none"} 
+                                  />
                                 </Button>
                               </div>
                             </TableCell>
