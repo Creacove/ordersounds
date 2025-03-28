@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -35,12 +34,13 @@ export default function Cart() {
     // Refresh purchased beats after successful payment
     fetchPurchasedBeats();
     
-    // Navigate to library
-    navigate('/buyer/library', { 
+    // Navigate to library using the correct path
+    navigate('/library', { 
       state: { 
         fromPurchase: true,
         purchaseTime: new Date().toISOString() 
-      } 
+      },
+      replace: true // Use replace to avoid issues with back navigation
     });
   };
   
@@ -90,12 +90,13 @@ export default function Cart() {
             clearCart();
             // Refresh purchased beats to ensure they show up in library
             await fetchPurchasedBeats();
-            // Navigate to library
-            navigate('/buyer/library', { 
+            // Navigate to library with the correct path
+            navigate('/library', { 
               state: { 
                 fromPurchase: true,
                 purchaseTime: new Date().toISOString() 
-              } 
+              },
+              replace: true
             });
           }
         } catch (err) {

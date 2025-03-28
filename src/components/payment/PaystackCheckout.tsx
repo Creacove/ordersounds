@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { usePaystackPayment } from 'react-paystack';
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { toast } from 'sonner';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
-// TypeScript interfaces for our component
 interface PaystackProps {
   onSuccess: (reference: string) => void;
   onClose: () => void;
@@ -17,25 +15,22 @@ interface PaystackProps {
   totalAmount: number;
 }
 
-// Define the types based on what react-paystack expects
 type Currency = 'NGN' | 'GHS' | 'USD' | 'ZAR';
 type Channels = Array<'card' | 'bank' | 'ussd' | 'qr' | 'mobile_money' | 'bank_transfer' | 'eft'>;
 
-// Define the configuration interface based on the actual library requirements
 interface PaystackConfig {
   reference: string;
   email: string;
   amount: number;
   publicKey: string;
-  currency?: Currency; // Updated to use the Currency type
-  channels?: Channels; // Updated to use the Channels type
+  currency?: Currency;
+  channels?: Channels;
   label?: string;
   onSuccess: (response: any) => void;
   onClose: () => void;
   metadata?: any;
 }
 
-// Main PaystackCheckout component
 export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: PaystackProps) {
   const { user } = useAuth();
   const { cartItems, clearCart, refreshCart } = useCart();
@@ -45,17 +40,15 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   const [validationError, setValidationError] = useState<string | null>(null);
   const [reference] = useState(() => `tr_${Date.now()}_${Math.floor(Math.random() * 1000)}`);
   
-  // Configure Paystack parameters - ensuring correct format and all required parameters
   const paystackConfig: PaystackConfig = {
     reference,
     email: user?.email || '',
-    amount: Math.round(totalAmount * 100), // Paystack requires amount in kobo (smallest unit)
-    publicKey: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Updated with the correct test public key
-    currency: 'NGN', // Now it's a valid Currency type
-    channels: ['card'], // Now it's a valid Channels type
+    amount: Math.round(totalAmount * 100),
+    publicKey: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8',
+    currency: 'NGN',
+    channels: ['card'],
     label: 'Payment for beats',
     onSuccess: (response: any) => {
-      // Handle successful payment
       const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
       if (storedOrderId) {
         handlePaymentSuccess(response.reference || reference, storedOrderId);
@@ -86,10 +79,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     }
   };
 
-  // Initialize the Paystack payment hook
   const initializePayment = usePaystackPayment(paystackConfig);
 
-  // Clean up any stale payment data on component mount/unmount
   useEffect(() => {
     return () => {
       if (!isProcessing) {
@@ -99,7 +90,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     };
   }, [isProcessing]);
 
-  // Reset validation error when dialog is opened
   useEffect(() => {
     if (isOpen) {
       setValidationError(null);
@@ -119,10 +109,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error('Your cart is empty. Add items before checkout.');
       }
       
-      // Extract beat IDs from cart
       const beatIds = cartItems.map(item => item.beat.id);
       
-      // Validate beats exist in the database
       const { data: beatsExist, error: beatCheckError } = await supabase
         .from('beats')
         .select('id, producer_id')
@@ -133,7 +121,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error(`Failed to validate beats: ${beatCheckError.message}`);
       }
       
-      // Check if all beats exist
       if (!beatsExist || beatsExist.length !== beatIds.length) {
         const existingIds = beatsExist?.map(b => b.id) || [];
         const missingIds = beatIds.filter(id => !existingIds.includes(id));
@@ -164,13 +151,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     setIsProcessing(true);
     
     try {
-      // First validate the cart items
       const isValid = await validateCartItems();
       if (!isValid) {
         throw new Error(validationError || 'Cart validation failed. Please try again.');
       }
       
-      // Create a pending order in the database
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
@@ -179,6 +164,14 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           payment_method: 'Paystack',
           status: 'pending',
           currency_used: 'NGN',
+          metadata: {
+            items: cartItems.map(item => ({
+              beat_id: item.beat.id,
+              title: item.beat.title,
+              price: item.beat.price_local,
+              license: item.beat.selected_license || 'basic'
+            }))
+          }
         })
         .select('id')
         .single();
@@ -192,7 +185,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error('Failed to create order: No order ID returned');
       }
       
-      // Add line items for this order
       const orderItems = cartItems.map(item => ({
         order_id: orderData.id,
         beat_id: item.beat.id,
@@ -209,15 +201,12 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         throw new Error(`Line items creation failed: ${lineItemError.message}`);
       }
       
-      // Store order ID in state and localStorage
       setOrderId(orderData.id);
       localStorage.setItem('pendingOrderId', orderData.id);
       localStorage.setItem('paystackReference', reference);
       
-      // Initialize Paystack payment
       console.log('Starting Paystack payment for order:', orderData.id);
       
-      // Call the initialization function properly
       initializePayment();
       
     } catch (error) {
@@ -231,7 +220,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     try {
       console.log('Payment success, verifying with backend...', paymentReference, orderId);
       
-      // Verify the payment was successful through our edge function
       const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
         body: { reference: paymentReference, orderId },
       });
@@ -244,21 +232,17 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       console.log('Verification response:', data);
       
       if (data.verified) {
-        // Process successful purchase
         const { error: purchaseError } = await processSuccessfulPurchase(orderId, user!.id, cartItems);
         
         if (purchaseError) {
           console.error('Error processing purchase:', purchaseError);
           toast.error('There was an issue completing your purchase. Please contact support.');
         } else {
-          // Clear the cart after successful purchase
           clearCart();
           toast.success('Payment successful! Your beats are now in your library.');
           
-          // Create notification for the user
           createPurchaseNotification(user!.id, cartItems.length);
           
-          // Create notifications for producers of the beats
           notifyProducers(cartItems);
           
           onSuccess(paymentReference);
@@ -272,16 +256,13 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     } finally {
       setIsProcessing(false);
       setOrderId(null);
-      // Clear stored order ID and reference
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
     }
   };
 
-  // Process successful purchase by adding beats to user's purchased beats
   const processSuccessfulPurchase = async (orderId: string, userId: string, items: any[]) => {
     try {
-      // Update order status to completed
       const { error: orderUpdateError } = await supabase
         .from('orders')
         .update({ status: 'completed' })
@@ -292,7 +273,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         return { error: orderUpdateError };
       }
       
-      // Add purchased beats to user_purchased_beats table
       const purchasedBeatsData = items.map(item => ({
         user_id: userId,
         beat_id: item.beat.id,
@@ -310,10 +290,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         return { error: purchaseInsertError };
       }
       
-      // Update purchase count for each beat using the Edge Function
       for (const item of items) {
         try {
-          // Call the update-beat-purchase edge function
           const { data: updateResult, error: updateError } = await supabase.functions.invoke('update-beat-purchase', {
             body: { 
               beatId: item.beat.id,
@@ -323,13 +301,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           
           if (updateError) {
             console.error(`Failed to update purchase count for beat ${item.beat.id}:`, updateError);
-            // Continue with other beats even if one fails
           } else {
             console.log(`Updated purchase count for beat ${item.beat.id}:`, updateResult);
           }
         } catch (err) {
           console.error(`Error updating purchase count for beat ${item.beat.id}:`, err);
-          // Continue with other beats even if one fails
         }
       }
       
@@ -340,7 +316,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     }
   };
 
-  // Create a notification for the user after successful purchase
   const createPurchaseNotification = async (userId: string, itemCount: number) => {
     try {
       await supabase
@@ -353,14 +328,11 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         });
     } catch (error) {
       console.error('Failed to create notification:', error);
-      // Don't throw error here, as the purchase was successful
     }
   };
-  
-  // Create notifications for producers when their beats are purchased
+
   const notifyProducers = async (items: any[]) => {
     try {
-      // Group beats by producer_id to reduce number of notifications
       const beatsByProducer = {};
       
       for (const item of items) {
@@ -377,7 +349,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         });
       }
       
-      // Create a notification for each producer
       for (const producerId in beatsByProducer) {
         const beatsCount = beatsByProducer[producerId].length;
         const beatTitles = beatsByProducer[producerId].map(b => b.title).join(', ');
@@ -395,7 +366,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       }
     } catch (error) {
       console.error('Failed to notify producers:', error);
-      // Don't throw error here, as the purchase was successful
     }
   };
 

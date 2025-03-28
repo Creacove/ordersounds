@@ -28,8 +28,9 @@ export default function Library() {
     if (fromPurchase) {
       setShowPurchaseSuccess(true);
       
-      // Only show the success message once
-      navigate(location.pathname, { replace: true });
+      // Only show the success message once by replacing the current location state
+      const currentPathname = location.pathname;
+      navigate(currentPathname, { replace: true });
       
       // Show a welcome toast
       toast.success('Welcome to your library! You can now enjoy your beats.', {

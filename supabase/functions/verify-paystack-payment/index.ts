@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -133,11 +132,36 @@ serve(async (req) => {
         
         // Only add purchases if they don't exist yet
         if (!existingPurchases || existingPurchases.length === 0) {
+          // Get license information from cart items if available
+          const beatLicenses = {};
+        
+          try {
+            // Try to get license info from metadata
+            const { data: orderData, error: orderError } = await supabaseClient
+              .from('orders')
+              .select('metadata')
+              .eq('id', orderId)
+              .single();
+            
+            if (!orderError && orderData?.metadata?.items) {
+              // Extract license info from metadata if available
+              const items = orderData.metadata.items;
+              items.forEach(item => {
+                if (item.beat_id && item.license) {
+                  beatLicenses[item.beat_id] = item.license;
+                }
+              });
+            }
+          } catch (licenseError) {
+            console.error('Error getting license info:', licenseError);
+            // Continue with basic license as fallback
+          }
+        
           // Add purchased beats to user's collection
           const purchasedItems = lineItems.map(item => ({
             user_id: orderData.buyer_id,
             beat_id: item.beat_id,
-            license_type: 'basic', // Default to basic, can be customized based on your needs
+            license_type: beatLicenses[item.beat_id] || 'basic',
             currency_code: item.currency_code,
             order_id: orderId,
           }));

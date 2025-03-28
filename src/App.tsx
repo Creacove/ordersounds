@@ -79,6 +79,7 @@ const App = () => (
                   
                   {/* Library Routes */}
                   <Route path="/library" element={<LibraryIndex />} />
+                  <Route path="/buyer/library" element={<LibraryIndex />} />
                   <Route path="/favorites" element={<Library />} />
                   <Route path="/purchased" element={<Library />} />
                   <Route path="/my-playlists" element={<Library />} />

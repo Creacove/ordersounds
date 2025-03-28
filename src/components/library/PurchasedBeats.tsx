@@ -17,19 +17,49 @@ export function PurchasedBeats() {
   const [purchasedBeats, setPurchasedBeats] = useState([]);
   const [downloadUrls, setDownloadUrls] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [purchaseDetails, setPurchaseDetails] = useState({});
 
   useEffect(() => {
     if (user) {
       // Set the purchased beats from the context
       setPurchasedBeats(getUserPurchasedBeats());
+      // Fetch purchase details for each beat (license type)
+      fetchPurchaseDetails();
     }
   }, [user, getUserPurchasedBeats]);
+
+  const fetchPurchaseDetails = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_purchased_beats')
+        .select('beat_id, license_type, created_at')
+        .eq('user_id', user.id);
+        
+      if (error) throw error;
+      
+      // Create a map of beat_id to license details
+      const detailsMap = {};
+      data.forEach(item => {
+        detailsMap[item.beat_id] = {
+          licenseType: item.license_type || 'basic',
+          purchaseDate: item.created_at
+        };
+      });
+      
+      setPurchaseDetails(detailsMap);
+    } catch (error) {
+      console.error('Error fetching purchase details:', error);
+    }
+  };
 
   const refreshPurchasedBeats = async () => {
     setIsRefreshing(true);
     try {
       await fetchPurchasedBeats();
       setPurchasedBeats(getUserPurchasedBeats());
+      await fetchPurchaseDetails();
       toast.success('Your library has been refreshed');
     } catch (error) {
       console.error('Error refreshing library:', error);
@@ -46,13 +76,11 @@ export function PurchasedBeats() {
         return downloadUrls[beatId];
       }
 
+      // Extract the file path from the full URL
+      const filePath = fullTrackUrl.replace('https://uoezlwkxhbzajdivrlby.supabase.co/storage/v1/object/public/beats/', '');
+      
       // Get a secure download URL that expires after some time
-      // This uses the original full track URL from Supabase Storage
-      const { data, error } = await supabase.storage.from('beats').createSignedUrl(
-        // Extract the path from the full URL - adjust this based on your storage structure
-        fullTrackUrl.replace('https://uoezlwkxhbzajdivrlby.supabase.co/storage/v1/object/public/beats/', ''), 
-        3600 // URL expires in 1 hour
-      );
+      const { data, error } = await supabase.storage.from('beats').createSignedUrl(filePath, 3600);
 
       if (error) {
         throw error;
@@ -86,6 +114,7 @@ export function PurchasedBeats() {
       const downloadUrl = await getDownloadUrl(beat.id, beat.full_track_url);
       
       if (!downloadUrl) {
+        toast.dismiss();
         toast.error('Failed to generate download link');
         return;
       }
@@ -93,7 +122,12 @@ export function PurchasedBeats() {
       // Create an invisible anchor and trigger download
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `${beat.title.replace(/\s+/g, '_')}_full.mp3`; // Create a clean filename
+      
+      // Get the license type for this beat
+      const license = purchaseDetails[beat.id]?.licenseType || 'basic';
+      
+      // Create a clean filename with license type included
+      link.download = `${beat.title.replace(/\s+/g, '_')}_${license}.mp3`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -102,6 +136,7 @@ export function PurchasedBeats() {
       toast.success('Download started!');
     } catch (error) {
       console.error('Download error:', error);
+      toast.dismiss();
       toast.error('Failed to download file');
     }
   };
@@ -175,7 +210,9 @@ export function PurchasedBeats() {
                   <BeatListItem beat={beat} />
                 </TableCell>
                 <TableCell>{beat.producer_name}</TableCell>
-                <TableCell>Basic License</TableCell>
+                <TableCell className="capitalize">
+                  {purchaseDetails[beat.id]?.licenseType || 'Basic'} License
+                </TableCell>
                 <TableCell className="text-right">
                   <Button
                     variant="outline"

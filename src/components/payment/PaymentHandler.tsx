@@ -39,14 +39,16 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
       if (onSuccess) {
         onSuccess();
       } else {
-        navigate('/buyer/library', { 
+        // Use the correct path to the library page
+        navigate('/library', { 
           state: { 
             fromPurchase: true,
             purchaseTime: new Date().toISOString() 
-          } 
+          },
+          replace: true // Use replace to avoid issues with back navigation
         });
       }
-    }, 1500);
+    }, 1000); // Reduced delay for better UX
   };
 
   const handlePaystackClose = () => {
