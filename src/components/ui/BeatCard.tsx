@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -185,6 +186,17 @@ export function BeatCard({
     local: getLicensePrice(beat, 'basic', false),
     diaspora: getLicensePrice(beat, 'basic', true)
   };
+
+  console.log('Beat pricing data:', {
+    beatId: beat.id,
+    beatTitle: beat.title,
+    basic_local: beat.basic_license_price_local,
+    basic_diaspora: beat.basic_license_price_diaspora,
+    price_local: beat.price_local,
+    price_diaspora: beat.price_diaspora,
+    calculatedLocal: licensePrice.local,
+    calculatedDiaspora: licensePrice.diaspora
+  });
 
   return (
     <div
