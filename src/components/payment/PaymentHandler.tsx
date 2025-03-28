@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useCart } from '@/context/CartContext';
 
 interface PaymentHandlerProps {
   totalAmount: number;
@@ -15,10 +16,16 @@ interface PaymentHandlerProps {
 export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) {
   const [isPaystackOpen, setIsPaystackOpen] = useState(false);
   const { currency, user } = useAuth();
+  const { clearCart } = useCart();
   const navigate = useNavigate();
 
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
+    
+    // Clear the cart after successful payment
+    clearCart();
+    
+    // Show success message
     toast.success('Payment completed successfully!');
     setIsPaystackOpen(false);
     
@@ -32,7 +39,12 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
       if (onSuccess) {
         onSuccess();
       } else {
-        navigate('/buyer/library');
+        navigate('/buyer/library', { 
+          state: { 
+            fromPurchase: true,
+            purchaseTime: new Date().toISOString() 
+          } 
+        });
       }
     }, 1500);
   };

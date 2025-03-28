@@ -6,15 +6,22 @@ import { toast } from "sonner";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { useBeats } from "@/hooks/useBeats";
 
 export default function Library() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const { fetchPurchasedBeats } = useBeats();
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
 
   useEffect(() => {
     document.title = "Library | OrderSOUNDS";
+    
+    // Refresh purchased beats when library is loaded
+    if (user) {
+      fetchPurchasedBeats();
+    }
     
     // Check if we're coming from a successful purchase
     const fromPurchase = location.state?.fromPurchase;
@@ -36,7 +43,24 @@ export default function Library() {
       
       return () => clearTimeout(timer);
     }
-  }, [location]);
+  }, [location, user, fetchPurchasedBeats, navigate]);
+
+  // Double check for pending orders that might need clearing
+  useEffect(() => {
+    const pendingOrderId = localStorage.getItem('pendingOrderId');
+    const paystackReference = localStorage.getItem('paystackReference');
+    
+    if (pendingOrderId && paystackReference) {
+      // Remove the pending order info
+      localStorage.removeItem('pendingOrderId');
+      localStorage.removeItem('paystackReference');
+      
+      // Refresh purchased beats to ensure they show up
+      if (user) {
+        fetchPurchasedBeats();
+      }
+    }
+  }, [user, fetchPurchasedBeats]);
 
   if (!user) {
     return (

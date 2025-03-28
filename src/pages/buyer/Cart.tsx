@@ -14,6 +14,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from "@/components/ui/badge";
 import { getLicensePrice } from "@/utils/licenseUtils";
 import { PaymentHandler } from "@/components/payment/PaymentHandler";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
@@ -28,8 +29,12 @@ export default function Cart() {
   };
   
   const handlePaymentSuccess = () => {
+    // Clear cart
+    clearCart();
+    
     // Refresh purchased beats after successful payment
     fetchPurchasedBeats();
+    
     // Navigate to library
     navigate('/buyer/library', { 
       state: { 
@@ -61,23 +66,50 @@ export default function Cart() {
     if (cartItems.length > 0) {
       refreshCart();
     }
-  }, [refreshCart]);
+  }, [refreshCart, cartItems.length]);
 
   // Check if we are returning from a successful purchase
   useEffect(() => {
     const pendingOrderId = localStorage.getItem('pendingOrderId');
     const paystackReference = localStorage.getItem('paystackReference');
     
-    if (pendingOrderId && paystackReference && cartItems.length === 0) {
-      // We likely just completed a purchase but failed to redirect
-      toast.success('Your purchase was successful!');
-      localStorage.removeItem('pendingOrderId');
-      localStorage.removeItem('paystackReference');
+    if (pendingOrderId && paystackReference && user) {
+      // Try to verify the payment one more time
+      const verifyPayment = async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
+            body: {
+              reference: paystackReference,
+              orderId: pendingOrderId
+            }
+          });
+          
+          if (!error && data?.verified) {
+            toast.success('Your purchase was successful!');
+            // Clear cart
+            clearCart();
+            // Refresh purchased beats to ensure they show up in library
+            await fetchPurchasedBeats();
+            // Navigate to library
+            navigate('/buyer/library', { 
+              state: { 
+                fromPurchase: true,
+                purchaseTime: new Date().toISOString() 
+              } 
+            });
+          }
+        } catch (err) {
+          console.error('Error verifying payment:', err);
+        } finally {
+          // Clear the pending order from localStorage
+          localStorage.removeItem('pendingOrderId');
+          localStorage.removeItem('paystackReference');
+        }
+      };
       
-      // Refresh purchased beats to ensure they show up in library
-      fetchPurchasedBeats();
+      verifyPayment();
     }
-  }, []);
+  }, [clearCart, navigate, fetchPurchasedBeats, user]);
 
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';

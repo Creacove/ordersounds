@@ -82,161 +82,181 @@ serve(async (req) => {
 
       console.log(`Updating order ${orderId} to completed status`);
       
-      // Update order status
-      const { error: updateError } = await supabaseClient
+      // First check if order has already been processed
+      const { data: orderData, error: orderCheckError } = await supabaseClient
         .from('orders')
-        .update({
-          status: 'completed',
-          consent_timestamp: new Date().toISOString(),
-        })
-        .eq('id', orderId);
-
-      if (updateError) {
-        console.error('Failed to update order status:', updateError);
-        throw new Error(`Database update failed: ${updateError.message}`);
-      }
-
-      // Get cart items associated with this order
-      const { data: lineItems, error: lineItemsError } = await supabaseClient
-        .from('line_items')
-        .select('beat_id, price_charged, currency_code')
-        .eq('order_id', orderId);
-
-      if (lineItemsError) {
-        console.error('Failed to fetch line items:', lineItemsError);
-        throw new Error(`Failed to fetch order items: ${lineItemsError.message}`);
-      }
-
-      // Get buyer ID from order
-      const { data: orderData, error: orderError } = await supabaseClient
-        .from('orders')
-        .select('buyer_id')
+        .select('status, buyer_id')
         .eq('id', orderId)
         .single();
-
-      if (orderError || !orderData) {
-        console.error('Failed to fetch order details:', orderError);
-        throw new Error(`Failed to fetch order details: ${orderError?.message || 'Order not found'}`);
-      }
-
-      // Get beat details to identify producers
-      const beatIds = lineItems.map(item => item.beat_id);
-      const { data: beats, error: beatsError } = await supabaseClient
-        .from('beats')
-        .select('id, title, producer_id')
-        .in('id', beatIds);
         
-      if (beatsError) {
-        console.error('Failed to fetch beat details:', beatsError);
-        // Continue processing, but without producer notifications
+      if (orderCheckError) {
+        console.error('Failed to check order status:', orderCheckError);
+        throw new Error(`Failed to check order: ${orderCheckError.message}`);
       }
       
-      // Create map of beats by ID for easy lookup
-      const beatsById = {};
-      if (beats) {
-        beats.forEach(beat => {
-          beatsById[beat.id] = beat;
-        });
-      }
+      // Only proceed if order is still pending
+      if (orderData.status !== 'completed') {
+        // Update order status
+        const { error: updateError } = await supabaseClient
+          .from('orders')
+          .update({
+            status: 'completed',
+            consent_timestamp: new Date().toISOString(),
+          })
+          .eq('id', orderId);
 
-      // Add purchased beats to user's collection
-      const purchasedItems = lineItems.map(item => ({
-        user_id: orderData.buyer_id,
-        beat_id: item.beat_id,
-        license_type: 'basic', // Default to basic, can be customized based on your needs
-        currency_code: item.currency_code,
-        order_id: orderId,
-      }));
-      
-      if (purchasedItems.length > 0) {
-        console.log(`Adding ${purchasedItems.length} purchased beats to user collection`);
-        const { error: purchaseError } = await supabaseClient
-          .from('user_purchased_beats')
-          .insert(purchasedItems);
-        
-        if (purchaseError) {
-          console.error('Failed to record purchases:', purchaseError);
-          throw new Error(`Recording purchases failed: ${purchaseError.message}`);
+        if (updateError) {
+          console.error('Failed to update order status:', updateError);
+          throw new Error(`Database update failed: ${updateError.message}`);
         }
-      }
 
-      // Create notification for buyer
-      const { error: buyerNotificationError } = await supabaseClient
-        .from('notifications')
-        .insert({
-          recipient_id: orderData.buyer_id,
-          title: 'Purchase Completed Successfully',
-          body: `Your order has been processed. ${purchasedItems.length} beat${purchasedItems.length === 1 ? '' : 's'} added to your library.`,
-          is_read: false
-        });
-        
-      if (buyerNotificationError) {
-        console.error('Failed to create buyer notification:', buyerNotificationError);
-        // Continue processing even if notification fails
-      }
-      
-      // Create notifications for producers
-      if (beats) {
-        // Group beats by producer
-        const beatsByProducer = {};
-        beats.forEach(beat => {
-          if (!beat.producer_id) return;
+        // Get cart items associated with this order
+        const { data: lineItems, error: lineItemsError } = await supabaseClient
+          .from('line_items')
+          .select('beat_id, price_charged, currency_code')
+          .eq('order_id', orderId);
+
+        if (lineItemsError) {
+          console.error('Failed to fetch line items:', lineItemsError);
+          throw new Error(`Failed to fetch order items: ${lineItemsError.message}`);
+        }
+
+        // Check if purchased items are already recorded
+        const { data: existingPurchases, error: checkPurchasesError } = await supabaseClient
+          .from('user_purchased_beats')
+          .select('id')
+          .eq('order_id', orderId);
           
-          if (!beatsByProducer[beat.producer_id]) {
-            beatsByProducer[beat.producer_id] = [];
+        if (checkPurchasesError) {
+          console.error('Failed to check existing purchases:', checkPurchasesError);
+        }
+        
+        // Only add purchases if they don't exist yet
+        if (!existingPurchases || existingPurchases.length === 0) {
+          // Add purchased beats to user's collection
+          const purchasedItems = lineItems.map(item => ({
+            user_id: orderData.buyer_id,
+            beat_id: item.beat_id,
+            license_type: 'basic', // Default to basic, can be customized based on your needs
+            currency_code: item.currency_code,
+            order_id: orderId,
+          }));
+          
+          if (purchasedItems.length > 0) {
+            console.log(`Adding ${purchasedItems.length} purchased beats to user collection`);
+            const { error: purchaseError } = await supabaseClient
+              .from('user_purchased_beats')
+              .insert(purchasedItems);
+            
+            if (purchaseError) {
+              console.error('Failed to record purchases:', purchaseError);
+              throw new Error(`Recording purchases failed: ${purchaseError.message}`);
+            }
           }
+        } else {
+          console.log(`Purchases already recorded for order ${orderId}`);
+        }
+
+        // Get beat details to identify producers
+        const beatIds = lineItems.map(item => item.beat_id);
+        const { data: beats, error: beatsError } = await supabaseClient
+          .from('beats')
+          .select('id, title, producer_id')
+          .in('id', beatIds);
           
-          beatsByProducer[beat.producer_id].push({
-            id: beat.id,
-            title: beat.title
-          });
-        });
+        if (beatsError) {
+          console.error('Failed to fetch beat details:', beatsError);
+          // Continue processing, but without producer notifications
+        }
         
-        // Create notifications for each producer
-        for (const producerId in beatsByProducer) {
-          const producerBeats = beatsByProducer[producerId];
+        // Create map of beats by ID for easy lookup
+        const beatsById = {};
+        if (beats) {
+          beats.forEach(beat => {
+            beatsById[beat.id] = beat;
+          });
+        }
+
+        // Create notification for buyer
+        const { error: buyerNotificationError } = await supabaseClient
+          .from('notifications')
+          .insert({
+            recipient_id: orderData.buyer_id,
+            title: 'Purchase Completed Successfully',
+            body: `Your order has been processed. ${lineItems.length} beat${lineItems.length === 1 ? '' : 's'} added to your library.`,
+            is_read: false
+          });
           
-          // Don't notify producer if they are the buyer (self-purchase)
-          if (producerId === orderData.buyer_id) continue;
+        if (buyerNotificationError) {
+          console.error('Failed to create buyer notification:', buyerNotificationError);
+          // Continue processing even if notification fails
+        }
+        
+        // Create notifications for producers
+        if (beats) {
+          // Group beats by producer
+          const beatsByProducer = {};
+          beats.forEach(beat => {
+            if (!beat.producer_id) return;
+            
+            if (!beatsByProducer[beat.producer_id]) {
+              beatsByProducer[beat.producer_id] = [];
+            }
+            
+            beatsByProducer[beat.producer_id].push({
+              id: beat.id,
+              title: beat.title
+            });
+          });
           
-          const { error: producerNotificationError } = await supabaseClient
-            .from('notifications')
-            .insert({
-              recipient_id: producerId,
-              title: 'New Beat Sale!',
-              body: producerBeats.length === 1
-                ? `Congratulations! Your beat "${producerBeats[0].title}" was just purchased.`
-                : `Congratulations! ${producerBeats.length} of your beats were just purchased.`,
-              is_read: false
+          // Create notifications for each producer
+          for (const producerId in beatsByProducer) {
+            const producerBeats = beatsByProducer[producerId];
+            
+            // Don't notify producer if they are the buyer (self-purchase)
+            if (producerId === orderData.buyer_id) continue;
+            
+            const { error: producerNotificationError } = await supabaseClient
+              .from('notifications')
+              .insert({
+                recipient_id: producerId,
+                title: 'New Beat Sale!',
+                body: producerBeats.length === 1
+                  ? `Congratulations! Your beat "${producerBeats[0].title}" was just purchased.`
+                  : `Congratulations! ${producerBeats.length} of your beats were just purchased.`,
+                is_read: false
+              });
+              
+            if (producerNotificationError) {
+              console.error(`Failed to create notification for producer ${producerId}:`, producerNotificationError);
+              // Continue processing even if notification fails
+            }
+          }
+        }
+
+        // Update purchase count for each beat
+        for (const item of lineItems) {
+          try {
+            // Update purchase count using RPC function
+            const { error: incrementError } = await supabaseClient.rpc('increment', {
+              row_id: item.beat_id,
+              table_name: 'beats',
+              column_name: 'purchase_count',
             });
             
-          if (producerNotificationError) {
-            console.error(`Failed to create notification for producer ${producerId}:`, producerNotificationError);
-            // Continue processing even if notification fails
-          }
-        }
-      }
-
-      // Update purchase count for each beat
-      for (const item of lineItems) {
-        try {
-          // Update purchase count using RPC function
-          const { error: incrementError } = await supabaseClient.rpc('increment', {
-            row_id: item.beat_id,
-            table_name: 'beats',
-            column_name: 'purchase_count',
-          });
-          
-          if (incrementError) {
-            console.error(`Failed to update purchase count for beat ${item.beat_id}:`, incrementError);
+            if (incrementError) {
+              console.error(`Failed to update purchase count for beat ${item.beat_id}:`, incrementError);
+              // Continue with other beats even if one fails
+            } else {
+              console.log(`Updated purchase count for beat ${item.beat_id}`);
+            }
+          } catch (err) {
+            console.error(`Error updating purchase count for beat ${item.beat_id}:`, err);
             // Continue with other beats even if one fails
-          } else {
-            console.log(`Updated purchase count for beat ${item.beat_id}`);
           }
-        } catch (err) {
-          console.error(`Error updating purchase count for beat ${item.beat_id}:`, err);
-          // Continue with other beats even if one fails
         }
+      } else {
+        console.log(`Order ${orderId} already completed, skipping updates`);
       }
 
       // Log transaction details for auditing
