@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -21,6 +22,7 @@ export default function Cart() {
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const location = useLocation();
+  const [redirectingFromPayment, setRedirectingFromPayment] = useState(false);
   
   const handleRemoveItem = (beatId: string) => {
     removeFromCart(beatId);
@@ -53,20 +55,49 @@ export default function Cart() {
       refreshCart();
     }
     
+    // Check if we're in the middle of a payment process
     const pendingOrderId = localStorage.getItem('pendingOrderId');
     const paystackReference = localStorage.getItem('paystackReference');
+    const paymentInProgress = localStorage.getItem('paymentInProgress');
     
-    if (pendingOrderId && paystackReference) {
+    if ((pendingOrderId && paystackReference) || paymentInProgress === 'true') {
+      setRedirectingFromPayment(true);
+      
+      // Redirect to library with purchased tab
       console.log('Detected payment in progress, redirecting to library...');
+      
+      // Clean up payment data before redirect
+      localStorage.removeItem('pendingOrderId');
+      localStorage.removeItem('paystackReference');
+      localStorage.removeItem('paymentInProgress');
+      
+      // Set purchase success flag
+      localStorage.setItem('purchaseSuccess', 'true');
+      localStorage.setItem('purchaseTime', new Date().toISOString());
+      
+      // Redirect to library with purchased tab active
       navigate('/library', { 
         state: { 
           fromPurchase: true,
-          purchaseTime: new Date().toISOString() 
+          purchaseTime: new Date().toISOString(),
+          activeTab: 'purchased'
         },
         replace: true
       });
     }
-  }, [refreshCart, cartItems.length, navigate]);
+  }, [refreshCart, cartItems.length, navigate, fetchPurchasedBeats]);
+
+  // Clean up any leftover payment data
+  useEffect(() => {
+    return () => {
+      if (!redirectingFromPayment) {
+        localStorage.removeItem('pendingOrderId');
+        localStorage.removeItem('paystackReference');
+        localStorage.removeItem('orderItems');
+        localStorage.removeItem('paymentInProgress');
+      }
+    };
+  }, [redirectingFromPayment]);
 
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';

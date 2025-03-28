@@ -214,6 +214,10 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       
       console.log('Starting Paystack payment for order:', orderData.id);
       
+      // Set pre-redirect state to indicate payment in progress
+      localStorage.setItem('paymentInProgress', 'true');
+      localStorage.setItem('redirectToLibrary', 'purchased');
+      
       // Use a slight delay before initializing payment to ensure UI updates
       setTimeout(() => {
         initializePayment();
@@ -262,7 +266,6 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       if (data.verified) {
         // Dismiss the loading toast
         toast.dismiss('payment-verification');
-        toast.success('Payment successful! Your beats are now in your library.');
         
         // Close the dialog
         onClose();
@@ -270,14 +273,21 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         // Fetch newly purchased beats to update the library
         await fetchPurchasedBeats();
         
+        // Set success flag to trigger UI update in Library component
+        localStorage.setItem('purchaseSuccess', 'true');
+        localStorage.setItem('purchaseTime', new Date().toISOString());
+        
         // Navigate to library with state to show success notification
+        // Use 'purchased' tab as the default active tab after purchase
         navigate('/library', { 
           state: { 
             fromPurchase: true,
-            purchaseTime: new Date().toISOString() 
+            purchaseTime: new Date().toISOString()
           },
           replace: true // Use replace to avoid issues with back navigation
         });
+        
+        toast.success('Payment successful! Your beats are now in your library.');
       } else {
         toast.dismiss('payment-verification');
         toast.error('Payment verification failed. Please contact support with your reference: ' + paymentReference);
@@ -295,6 +305,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('orderItems');
+      localStorage.removeItem('paymentInProgress');
     }
   };
 

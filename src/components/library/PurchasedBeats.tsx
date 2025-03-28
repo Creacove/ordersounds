@@ -6,16 +6,18 @@ import { EmptyState } from './EmptyState';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BeatListItem } from '@/components/ui/BeatListItem';
-import { DownloadIcon, RefreshCw, Music } from 'lucide-react';
+import { DownloadIcon, RefreshCw, Music, Play, Pause } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useLocation } from 'react-router-dom';
+import { usePlayer } from '@/context/PlayerContext';
 
 export function PurchasedBeats() {
   const { getUserPurchasedBeats, fetchPurchasedBeats, isPurchased, isLoading } = useBeats();
   const { user } = useAuth();
+  const { isPlaying, currentBeat, playBeat } = usePlayer();
   const [downloadUrls, setDownloadUrls] = useState({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [purchaseDetails, setPurchaseDetails] = useState({});
@@ -36,7 +38,8 @@ export function PurchasedBeats() {
       setBeatsLoaded(true);
       
       // If we came from a purchase, make sure to refresh the list
-      if (location.state?.fromPurchase) {
+      const fromPurchase = location.state?.fromPurchase || localStorage.getItem('purchaseSuccess') === 'true';
+      if (fromPurchase) {
         refreshPurchasedBeats();
       }
     }
@@ -87,6 +90,18 @@ export function PurchasedBeats() {
       toast.error('Failed to refresh your library');
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const handlePlayBeat = (beat) => {
+    if (currentBeat?.id === beat.id) {
+      if (isPlaying) {
+        playBeat(null);
+      } else {
+        playBeat(beat);
+      }
+    } else {
+      playBeat(beat);
     }
   };
 
@@ -219,9 +234,29 @@ export function PurchasedBeats() {
       {isMobile ? (
         <div className="space-y-3">
           {purchasedBeats.map((beat) => (
-            <div key={beat.id} className="relative">
-              <BeatListItem beat={beat} />
-              <div className="absolute top-3 right-3">
+            <div key={beat.id} className="relative border rounded-lg overflow-hidden">
+              <div className="flex items-center space-x-3 p-3">
+                <div 
+                  className="relative h-14 w-14 flex-shrink-0 rounded-md overflow-hidden cursor-pointer group"
+                  onClick={() => handlePlayBeat(beat)}
+                >
+                  <img
+                    src={beat.cover_image_url}
+                    alt={beat.title}
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    {isPlaying && currentBeat?.id === beat.id ? (
+                      <Pause className="h-5 w-5 text-white" />
+                    ) : (
+                      <Play className="h-5 w-5 ml-0.5 text-white" />
+                    )}
+                  </div>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-medium text-sm truncate">{beat.title}</h3>
+                  <p className="text-xs text-muted-foreground">{beat.producer_name}</p>
+                </div>
                 <Button
                   variant="secondary"
                   size="sm"

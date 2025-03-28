@@ -24,6 +24,7 @@ export default function Library() {
   const { fetchPurchasedBeats } = useBeats();
 
   useEffect(() => {
+    // Check the route to determine which tab should be active
     if (location.pathname.includes("/favorites")) {
       setActiveTab("favorites");
     } else if (location.pathname.includes("/my-playlists")) {
@@ -31,18 +32,33 @@ export default function Library() {
     } else {
       setActiveTab("purchased");
     }
-  }, [location.pathname]);
+    
+    // Check if activeTab is explicitly provided in state
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.pathname, location.state]);
 
   useEffect(() => {
     document.title = "Library | OrderSOUNDS";
     
+    // Check for purchase success from various sources
     const fromPurchase = location.state?.fromPurchase;
-    if (fromPurchase) {
+    const purchaseSuccess = localStorage.getItem('purchaseSuccess');
+    
+    if (fromPurchase || purchaseSuccess === 'true') {
       setShowPurchaseSuccess(true);
+      
+      // If we have a pending purchase, ensure we're on the purchased tab
+      setActiveTab("purchased");
       
       // Clear the state to prevent showing the success message again on refresh
       const currentPathname = location.pathname;
-      navigate(currentPathname, { replace: true, state: {} });
+      navigate(currentPathname, { replace: true, state: { activeTab: "purchased" } });
+      
+      // Remove localStorage flags
+      localStorage.removeItem('purchaseSuccess');
+      localStorage.removeItem('purchaseTime');
       
       // Refresh purchased beats data to ensure latest purchases are visible
       fetchPurchasedBeats().then(() => {
@@ -64,6 +80,7 @@ export default function Library() {
     localStorage.removeItem('pendingOrderId');
     localStorage.removeItem('paystackReference');
     localStorage.removeItem('orderItems');
+    localStorage.removeItem('paymentInProgress');
   }, []);
 
   const handleTabChange = (value) => {
