@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { CreatePlaylistForm } from './CreatePlaylistForm';
 import { PlaylistCard } from './PlaylistCard';
+import { useNavigate } from 'react-router-dom';
 
 export function UserPlaylists() {
   const { user } = useAuth();
@@ -17,6 +18,7 @@ export function UserPlaylists() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const navigate = useNavigate();
 
   const fetchPlaylists = async () => {
     if (!user) return;
@@ -27,7 +29,7 @@ export function UserPlaylists() {
         .from('playlists')
         .select('*')
         .eq('owner_id', user.id)
-        .order('created_date', { ascending: false });
+        .order('created_at', { ascending: false });
         
       if (error) throw error;
       
@@ -80,6 +82,10 @@ export function UserPlaylists() {
       console.error('Error creating playlist:', error);
       toast.error('Failed to create playlist');
     }
+  };
+
+  const handlePlaylistClick = (playlistId) => {
+    navigate(`/my-playlists/${playlistId}`);
   };
 
   if (isLoading) {
@@ -142,12 +148,16 @@ export function UserPlaylists() {
           title="No playlists yet"
           description="Create playlists to organize your favorite beats"
           actionLabel="Create Playlist"
-          actionOnClick={() => setDialogOpen(true)}
+          onAction={() => setDialogOpen(true)}
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {playlists.map((playlist) => (
-            <PlaylistCard key={playlist.id} playlist={playlist} />
+            <PlaylistCard 
+              key={playlist.id} 
+              playlist={playlist} 
+              onClick={handlePlaylistClick}
+            />
           ))}
         </div>
       )}

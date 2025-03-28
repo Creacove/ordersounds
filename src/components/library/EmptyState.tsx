@@ -10,6 +10,7 @@ interface EmptyStateProps {
   actionLabel?: string;
   actionHref?: string;
   onAction?: () => void;
+  actionOnClick?: () => void; // Added this prop to support both naming styles
 }
 
 export function EmptyState({
@@ -18,8 +19,12 @@ export function EmptyState({
   description,
   actionLabel,
   actionHref,
-  onAction
+  onAction,
+  actionOnClick
 }: EmptyStateProps) {
+  // Use onAction or actionOnClick, with actionOnClick taking precedence
+  const handleAction = actionOnClick || onAction;
+  
   return (
     <div className="text-center p-12 bg-card rounded-lg">
       <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
@@ -30,7 +35,7 @@ export function EmptyState({
         {description}
       </p>
       {actionLabel && (
-        <Button onClick={onAction} asChild={!!actionHref}>
+        <Button onClick={handleAction} asChild={!!actionHref}>
           {actionHref ? <a href={actionHref}>{actionLabel}</a> : actionLabel}
         </Button>
       )}

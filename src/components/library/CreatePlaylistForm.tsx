@@ -2,22 +2,32 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { DialogTitle, DialogHeader, DialogDescription } from '@/components/ui/dialog';
 
-interface CreatePlaylistFormProps {
-  onSubmit: (name: string) => Promise<void>;
-  onCancel: () => void;
+interface PlaylistData {
+  name: string;
+  isPublic: boolean;
+  coverImage?: string;
 }
 
-export function CreatePlaylistForm({ onSubmit, onCancel }: CreatePlaylistFormProps) {
+interface CreatePlaylistFormProps {
+  onSubmit: (data: PlaylistData) => Promise<void>;
+}
+
+export function CreatePlaylistForm({ onSubmit }: CreatePlaylistFormProps) {
   const [name, setName] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!name.trim()) return;
     
     setIsSubmitting(true);
     try {
-      await onSubmit(name);
+      await onSubmit({ name: name.trim(), isPublic });
       setName('');
     } finally {
       setIsSubmitting(false);
@@ -25,28 +35,44 @@ export function CreatePlaylistForm({ onSubmit, onCancel }: CreatePlaylistFormPro
   };
 
   return (
-    <div className="mb-6 p-4 bg-card rounded-lg animate-slide-down">
-      <h3 className="text-sm font-medium mb-2">Create new playlist</h3>
-      <div className="flex gap-2">
-        <Input
-          placeholder="Playlist name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="flex-grow"
-        />
+    <form onSubmit={handleSubmit}>
+      <DialogHeader>
+        <DialogTitle>Create new playlist</DialogTitle>
+        <DialogDescription>
+          Add a name and privacy setting for your new playlist.
+        </DialogDescription>
+      </DialogHeader>
+      
+      <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="name">Playlist name</Label>
+          <Input
+            id="name"
+            placeholder="Enter playlist name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Switch 
+            id="public"
+            checked={isPublic}
+            onCheckedChange={setIsPublic}
+          />
+          <Label htmlFor="public">Make playlist public</Label>
+        </div>
+      </div>
+      
+      <div className="flex justify-end gap-2">
         <Button 
-          onClick={handleSubmit} 
+          type="submit" 
           disabled={!name.trim() || isSubmitting}
         >
-          Create
-        </Button>
-        <Button 
-          variant="ghost" 
-          onClick={onCancel}
-        >
-          Cancel
+          {isSubmitting ? 'Creating...' : 'Create Playlist'}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }
