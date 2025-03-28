@@ -32,13 +32,17 @@ export default function Cart() {
   
   const handlePaymentSuccess = () => {
     console.log("Payment success handler in Cart called");
+    // Clear the cart
     clearCart();
     
-    // Redirect to library
+    // Set flag for successful purchase
     localStorage.setItem('purchaseSuccess', 'true');
-    localStorage.setItem('purchaseTime', new Date().toISOString());
+    localStorage.setItem('purchaseTime', Date.now().toString());
     
-    // Use window.location for a hard redirect
+    // Show success toast
+    toast.success('Payment successful! Redirecting to your library...');
+    
+    // Force redirect to library
     window.location.href = '/library';
   };
   
@@ -58,10 +62,10 @@ export default function Cart() {
     }
   };
 
+  // Set up real-time listener for purchase events
   useEffect(() => {
     if (!user) return;
     
-    // Set up real-time listener for purchase events
     const channel = supabase
       .channel('purchased-beats-changes')
       .on(
@@ -77,9 +81,9 @@ export default function Cart() {
           fetchPurchasedBeats().then(() => {
             clearCart();
             localStorage.setItem('purchaseSuccess', 'true');
-            localStorage.setItem('purchaseTime', new Date().toISOString());
+            localStorage.setItem('purchaseTime', Date.now().toString());
             
-            // Hard redirect to library
+            // Force redirect to library
             window.location.href = '/library';
           });
         }
@@ -97,7 +101,9 @@ export default function Cart() {
       refreshCart();
     }
     
+    // Check for successful purchase
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
+    const paymentInProgress = localStorage.getItem('paymentInProgress');
     
     if (purchaseSuccess === 'true' && !redirectingFromPayment) {
       setRedirectingFromPayment(true);
@@ -110,11 +116,25 @@ export default function Cart() {
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('paymentInProgress');
       
-      // Hard redirect to library
+      // Force redirect to library
       window.location.href = '/library';
+    }
+    
+    // Check if payment was initiated but not completed
+    if (paymentInProgress === 'true') {
+      const purchaseTime = localStorage.getItem('purchaseTime');
+      const now = Date.now();
+      const timeDiff = purchaseTime ? now - parseInt(purchaseTime) : 0;
+      
+      // If more than 5 minutes have passed, clear the payment flags
+      if (timeDiff > 5 * 60 * 1000) {
+        localStorage.removeItem('paymentInProgress');
+        localStorage.removeItem('purchaseTime');
+      }
     }
   }, [refreshCart, cartItems.length, navigate, clearCart, redirectingFromPayment]);
 
+  // Cleanup localStorage on component unmount
   useEffect(() => {
     return () => {
       if (!redirectingFromPayment) {

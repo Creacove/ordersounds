@@ -52,9 +52,11 @@ export function usePurchasedBeats() {
 
   // Split initial loading into separate effects for better performance
   useEffect(() => {
-    // Only set the flag to indicate beats are loaded
     if (user) {
-      setBeatsLoaded(true);
+      // Force fetch purchased beats on initial load to make sure we have the latest data
+      fetchPurchasedBeats().then(() => {
+        setBeatsLoaded(true);
+      });
       
       // If we came from a purchase, make sure to refresh the list
       const fromPurchase = location.state?.fromPurchase || localStorage.getItem('purchaseSuccess') === 'true';
@@ -62,7 +64,7 @@ export function usePurchasedBeats() {
         refreshPurchasedBeats();
       }
     }
-  }, [user, location.state]);
+  }, [user, location.state, fetchPurchasedBeats]);
 
   // Load purchase details separately from beats to improve performance
   useEffect(() => {
@@ -100,6 +102,7 @@ export function usePurchasedBeats() {
   const refreshPurchasedBeats = async () => {
     setIsRefreshing(true);
     try {
+      console.log('Refreshing purchased beats...');
       await fetchPurchasedBeats();
       await fetchPurchaseDetails();
       setBeatsLoaded(true);

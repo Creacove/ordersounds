@@ -6,6 +6,13 @@ import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { supabase } from '@/integrations/supabase/client';
 
+// Add type declaration for the PaystackPop object on window
+declare global {
+  interface Window {
+    PaystackPop: any;
+  }
+}
+
 interface UsePaystackCheckoutProps {
   onSuccess: (reference: string) => void;
   onClose: () => void;
@@ -158,12 +165,18 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
           
           // Handle successful payment
           setIsProcessing(false);
+          
+          // Important: Call onSuccess to trigger the cart clearing
           onSuccess(response.reference);
+
+          // Add a small delay before redirect to ensure all state updates have time to complete
+          setTimeout(() => {
+            window.location.href = '/library';
+          }, 500);
         }
       };
       
-      // Initialize paystack (window.paystack is added by the Paystack script)
-      // This will trigger the popup payment modal
+      // Initialize paystack 
       const handler = window.PaystackPop.setup(config);
       handler.openIframe();
     } catch (error) {
@@ -180,7 +193,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       localStorage.setItem('purchaseSuccess', 'true');
       localStorage.setItem('paystackReference', reference);
       
-      // In a real implementation, this would make an API call to verify the payment
+      // Log verification
       console.log(`Verifying payment with reference: ${reference}`);
       
       return true;

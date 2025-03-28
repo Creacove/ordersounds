@@ -5,6 +5,7 @@ import { PaystackCheckout } from './PaystackCheckout';
 import { useAuth } from '@/context/AuthContext';
 import { AlertCircle } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
+import { toast } from 'sonner';
 
 interface PaymentHandlerProps {
   totalAmount: number;
@@ -21,6 +22,13 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     
     // Clear the cart after successful payment
     clearCart();
+    
+    // Set success flags in localStorage
+    localStorage.setItem('purchaseSuccess', 'true');
+    localStorage.setItem('purchaseTime', Date.now().toString());
+    
+    // Show success toast
+    toast.success('Payment successful! Redirecting to your library...');
     
     // Call onSuccess callback if provided
     if (onSuccess) {

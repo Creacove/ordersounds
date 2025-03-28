@@ -45,6 +45,11 @@ export default function Library() {
           fetchPurchasedBeats();
           setActiveTab("purchased");
           setShowPurchaseSuccess(true);
+          
+          // Set a timeout to show the success message for 10 seconds
+          setTimeout(() => {
+            setShowPurchaseSuccess(false);
+          }, 10000);
         }
       )
       .subscribe();
@@ -76,8 +81,9 @@ export default function Library() {
     // Check for purchase success from various sources
     const fromPurchase = location.state?.fromPurchase;
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
+    const redirectToLibrary = localStorage.getItem('redirectToLibrary');
     
-    if (fromPurchase || purchaseSuccess === 'true') {
+    if (fromPurchase || purchaseSuccess === 'true' || redirectToLibrary === 'true') {
       setShowPurchaseSuccess(true);
       
       // If we have a pending purchase, ensure we're on the purchased tab
@@ -90,6 +96,8 @@ export default function Library() {
       // Remove localStorage flags
       localStorage.removeItem('purchaseSuccess');
       localStorage.removeItem('purchaseTime');
+      localStorage.removeItem('redirectToLibrary');
+      localStorage.removeItem('paymentInProgress');
       
       // Refresh purchased beats data to ensure latest purchases are visible
       fetchPurchasedBeats().then(() => {
