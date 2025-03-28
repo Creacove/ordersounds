@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { PurchasedBeats } from '@/components/library/PurchasedBeats';
 
 export default function LibraryIndex() {
   const [playlists, setPlaylists] = useState([]);
@@ -13,10 +12,6 @@ export default function LibraryIndex() {
       <h1 className="text-2xl font-bold mb-6">Your Library</h1>
       
       <div className="space-y-8">
-        {/* Add the PurchasedBeats component at the top */}
-        <PurchasedBeats />
-        
-        {/* Keep existing playlist components */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-bold">Your Playlists</h2>

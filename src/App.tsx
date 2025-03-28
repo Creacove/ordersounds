@@ -78,8 +78,8 @@ const App = () => (
                   <Route path="/producer/:producerId" element={<ProducerProfile />} />
                   
                   {/* Library Routes */}
-                  <Route path="/library" element={<LibraryIndex />} />
-                  <Route path="/buyer/library" element={<LibraryIndex />} />
+                  <Route path="/library" element={<Library />} />
+                  <Route path="/buyer/library" element={<Library />} />
                   <Route path="/favorites" element={<Library />} />
                   <Route path="/purchased" element={<Library />} />
                   <Route path="/my-playlists" element={<Library />} />
