@@ -15,6 +15,7 @@ interface CartContextType {
   cartItems: CartItem[];
   totalAmount: number;
   addToCart: (beat: Beat & { selected_license?: string }) => void;
+  addMultipleToCart: (beats: Beat[]) => void;
   removeFromCart: (beatId: string) => void;
   clearCart: () => void;
   isInCart: (beatId: string) => boolean;
@@ -27,6 +28,7 @@ const CartContext = createContext<CartContextType>({
   cartItems: [],
   totalAmount: 0,
   addToCart: () => {},
+  addMultipleToCart: () => {},
   removeFromCart: () => {},
   clearCart: () => {},
   isInCart: () => false,
@@ -119,6 +121,30 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
+  const addMultipleToCart = (beats: Beat[]) => {
+    if (!user) return;
+    
+    const now = new Date().toISOString();
+    const newItems: CartItem[] = [];
+    
+    // Filter out beats that are already in the cart
+    beats.forEach(beat => {
+      if (!cartItems.some(item => item.beat.id === beat.id)) {
+        newItems.push({
+          beat: { ...beat, selected_license: 'basic' },
+          added_at: now
+        });
+      }
+    });
+    
+    if (newItems.length > 0) {
+      setCartItems(prevItems => [...prevItems, ...newItems]);
+      toast.success(`Added ${newItems.length} beat${newItems.length > 1 ? 's' : ''} to cart`);
+    } else {
+      toast.info('All selected beats are already in your cart');
+    }
+  };
+
   const removeFromCart = (beatId: string) => {
     setCartItems(prevItems => prevItems.filter(item => item.beat.id !== beatId));
   };
@@ -173,6 +199,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const contextValue = {
     cartItems,
     addToCart,
+    addMultipleToCart,
     removeFromCart,
     clearCart,
     totalAmount,
