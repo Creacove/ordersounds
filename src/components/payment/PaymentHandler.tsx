@@ -22,13 +22,13 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     // Clear the cart after successful payment
     clearCart();
     
-    // Show success message via toast is handled in PaystackCheckout
-    setIsPaystackOpen(false);
-    
     // Call onSuccess callback if provided
     if (onSuccess) {
       onSuccess();
     }
+    
+    // Close the payment dialog
+    setIsPaystackOpen(false);
   };
 
   const handlePaystackClose = () => {

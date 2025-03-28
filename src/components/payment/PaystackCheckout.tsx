@@ -62,6 +62,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     channels: ['card'],
     label: 'Payment for beats',
     onSuccess: (response: any) => {
+      console.log('Paystack success callback triggered with reference:', response.reference || reference);
+      
       const storedOrderId = orderId || localStorage.getItem('pendingOrderId');
       if (storedOrderId) {
         handlePaymentSuccess(response.reference || reference, storedOrderId);
@@ -97,6 +99,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   useEffect(() => {
     return () => {
       if (!isProcessing) {
+        // Only clear these if not in the middle of processing a payment
         localStorage.removeItem('pendingOrderId');
         localStorage.removeItem('paystackReference');
         localStorage.removeItem('orderItems');
@@ -221,12 +224,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       
       console.log('Starting Paystack payment for order:', orderData.id);
       
-      /* 
-       * IMPORTANT: We no longer pre-insert purchase records 
-       * or clear the cart before payment verification
-       */
-      
-      // Set payment-in-progress flag (but no redirect yet)
+      // Set payment-in-progress flag
       localStorage.setItem('paymentInProgress', 'true');
       
       // Use a slight delay before initializing payment to ensure UI updates
@@ -280,33 +278,24 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         // Dismiss the loading toast
         toast.dismiss('payment-verification');
         
-        // Close the dialog
+        // Close the payment dialog
         onClose();
         
-        // Clear the cart only after successful payment verification
+        // Clear the cart after successful payment verification
         clearCart();
-        
-        // Fetch newly purchased beats to update the library
-        await fetchPurchasedBeats();
         
         // Set success flag to trigger UI update in Library component
         localStorage.setItem('purchaseSuccess', 'true');
         localStorage.setItem('purchaseTime', new Date().toISOString());
         
-        // Navigate to library with state to show success notification
-        navigate('/library', { 
-          state: { 
-            fromPurchase: true,
-            purchaseTime: new Date().toISOString(),
-            activeTab: 'purchased'
-          },
-          replace: true // Use replace to avoid issues with back navigation
-        });
+        // Call the onSuccess callback from parent component
+        if (onSuccess) {
+          onSuccess(paymentReference);
+        }
         
-        // Force page reload to ensure data is fresh
+        // Force a hard redirect to the library page
         window.location.href = '/library';
         
-        toast.success('Payment successful! Your beats are now in your library.');
       } else {
         toast.dismiss('payment-verification');
         toast.error('Payment verification failed. Please try again or contact support with your reference: ' + paymentReference);
@@ -331,6 +320,8 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
     } finally {
       setIsProcessing(false);
       setOrderId(null);
+      
+      // Clean up localStorage items
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('orderItems');

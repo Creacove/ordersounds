@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -32,6 +33,13 @@ export default function Cart() {
   const handlePaymentSuccess = () => {
     console.log("Payment success handler in Cart called");
     clearCart();
+    
+    // Redirect to library
+    localStorage.setItem('purchaseSuccess', 'true');
+    localStorage.setItem('purchaseTime', new Date().toISOString());
+    
+    // Use window.location for a hard redirect
+    window.location.href = '/library';
   };
   
   const handleContinueShopping = () => {
@@ -53,6 +61,7 @@ export default function Cart() {
   useEffect(() => {
     if (!user) return;
     
+    // Set up real-time listener for purchase events
     const channel = supabase
       .channel('purchased-beats-changes')
       .on(
@@ -64,20 +73,14 @@ export default function Cart() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('New purchase detected:', payload);
+          console.log('New purchase detected in Cart:', payload);
           fetchPurchasedBeats().then(() => {
             clearCart();
             localStorage.setItem('purchaseSuccess', 'true');
             localStorage.setItem('purchaseTime', new Date().toISOString());
-            navigate('/library', { 
-              state: { 
-                fromPurchase: true,
-                purchaseTime: new Date().toISOString(),
-                activeTab: 'purchased'
-              },
-              replace: true
-            });
-            toast.success('Your purchase was successful! Your beats are now in your library.');
+            
+            // Hard redirect to library
+            window.location.href = '/library';
           });
         }
       )
@@ -86,7 +89,7 @@ export default function Cart() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchPurchasedBeats, navigate, clearCart]);
+  }, [user, fetchPurchasedBeats, clearCart]);
 
   useEffect(() => {
     document.title = "Shopping Cart | OrderSOUNDS";
@@ -94,25 +97,23 @@ export default function Cart() {
       refreshCart();
     }
     
-    const pendingOrderId = localStorage.getItem('pendingOrderId');
-    const paystackReference = localStorage.getItem('paystackReference');
-    const paymentInProgress = localStorage.getItem('paymentInProgress');
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
     
     if (purchaseSuccess === 'true' && !redirectingFromPayment) {
       setRedirectingFromPayment(true);
       
       console.log('Detected successful purchase, redirecting to library...');
-      
       clearCart();
       
+      // Clean up localStorage items
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('paymentInProgress');
       
+      // Hard redirect to library
       window.location.href = '/library';
     }
-  }, [refreshCart, cartItems.length, navigate, fetchPurchasedBeats, clearCart, redirectingFromPayment]);
+  }, [refreshCart, cartItems.length, navigate, clearCart, redirectingFromPayment]);
 
   useEffect(() => {
     return () => {
