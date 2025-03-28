@@ -99,15 +99,117 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     }
   }, [user, cartItems]);
 
+  // Define Paystack callbacks separately to avoid serialization issues
+  const handlePaystackClose = useCallback(() => {
+    console.log('Payment window closed');
+    setIsProcessing(false);
+    localStorage.removeItem('paymentInProgress');
+    onClose();
+  }, [onClose]);
+
+  const handlePaystackSuccess = useCallback(async (response) => {
+    console.log('Payment complete! Response:', response);
+    
+    try {
+      const orderId = localStorage.getItem('pendingOrderId');
+      const orderItemsStr = localStorage.getItem('orderItems');
+      
+      if (!orderId || !orderItemsStr) {
+        toast.error('Order information missing. Please try again.');
+        setIsProcessing(false);
+        return;
+      }
+      
+      const orderItemsData = JSON.parse(orderItemsStr);
+      
+      // Verify the payment with our backend
+      const verificationResult = await verifyPaystackPayment(
+        response.reference, 
+        orderId,
+        orderItemsData
+      );
+      
+      if (verificationResult.success) {
+        // Process purchased beats immediately
+        try {
+          // Get the buyer's ID
+          if (!user || !user.id) throw new Error('User information missing');
+          
+          // Add purchased beats directly to prevent waiting for webhook
+          for (const item of orderItemsData) {
+            // Check if it's already purchased to avoid duplicates
+            const { data: existingPurchase, error: checkError } = await supabase
+              .from('user_purchased_beats')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('beat_id', item.beat_id)
+              .eq('order_id', orderId)
+              .single();
+              
+            if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+              console.error('Error checking for existing purchase:', checkError);
+            }
+            
+            // Skip if already purchased
+            if (existingPurchase) continue;
+            
+            // Insert the purchase
+            const { error: purchaseError } = await supabase
+              .from('user_purchased_beats')
+              .insert({
+                user_id: user.id,
+                beat_id: item.beat_id,
+                license_type: item.license || 'basic',
+                currency_code: 'NGN',
+                order_id: orderId,
+              });
+              
+            if (purchaseError) {
+              console.error('Error recording purchase:', purchaseError);
+            } else {
+              console.log(`Purchase recorded for beat ${item.beat_id}`);
+            }
+          }
+        } catch (err) {
+          console.error('Error recording purchases:', err);
+          // Continue with redirect even if local recording failed,
+          // the webhook will handle it as backup
+        }
+        
+        localStorage.setItem('purchaseSuccess', 'true');
+        
+        // Success! Clear cart and redirect
+        clearCart();
+        setIsProcessing(false);
+        onSuccess(response.reference);
+        
+        toast.success('Your purchase was successful! Redirecting to your library...');
+        
+        // Force direct to library instead of using navigate
+        setTimeout(() => {
+          window.location.href = '/library';
+        }, 1500);
+      } else {
+        console.error('Payment verification failed:', verificationResult.error);
+        toast.error('Payment verification failed. Please contact support with your reference number.');
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      console.error('Error during payment verification:', error);
+      toast.error('An error occurred during payment processing');
+      setIsProcessing(false);
+    }
+  }, [user, onSuccess, clearCart]);
+
   const handlePaymentStart = useCallback(async () => {
     if (isProcessing || isValidating) return;
     
     setIsProcessing(true);
     
     try {
-      // First, check if PaystackPop is available
-      if (typeof window === 'undefined' || !window.PaystackPop) {
-        console.error('PaystackPop not found. Make sure the script is loaded.');
+      // First, ensure PaystackPop is available and properly loaded
+      if (typeof window === 'undefined' || !window.PaystackPop || typeof window.PaystackPop.setup !== 'function') {
+        console.error('PaystackPop not properly loaded. Make sure the script is loaded and initialized.');
         toast.error('Payment system not ready. Please refresh the page and try again.');
         setIsProcessing(false);
         return;
@@ -160,106 +262,6 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       
       // Initialize and open Paystack
       try {
-        // Define callback functions separately to avoid serialization issues
-        const closeCallback = function() {
-          console.log('Payment window closed');
-          setIsProcessing(false);
-          localStorage.removeItem('paymentInProgress');
-          onClose();
-        };
-        
-        const successCallback = async function(response) {
-          console.log('Payment complete! Response:', response);
-          
-          // Verify the payment server-side
-          try {
-            const orderId = localStorage.getItem('pendingOrderId');
-            
-            if (!orderId) {
-              toast.error('Order information missing. Please try again.');
-              setIsProcessing(false);
-              return;
-            }
-            
-            // Verify the payment with our backend
-            const verificationResult = await verifyPaystackPayment(
-              response.reference, 
-              orderId,
-              orderItemsData
-            );
-            
-            if (verificationResult.success) {
-              // Process purchased beats immediately
-              try {
-                // Get the buyer's ID
-                if (!user || !user.id) throw new Error('User information missing');
-                
-                // Add purchased beats directly to prevent waiting for webhook
-                for (const item of orderItemsData) {
-                  // Check if it's already purchased to avoid duplicates
-                  const { data: existingPurchase, error: checkError } = await supabase
-                    .from('user_purchased_beats')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .eq('beat_id', item.beat_id)
-                    .eq('order_id', orderId)
-                    .single();
-                    
-                  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
-                    console.error('Error checking for existing purchase:', checkError);
-                  }
-                  
-                  // Skip if already purchased
-                  if (existingPurchase) continue;
-                  
-                  // Insert the purchase
-                  const { error: purchaseError } = await supabase
-                    .from('user_purchased_beats')
-                    .insert({
-                      user_id: user.id,
-                      beat_id: item.beat_id,
-                      license_type: item.license || 'basic',
-                      currency_code: 'NGN',
-                      order_id: orderId,
-                    });
-                    
-                  if (purchaseError) {
-                    console.error('Error recording purchase:', purchaseError);
-                  } else {
-                    console.log(`Purchase recorded for beat ${item.beat_id}`);
-                  }
-                }
-              } catch (err) {
-                console.error('Error recording purchases:', err);
-                // Continue with redirect even if local recording failed,
-                // the webhook will handle it as backup
-              }
-              
-              localStorage.setItem('purchaseSuccess', 'true');
-              
-              // Success! Clear cart and redirect
-              clearCart();
-              setIsProcessing(false);
-              onSuccess(response.reference);
-              
-              toast.success('Your purchase was successful! Redirecting to your library...');
-              
-              // Force direct to library instead of using navigate
-              setTimeout(() => {
-                window.location.href = '/library';
-              }, 1500);
-            } else {
-              console.error('Payment verification failed:', verificationResult.error);
-              toast.error('Payment verification failed. Please contact support with your reference number.');
-              setIsProcessing(false);
-            }
-          } catch (error) {
-            console.error('Error during payment verification:', error);
-            toast.error('An error occurred during payment processing');
-            setIsProcessing(false);
-          }
-        };
-        
         // Configure handler with explicit function references
         const handler = window.PaystackPop.setup({
           key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Public test key
@@ -277,8 +279,8 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
               }
             ]
           },
-          onClose: closeCallback,
-          callback: successCallback
+          onClose: handlePaystackClose,
+          callback: handlePaystackSuccess
         });
         
         // Explicitly open the payment iframe
@@ -293,7 +295,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       toast.error('Failed to start payment process');
       setIsProcessing(false);
     }
-  }, [isProcessing, isValidating, onClose, onSuccess, totalAmount, user, validateCartItems, cartItems, clearCart]);
+  }, [isProcessing, isValidating, totalAmount, user, validateCartItems, cartItems, clearCart, handlePaystackClose, handlePaystackSuccess, onSuccess]);
 
   const handleRefreshCart = async () => {
     setValidationError(null);
