@@ -71,9 +71,10 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
     <div className="space-y-4">
       {currency === 'NGN' ? (
         <>
+          {/* Increased tap target size for pay button */}
           <Button 
             onClick={() => setIsPaystackOpen(true)}
-            className="w-full"
+            className="w-full py-6 text-base"
             size="lg"
             disabled={isDisabled}
           >
@@ -89,7 +90,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
         </>
       ) : (
         <Button 
-          className="w-full"
+          className="w-full py-6 text-base"
           size="lg"
           disabled={isDisabled}
           onClick={() => {

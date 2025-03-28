@@ -210,7 +210,10 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
       
       console.log('Starting Paystack payment for order:', orderData.id);
       
-      initializePayment();
+      // Use a slight delay before initializing payment to ensure UI updates
+      setTimeout(() => {
+        initializePayment();
+      }, 100);
       
     } catch (error) {
       console.error('Payment initialization error:', error);
@@ -265,9 +268,9 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Complete Your Purchase</DialogTitle>
+      <DialogContent className="sm:max-w-md p-4 max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="mb-2">
+          <DialogTitle className="text-xl">Complete Your Purchase</DialogTitle>
           <DialogDescription>
             You'll be redirected to Paystack to securely complete your payment.
           </DialogDescription>
@@ -283,7 +286,7 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
         </div>
         
         {validationError && (
-          <div className="p-4 border border-destructive/50 bg-destructive/10 rounded-md mb-4">
+          <div className="p-3 border border-destructive/50 bg-destructive/10 rounded-md mb-4">
             <p className="text-sm font-medium text-destructive">{validationError}</p>
             <Button 
               variant="outline" 
@@ -296,21 +299,22 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
           </div>
         )}
         
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 mt-2">
+          {/* Increased tap target size for mobile */}
           <Button 
             onClick={handlePaymentStart}
             disabled={isProcessing || isValidating}
-            className="w-full"
+            className="w-full py-6 text-base"
             size="lg"
           >
             {isProcessing ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Processing...
               </>
             ) : isValidating ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 Validating...
               </>
             ) : (
@@ -318,10 +322,13 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
             )}
           </Button>
           
+          {/* Increased tap target size for Cancel button */}
           <Button 
             variant="outline" 
             onClick={onClose}
             disabled={isProcessing || isValidating}
+            className="w-full py-5 text-base"
+            size="lg"
           >
             Cancel
           </Button>
