@@ -537,17 +537,26 @@ export function useBeats() {
         throw error;
       }
       
-      const updateOperation = isFavorite 
-        ? { favorites_count: beats.find(b => b.id === beatId)?.favorites_count! - 1 }
-        : { favorites_count: beats.find(b => b.id === beatId)?.favorites_count! + 1 };
-        
-      const { error: beatError } = await supabase
-        .from('beats')
-        .update(updateOperation)
-        .eq('id', beatId);
-        
-      if (beatError) {
-        throw beatError;
+      const countUpdate = isFavorite ? -1 : 1;
+      if (countUpdate > 0) {
+        await supabase.rpc('increment_counter', {
+          p_table_name: 'beats',
+          p_column_name: 'favorites_count',
+          p_id: beatId
+        });
+      } else {
+        const { data: beatData } = await supabase
+          .from('beats')
+          .select('favorites_count')
+          .eq('id', beatId)
+          .single();
+          
+        if (beatData && beatData.favorites_count > 0) {
+          await supabase
+            .from('beats')
+            .update({ favorites_count: Math.max(0, beatData.favorites_count - 1) })
+            .eq('id', beatId);
+        }
       }
       
       setUserFavorites(newFavorites);
@@ -557,7 +566,7 @@ export function useBeats() {
           ? { 
               ...beat, 
               favorites_count: isFavorite 
-                ? beat.favorites_count - 1 
+                ? Math.max(0, beat.favorites_count - 1)
                 : beat.favorites_count + 1 
             } 
           : beat

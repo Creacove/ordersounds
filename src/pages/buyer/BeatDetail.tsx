@@ -35,6 +35,8 @@ const BeatDetail = () => {
   const [selectedLicense, setSelectedLicense] = useState<string>('basic');
   const isMobile = useIsMobile();
   const [playCount, setPlayCount] = useState<number>(0);
+  const [favoritesCount, setFavoritesCount] = useState<number>(0);
+  const [purchaseCount, setPurchaseCount] = useState<number>(0);
   
   const { data: beat, isLoading, error } = useQuery({
     queryKey: ['beat', beatId],
@@ -44,6 +46,8 @@ const BeatDetail = () => {
       if (!result) throw new Error('Beat not found');
       
       setPlayCount(result.plays || 0);
+      setFavoritesCount(result.favorites_count || 0);
+      setPurchaseCount(result.purchase_count || 0);
       
       return result;
     },
@@ -99,12 +103,13 @@ const BeatDetail = () => {
       // Update local state immediately for better UX
       setPlayCount(prev => prev + 1);
       
-      // Update the database 
+      // Update the database using the increment_counter function
       const { data, error } = await supabase
-        .from('beats')
-        .update({ plays: playCount + 1 })
-        .eq('id', beatId)
-        .select();
+        .rpc('increment_counter', {
+          p_table_name: 'beats',
+          p_column_name: 'plays',
+          p_id: beatId
+        });
       
       if (error) {
         console.error('Error updating play count:', error);
@@ -135,7 +140,7 @@ const BeatDetail = () => {
     }
   };
 
-  const handleToggleFavorite = (e: React.MouseEvent) => {
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -146,7 +151,14 @@ const BeatDetail = () => {
     }
     
     if (beat) {
-      toggleFavorite(beat.id);
+      const wasAdded = await toggleFavorite(beat.id);
+      
+      // Update local favorites count based on action result
+      if (wasAdded) {
+        setFavoritesCount(prev => prev + 1);
+      } else {
+        setFavoritesCount(prev => Math.max(0, prev - 1));
+      }
     }
   };
 
@@ -288,8 +300,8 @@ const BeatDetail = () => {
                 >
                   <div className="relative group cursor-pointer h-full">
                     <img 
-                      src={beat.cover_image_url} 
-                      alt={beat.title}
+                      src={beat?.cover_image_url} 
+                      alt={beat?.title}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -301,25 +313,25 @@ const BeatDetail = () => {
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 text-center sm:text-left">
-                  <h1 className="text-2xl font-bold mb-1 truncate">{beat.title}</h1>
+                  <h1 className="text-2xl font-bold mb-1 truncate">{beat?.title}</h1>
                   <Link 
-                    to={`/producer/${beat.producer_id}`} 
+                    to={`/producer/${beat?.producer_id}`} 
                     className="text-sm font-medium text-primary hover:text-primary/80 transition-colors inline-block"
                   >
-                    {beat.producer_name}
+                    {beat?.producer_name}
                   </Link>
                   
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-3">
                     <div className="flex items-center gap-2 text-sm">
                       <Clock size={14} className="text-primary/70" /> 
-                      <span>{beat.bpm} BPM</span>
+                      <span>{beat?.bpm} BPM</span>
                     </div>
                     <div className="h-4 w-px bg-border"></div>
                     <div className="flex items-center gap-2 text-sm">
                       <Music size={14} className="text-primary/70" /> 
-                      <span>{beat.genre}</span>
+                      <span>{beat?.genre}</span>
                     </div>
-                    {beat.key && (
+                    {beat?.key && (
                       <>
                         <div className="h-4 w-px bg-border"></div>
                         <div className="flex items-center gap-2 text-sm">
@@ -331,24 +343,24 @@ const BeatDetail = () => {
                     <div className="h-4 w-px bg-border"></div>
                     <div className="flex items-center gap-2 text-sm">
                       <Tag size={14} className="text-primary/70" /> 
-                      <span>{beat.track_type}</span>
+                      <span>{beat?.track_type}</span>
                     </div>
                   </div>
                   
                   <div className="flex items-center justify-center sm:justify-start gap-3 mt-3">
                     <div className="flex items-center gap-1 text-sm">
                       <Download size={14} className="text-primary/70" /> 
-                      <span>{beat.purchase_count || 0} downloads</span>
+                      <span>{purchaseCount} downloads</span>
                     </div>
                     <div className="h-4 w-px bg-border"></div>
                     <div className="flex items-center gap-1 text-sm">
                       <Heart size={14} className="text-primary/70" /> 
-                      <span>{beat.favorites_count || 0} likes</span>
+                      <span>{favoritesCount} likes</span>
                     </div>
                     <div className="h-4 w-px bg-border"></div>
                     <div className="flex items-center gap-1 text-sm">
                       <AudioWaveform size={14} className="text-primary/70" /> 
-                      <span>{playCount || 0} plays</span>
+                      <span>{playCount} plays</span>
                     </div>
                   </div>
                 </div>

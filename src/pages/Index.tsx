@@ -54,8 +54,9 @@ export default function IndexPage() {
             created_at: data[0].created_date,
             country: data[0].country,
             producer_name: data[0].stage_name,
-            updated_at: data[0].updated_at,
-            default_currency: data[0].default_currency as 'NGN' | 'USD'
+            // Add default values for the missing properties
+            updated_at: data[0].created_date, // Use created_date as fallback
+            default_currency: 'NGN' as 'NGN' | 'USD' // Default to NGN
           };
           
           setProducerOfWeek(producer);
