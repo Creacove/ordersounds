@@ -86,7 +86,7 @@ export default function Login() {
         </div>
         <div className="lg:p-8 flex items-center justify-center w-full min-h-[calc(100vh-4rem)]">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-800/20 to-zinc-900/10 lg:hidden" />
-          <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-card/50 backdrop-blur-sm border-white/5 shadow-xl animate-fade-in relative z-10">
+          <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-background/95 backdrop-blur-sm border border-border/20 shadow-xl animate-fade-in relative z-10">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold tracking-tight text-center">Welcome back</CardTitle>
               <CardDescription className="text-center">
