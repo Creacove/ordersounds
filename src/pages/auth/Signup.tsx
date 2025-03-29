@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -113,8 +112,9 @@ export default function Signup() {
             </blockquote>
           </div>
         </div>
-        <div className="lg:p-8 flex items-center justify-center w-full">
-          <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-card/50 backdrop-blur-sm border-white/5 shadow-xl animate-fade-in">
+        <div className="lg:p-8 flex items-center justify-center w-full min-h-[calc(100vh-4rem)]">
+          <div className="absolute inset-0 bg-gradient-to-tr from-purple-800/30 via-indigo-600/20 to-zinc-900/10 lg:hidden" />
+          <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-card/50 backdrop-blur-sm border-white/5 shadow-xl animate-fade-in relative z-10 my-8">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold tracking-tight text-center">Create an account</CardTitle>
               <CardDescription className="text-center">
