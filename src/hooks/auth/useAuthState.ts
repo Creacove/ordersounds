@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
 import { supabase } from '@/lib/supabase';
@@ -15,9 +16,15 @@ export const useAuthState = () => {
   const [currency, setCurrency] = useState<'NGN' | 'USD'>('NGN');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Helper function to get default currency based on location
+  // Helper function to get default currency based on location or saved preference
   const getDefaultCurrency = async (userCountry?: string) => {
     try {
+      // First check if there's a saved preference in localStorage
+      const savedPreference = localStorage.getItem('preferred_currency') as 'NGN' | 'USD' | null;
+      if (savedPreference && (savedPreference === 'NGN' || savedPreference === 'USD')) {
+        return savedPreference;
+      }
+      
       // If user has an explicit country preference, use that
       if (userCountry) {
         return userCountry.toLowerCase() === 'nigeria' ? 'NGN' : 'USD';
@@ -28,7 +35,12 @@ export const useAuthState = () => {
       const data = await response.json();
       
       // Set NGN for Nigeria, USD for everyone else
-      return data.country_code === 'NG' ? 'NGN' : 'USD';
+      const detectedCurrency = data.country_code === 'NG' ? 'NGN' : 'USD';
+      
+      // Store the detected preference for future visits
+      localStorage.setItem('preferred_currency', detectedCurrency);
+      
+      return detectedCurrency;
     } catch (error) {
       console.error('Error detecting location:', error);
       // Default to NGN if location detection fails
@@ -50,6 +62,8 @@ export const useAuthState = () => {
             // Set currency based on user preference or location
             if (mappedUser.default_currency) {
               setCurrency(mappedUser.default_currency);
+              // Also update localStorage to match user preference
+              localStorage.setItem('preferred_currency', mappedUser.default_currency);
             } else {
               const defaultCurrency = await getDefaultCurrency(mappedUser.country);
               setCurrency(defaultCurrency);
@@ -62,7 +76,7 @@ export const useAuthState = () => {
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           
-          // Reset currency based on location for logged out users
+          // Reset currency based on location for logged out users or saved preference
           const defaultCurrency = await getDefaultCurrency();
           setCurrency(defaultCurrency);
           
@@ -91,12 +105,14 @@ export const useAuthState = () => {
           // Set currency based on user preference or location
           if (mappedUser.default_currency) {
             setCurrency(mappedUser.default_currency);
+            // Also update localStorage to match user preference
+            localStorage.setItem('preferred_currency', mappedUser.default_currency);
           } else {
             const defaultCurrency = await getDefaultCurrency(mappedUser.country);
             setCurrency(defaultCurrency);
           }
         } else {
-          // For logged out users, set currency based on location
+          // For logged out users, set currency based on location or saved preference
           const defaultCurrency = await getDefaultCurrency();
           setCurrency(defaultCurrency);
         }

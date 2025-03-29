@@ -16,7 +16,10 @@ import {
   Flame,
   Headphones,
   BookOpen,
-  ShoppingCart
+  ShoppingCart,
+  DollarSign,
+  BadgeNaira,
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,6 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
 
 export function Topbar() {
   const { user, logout, currency, setCurrency } = useAuth();
@@ -63,9 +67,16 @@ export function Topbar() {
   };
   
   const toggleCurrency = (newCurrency: 'USD' | 'NGN') => {
+    if (newCurrency === currency) return;
+    
     setCurrency(newCurrency);
     // Store the user's preference (will be overwritten if logged in)
     localStorage.setItem('preferred_currency', newCurrency);
+    toast.success(`Currency changed to ${newCurrency === 'USD' ? 'US Dollar' : 'Nigerian Naira'}`);
+  };
+
+  const getCurrencyIcon = (currencyCode: 'USD' | 'NGN') => {
+    return currencyCode === 'USD' ? <DollarSign size={isMobile ? 14 : 16} /> : <BadgeNaira size={isMobile ? 14 : 16} />;
   };
 
   return (
@@ -90,29 +101,36 @@ export function Topbar() {
         {/* Search and User Menu */}
         <div className="flex items-center gap-3">
           {/* Currency toggle */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 rounded-full px-3"
-              >
-                {currency === "USD" ? "$" : "₦"}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Currency</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => toggleCurrency("USD")}>
-                <span className={cn(currency === "USD" ? "font-bold" : "")}>USD ($)</span>
-                {currency === "USD" && <span className="ml-2 text-xs text-muted-foreground">Active</span>}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => toggleCurrency("NGN")}>
-                <span className={cn(currency === "NGN" ? "font-bold" : "")}>NGN (₦)</span>
-                {currency === "NGN" && <span className="ml-2 text-xs text-muted-foreground">Active</span>}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleCurrency("USD")}
+              className={cn(
+                "h-7 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
+                currency === "USD" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-muted/90 text-muted-foreground"
+              )}
+            >
+              <DollarSign size={isMobile ? 12 : 14} />
+              <span className={isMobile ? "sr-only" : "inline"}>USD</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => toggleCurrency("NGN")}
+              className={cn(
+                "h-7 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
+                currency === "NGN" 
+                  ? "bg-primary text-primary-foreground" 
+                  : "hover:bg-muted/90 text-muted-foreground"
+              )}
+            >
+              <BadgeNaira size={isMobile ? 12 : 14} />
+              <span className={isMobile ? "sr-only" : "inline"}>NGN</span>
+            </Button>
+          </div>
           
           {/* Cart - Only show on desktop for buyers */}
           {user && user.role === 'buyer' && !isMobile && (

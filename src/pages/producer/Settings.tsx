@@ -50,10 +50,10 @@ export default function ProducerSettings() {
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Producer Settings</h1>
         
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 rounded-md overflow-hidden">
-            <TabsTrigger value="profile" className="rounded-none border-0">Profile</TabsTrigger>
-            <TabsTrigger value="payment" className="rounded-none border-0">Payment</TabsTrigger>
-            <TabsTrigger value="preferences" className="rounded-none border-0">Preferences</TabsTrigger>
+          <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 overflow-hidden">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="payment">Payment</TabsTrigger>
+            <TabsTrigger value="preferences">Preferences</TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile">
