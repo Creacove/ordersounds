@@ -46,6 +46,9 @@ export function Topbar() {
   
   const [isScrolled, setIsScrolled] = useState(false);
   
+  // Check if current route is login or signup
+  const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
+  
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
@@ -93,45 +96,47 @@ export function Topbar() {
           </Link>
         </div>
         
-        {/* Search and User Menu */}
+        {/* Search and User Menu - Hide when on auth pages and not logged in */}
         <div className="flex items-center gap-3">
-          {/* Currency toggle */}
-          <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleCurrency("USD")}
-              className={cn(
-                "h-7 md:h-8 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
-                currency === "USD" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-muted/90 text-muted-foreground"
-              )}
-            >
-              <DollarSign size={isMobile ? 12 : 14} className="stroke-[2.5px]" />
-              <span className={isMobile ? "sr-only" : "inline"}>USD</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => toggleCurrency("NGN")}
-              className={cn(
-                "h-7 md:h-8 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
-                currency === "NGN" 
-                  ? "bg-primary text-primary-foreground" 
-                  : "hover:bg-muted/90 text-muted-foreground"
-              )}
-            >
-              <span className={cn(
-                "text-sm font-semibold leading-none", 
-                isMobile ? "text-xs" : "text-sm"
-              )}>₦</span>
-              <span className={isMobile ? "sr-only" : "inline"}>NGN</span>
-            </Button>
-          </div>
+          {/* Only show currency toggle if not on auth page or user is logged in */}
+          {(!isAuthPage || user) && (
+            <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleCurrency("USD")}
+                className={cn(
+                  "h-7 md:h-8 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
+                  currency === "USD" 
+                    ? "bg-primary text-primary-foreground" 
+                    : "hover:bg-muted/90 text-muted-foreground"
+                )}
+              >
+                <DollarSign size={isMobile ? 12 : 14} className="stroke-[2.5px]" />
+                <span className={isMobile ? "sr-only" : "inline"}>USD</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleCurrency("NGN")}
+                className={cn(
+                  "h-7 md:h-8 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
+                  currency === "NGN" 
+                    ? "bg-primary text-primary-foreground" 
+                    : "hover:bg-muted/90 text-muted-foreground"
+                )}
+              >
+                <span className={cn(
+                  "text-sm font-semibold leading-none", 
+                  isMobile ? "text-xs" : "text-sm"
+                )}>₦</span>
+                <span className={isMobile ? "sr-only" : "inline"}>NGN</span>
+              </Button>
+            </div>
+          )}
           
-          {/* Cart - Only show on desktop for buyers */}
-          {user && user.role === 'buyer' && !isMobile && (
+          {/* Cart - Only show on desktop for buyers AND not on auth pages */}
+          {user && user.role === 'buyer' && !isMobile && !isAuthPage && (
             <Button
               variant="ghost"
               size="icon"
@@ -151,18 +156,20 @@ export function Topbar() {
             </Button>
           )}
           
-          {/* Search - redirects to search page */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-8 w-8"
-            onClick={() => navigate("/search")}
-          >
-            <Search size={18} />
-            <span className="sr-only">Search</span>
-          </Button>
+          {/* Search - Only show if not on auth page or user is logged in */}
+          {(!isAuthPage || user) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative h-8 w-8"
+              onClick={() => navigate("/search")}
+            >
+              <Search size={18} />
+              <span className="sr-only">Search</span>
+            </Button>
+          )}
           
-          {/* User Menu */}
+          {/* User Menu - Show auth buttons on auth pages, or user dropdown elsewhere */}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -222,14 +229,17 @@ export function Topbar() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="font-medium"
-              onClick={() => navigate("/login")}
-            >
-              Sign In
-            </Button>
+            // Show sign in button only if not already on auth pages
+            !isAuthPage && (
+              <Button
+                variant="default"
+                size="sm"
+                className="font-medium"
+                onClick={() => navigate("/login")}
+              >
+                Sign In
+              </Button>
+            )
           )}
         </div>
       </div>
