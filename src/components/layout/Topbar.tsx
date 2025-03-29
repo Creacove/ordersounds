@@ -18,7 +18,6 @@ import {
   BookOpen,
   ShoppingCart,
   DollarSign,
-  BadgeNaira,
   RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +36,27 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
+
+// Create a custom NGN icon since BadgeNaira isn't available in lucide-react
+const NgnairaIcon = ({ size = 16, className = "" }) => (
+  <svg 
+    width={size} 
+    height={size} 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round" 
+    className={className}
+  >
+    <path d="M6 4h12" />
+    <path d="M17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1" />
+    <path d="M10 10h4" />
+    <path d="M10 14h4" />
+    <path d="M15 18.2V16M9 18.2V16M12 18.2v-5" />
+  </svg>
+);
 
 export function Topbar() {
   const { user, logout, currency, setCurrency } = useAuth();
@@ -76,7 +96,7 @@ export function Topbar() {
   };
 
   const getCurrencyIcon = (currencyCode: 'USD' | 'NGN') => {
-    return currencyCode === 'USD' ? <DollarSign size={isMobile ? 14 : 16} /> : <BadgeNaira size={isMobile ? 14 : 16} />;
+    return currencyCode === 'USD' ? <DollarSign size={isMobile ? 14 : 16} /> : <NgnairaIcon size={isMobile ? 14 : 16} />;
   };
 
   return (
@@ -127,7 +147,7 @@ export function Topbar() {
                   : "hover:bg-muted/90 text-muted-foreground"
               )}
             >
-              <BadgeNaira size={isMobile ? 12 : 14} />
+              <NgnairaIcon size={isMobile ? 12 : 14} />
               <span className={isMobile ? "sr-only" : "inline"}>NGN</span>
             </Button>
           </div>
