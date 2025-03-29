@@ -160,37 +160,22 @@ export default function Library() {
         <h1 className="text-xl md:text-2xl font-bold mb-4 md:mb-6">Your Library</h1>
         
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          <TabsList className={cn(
-            "w-full grid grid-cols-3 mb-4 md:mb-6 tabs-standard", 
-            isMobile ? "mobile-tabs-standard" : ""
-          )}>
+          <TabsList className="w-full grid grid-cols-3 mb-4 md:mb-6 rounded-md overflow-hidden">
             <TabsTrigger 
               value="purchased" 
-              className={cn(
-                "tab-trigger-standard",
-                isMobile ? "mobile-tab-trigger" : "",
-                activeTab === "purchased" ? "text-primary" : ""
-              )}
+              className="rounded-none border-0"
             >
               Purchased Beats
             </TabsTrigger>
             <TabsTrigger 
               value="favorites" 
-              className={cn(
-                "tab-trigger-standard",
-                isMobile ? "mobile-tab-trigger" : "",
-                activeTab === "favorites" ? "text-primary" : ""
-              )}
+              className="rounded-none border-0"
             >
               Favorites
             </TabsTrigger>
             <TabsTrigger 
               value="playlists" 
-              className={cn(
-                "tab-trigger-standard",
-                isMobile ? "mobile-tab-trigger" : "",
-                activeTab === "playlists" ? "text-primary" : ""
-              )}
+              className="rounded-none border-0"
             >
               My Playlists
             </TabsTrigger>

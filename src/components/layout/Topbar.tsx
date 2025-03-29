@@ -64,6 +64,8 @@ export function Topbar() {
   
   const toggleCurrency = (newCurrency: 'USD' | 'NGN') => {
     setCurrency(newCurrency);
+    // Store the user's preference (will be overwritten if logged in)
+    localStorage.setItem('preferred_currency', newCurrency);
   };
 
   return (
@@ -103,9 +105,11 @@ export function Topbar() {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => toggleCurrency("USD")}>
                 <span className={cn(currency === "USD" ? "font-bold" : "")}>USD ($)</span>
+                {currency === "USD" && <span className="ml-2 text-xs text-muted-foreground">Active</span>}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => toggleCurrency("NGN")}>
                 <span className={cn(currency === "NGN" ? "font-bold" : "")}>NGN (₦)</span>
+                {currency === "NGN" && <span className="ml-2 text-xs text-muted-foreground">Active</span>}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -42,10 +41,10 @@ export default function Settings() {
   // Producer-specific tabs
   const producerTabs = () => (
     <Tabs defaultValue="profile" className="w-full">
-      <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8">
-        <TabsTrigger value="profile">Profile</TabsTrigger>
-        <TabsTrigger value="payment">Payment</TabsTrigger>
-        <TabsTrigger value="preferences">Preferences</TabsTrigger>
+      <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 rounded-md overflow-hidden">
+        <TabsTrigger value="profile" className="rounded-none border-0">Profile</TabsTrigger>
+        <TabsTrigger value="payment" className="rounded-none border-0">Payment</TabsTrigger>
+        <TabsTrigger value="preferences" className="rounded-none border-0">Preferences</TabsTrigger>
       </TabsList>
       
       <TabsContent value="profile">
@@ -125,10 +124,10 @@ export default function Settings() {
   // Buyer-specific tabs
   const buyerTabs = () => (
     <Tabs defaultValue="profile" className="w-full">
-      <TabsList className="grid w-full max-w-md grid-cols-3 mb-8">
-        <TabsTrigger value="profile">Profile</TabsTrigger>
-        <TabsTrigger value="account">Account</TabsTrigger>
-        <TabsTrigger value="preferences">Preferences</TabsTrigger>
+      <TabsList className="grid w-full max-w-md grid-cols-3 mb-8 rounded-md overflow-hidden">
+        <TabsTrigger value="profile" className="rounded-none border-0">Profile</TabsTrigger>
+        <TabsTrigger value="account" className="rounded-none border-0">Account</TabsTrigger>
+        <TabsTrigger value="preferences" className="rounded-none border-0">Preferences</TabsTrigger>
       </TabsList>
       
       <TabsContent value="profile">
