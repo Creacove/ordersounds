@@ -37,27 +37,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 
-// Create a custom NGN icon since BadgeNaira isn't available in lucide-react
-const NgnairaIcon = ({ size = 16, className = "" }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M6 4h12" />
-    <path d="M17 6h1a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h1" />
-    <path d="M10 10h4" />
-    <path d="M10 14h4" />
-    <path d="M15 18.2V16M9 18.2V16M12 18.2v-5" />
-  </svg>
-);
-
 export function Topbar() {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
@@ -95,10 +74,6 @@ export function Topbar() {
     toast.success(`Currency changed to ${newCurrency === 'USD' ? 'US Dollar' : 'Nigerian Naira'}`);
   };
 
-  const getCurrencyIcon = (currencyCode: 'USD' | 'NGN') => {
-    return currencyCode === 'USD' ? <DollarSign size={isMobile ? 14 : 16} /> : <NgnairaIcon size={isMobile ? 14 : 16} />;
-  };
-
   return (
     <header 
       className={cn(
@@ -127,13 +102,13 @@ export function Topbar() {
               size="sm"
               onClick={() => toggleCurrency("USD")}
               className={cn(
-                "h-7 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
+                "h-7 md:h-8 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
                 currency === "USD" 
                   ? "bg-primary text-primary-foreground" 
                   : "hover:bg-muted/90 text-muted-foreground"
               )}
             >
-              <DollarSign size={isMobile ? 12 : 14} />
+              <DollarSign size={isMobile ? 12 : 14} className="stroke-[2.5px]" />
               <span className={isMobile ? "sr-only" : "inline"}>USD</span>
             </Button>
             <Button
@@ -141,13 +116,16 @@ export function Topbar() {
               size="sm"
               onClick={() => toggleCurrency("NGN")}
               className={cn(
-                "h-7 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
+                "h-7 md:h-8 px-2 rounded-full flex items-center gap-1 text-xs font-medium transition-all",
                 currency === "NGN" 
                   ? "bg-primary text-primary-foreground" 
                   : "hover:bg-muted/90 text-muted-foreground"
               )}
             >
-              <NgnairaIcon size={isMobile ? 12 : 14} />
+              <span className={cn(
+                "text-sm font-semibold leading-none", 
+                isMobile ? "text-xs" : "text-sm"
+              )}>₦</span>
               <span className={isMobile ? "sr-only" : "inline"}>NGN</span>
             </Button>
           </div>
