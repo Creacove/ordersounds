@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -64,12 +63,12 @@ export default function Login() {
       <div className="container relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
         <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
           <div className="absolute inset-0 bg-zinc-900">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/90 via-purple-800/80 to-zinc-900/90" />
             <img
-              src="https://images.unsplash.com/photo-1548515836-69f8c58cbce7?q=80&w=2940&auto=format&fit=crop"
+              src="https://images.unsplash.com/photo-1549213783-8284d0336c4f?q=80&w=1470&auto=format&fit=crop"
               alt="Authentication"
-              className="object-cover w-full h-full"
+              className="object-cover w-full h-full opacity-50 mix-blend-overlay"
             />
-            <div className="absolute inset-0 bg-zinc-900/70 backdrop-blur-[2px]" />
           </div>
           <div className="relative z-20 mt-auto">
             <div className="mb-4">
@@ -86,14 +85,7 @@ export default function Login() {
           </div>
         </div>
         <div className="lg:p-8 flex items-center justify-center w-full min-h-[calc(100vh-4rem)]">
-          <div className="absolute inset-0 overflow-hidden">
-            <img
-              src="https://images.unsplash.com/photo-1548515836-69f8c58cbce7?q=80&w=2940&auto=format&fit=crop"
-              alt="Background"
-              className="object-cover w-full h-full opacity-20 lg:hidden"
-            />
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-xl lg:hidden" />
-          </div>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-800/20 to-zinc-900/10 lg:hidden" />
           <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-background/95 backdrop-blur-sm border border-border/20 shadow-xl animate-fade-in relative z-10">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold tracking-tight text-center">Welcome back</CardTitle>
