@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -12,7 +13,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Loader2, Bell, Settings, DollarSign } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 export default function ProducerSettings() {
   const { user, updateProfile } = useAuth();
@@ -22,6 +24,8 @@ export default function ProducerSettings() {
   const [producerName, setProducerName] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
+  const [emailNotifications, setEmailNotifications] = useState(true);
+  const [pushNotifications, setPushNotifications] = useState(true);
   
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
@@ -38,6 +42,20 @@ export default function ProducerSettings() {
       setProducerName(user.producer_name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
+      
+      // Get notification preferences from user settings if available
+      if (user.settings) {
+        try {
+          const settings = typeof user.settings === 'string' 
+            ? JSON.parse(user.settings) 
+            : user.settings;
+            
+          setEmailNotifications(settings.emailNotifications !== false);
+          setPushNotifications(settings.pushNotifications !== false);
+        } catch (e) {
+          console.error("Error parsing user settings:", e);
+        }
+      }
     }
   }, [user, navigate]);
 
@@ -80,6 +98,50 @@ export default function ProducerSettings() {
     }
   };
 
+  const handleSavePreferences = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      
+      const settings = {
+        emailNotifications,
+        pushNotifications
+      };
+      
+      // Update preferences in database
+      const { error } = await supabase
+        .from('users')
+        .update({
+          settings: settings
+        })
+        .eq('id', user.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update local user context
+      if (updateProfile) {
+        await updateProfile({
+          ...user,
+          settings
+        });
+        
+        toast.success('Preferences updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating preferences:', error);
+      toast.error('Failed to update preferences. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBankDetailsSuccess = () => {
+    toast.success('Bank details saved successfully');
+  };
+
   // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
     return (
@@ -105,9 +167,18 @@ export default function ProducerSettings() {
         
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 overflow-hidden">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="payment">Payment</TabsTrigger>
-            <TabsTrigger value="preferences">Preferences</TabsTrigger>
+            <TabsTrigger value="profile" className="flex items-center gap-1">
+              <Settings className="w-4 h-4" />
+              <span>Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="payment" className="flex items-center gap-1">
+              <DollarSign className="w-4 h-4" />
+              <span>Payment</span>
+            </TabsTrigger>
+            <TabsTrigger value="preferences" className="flex items-center gap-1">
+              <Bell className="w-4 h-4" />
+              <span>Preferences</span>
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="profile">
@@ -151,7 +222,7 @@ export default function ProducerSettings() {
                 </div>
                 
                 <Button 
-                  className={cn(isMobile ? "mobile-btn-standard" : "btn-standard")}
+                  className="w-full md:w-auto"
                   onClick={handleSaveProfile}
                   disabled={isLoading}
                 >
@@ -177,6 +248,7 @@ export default function ProducerSettings() {
                     existingBankCode={user.bank_code}
                     existingAccountNumber={user.account_number}
                     existingAccountName={user.verified_account_name}
+                    onSuccess={handleBankDetailsSuccess}
                   />
                 )}
               </CardContent>
@@ -191,8 +263,45 @@ export default function ProducerSettings() {
                   Customize your producer experience
                 </CardDescription>
               </CardHeader>
-              <CardContent className="text-center py-10">
-                <p className="text-base text-muted-foreground mb-4">Preference settings coming soon</p>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Notification Settings</h3>
+                  
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <h4 className="text-base font-medium">Email Notifications</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Receive beat sales and important updates via email
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={emailNotifications} 
+                      onCheckedChange={setEmailNotifications}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <h4 className="text-base font-medium">Push Notifications</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Receive in-app notifications for sales and messages
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={pushNotifications} 
+                      onCheckedChange={setPushNotifications} 
+                    />
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full md:w-auto"
+                  onClick={handleSavePreferences}
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Save Preferences
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
