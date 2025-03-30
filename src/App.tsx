@@ -1,6 +1,6 @@
 
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 
 // Contexts
 import { AuthProvider } from './context/AuthContext';
@@ -62,7 +62,7 @@ function App() {
             <Suspense fallback={<LoadingFallback />}>
               <Routes>
                 {/* Auth Routes - No Player */}
-                <Route element={<MainLayout />}>
+                <Route element={<MainLayout><Outlet /></MainLayout>}>
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/auth/callback" element={<Callback />} />
@@ -70,7 +70,7 @@ function App() {
                 </Route>
 
                 {/* Main Routes - With Player */}
-                <Route element={<MainLayoutWithPlayer />}>
+                <Route element={<MainLayoutWithPlayer><Outlet /></MainLayoutWithPlayer>}>
                   <Route path="/" element={<Index />} />
                   <Route path="/home" element={<Home />} />
                   <Route path="/beat/:beatId" element={<BeatDetail />} />
