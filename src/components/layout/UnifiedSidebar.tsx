@@ -31,14 +31,14 @@ export function UnifiedSidebar({
       {/* Only show overlay on mobile and only when sidebar is open */}
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black/70 z-50"
+          className="fixed inset-0 bg-black/70 z-40"
           onClick={() => setIsOpen(false)}
         />
       )}
       
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out",
           "bg-[#0e0e0e] text-white",
           isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
           isCollapsed ? "w-[80px]" : "w-[240px]",

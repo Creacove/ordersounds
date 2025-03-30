@@ -30,7 +30,7 @@ export function PersistentPlayer() {
 
   // Even when no beat is selected, we render a hidden player to maintain the layout
   if (!currentBeat) {
-    return <div className="fixed bottom-0 left-0 right-0 h-0 z-40" />;
+    return <div className="fixed bottom-0 left-0 right-0 h-0 z-50" />;
   }
 
   // Handle clicking on the top progress bar
@@ -42,9 +42,9 @@ export function PersistentPlayer() {
     seek(percentage * duration);
   };
 
-  // Player is always at z-40, below the mobile sidebar which will be at z-50
+  // Player is now at z-50, above the sidebar which will be at z-40
   const playerClassName = cn(
-    "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-40",
+    "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-50",
     isMobile ? "bottom-16" : "bottom-0" // Position above mobile nav when on mobile
   );
 
