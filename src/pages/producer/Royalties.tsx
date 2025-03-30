@@ -99,6 +99,18 @@ export default function Royalties() {
     );
   }
 
+  // Format currency based on the predominant currency in transactions
+  const formatCurrency = (amount: number) => {
+    // Use NGN if stats indicates most transactions are in NGN, otherwise USD
+    const currencyCode = stats?.primaryCurrency || 'NGN';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: currencyCode === 'USD' ? 2 : 0,
+      maximumFractionDigits: currencyCode === 'USD' ? 2 : 0,
+    }).format(amount || 0);
+  };
+
   return (
     <MainLayout>
       <div className="container py-6 md:py-8">
@@ -116,7 +128,7 @@ export default function Royalties() {
                 <Skeleton className="h-8 w-24" />
               ) : (
                 <>
-                  <div className="text-xl font-bold">${stats?.totalRevenue.toFixed(2) || '0.00'}</div>
+                  <div className="text-xl font-bold">{formatCurrency(stats?.totalRevenue || 0)}</div>
                   <p className="text-sm text-muted-foreground">
                     Lifetime earnings from your beats
                   </p>
@@ -136,9 +148,7 @@ export default function Royalties() {
               ) : (
                 <>
                   <div className="text-xl font-bold">
-                    ${(stats?.totalRevenue || 0) > 0 
-                      ? (stats?.totalRevenue * 0.3).toFixed(2) 
-                      : '0.00'}
+                    {formatCurrency(stats?.monthlyRevenue || 0)}
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {stats && stats.revenueChange > 0 ? `+${stats.revenueChange}%` : `${stats?.revenueChange || 0}%`} from last month
@@ -187,7 +197,8 @@ export default function Royalties() {
           </Card>
         </div>
         
-        <Card>
+        {/* Add margin-top on desktop to create spacing between stats and splits */}
+        <Card className="mt-0 md:mt-8">
           <CardHeader>
             <CardTitle className="text-xl md:text-2xl">Royalty Splits</CardTitle>
             <CardDescription className="text-sm">Manage splits with collaborators on your beats</CardDescription>
