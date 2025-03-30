@@ -38,7 +38,7 @@ export function UnifiedSidebar({
       
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
           "bg-[#0e0e0e] text-white",
           isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
           isCollapsed ? "w-[80px]" : "w-[240px]",

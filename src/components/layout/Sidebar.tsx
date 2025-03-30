@@ -79,7 +79,7 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
 
   return (
     <>
-      {/* Show combined sidebar for both desktop and mobile */}
+      {/* Show unified sidebar */}
       <UnifiedSidebar 
         isOpen={isOpen}
         setIsOpen={setIsOpen}
