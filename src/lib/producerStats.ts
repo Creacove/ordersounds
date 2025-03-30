@@ -31,6 +31,14 @@ export interface ProducerStats {
   genreDistribution: GenreDataPoint[];
 }
 
+// Define a type for the orders data
+interface OrderData {
+  id: string;
+  total_price: number;
+  currency_used: string;
+  payment_method: string;
+}
+
 export async function getProducerStats(producerId: string): Promise<ProducerStats> {
   try {
     // Get producer's beats
@@ -76,9 +84,10 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     
     // Process sales data to calculate revenue
     salesData.forEach(sale => {
-      // TypeScript safety: Check if orders property exists and is an object
-      if (sale.orders && typeof sale.orders === 'object') {
-        const orderData = sale.orders;
+      // TypeScript safety: Check if orders property exists and handle it properly
+      if (sale.orders) {
+        // The orders property might be an object or an array with a single object
+        const orderData = sale.orders as unknown as OrderData;
         
         // Check if the order ID exists and only count each order once
         if (orderData.id && !processedOrderIds.has(orderData.id)) {
@@ -125,8 +134,8 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     const thisMonthOrderIds = new Set();
     
     thisMonthSales.forEach(sale => {
-      if (sale.orders && typeof sale.orders === 'object') {
-        const orderData = sale.orders;
+      if (sale.orders) {
+        const orderData = sale.orders as unknown as OrderData;
         
         if (orderData.id && !thisMonthOrderIds.has(orderData.id)) {
           thisMonthRevenue += (orderData.total_price || 0);
@@ -140,8 +149,8 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     const lastMonthOrderIds = new Set();
     
     lastMonthSales.forEach(sale => {
-      if (sale.orders && typeof sale.orders === 'object') {
-        const orderData = sale.orders;
+      if (sale.orders) {
+        const orderData = sale.orders as unknown as OrderData;
         
         if (orderData.id && !lastMonthOrderIds.has(orderData.id)) {
           lastMonthRevenue += (orderData.total_price || 0);
@@ -249,9 +258,10 @@ function generateMonthlyRevenueData(salesData: any[], monthsCount: number = 6): 
   
   // Calculate revenue for each month
   salesData.forEach(sale => {
-    if (!sale.purchase_date || !sale.orders || typeof sale.orders !== 'object') return;
+    if (!sale.purchase_date || !sale.orders) return;
     
-    const orderData = sale.orders;
+    // Use type assertion to handle the orders property correctly
+    const orderData = sale.orders as unknown as OrderData;
     
     // Skip if order has no ID or total_price
     if (!orderData.id || orderData.total_price === undefined) return;
