@@ -10,6 +10,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { LicenseSelector } from "@/components/marketplace/LicenseSelector";
 import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BeatCardProps {
   beat: Beat;
@@ -34,6 +35,23 @@ export function BeatCard({
     toggleCartItem(beat, selectedLicense);
   };
 
+  const incrementPlayCount = async (beatId: string) => {
+    try {
+      await supabase.rpc('increment_counter', {
+        p_table_name: 'beats',
+        p_column_name: 'plays',
+        p_id: beatId
+      });
+      console.log('Incremented play count for beat:', beatId);
+    } catch (error) {
+      console.error('Error incrementing play count:', error);
+    }
+  };
+  
+  const handleBeatClick = () => {
+    incrementPlayCount(beat.id);
+  };
+
   const getPriceForLicense = () => {
     if (currency === 'NGN') {
       switch (selectedLicense) {
@@ -56,7 +74,7 @@ export function BeatCard({
           return beat.premium_license_price_diaspora;
         case 'exclusive':
           return beat.exclusive_license_price_diaspora;
-         case 'custom':
+        case 'custom':
           return beat.custom_license_price_diaspora;
         default:
           return beat.basic_license_price_diaspora;
@@ -66,13 +84,12 @@ export function BeatCard({
   
   const price = getPriceForLicense();
 
-  // The component layout:
   return (
     <Card className={`group overflow-hidden h-full ${featured ? 'border-primary bg-primary/5' : ''}`}>
       <CardContent className="p-0 flex flex-col h-full">
         <div className="relative">
           <ToggleFavoriteButton beatId={beat.id} />
-          <Link to={`/beat/${beat.id}`}>
+          <Link to={`/beat/${beat.id}`} onClick={handleBeatClick}>
             <img
               src={beat.cover_image_url || "/placeholder.svg"}
               alt={beat.title}

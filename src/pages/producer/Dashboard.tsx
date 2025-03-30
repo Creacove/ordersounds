@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useBeats } from "@/hooks/useBeats";
@@ -26,6 +25,7 @@ export default function ProducerDashboard() {
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
   const [stats, setStats] = useState(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Fetch producer data including bank details and subaccount info
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function ProducerDashboard() {
     };
     
     fetchProducerData();
-  }, [user]);
+  }, [user, refreshTrigger]);
   
   // Fetch producer analytics data
   useEffect(() => {
@@ -78,7 +78,16 @@ export default function ProducerDashboard() {
     };
     
     fetchStats();
-  }, [user]);
+  }, [user, refreshTrigger]);
+  
+  // Get producer beats and refresh data periodically
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setRefreshTrigger(prev => prev + 1);
+    }, 60000); // Refresh data every minute
+    
+    return () => clearInterval(intervalId);
+  }, []);
   
   const producerBeats = user ? getProducerBeats(user.id) : [];
   
@@ -95,20 +104,7 @@ export default function ProducerDashboard() {
   const handleBankDetailsSubmitted = () => {
     setShowBankDetails(false);
     // Refresh producer data
-    if (user) {
-      supabase
-        .from('users')
-        .select('bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code')
-        .eq('id', user.id)
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            console.error('Error refreshing producer data:', error);
-            return;
-          }
-          setProducerData(data);
-        });
-    }
+    setRefreshTrigger(prev => prev + 1);
   };
 
   return (

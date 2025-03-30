@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { useBeats } from "@/hooks/useBeats";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ToggleFavoriteButtonProps {
   beatId: string;
@@ -34,8 +34,34 @@ export function ToggleFavoriteButton({
       return;
     }
     
-    const result = await toggleFavorite(beatId);
-    setFavorite(result);
+    try {
+      const result = await toggleFavorite(beatId);
+      setFavorite(result);
+      
+      if (result) {
+        await supabase.rpc('increment_counter', {
+          p_table_name: 'beats',
+          p_column_name: 'favorites_count',
+          p_id: beatId
+        });
+      } else {
+        const { data: beat } = await supabase
+          .from('beats')
+          .select('favorites_count')
+          .eq('id', beatId)
+          .single();
+          
+        if (beat && beat.favorites_count > 0) {
+          await supabase
+            .from('beats')
+            .update({ favorites_count: beat.favorites_count - 1 })
+            .eq('id', beatId);
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorite status');
+    }
   };
   
   const sizeClasses = {

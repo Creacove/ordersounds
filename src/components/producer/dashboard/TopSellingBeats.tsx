@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Beat } from "@/types";
+import { Badge } from "@/components/ui/badge";
 
 interface TopSellingBeatsProps {
   beats: Beat[];
@@ -18,7 +19,7 @@ export function TopSellingBeats({ beats }: TopSellingBeatsProps) {
     <Card>
       <CardHeader>
         <CardTitle>Top Selling Beats</CardTitle>
-        <CardDescription>Your best performers</CardDescription>
+        <CardDescription>Your best performing tracks</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
@@ -45,9 +46,16 @@ export function TopSellingBeats({ beats }: TopSellingBeatsProps) {
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-sm">{beat.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {beat.purchase_count || 0} sales
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-muted-foreground">
+                      {beat.purchase_count || 0} sales
+                    </p>
+                    {beat.plays > 0 && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0">
+                        {beat.plays} plays
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-sm">
