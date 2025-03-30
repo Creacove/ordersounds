@@ -16,8 +16,8 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     // Get total revenue
     const { data: revenueData, error: revenueError } = await supabase
       .from('payments')
-      .select('amount, currency_used: orders!inner(currency_used)')
-      .eq('orders.beat.producer_id', producerId);
+      .select('amount, orders(currency_used)')
+      .eq('orders.beat_producer_id', producerId);
     
     if (revenueError) throw revenueError;
 
@@ -25,7 +25,7 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     const { data: salesData, error: salesError } = await supabase
       .from('user_purchased_beats')
       .select('beat_id, purchase_date')
-      .eq('beats.producer_id', producerId);
+      .eq('beat_producer_id', producerId);
     
     if (salesError) throw salesError;
 
@@ -34,8 +34,9 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     let usdCount = 0;
     
     revenueData.forEach((payment) => {
-      if (payment.currency_used === 'NGN') ngnCount++;
-      else if (payment.currency_used === 'USD') usdCount++;
+      const currencyUsed = payment.orders?.currency_used;
+      if (currencyUsed === 'NGN') ngnCount++;
+      else if (currencyUsed === 'USD') usdCount++;
     });
     
     const primaryCurrency = ngnCount >= usdCount ? 'NGN' : 'USD';
@@ -51,14 +52,16 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
 
     const thisMonthRevenue = revenueData
       .filter(payment => {
-        const paymentDate = new Date(payment.payment_date);
+        if (!payment.created_at) return false;
+        const paymentDate = new Date(payment.created_at);
         return paymentDate.getMonth() === currentMonth && paymentDate.getFullYear() === currentYear;
       })
       .reduce((sum, payment) => sum + (payment.amount || 0), 0);
 
     const lastMonthRevenue = revenueData
       .filter(payment => {
-        const paymentDate = new Date(payment.payment_date);
+        if (!payment.created_at) return false;
+        const paymentDate = new Date(payment.created_at);
         return paymentDate.getMonth() === previousMonth && paymentDate.getFullYear() === previousYear;
       })
       .reduce((sum, payment) => sum + (payment.amount || 0), 0);

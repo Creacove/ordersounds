@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 export default function Royalties() {
-  const { user } = useAuth();
+  const { user, currency } = useAuth();
   const navigate = useNavigate();
   const [royaltySplits, setRoyaltySplits] = useState<RoyaltySplit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,15 +98,13 @@ export default function Royalties() {
     );
   }
 
-  // Format currency based on the predominant currency in transactions
+  // Format currency using the global currency from AuthContext
   const formatCurrency = (amount: number) => {
-    // Use NGN if stats indicates most transactions are in NGN, otherwise USD
-    const currencyCode = stats?.primaryCurrency || 'NGN';
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currencyCode,
-      minimumFractionDigits: currencyCode === 'USD' ? 2 : 0,
-      maximumFractionDigits: currencyCode === 'USD' ? 2 : 0,
+      currency: currency,
+      minimumFractionDigits: currency === 'USD' ? 2 : 0,
+      maximumFractionDigits: currency === 'USD' ? 2 : 0,
     }).format(amount || 0);
   };
 
@@ -198,7 +195,7 @@ export default function Royalties() {
         </div>
         
         {/* Add margin-top on desktop to create spacing between stats and splits */}
-        <Card className="mt-0 md:mt-8">
+        <Card className="mt-6 md:mt-10">
           <CardHeader>
             <CardTitle className="text-xl md:text-2xl">Royalty Splits</CardTitle>
             <CardDescription className="text-sm">Manage splits with collaborators on your beats</CardDescription>
