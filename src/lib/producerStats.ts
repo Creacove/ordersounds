@@ -26,42 +26,40 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     
     if (beatsError) throw beatsError;
     
-    // Get beat sales
+    // Get total plays and favorites directly from beats
+    const totalPlays = beats?.reduce((sum, beat) => sum + (beat.plays || 0), 0) || 0;
+    const totalFavorites = beats?.reduce((sum, beat) => sum + (beat.favorites_count || 0), 0) || 0;
+    
+    // Get beat IDs for further queries
     const beatIds = beats?.map(beat => beat.id) || [];
+    if (beatIds.length === 0) {
+      // Return default stats if producer has no beats
+      return getDefaultStats();
+    }
     
-    const { data: sales, error: salesError } = await supabase
+    // Get purchased beats to count total sales
+    const { data: purchases, error: purchasesError } = await supabase
       .from('user_purchased_beats')
-      .select(`
-        id, 
-        purchase_date, 
-        beat_id, 
-        currency_code,
-        license_type
-      `)
-      .in('beat_id', beatIds.length > 0 ? beatIds : ['no-beats']);
+      .select('id, beat_id, purchase_date')
+      .in('beat_id', beatIds);
     
-    if (salesError) throw salesError;
+    if (purchasesError) throw purchasesError;
     
-    // Get line items separately to calculate revenue
+    // Total number of beats sold
+    const beatsSold = purchases?.length || 0;
+    
+    // Get line items to calculate revenue
     const { data: lineItems, error: lineItemsError } = await supabase
       .from('line_items')
       .select('beat_id, price_charged')
-      .in('beat_id', beatIds.length > 0 ? beatIds : ['no-beats']);
+      .in('beat_id', beatIds);
     
     if (lineItemsError) throw lineItemsError;
     
-    // Calculate totals
-    const totalPlays = beats?.reduce((sum, beat) => sum + (beat.plays || 0), 0) || 0;
-    const totalFavorites = beats?.reduce((sum, beat) => sum + (beat.favorites_count || 0), 0) || 0;
-    const beatsSold = sales?.length || 0;
+    // Calculate total revenue from line items
+    const totalRevenue = lineItems?.reduce((sum, item) => sum + Number(item.price_charged || 0), 0) || 0;
     
-    // Calculate total revenue by summing up all line items for the producer's beats
-    let totalRevenue = 0;
-    if (lineItems && lineItems.length > 0) {
-      totalRevenue = lineItems.reduce((sum, item) => sum + Number(item.price_charged || 0), 0);
-    }
-    
-    // Get sales from previous period (last month) for comparison
+    // Get previous month data for trend calculations
     const now = new Date();
     const oneMonthAgo = new Date();
     oneMonthAgo.setMonth(now.getMonth() - 1);
@@ -69,90 +67,59 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(now.getMonth() - 2);
     
-    // Get previous month's sales
-    const { data: prevSales, error: prevSalesError } = await supabase
+    // Get previous month's purchases
+    const { data: prevPurchases, error: prevPurchasesError } = await supabase
       .from('user_purchased_beats')
-      .select('id, purchase_date, beat_id')
-      .in('beat_id', beatIds.length > 0 ? beatIds : ['no-beats'])
+      .select('id, beat_id, purchase_date')
+      .in('beat_id', beatIds)
       .gte('purchase_date', twoMonthsAgo.toISOString())
       .lt('purchase_date', oneMonthAgo.toISOString());
     
-    if (prevSalesError) throw prevSalesError;
+    if (prevPurchasesError) throw prevPurchasesError;
     
-    // Get previous month's line items
-    const prevSaleIds = prevSales?.map(sale => sale.beat_id) || [];
+    // Get previous month's line items to calculate revenue
+    const prevPurchaseBeatIds = prevPurchases?.map(purchase => purchase.beat_id) || [];
+    
     const { data: prevLineItems, error: prevLineItemsError } = await supabase
       .from('line_items')
       .select('beat_id, price_charged')
-      .in('beat_id', prevSaleIds.length > 0 ? prevSaleIds : ['no-beats']);
+      .in('beat_id', prevPurchaseBeatIds);
     
     if (prevLineItemsError) throw prevLineItemsError;
     
-    // Calculate previous revenue
-    let prevRevenue = 0;
-    if (prevLineItems && prevLineItems.length > 0) {
-      prevRevenue = prevLineItems.reduce((sum, item) => sum + Number(item.price_charged || 0), 0);
-    }
+    // Calculate previous month's revenue
+    const prevRevenue = prevLineItems?.reduce((sum, item) => sum + Number(item.price_charged || 0), 0) || 0;
     
     // Calculate percentage changes
-    const revenueChange = prevRevenue === 0 ? 
-      (totalRevenue > 0 ? 100 : 0) : 
-      Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100);
+    const revenueChange = calculatePercentageChange(totalRevenue, prevRevenue);
+    const salesChange = calculatePercentageChange(beatsSold, prevPurchases?.length || 0);
     
-    // For plays, get previous month data if available, otherwise use placeholder
-    const prevPlays = 0; // In a real implementation, would fetch historical play data
-    const playsChange = prevPlays === 0 ? 
-      (totalPlays > 0 ? 100 : 0) : 
-      Math.round(((totalPlays - prevPlays) / prevPlays) * 100);
-    
-    // For sales, calculate change
-    const prevBeatsSold = prevSales?.length || 0;
-    const salesChange = prevBeatsSold === 0 ? 
-      (beatsSold > 0 ? 100 : 0) : 
-      Math.round(((beatsSold - prevBeatsSold) / prevBeatsSold) * 100);
-    
-    // For favorites, use placeholder or calculate if historical data available
-    const prevFavorites = 0; // In a real implementation, would fetch historical favorites data
-    const favoritesChange = prevFavorites === 0 ? 
-      (totalFavorites > 0 ? 100 : 0) : 
-      Math.round(((totalFavorites - prevFavorites) / prevFavorites) * 100);
-    
-    // Get all sales for revenue by month chart
-    const allSaleIds = [...(sales?.map(s => s.beat_id) || []), ...(prevSales?.map(s => s.beat_id) || [])];
-    
-    const { data: allLineItems, error: allLineItemsError } = await supabase
-      .from('line_items')
-      .select('beat_id, price_charged')
-      .in('beat_id', allSaleIds.length > 0 ? allSaleIds : ['no-beats']);
-    
-    if (allLineItemsError) throw allLineItemsError;
+    // For simplicity, we're using placeholder values for play and favorites changes
+    // In a real implementation, you would store historical data for these metrics
+    const playsChange = 0;
+    const favoritesChange = 0;
     
     // Prepare data for charts
-    // For revenue by month, we need to join sales with line items
-    const salesWithRevenue = sales?.map(sale => {
-      const lineItem = allLineItems?.find(item => item.beat_id === sale.beat_id);
+    // Group purchases by month for revenue chart
+    const purchasesWithRevenue = purchases?.map(purchase => {
+      const lineItem = lineItems?.find(item => item.beat_id === purchase.beat_id);
       return {
-        date: sale.purchase_date,
+        date: purchase.purchase_date,
         amount: lineItem ? Number(lineItem.price_charged) : 0
       };
     }) || [];
     
     const revenueByMonth = groupByMonth(
-      salesWithRevenue,
+      purchasesWithRevenue,
       'date',
       'amount'
     );
     
-    // Prepare plays by month - using real aggregated data if available
-    // For this implementation, using calculated data from beats
-    const playsByMonth = calculatePlaysByMonth(beats || []);
+    // For play by month, distribute total plays across months (placeholder)
+    const playsByMonth = calculatePlaysByMonth(totalPlays);
     
     // Process genre distribution
-    const genreDistribution = beats && beats.length > 0 ? 
-      processGenreDistribution(beats) : 
-      [
-        { name: "No Data", value: 100 }
-      ];
+    const genreDistribution = processGenreDistribution(beats || []);
     
     return {
       totalRevenue,
@@ -169,29 +136,33 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     };
   } catch (error) {
     console.error('Error fetching producer stats:', error);
-    // Return default values in case of error
-    return {
-      totalRevenue: 0,
-      totalPlays: 0,
-      beatsSold: 0,
-      totalFavorites: 0,
-      revenueChange: 0,
-      playsChange: 0,
-      salesChange: 0,
-      favoritesChange: 0,
-      revenueByMonth: new Array(12).fill(0).map((_, i) => ({ 
-        name: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i], 
-        value: 0 
-      })),
-      playsByMonth: new Array(12).fill(0).map((_, i) => ({ 
-        name: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][i], 
-        value: 0 
-      })),
-      genreDistribution: [
-        { name: "No Data", value: 100 }
-      ]
-    };
+    return getDefaultStats();
   }
+}
+
+function calculatePercentageChange(current: number, previous: number): number {
+  if (previous === 0) {
+    return current > 0 ? 100 : 0;
+  }
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+function getDefaultStats(): ProducerStats {
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  
+  return {
+    totalRevenue: 0,
+    totalPlays: 0,
+    beatsSold: 0,
+    totalFavorites: 0,
+    revenueChange: 0,
+    playsChange: 0,
+    salesChange: 0,
+    favoritesChange: 0,
+    revenueByMonth: monthNames.map(name => ({ name, value: 0 })),
+    playsByMonth: monthNames.map(name => ({ name, value: 0 })),
+    genreDistribution: [{ name: "No Data", value: 100 }]
+  };
 }
 
 function processGenreDistribution(beats: any[]): { name: string; value: number }[] {
@@ -202,6 +173,11 @@ function processGenreDistribution(beats: any[]): { name: string; value: number }
       genreCounts[beat.genre] = (genreCounts[beat.genre] || 0) + 1;
     }
   });
+  
+  // Return default if no genres
+  if (Object.keys(genreCounts).length === 0) {
+    return [{ name: "No Data", value: 100 }];
+  }
   
   // Calculate percentages
   const total = Object.values(genreCounts).reduce((sum, count) => sum + count, 0);
@@ -228,13 +204,10 @@ function processGenreDistribution(beats: any[]): { name: string; value: number }
   return result;
 }
 
-function calculatePlaysByMonth(beats: any[]): { name: string; value: number }[] {
+function calculatePlaysByMonth(totalPlays: number): { name: string; value: number }[] {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const totalPlays = beats.reduce((sum, beat) => sum + (beat.plays || 0), 0);
   
-  // Since we don't have monthly play data, distribute the total plays across months
-  // This is a placeholder implementation that should be replaced with real data
-  let remainingPlays = totalPlays;
+  // Simple distribution of total plays across months (placeholder implementation)
   const distribution = [0.05, 0.06, 0.07, 0.08, 0.08, 0.09, 0.09, 0.10, 0.10, 0.10, 0.09, 0.09];
   
   return distribution.map((ratio, index) => {
