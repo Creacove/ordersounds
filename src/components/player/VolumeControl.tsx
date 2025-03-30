@@ -15,6 +15,14 @@ export function VolumeControl({ volume, setVolume }: VolumeControlProps) {
       ? Volume1 
       : Volume2;
 
+  const handleVolumeBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const clickPosition = e.clientX - rect.left;
+    const percentage = clickPosition / rect.width;
+    setVolume(Math.max(0, Math.min(1, percentage)));
+  };
+
   return (
     <div className="flex items-center gap-2 w-24">
       <Button 
@@ -26,19 +34,13 @@ export function VolumeControl({ volume, setVolume }: VolumeControlProps) {
         <VolumeIcon size={16} />
       </Button>
       
-      <div className="relative w-full h-1 bg-muted rounded-full overflow-hidden group">
+      <div 
+        className="relative w-full h-1 bg-muted rounded-full overflow-hidden group cursor-pointer"
+        onClick={handleVolumeBarClick}
+      >
         <div 
           className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all"
           style={{ width: `${volume * 100}%` }}
-        />
-        <div className="absolute top-0 left-0 h-full w-full opacity-0 cursor-pointer" 
-          onClick={(e) => {
-            const container = e.currentTarget;
-            const rect = container.getBoundingClientRect();
-            const clickPosition = e.clientX - rect.left;
-            const percentage = clickPosition / rect.width;
-            setVolume(Math.max(0, Math.min(1, percentage)));
-          }}
         />
         <input 
           type="range"

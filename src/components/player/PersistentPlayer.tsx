@@ -72,7 +72,7 @@ export function PersistentPlayer() {
         />
       </div>
       
-      <div className="container mx-auto px-4 py-3 md:py-4 flex items-center gap-4">
+      <div className="w-full mx-auto px-4 py-3 md:py-4 flex items-center gap-4">
         {/* Beat info */}
         <div className="flex items-center gap-3 flex-grow md:flex-grow-0 md:w-1/3">
           <div className="w-10 h-10 md:w-12 md:h-12 rounded overflow-hidden flex-shrink-0">
@@ -125,6 +125,7 @@ export function PersistentPlayer() {
         {/* Time and volume controls (only visible on desktop) */}
         {!isMobile && (
           <div className="hidden md:flex items-center gap-4 w-1/3 justify-end">
+            <TimeProgressBar currentTime={currentTime} duration={duration} seek={seek} isMobile={isMobile} />
             <VolumeControl volume={volume} setVolume={setVolume} />
             
             {/* Queue popover */}
