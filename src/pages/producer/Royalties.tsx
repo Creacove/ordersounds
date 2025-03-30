@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DollarSign, TrendingUp, BarChart3, Calendar, Music } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { getProducerRoyaltySplits } from "@/lib/beatStorage";
+import { getProducerStats, ProducerStats } from "@/lib/producerStats";
 import { RoyaltySplit } from "@/types";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +20,8 @@ export default function Royalties() {
   const navigate = useNavigate();
   const [royaltySplits, setRoyaltySplits] = useState<RoyaltySplit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [stats, setStats] = useState<ProducerStats | null>(null);
   const isMobile = useIsMobile();
   
   useEffect(() => {
@@ -47,7 +50,22 @@ export default function Royalties() {
       }
     };
     
+    const fetchProducerStats = async () => {
+      if (user && user.id) {
+        setStatsLoading(true);
+        try {
+          const producerStats = await getProducerStats(user.id);
+          setStats(producerStats);
+        } catch (error) {
+          console.error("Error fetching producer stats:", error);
+        } finally {
+          setStatsLoading(false);
+        }
+      }
+    };
+    
     fetchRoyaltySplits();
+    fetchProducerStats();
   }, [user]);
 
   // Group splits by beat
@@ -65,12 +83,6 @@ export default function Royalties() {
   }, {} as Record<string, { beatId: string; beatTitle: string; beatCoverImage: string | null; splits: RoyaltySplit[] }>);
 
   const groupedSplits = Object.values(beatSplits);
-
-  // Generate random earnings data for the stats cards
-  const totalEarnings = 1250.75;
-  const monthlyEarnings = 320.50;
-  const salesCount = 15;
-  const growthPercentage = 12;
 
   // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
@@ -100,10 +112,16 @@ export default function Royalties() {
               <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold">${totalEarnings.toFixed(2)}</div>
-              <p className="text-sm text-muted-foreground">
-                Lifetime earnings from your beats
-              </p>
+              {statsLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <>
+                  <div className="text-xl font-bold">${stats?.totalRevenue.toFixed(2) || '0.00'}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Lifetime earnings from your beats
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
           
@@ -113,10 +131,20 @@ export default function Royalties() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold">${monthlyEarnings.toFixed(2)}</div>
-              <p className="text-sm text-muted-foreground">
-                +8% from last month
-              </p>
+              {statsLoading ? (
+                <Skeleton className="h-8 w-24" />
+              ) : (
+                <>
+                  <div className="text-xl font-bold">
+                    ${(stats?.totalRevenue || 0) > 0 
+                      ? (stats?.totalRevenue * 0.3).toFixed(2) 
+                      : '0.00'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {stats && stats.revenueChange > 0 ? `+${stats.revenueChange}%` : `${stats?.revenueChange || 0}%`} from last month
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
           
@@ -126,10 +154,16 @@ export default function Royalties() {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold">{salesCount}</div>
-              <p className="text-sm text-muted-foreground">
-                Total beats purchased
-              </p>
+              {statsLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-xl font-bold">{stats?.beatsSold || 0}</div>
+                  <p className="text-sm text-muted-foreground">
+                    Total beats purchased
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
           
@@ -139,10 +173,16 @@ export default function Royalties() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-xl font-bold">{growthPercentage}%</div>
-              <p className="text-sm text-muted-foreground">
-                Year over year growth
-              </p>
+              {statsLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <>
+                  <div className="text-xl font-bold">{stats?.salesChange || 0}%</div>
+                  <p className="text-sm text-muted-foreground">
+                    Year over year growth
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
