@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -127,14 +126,4 @@ export interface Notification {
   related_entity_id?: string;
   related_entity_type?: string;
   sender_id?: string;
-}
-
-export interface Payment {
-  id?: string;
-  amount: number;
-  producer_share: number;
-  payment_date: string;
-  status: string;
-  transaction_reference?: string;
-  order_id?: string;
 }
