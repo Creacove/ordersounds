@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
@@ -39,7 +40,8 @@ export function ToggleFavoriteButton({
       setFavorite(result);
       
       if (result) {
-        await supabase.rpc('increment_counter', {
+        // Use type assertion to fix the TypeScript error
+        await supabase.rpc('increment_counter' as any, {
           p_table_name: 'beats',
           p_column_name: 'favorites_count',
           p_id: beatId

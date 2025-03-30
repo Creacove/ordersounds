@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -37,7 +38,8 @@ export function BeatCard({
 
   const incrementPlayCount = async (beatId: string) => {
     try {
-      await supabase.rpc('increment_counter', {
+      // Use type assertion to fix the TypeScript error
+      await supabase.rpc('increment_counter' as any, {
         p_table_name: 'beats',
         p_column_name: 'plays',
         p_id: beatId
