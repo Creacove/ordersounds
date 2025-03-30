@@ -76,16 +76,27 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     
     // Process sales data to calculate revenue
     salesData.forEach(sale => {
-      if (sale.orders && !processedOrderIds.has(sale.orders.id)) {
-        // Add order total to revenue (only once per order)
-        totalRevenue += (sale.orders.total_price || 0);
-        processedOrderIds.add(sale.orders.id);
+      // TypeScript safety: Check if orders property exists and is an object
+      if (sale.orders && typeof sale.orders === 'object') {
+        const orderData = sale.orders as { 
+          id: string; 
+          total_price: number; 
+          currency_used: string; 
+          payment_method: string 
+        };
         
-        // Count currencies
-        if (sale.orders.currency_used === 'NGN') {
-          ngnCount++;
-        } else if (sale.orders.currency_used === 'USD') {
-          usdCount++;
+        // Only count each order once
+        if (!processedOrderIds.has(orderData.id)) {
+          // Add order total to revenue
+          totalRevenue += (orderData.total_price || 0);
+          processedOrderIds.add(orderData.id);
+          
+          // Count currencies
+          if (orderData.currency_used === 'NGN') {
+            ngnCount++;
+          } else if (orderData.currency_used === 'USD') {
+            usdCount++;
+          }
         }
       }
     });
@@ -119,9 +130,13 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     const thisMonthOrderIds = new Set();
     
     thisMonthSales.forEach(sale => {
-      if (sale.orders && !thisMonthOrderIds.has(sale.orders.id)) {
-        thisMonthRevenue += (sale.orders.total_price || 0);
-        thisMonthOrderIds.add(sale.orders.id);
+      if (sale.orders && typeof sale.orders === 'object') {
+        const orderData = sale.orders as { id: string; total_price: number };
+        
+        if (!thisMonthOrderIds.has(orderData.id)) {
+          thisMonthRevenue += (orderData.total_price || 0);
+          thisMonthOrderIds.add(orderData.id);
+        }
       }
     });
     
@@ -130,9 +145,13 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     const lastMonthOrderIds = new Set();
     
     lastMonthSales.forEach(sale => {
-      if (sale.orders && !lastMonthOrderIds.has(sale.orders.id)) {
-        lastMonthRevenue += (sale.orders.total_price || 0);
-        lastMonthOrderIds.add(sale.orders.id);
+      if (sale.orders && typeof sale.orders === 'object') {
+        const orderData = sale.orders as { id: string; total_price: number };
+        
+        if (!lastMonthOrderIds.has(orderData.id)) {
+          lastMonthRevenue += (orderData.total_price || 0);
+          lastMonthOrderIds.add(orderData.id);
+        }
       }
     });
     
@@ -235,8 +254,9 @@ function generateMonthlyRevenueData(salesData: any[], monthsCount: number = 6): 
   
   // Calculate revenue for each month
   salesData.forEach(sale => {
-    if (!sale.purchase_date || !sale.orders) return;
+    if (!sale.purchase_date || !sale.orders || typeof sale.orders !== 'object') return;
     
+    const orderData = sale.orders as { id: string; total_price: number };
     const purchaseDate = new Date(sale.purchase_date);
     const purchaseMonth = purchaseDate.getMonth();
     const purchaseYear = purchaseDate.getFullYear();
@@ -250,13 +270,13 @@ function generateMonthlyRevenueData(salesData: any[], monthsCount: number = 6): 
         const monthKey = `${monthYear}-${monthIndex}`;
         
         // Only count each order once per month
-        if (!processedOrdersByMonth[monthKey].has(sale.orders.id)) {
+        if (!processedOrdersByMonth[monthKey].has(orderData.id)) {
           // Add to the correct month's value
           const monthPosition = monthsCount - 1 - i;
-          result[monthPosition].value += (sale.orders.total_price || 0);
+          result[monthPosition].value += (orderData.total_price || 0);
           
           // Mark this order as processed for this month
-          processedOrdersByMonth[monthKey].add(sale.orders.id);
+          processedOrdersByMonth[monthKey].add(orderData.id);
         }
       }
     }

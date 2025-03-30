@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -45,7 +44,7 @@ export default function ProducerSettings() {
     
     // Set initial values
     if (user) {
-      setProducerName(user.producer_name || user.stage_name || '');
+      setProducerName(user.producer_name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
       
