@@ -8,8 +8,8 @@ import { PlayerProvider } from './context/PlayerContext';
 import { CartProvider } from './context/CartContext';
 
 // Layouts
-import MainLayout from './components/layout/MainLayout';
-import MainLayoutWithPlayer from './components/layout/MainLayoutWithPlayer';
+import { MainLayout } from './components/layout/MainLayout';
+import { MainLayoutWithPlayer } from './components/layout/MainLayoutWithPlayer';
 
 // Core pages (non-lazy loaded)
 import Login from './pages/auth/Login';
