@@ -168,9 +168,7 @@ export function useNotifications() {
           setUnreadCount(prev => prev + 1);
           
           // Show a toast notification for real-time updates
-          toast({
-            description: newNotification.body,
-          });
+          toast(newNotification.body);
         }
       )
       .subscribe();

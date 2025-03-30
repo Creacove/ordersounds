@@ -166,6 +166,32 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   transform-origin: center;
 }
 
+/* Notification specific styles */
+.notification-item {
+  @apply transition-all duration-200;
+}
+
+.notification-item-unread {
+  @apply bg-notification-unread border-l-2 border-primary;
+}
+
+.notification-item-read {
+  @apply bg-notification-read hover:bg-notification-read-hover;
+}
+
+.notification-icon {
+  @apply rounded-full p-2.5 flex items-center justify-center;
+}
+
+.notification-badge {
+  @apply absolute -top-1 -right-1 flex items-center justify-center rounded-full text-xs font-medium;
+}
+
+.notification-badge-shimmer {
+  @apply bg-gradient-to-r from-primary/40 via-primary/80 to-primary/40 bg-shimmer animate-shimmer;
+  background-size: 200% 100%;
+}
+
 /* Responsive typography for consistent text sizing */
 @layer utilities {
   .text-responsive-xs {
@@ -219,6 +245,30 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   .item-spacing {
     @apply mb-2 md:mb-3;
   }
+  
+  .notification-content {
+    @apply py-1 px-2 md:px-3;
+  }
+  
+  .notification-title {
+    @apply font-medium text-sm md:text-base line-clamp-1;
+  }
+  
+  .notification-body {
+    @apply text-xs md:text-sm text-muted-foreground mt-1 line-clamp-2;
+  }
+  
+  .notification-timestamp {
+    @apply text-xs text-muted-foreground mt-1;
+  }
+  
+  .notification-action {
+    @apply opacity-0 group-hover:opacity-100 transition-opacity duration-200;
+  }
+  
+  .notification-dot {
+    @apply w-1 h-8 bg-primary absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full;
+  }
 }
 
 /* Standardized UI components for consistency */
@@ -233,6 +283,26 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   
   .tab-trigger-standard {
     @apply h-9 px-3 rounded-sm inline-flex items-center justify-center whitespace-nowrap text-sm font-medium transition-colors;
+  }
+  
+  .notification-layout {
+    @apply px-0 py-0 overflow-hidden;
+  }
+  
+  .notification-header {
+    @apply flex items-center justify-between p-3 border-b;
+  }
+  
+  .notification-empty {
+    @apply py-8 px-4 text-center flex flex-col items-center justify-center;
+  }
+  
+  .notification-group {
+    @apply mb-6 last:mb-0;
+  }
+  
+  .notification-group-title {
+    @apply text-sm font-medium text-primary/80 px-2 mb-2;
   }
 }
 
@@ -378,6 +448,22 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   
   .mobile-btn-standard {
     @apply h-9 px-3 rounded-md flex items-center justify-center;
+  }
+  
+  .notification-mobile-header {
+    @apply sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3;
+  }
+  
+  .notification-mobile-actions {
+    @apply flex items-center space-x-2 justify-end;
+  }
+  
+  .notification-mobile-item {
+    @apply p-3 border-b last:border-b-0;
+  }
+  
+  .notification-mobile-content {
+    @apply flex-1 min-w-0 pr-8;
   }
 }
 

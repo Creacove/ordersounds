@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Check, Trash2, RefreshCw, Bell, Filter } from 'lucide-react';
+import { Check, Trash2, RefreshCw, Bell, Filter, BellRing, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 export default function NotificationsPage() {
   const { 
@@ -33,6 +34,7 @@ export default function NotificationsPage() {
   
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const navigate = useNavigate();
   
   const filteredNotifications = activeTab === 'all' 
     ? notifications 
@@ -82,17 +84,27 @@ export default function NotificationsPage() {
   return (
     <div className="container max-w-4xl mx-auto px-4 py-6 md:py-8">
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <Bell className="h-6 w-6 text-primary" />
-            Notifications
-            {unreadCount > 0 && (
-              <Badge variant="destructive" className="ml-2">
-                {unreadCount} new
-              </Badge>
-            )}
-          </h1>
-          <p className="text-muted-foreground mt-1">Stay updated with your latest activities</p>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="mr-1 md:hidden"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+              <Bell className="h-6 w-6 text-primary" />
+              Notifications
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {unreadCount} new
+                </Badge>
+              )}
+            </h1>
+            <p className="text-muted-foreground mt-1">Stay updated with your latest activities</p>
+          </div>
         </div>
         
         <div className="flex items-center gap-2 self-end sm:self-auto">
@@ -104,7 +116,7 @@ export default function NotificationsPage() {
             disabled={isRefreshing}
           >
             <RefreshCw className={cn(
-              "h-4 w-4 mr-1",
+              "h-4 w-4 mr-2",
               isRefreshing && "animate-spin"
             )} />
             Refresh
@@ -117,7 +129,7 @@ export default function NotificationsPage() {
               className="h-9"
               onClick={markAllAsRead}
             >
-              <Check className="h-4 w-4 mr-1" />
+              <Check className="h-4 w-4 mr-2" />
               Mark all as read
             </Button>
           )}
@@ -162,7 +174,7 @@ export default function NotificationsPage() {
           {isLoading ? (
             <div className="space-y-4">
               {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-start space-x-3 p-4 border rounded-lg">
+                <div key={i} className="flex items-start space-x-3 p-4 border rounded-lg bg-card/50">
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="space-y-2 flex-1">
                     <Skeleton className="h-4 w-3/4" />
@@ -173,18 +185,18 @@ export default function NotificationsPage() {
               ))}
             </div>
           ) : filteredNotifications.length === 0 ? (
-            <div className="py-12 px-4 text-center border rounded-lg bg-muted/30">
-              <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-              <h3 className="text-lg font-medium">No notifications</h3>
-              <p className="text-sm text-muted-foreground mt-1">
+            <div className="py-12 px-4 text-center border rounded-lg bg-card/60 backdrop-blur-sm">
+              <BellRing className="h-16 w-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-medium">No notifications</h3>
+              <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
                 {activeTab === 'all' 
-                  ? "You don't have any notifications yet" 
-                  : "You've read all your notifications"}
+                  ? "You don't have any notifications yet. We'll notify you when something important happens." 
+                  : "You've read all your notifications. Check back later for updates."}
               </p>
               {activeTab === 'unread' && (
                 <Button 
                   variant="outline" 
-                  className="mt-4"
+                  className="mt-6"
                   onClick={() => setActiveTab('all')}
                 >
                   View all notifications
@@ -195,10 +207,10 @@ export default function NotificationsPage() {
             <div className="space-y-6">
               {Object.entries(groupedNotifications).map(([date, dateNotifications]) => (
                 <div key={date} className="space-y-1">
-                  <h3 className="text-sm font-medium text-muted-foreground px-2 mb-2">
+                  <h3 className="text-sm font-medium text-primary/80 px-2 mb-2">
                     {formatGroupDate(date)}
                   </h3>
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border rounded-xl overflow-hidden bg-card/60 backdrop-blur-sm">
                     {dateNotifications.map((notification, index) => (
                       <motion.div 
                         key={notification.id}

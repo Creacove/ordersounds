@@ -47,19 +47,19 @@ export function NotificationItem({
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'sale':
-        return <ShoppingCart className="h-5 w-5 text-green-500" />;
+        return <ShoppingCart className="h-5 w-5 text-emerald-500" />;
       case 'message':
         return <MessageSquare className="h-5 w-5 text-blue-500" />;
       case 'review':
-        return <Star className="h-5 w-5 text-yellow-500" />;
+        return <Star className="h-5 w-5 text-amber-500" />;
       case 'feature':
         return <Award className="h-5 w-5 text-purple-500" />;
       case 'payment':
-        return <CreditCard className="h-5 w-5 text-green-500" />;
+        return <CreditCard className="h-5 w-5 text-emerald-500" />;
       case 'favorite':
-        return <Heart className="h-5 w-5 text-red-500" />;
+        return <Heart className="h-5 w-5 text-rose-500" />;
       case 'promo':
-        return <Tag className="h-5 w-5 text-blue-500" />;
+        return <Tag className="h-5 w-5 text-indigo-500" />;
       default:
         return <Bell className="h-5 w-5 text-gray-500" />;
     }
@@ -115,7 +115,7 @@ export function NotificationItem({
     <div className={cn(
       "group w-full relative transition-colors duration-200",
       !notification.is_read 
-        ? "bg-primary/5 hover:bg-primary/10" 
+        ? "bg-primary/10 hover:bg-primary/15" 
         : "hover:bg-muted/50"
     )}>
       <Button
@@ -128,7 +128,7 @@ export function NotificationItem({
       >
         <div className={cn(
           "flex-shrink-0 rounded-full p-2",
-          !notification.is_read ? "bg-primary/10" : "bg-muted"
+          !notification.is_read ? "bg-primary/15" : "bg-muted"
         )}>
           {getNotificationIcon(notification.notification_type)}
         </div>
@@ -146,7 +146,7 @@ export function NotificationItem({
             </span>
           </div>
           
-          <p className="text-xs md:text-sm mt-1 text-muted-foreground line-clamp-2 break-words">
+          <p className="text-xs md:text-sm mt-1 text-muted-foreground line-clamp-2 break-words pr-8">
             {notification.body}
           </p>
           
@@ -167,7 +167,7 @@ export function NotificationItem({
           >
             <Check className={cn(
               "h-4 w-4",
-              notification.is_read ? "text-green-500" : "text-muted-foreground"
+              notification.is_read ? "text-emerald-500" : "text-muted-foreground"
             )} />
           </Button>
           

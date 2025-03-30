@@ -73,6 +73,12 @@ export default {
 					hover: '#23232b',
 					text: '#D1D5DB',
 					muted: '#9CA3AF',
+				},
+				notification: {
+					unread: 'rgb(124 58 237 / 0.12)',
+					hover: 'rgb(124 58 237 / 0.18)',
+					read: 'transparent',
+					'read-hover': 'rgb(124 58 237 / 0.05)',
 				}
 			},
 			borderRadius: {
@@ -128,6 +134,10 @@ export default {
 				'ripple': {
 					'0%': { transform: 'scale(0)', opacity: '1' },
 					'100%': { transform: 'scale(4)', opacity: '0' }
+				},
+				'shimmer': {
+					'0%': { backgroundPosition: '-200% 0' },
+					'100%': { backgroundPosition: '200% 0' }
 				}
 			},
 			animation: {
@@ -140,7 +150,8 @@ export default {
 				'pulse-gentle': 'pulse-gentle 2s ease-in-out infinite',
 				'scale-in': 'scale-in 0.2s ease-out',
 				'scale-out': 'scale-out 0.2s ease-out',
-				'ripple': 'ripple 0.8s ease-out'
+				'ripple': 'ripple 0.8s ease-out',
+				'shimmer': 'shimmer 2s linear infinite'
 			},
 			fontFamily: {
 				sans: ['Inter', 'sans-serif'],
@@ -153,7 +164,12 @@ export default {
 			boxShadow: {
 				'glow': '0 0 20px rgba(124, 58, 237, 0.5)',
 				'card': '0 8px 24px rgba(0, 0, 0, 0.2)',
+				'notification': '0 4px 12px rgba(0, 0, 0, 0.08)',
 			},
+			backgroundImage: {
+				'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+				'shimmer': 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%)',
+			}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],

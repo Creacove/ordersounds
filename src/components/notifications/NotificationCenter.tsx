@@ -19,7 +19,7 @@ import {
   SheetTrigger,
   SheetClose
 } from '@/components/ui/sheet';
-import { Bell, Check, X, ExternalLink, Trash2 } from 'lucide-react';
+import { Bell, Check, ExternalLink, BellRing, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,7 @@ export function NotificationCenter() {
   } = useNotifications();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
@@ -53,7 +54,9 @@ export function NotificationCenter() {
   };
   
   const handleRefresh = async () => {
+    setIsRefreshing(true);
     await fetchNotifications();
+    setTimeout(() => setIsRefreshing(false), 800);
   };
 
   const NotificationContent = () => (
@@ -73,8 +76,12 @@ export function NotificationCenter() {
             size="icon"
             className="h-8 w-8"
             onClick={handleRefresh}
+            disabled={isRefreshing}
           >
-            <Bell className="h-4 w-4" />
+            <RefreshCw className={cn(
+              "h-4 w-4",
+              isRefreshing && "animate-spin"
+            )} />
             <span className="sr-only">Refresh</span>
           </Button>
           
@@ -109,8 +116,8 @@ export function NotificationCenter() {
         className="w-full"
       >
         <TabsList className="grid grid-cols-2 w-full rounded-none border-b">
-          <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-          <TabsTrigger value="unread" className="text-xs">
+          <TabsTrigger value="all" className="text-xs py-2">All</TabsTrigger>
+          <TabsTrigger value="unread" className="text-xs py-2">
             Unread
             {unreadCount > 0 && (
               <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
@@ -135,13 +142,13 @@ export function NotificationCenter() {
             </div>
           ) : filteredNotifications.length === 0 ? (
             <div className="py-8 px-4 text-center">
-              <Bell className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+              <BellRing className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
               <p className="text-sm font-medium text-foreground">
                 {activeTab === 'all' 
                   ? 'No notifications' 
                   : 'No unread notifications'}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1 max-w-[250px] mx-auto">
                 {activeTab === 'all'
                   ? "We'll notify you when something important happens"
                   : "You're all caught up!"}
@@ -225,7 +232,7 @@ export function NotificationCenter() {
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[min(420px,95vw)] p-0 shadow-lg" 
+        className="w-[min(420px,95vw)] p-0 shadow-lg rounded-xl" 
         align="end"
         side="bottom"
         sideOffset={5}
