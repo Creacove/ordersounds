@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -37,7 +38,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
-export function Topbar() {
+// Add a new prop to receive sidebar open state
+export function Topbar({ sidebarVisible = false }) {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,15 +87,17 @@ export function Topbar() {
       )}
     >
       <div className="container flex items-center justify-between h-16 py-2">
-        {/* Logo */}
+        {/* Logo - Only show when sidebar is not visible */}
         <div className="flex items-center gap-2">          
-          <Link to="/" className="flex items-center gap-2">
-            <Headphones size={isMobile ? 20 : 24} className="text-purple-600" />
-            <span className={cn(
-              "font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text",
-              isMobile ? "text-lg" : "text-xl"
-            )}>OrderSOUNDS</span>
-          </Link>
+          {(!sidebarVisible || isMobile) && (
+            <Link to="/" className="flex items-center gap-2">
+              <Headphones size={isMobile ? 20 : 24} className="text-purple-600" />
+              <span className={cn(
+                "font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text",
+                isMobile ? "text-lg" : "text-xl"
+              )}>OrderSOUNDS</span>
+            </Link>
+          )}
         </div>
         
         {/* Search and User Menu - Hide when on auth pages and not logged in */}

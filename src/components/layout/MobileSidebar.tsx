@@ -1,7 +1,7 @@
 
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Headphones, Menu, AlignJustify } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
 
@@ -11,6 +11,8 @@ interface MobileSidebarProps {
   user: User | null;
   handleSignOut: () => void;
   getSidebarContent: () => any[];
+  isCollapsed?: boolean;
+  toggleCollapsed?: () => void;
 }
 
 export function MobileSidebar({ 
@@ -18,7 +20,9 @@ export function MobileSidebar({
   setIsOpen, 
   user, 
   handleSignOut, 
-  getSidebarContent 
+  getSidebarContent,
+  isCollapsed = false,
+  toggleCollapsed
 }: MobileSidebarProps) {
   return (
     <>
@@ -34,29 +38,48 @@ export function MobileSidebar({
           "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
           "bg-[#0e0e0e] text-white",
           isOpen ? "translate-x-0" : "-translate-x-full",
-          "w-[280px] md:w-[320px]" // Slightly wider on desktop
+          isCollapsed ? "w-[70px]" : "w-[280px] md:w-[320px]" // Adjust width based on collapsed state
         )}
       >
         <div className="flex items-center justify-between p-4 border-b border-[#272727]">
-          <h2 className="font-medium">
-            {user?.role === "producer" ? "Producer Menu" : "OrderSOUNDS Menu"}
-          </h2>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            className="h-8 w-8" 
-            onClick={() => setIsOpen(false)}
-          >
-            <ChevronLeft size={16} />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Headphones size={24} className="text-purple-600" />
+            {!isCollapsed && (
+              <span className="font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text text-xl">
+                OrderSOUNDS
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {toggleCollapsed && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                onClick={toggleCollapsed}
+              >
+                {isCollapsed ? <AlignJustify size={16} /> : <Menu size={16} />}
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8" 
+              onClick={() => setIsOpen(false)}
+            >
+              <ChevronLeft size={16} />
+            </Button>
+          </div>
         </div>
         
         <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
           {getSidebarContent().map((section, index) => (
             <div key={index} className="mb-6">
-              <h2 className="px-3 mb-2 text-xs font-medium uppercase text-gray-400">
-                {section.title}
-              </h2>
+              {!isCollapsed && (
+                <h2 className="px-3 mb-2 text-xs font-medium uppercase text-gray-400">
+                  {section.title}
+                </h2>
+              )}
               <nav className="flex flex-col gap-1">
                 {section.items.map((item, idx) => {
                   // For items with onClick (like Sign Out), they shouldn't be "active"
@@ -71,14 +94,15 @@ export function MobileSidebar({
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                           "hover:bg-purple-500/20 hover:text-white",
-                          "text-[#b3b3b3]"
+                          "text-[#b3b3b3]",
+                          isCollapsed && "justify-center"
                         )}
                       >
                         <item.icon 
                           size={18} 
                           className="text-[#b3b3b3]"
                         />
-                        <span>{item.title}</span>
+                        {!isCollapsed && <span>{item.title}</span>}
                       </button>
                     );
                   }
@@ -94,7 +118,8 @@ export function MobileSidebar({
                           "hover:bg-purple-500/20 hover:text-white",
                           isActive
                             ? "text-purple-500 border-r-4 border-purple-500 font-medium rounded-r-none"
-                            : "text-[#b3b3b3] border-r-0"
+                            : "text-[#b3b3b3] border-r-0",
+                          isCollapsed && "justify-center"
                         )
                       }
                     >
@@ -104,7 +129,7 @@ export function MobileSidebar({
                             size={18} 
                             className={isActive ? "text-purple-500" : "text-[#b3b3b3]"}
                           />
-                          <span>{item.title}</span>
+                          {!isCollapsed && <span>{item.title}</span>}
                         </>
                       )}
                     </NavLink>

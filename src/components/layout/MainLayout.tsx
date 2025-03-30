@@ -1,41 +1,41 @@
-
-import { useEffect } from "react";
-import { Topbar } from "./Topbar";
-import { Sidebar } from "./Sidebar";
-import { useLocation } from "react-router-dom";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { Sidebar } from "@/components/layout/Sidebar";
+import { Topbar } from "@/components/layout/Topbar";
+import { PersistentPlayer } from "@/components/player/PersistentPlayer";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  hideSidebar?: boolean;
+  activeTab?: string;
+  currentPath?: string;
 }
 
-export function MainLayout({ children, hideSidebar = false }: MainLayoutProps) {
-  const location = useLocation();
+// We need to add the sidebarVisible state to coordinate between the sidebar and topbar
+export function MainLayout({ children, activeTab, currentPath }: MainLayoutProps) {
+  const [sidebarVisible, setSidebarVisible] = useState(false);
   const isMobile = useIsMobile();
 
-  // Smooth scroll to top on route change
+  // Listen for sidebar open/close events
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [location.pathname]);
+    const handleSidebarChange = (event: CustomEvent) => {
+      setSidebarVisible(event.detail.isOpen);
+    };
+
+    window.addEventListener('sidebarChange' as any, handleSidebarChange);
+    return () => {
+      window.removeEventListener('sidebarChange' as any, handleSidebarChange);
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen flex flex-col w-full">
-      <Topbar />
-      <div className="flex flex-1">
-        {!hideSidebar && <Sidebar />}
-        <main 
-          className={cn(
-            "flex-1 transition-all duration-300 animate-fade-in w-full",
-            hideSidebar ? "ml-0" : "ml-0 md:ml-[70px] lg:ml-[240px]",
-            // Consistent mobile padding with extra space for the bottom navigation
-            isMobile ? "pb-20 mobile-content-padding" : ""
-          )}
-        >
+    <div className="flex min-h-screen flex-col">
+      <Topbar sidebarVisible={sidebarVisible && !isMobile} />
+      <Sidebar activeTab={activeTab} currentPath={currentPath} />
+      <main className="flex-1">
+        <div className="w-full flex flex-col">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
