@@ -7,8 +7,8 @@ import AdminDashboard from './AdminDashboard';
 export function AdminRoute() {
   return (
     <Routes>
-      <Route path="payment" element={<PaymentAdmin />} />
-      <Route path="dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/payment" element={<PaymentAdmin />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
     </Routes>
   );
 }

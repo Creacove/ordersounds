@@ -8,7 +8,7 @@ import {
   CardDescription 
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AreaChart, BarChart, LineChart, PieChart } from '@/components/ui/charts';
+import { AreaChart, BarChart, LineChart, PieChart } from '@/components/ui/chart';
 import { 
   Table, 
   TableHeader, 
