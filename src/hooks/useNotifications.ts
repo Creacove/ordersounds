@@ -64,6 +64,33 @@ export function useNotifications() {
     }
   };
 
+  // Mark a single notification as unread
+  const markAsUnread = async (notificationId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: false })
+        .eq('id', notificationId)
+        .eq('recipient_id', user.id);
+      
+      if (error) throw error;
+      
+      // Update the local state
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, is_read: false } 
+            : notification
+        )
+      );
+      setUnreadCount(prev => prev + 1);
+    } catch (error) {
+      console.error('Error marking notification as unread:', error);
+    }
+  };
+
   // Mark all notifications as read
   const markAllAsRead = async () => {
     if (!user || unreadCount === 0) return;
@@ -112,11 +139,12 @@ export function useNotifications() {
           setUnreadCount(prev => prev + 1);
           
           // Show a toast notification for real-time updates
-          toast({
-            title: newNotification.title,
-            description: newNotification.body,
-            variant: newNotification.notification_type === 'error' ? 'destructive' : 'default'
-          });
+          toast(
+            {
+              title: newNotification.title,
+              description: newNotification.body
+            }
+          );
         }
       )
       .subscribe();
@@ -132,6 +160,7 @@ export function useNotifications() {
     unreadCount,
     isLoading,
     markAsRead,
+    markAsUnread,
     markAllAsRead,
     fetchNotifications
   };

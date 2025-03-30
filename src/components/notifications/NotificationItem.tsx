@@ -13,15 +13,17 @@ import {
   Bell, 
   CreditCard, 
   Heart, 
-  Tag 
+  Tag,
+  Check
 } from 'lucide-react';
 
 interface NotificationItemProps {
   notification: Notification;
   onMarkAsRead: (id: string) => Promise<void>;
+  onMarkAsUnread?: (id: string) => Promise<void>;
 }
 
-export function NotificationItem({ notification, onMarkAsRead }: NotificationItemProps) {
+export function NotificationItem({ notification, onMarkAsRead, onMarkAsUnread }: NotificationItemProps) {
   const navigate = useNavigate();
   
   const getNotificationIcon = (type: string) => {
@@ -69,41 +71,67 @@ export function NotificationItem({ notification, onMarkAsRead }: NotificationIte
       }
     }
   };
+
+  const handleToggleReadStatus = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the parent button click
+    
+    if (notification.is_read && onMarkAsUnread) {
+      await onMarkAsUnread(notification.id);
+    } else if (!notification.is_read) {
+      await onMarkAsRead(notification.id);
+    }
+  };
   
   return (
-    <Button
-      variant="ghost"
-      className={cn(
-        "w-full justify-start text-left px-4 py-3 space-x-3 rounded-md",
-        !notification.is_read ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted"
-      )}
-      onClick={handleClick}
-    >
-      <div className={cn(
-        "flex-shrink-0 rounded-full p-1.5",
-        !notification.is_read ? "bg-primary/10" : "bg-muted"
-      )}>
-        {getNotificationIcon(notification.notification_type)}
-      </div>
-      <div className="flex-grow min-w-0">
-        <div className="flex items-start justify-between">
-          <p className={cn(
-            "text-sm font-medium leading-none",
-            !notification.is_read ? "text-foreground" : "text-muted-foreground"
-          )}>
-            {notification.title}
-          </p>
-          <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
-            {formatDistanceToNow(new Date(notification.created_date), { addSuffix: true })}
-          </span>
+    <div className={cn(
+      "group w-full relative transition-colors duration-200",
+      !notification.is_read ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted"
+    )}>
+      <Button
+        variant="ghost"
+        className={cn(
+          "w-full justify-start text-left px-4 py-3 space-x-3 rounded-md h-auto",
+        )}
+        onClick={handleClick}
+      >
+        <div className={cn(
+          "flex-shrink-0 rounded-full p-1.5",
+          !notification.is_read ? "bg-primary/10" : "bg-muted"
+        )}>
+          {getNotificationIcon(notification.notification_type)}
         </div>
-        <p className="text-xs mt-1 text-muted-foreground line-clamp-2">
-          {notification.body}
-        </p>
-      </div>
+        <div className="flex-grow min-w-0">
+          <div className="flex items-start justify-between">
+            <p className={cn(
+              "text-sm font-medium leading-none",
+              !notification.is_read ? "text-foreground" : "text-muted-foreground"
+            )}>
+              {notification.title}
+            </p>
+            <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
+              {formatDistanceToNow(new Date(notification.created_date), { addSuffix: true })}
+            </span>
+          </div>
+          <p className="text-xs mt-1 text-muted-foreground line-clamp-2 break-words">
+            {notification.body}
+          </p>
+        </div>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7"
+        onClick={handleToggleReadStatus}
+        title={notification.is_read ? "Mark as unread" : "Mark as read"}
+      >
+        <Check className={cn(
+          "h-3.5 w-3.5",
+          notification.is_read ? "text-green-500" : "text-muted-foreground"
+        )} />
+      </Button>
       {!notification.is_read && (
-        <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-1/2 bg-primary rounded-r-full" />
       )}
-    </Button>
+    </div>
   );
 }

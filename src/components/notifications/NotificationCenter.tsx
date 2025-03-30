@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationItem } from './NotificationItem';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -10,10 +11,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Bell } from 'lucide-react';
+import { Bell, Check, X, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function NotificationCenter() {
   const { 
@@ -21,9 +24,23 @@ export function NotificationCenter() {
     unreadCount, 
     isLoading, 
     markAsRead, 
-    markAllAsRead 
+    markAsUnread,
+    markAllAsRead,
+    fetchNotifications 
   } = useNotifications();
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+
+  const filteredNotifications = activeTab === 'all' 
+    ? notifications 
+    : notifications.filter(n => !n.is_read);
+
+  const handleViewAll = () => {
+    setOpen(false);
+    navigate('/notifications');
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -46,62 +63,102 @@ export function NotificationCenter() {
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[380px] p-0" 
+        className="w-[min(420px,95vw)] p-0 shadow-lg" 
         align="end"
         side="bottom"
         sideOffset={5}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h4 className="font-medium text-sm">Notifications</h4>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="text-xs h-8"
-              onClick={markAllAsRead}
+          <div className="flex items-center space-x-1">
+            {unreadCount > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs h-8"
+                onClick={markAllAsRead}
+              >
+                <Check className="h-3.5 w-3.5 mr-1" />
+                Mark all as read
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2"
+              onClick={handleViewAll}
             >
-              Mark all as read
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span className="sr-only md:not-sr-only md:ml-1 text-xs">View all</span>
             </Button>
-          )}
+          </div>
         </div>
         
-        {isLoading ? (
-          <div className="py-2 px-4 space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="flex items-start space-x-3">
-                <Skeleton className="h-8 w-8 rounded-full" />
-                <div className="space-y-2 flex-1">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-full" />
-                </div>
+        <Tabs 
+          defaultValue="all" 
+          value={activeTab} 
+          onValueChange={(v) => setActiveTab(v as 'all' | 'unread')}
+          className="w-full"
+        >
+          <TabsList className="grid grid-cols-2 w-full rounded-none border-b">
+            <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
+            <TabsTrigger value="unread" className="text-xs">
+              Unread
+              {unreadCount > 0 && (
+                <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+                  {unreadCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value={activeTab} className="mt-0 focus-visible:outline-none">
+            {isLoading ? (
+              <div className="py-2 px-4 space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex items-start space-x-3">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="py-8 px-4 text-center">
-            <Bell className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-            <p className="text-sm text-muted-foreground">No notifications yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              We'll notify you when something important happens
-            </p>
-          </div>
-        ) : (
-          <ScrollArea className="h-[min(400px,80vh)]">
-            <div className="py-1">
-              {notifications.map((notification) => (
-                <React.Fragment key={notification.id}>
-                  <NotificationItem 
-                    notification={notification} 
-                    onMarkAsRead={markAsRead} 
-                  />
-                  <Separator className={cn(
-                    notifications[notifications.length - 1].id !== notification.id ? "opacity-100" : "opacity-0"
-                  )} />
-                </React.Fragment>
-              ))}
-            </div>
-          </ScrollArea>
-        )}
+            ) : filteredNotifications.length === 0 ? (
+              <div className="py-8 px-4 text-center">
+                <Bell className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  {activeTab === 'all' 
+                    ? 'No notifications yet' 
+                    : 'No unread notifications'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {activeTab === 'all'
+                    ? "We'll notify you when something important happens"
+                    : "You're all caught up!"}
+                </p>
+              </div>
+            ) : (
+              <ScrollArea className="h-[min(400px,60vh)]">
+                <div className="py-1">
+                  {filteredNotifications.map((notification) => (
+                    <React.Fragment key={notification.id}>
+                      <NotificationItem 
+                        notification={notification} 
+                        onMarkAsRead={markAsRead}
+                        onMarkAsUnread={markAsUnread}
+                      />
+                      <Separator className={cn(
+                        filteredNotifications[filteredNotifications.length - 1].id !== notification.id ? "opacity-100" : "opacity-0"
+                      )} />
+                    </React.Fragment>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </TabsContent>
+        </Tabs>
       </PopoverContent>
     </Popover>
   );
