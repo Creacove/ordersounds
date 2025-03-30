@@ -14,8 +14,7 @@ import {
   User,
   LogOut,
   Search,
-  ShoppingCart,
-  BarChart
+  ShoppingCart
 } from "lucide-react";
 import { User as UserType } from "@/types";
 
@@ -40,25 +39,6 @@ export const getSidebarSections = (user: UserType | null, handleSignOut: () => v
         { icon: TrendingUp, title: "Trending", href: "/trending" },
         { icon: Heart, title: "Favorites", href: "/favorites" },
         { icon: ShoppingCart, title: "Cart", href: "/cart" },
-      ]
-    });
-  } else if (user?.role === "admin") {
-    sections.push({
-      title: "Admin",
-      items: [
-        { icon: LayoutDashboard, title: "Dashboard", href: "/admin/dashboard" },
-        { icon: DollarSign, title: "Payment Management", href: "/admin/payment" },
-        { icon: Music, title: "Content Management", href: "/admin/content" },
-        { icon: User, title: "User Management", href: "/admin/users" },
-      ]
-    });
-
-    sections.push({
-      title: "Marketplace",
-      items: [
-        { icon: Home, title: "Explore", href: "/" },
-        { icon: TrendingUp, title: "Trending", href: "/trending" },
-        { icon: Heart, title: "Favorites", href: "/favorites" },
       ]
     });
   } else {

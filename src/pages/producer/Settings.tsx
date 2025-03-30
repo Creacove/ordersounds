@@ -69,7 +69,7 @@ export default function ProducerSettings() {
       const { error } = await supabase
         .from('users')
         .update({
-          stage_name: producerName,
+          producer_name: producerName,
           bio: bio,
           country: location
         })
@@ -104,7 +104,7 @@ export default function ProducerSettings() {
     try {
       setIsLoading(true);
       
-      const newSettings = {
+      const settings = {
         emailNotifications,
         pushNotifications
       };
@@ -113,7 +113,7 @@ export default function ProducerSettings() {
       const { error } = await supabase
         .from('users')
         .update({
-          settings: newSettings
+          settings: settings
         })
         .eq('id', user.id);
         
@@ -125,7 +125,7 @@ export default function ProducerSettings() {
       if (updateProfile) {
         await updateProfile({
           ...user,
-          settings: newSettings
+          settings
         });
         
         toast.success('Preferences updated successfully');

@@ -8,7 +8,7 @@ import { useBeats } from "@/hooks/useBeats";
 import { useAuth } from "@/context/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow, subMonths } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { ProducerBankDetailsForm } from "@/components/payment/ProducerBankDetailsForm";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -27,6 +27,44 @@ import {
   Legend,
 } from "recharts";
 
+const revenueData = [
+  { name: "Jan", value: 4000 },
+  { name: "Feb", value: 3000 },
+  { name: "Mar", value: 5000 },
+  { name: "Apr", value: 2780 },
+  { name: "May", value: 1890 },
+  { name: "Jun", value: 2390 },
+  { name: "Jul", value: 3490 },
+  { name: "Aug", value: 4000 },
+  { name: "Sep", value: 4500 },
+  { name: "Oct", value: 6000 },
+  { name: "Nov", value: 7000 },
+  { name: "Dec", value: 9000 },
+];
+
+const playsData = [
+  { name: "Jan", value: 1200 },
+  { name: "Feb", value: 1900 },
+  { name: "Mar", value: 2500 },
+  { name: "Apr", value: 3200 },
+  { name: "May", value: 2800 },
+  { name: "Jun", value: 3500 },
+  { name: "Jul", value: 4200 },
+  { name: "Aug", value: 5000 },
+  { name: "Sep", value: 5500 },
+  { name: "Oct", value: 6200 },
+  { name: "Nov", value: 7500 },
+  { name: "Dec", value: 8200 },
+];
+
+const genreData = [
+  { name: "Afrobeat", value: 45 },
+  { name: "Amapiano", value: 25 },
+  { name: "Hip Hop", value: 15 },
+  { name: "R&B", value: 10 },
+  { name: "Others", value: 5 },
+];
+
 const COLORS = ["#7C3AED", "#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE"];
 
 export default function ProducerDashboard() {
@@ -37,19 +75,6 @@ export default function ProducerDashboard() {
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [producerData, setProducerData] = useState<any>(null);
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
-  
-  // Analytics states
-  const [totalRevenue, setTotalRevenue] = useState(0);
-  const [totalPlays, setTotalPlays] = useState(0);
-  const [totalSales, setTotalSales] = useState(0);
-  const [totalFavorites, setTotalFavorites] = useState(0);
-  const [revenueData, setRevenueData] = useState<any[]>([]);
-  const [playsData, setPlaysData] = useState<any[]>([]);
-  const [genreData, setGenreData] = useState<any[]>([]);
-  const [lastMonthRevenue, setLastMonthRevenue] = useState(0);
-  const [lastMonthPlays, setLastMonthPlays] = useState(0);
-  const [lastMonthSales, setLastMonthSales] = useState(0);
-  const [lastMonthFavorites, setLastMonthFavorites] = useState(0);
   
   // Fetch producer data including bank details and subaccount info
   useEffect(() => {
@@ -85,142 +110,6 @@ export default function ProducerDashboard() {
     fetchProducerData();
   }, [user]);
   
-  // Fetch analytics data
-  useEffect(() => {
-    const fetchAnalyticsData = async () => {
-      if (!user) return;
-      
-      try {
-        // Fetch all producer beats
-        const producerBeats = await getProducerBeats(user.id);
-        
-        // Calculate total plays
-        const plays = producerBeats.reduce((sum, beat) => sum + (beat.plays || 0), 0);
-        setTotalPlays(plays);
-        
-        // Calculate total sales
-        const sales = producerBeats.reduce((sum, beat) => sum + (beat.purchase_count || 0), 0);
-        setTotalSales(sales);
-        
-        // Calculate total favorites
-        const favorites = producerBeats.reduce((sum, beat) => sum + (beat.favorites_count || 0), 0);
-        setTotalFavorites(favorites);
-        
-        // Fetch revenue data from payments
-        const now = new Date();
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        
-        const { data: paymentData, error: paymentError } = await supabase
-          .from('payments')
-          .select('amount, producer_share, payment_date')
-          .eq('status', 'success')
-          .gte('payment_date', oneYearAgo.toISOString())
-          .order('payment_date', { ascending: true });
-          
-        if (paymentError) {
-          console.error('Error fetching payment data:', paymentError);
-          return;
-        }
-        
-        // Calculate total revenue
-        const revenue = (paymentData || []).reduce((sum, payment) => 
-          sum + (payment.producer_share || 0), 0);
-        setTotalRevenue(revenue);
-        
-        // Calculate monthly revenue data
-        const monthlyRevenue = Array(12).fill(0);
-        const monthlyPlays = Array(12).fill(0);
-        const currentMonth = now.getMonth();
-        
-        (paymentData || []).forEach(payment => {
-          const paymentDate = new Date(payment.payment_date);
-          const monthIndex = (paymentDate.getMonth() - currentMonth + 12) % 12;
-          monthlyRevenue[monthIndex] += (payment.producer_share || 0);
-        });
-        
-        // Generate monthly plays data (mock data for now, can be replaced with real data)
-        producerBeats.forEach(beat => {
-          // For this example, we'll distribute plays randomly over the months
-          // In a real app, you'd fetch play history from the database
-          const playsCount = beat.plays || 0;
-          const playsPerMonth = Math.floor(playsCount / 12);
-          
-          for (let i = 0; i < 12; i++) {
-            // Add a random variation to make the data look more realistic
-            const randomFactor = Math.random() * 0.5 + 0.75; // 0.75 to 1.25
-            monthlyPlays[i] += Math.floor(playsPerMonth * randomFactor);
-          }
-        });
-        
-        // Calculate last month revenue and percentage change
-        const lastMonthIndex = (currentMonth - 1 + 12) % 12;
-        const twoMonthsAgoIndex = (currentMonth - 2 + 12) % 12;
-        
-        setLastMonthRevenue(monthlyRevenue[lastMonthIndex]);
-        setLastMonthPlays(monthlyPlays[lastMonthIndex]);
-        
-        // Calculate last month sales and favorites (mock data for now)
-        const lastMonthSalesCount = Math.floor(sales * 0.15); // Assuming 15% of total sales were last month
-        const twoMonthsAgoSalesCount = Math.floor(sales * 0.1); // Assuming 10% were two months ago
-        setLastMonthSales(lastMonthSalesCount);
-        
-        const lastMonthFavoritesCount = Math.floor(favorites * 0.2); // Assuming 20% of favorites were last month
-        const twoMonthsAgoFavoritesCount = Math.floor(favorites * 0.15); // Assuming 15% were two months ago
-        setLastMonthFavorites(lastMonthFavoritesCount);
-        
-        // Format revenue data for chart
-        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const revenueChartData = monthlyRevenue.map((value, index) => ({
-          name: months[(currentMonth + index) % 12],
-          value: value,
-        }));
-        setRevenueData(revenueChartData);
-        
-        // Format plays data for chart
-        const playsChartData = monthlyPlays.map((value, index) => ({
-          name: months[(currentMonth + index) % 12],
-          value: value,
-        }));
-        setPlaysData(playsChartData);
-        
-        // Generate genre distribution data
-        const genreCounts: Record<string, number> = {};
-        producerBeats.forEach(beat => {
-          if (beat.genre) {
-            genreCounts[beat.genre] = (genreCounts[beat.genre] || 0) + (beat.purchase_count || 1);
-          }
-        });
-        
-        const genreDistribution = Object.entries(genreCounts).map(([name, value]) => ({
-          name,
-          value,
-        })).sort((a, b) => b.value - a.value);
-        
-        // Take top 4 genres and group the rest as "Others"
-        if (genreDistribution.length > 4) {
-          const topGenres = genreDistribution.slice(0, 4);
-          const otherGenres = genreDistribution.slice(4);
-          const othersValue = otherGenres.reduce((sum, genre) => sum + genre.value, 0);
-          
-          if (othersValue > 0) {
-            topGenres.push({ name: 'Others', value: othersValue });
-          }
-          
-          setGenreData(topGenres);
-        } else {
-          setGenreData(genreDistribution);
-        }
-        
-      } catch (error) {
-        console.error('Error fetching analytics data:', error);
-      }
-    };
-    
-    fetchAnalyticsData();
-  }, [user, getProducerBeats]);
-  
-  // Get producer beats and sort by purchase count
   const producerBeats = user ? getProducerBeats(user.id) : [];
   
   // Sort beats by purchase count in descending order
@@ -255,58 +144,6 @@ export default function ProducerDashboard() {
       }
     }
   };
-  
-  // Calculate percentage changes for analytics cards
-  const calculatePercentChange = (current: number, previous: number) => {
-    if (previous === 0) return current > 0 ? 100 : 0;
-    return Math.round((current - previous) / previous * 100);
-  };
-  
-  const revenueChange = calculatePercentChange(
-    lastMonthRevenue, 
-    monthlyRevenue(2)
-  );
-  
-  const playsChange = calculatePercentChange(
-    lastMonthPlays,
-    monthlyPlays(2)
-  );
-  
-  const salesChange = calculatePercentChange(
-    lastMonthSales,
-    monthlyRevenue(2, true)
-  );
-  
-  const favoritesChange = calculatePercentChange(
-    lastMonthFavorites,
-    monthlyFavorites(2)
-  );
-  
-  // Helper function to get data from X months ago
-  function monthlyRevenue(monthsAgo: number, isSales = false) {
-    if (revenueData.length === 0) return 0;
-    const currentMonth = new Date().getMonth();
-    const targetMonthIndex = (currentMonth - monthsAgo + 12) % 12;
-    const targetMonthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][targetMonthIndex];
-    
-    const targetMonthData = revenueData.find(d => d.name === targetMonthName);
-    return targetMonthData ? (isSales ? Math.floor(targetMonthData.value / 1000) : targetMonthData.value) : 0;
-  }
-  
-  function monthlyPlays(monthsAgo: number) {
-    if (playsData.length === 0) return 0;
-    const currentMonth = new Date().getMonth();
-    const targetMonthIndex = (currentMonth - monthsAgo + 12) % 12;
-    const targetMonthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][targetMonthIndex];
-    
-    const targetMonthData = playsData.find(d => d.name === targetMonthName);
-    return targetMonthData ? targetMonthData.value : 0;
-  }
-  
-  function monthlyFavorites(monthsAgo: number) {
-    // Mock data - in a real app you would fetch this from the database
-    return Math.floor(totalFavorites * (0.15 - (monthsAgo * 0.03)));
-  }
   
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -343,12 +180,6 @@ export default function ProducerDashboard() {
     }
   };
 
-  // Format currency based on user's default currency
-  const formatCurrency = (amount: number) => {
-    const currency = user?.default_currency === 'USD' ? '$' : '₦';
-    return `${currency}${amount.toLocaleString()}`;
-  };
-
   return (
     <MainLayout>
       <div className="container py-8">
@@ -383,11 +214,9 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalRevenue)}</div>
+              <div className="text-2xl font-bold">₦152,500</div>
               <p className="text-xs text-muted-foreground mt-1">
-                <span className={revenueChange >= 0 ? "text-green-500" : "text-red-500"}>
-                  {revenueChange >= 0 ? '↑' : '↓'} {Math.abs(revenueChange)}%
-                </span> from last month
+                <span className="text-green-500">↑ 12%</span> from last month
               </p>
             </CardContent>
           </Card>
@@ -398,11 +227,9 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalPlays.toLocaleString()}</div>
+              <div className="text-2xl font-bold">24,521</div>
               <p className="text-xs text-muted-foreground mt-1">
-                <span className={playsChange >= 0 ? "text-green-500" : "text-red-500"}>
-                  {playsChange >= 0 ? '↑' : '↓'} {Math.abs(playsChange)}%
-                </span> from last month
+                <span className="text-green-500">↑ 18%</span> from last month
               </p>
             </CardContent>
           </Card>
@@ -413,11 +240,9 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalSales.toLocaleString()}</div>
+              <div className="text-2xl font-bold">135</div>
               <p className="text-xs text-muted-foreground mt-1">
-                <span className={salesChange >= 0 ? "text-green-500" : "text-red-500"}>
-                  {salesChange >= 0 ? '↑' : '↓'} {Math.abs(salesChange)}%
-                </span> from last month
+                <span className="text-green-500">↑ 5%</span> from last month
               </p>
             </CardContent>
           </Card>
@@ -428,11 +253,9 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalFavorites.toLocaleString()}</div>
+              <div className="text-2xl font-bold">286</div>
               <p className="text-xs text-muted-foreground mt-1">
-                <span className={favoritesChange >= 0 ? "text-green-500" : "text-red-500"}>
-                  {favoritesChange >= 0 ? '↑' : '↓'} {Math.abs(favoritesChange)}%
-                </span> from last month
+                <span className="text-green-500">↑ 24%</span> from last month
               </p>
             </CardContent>
           </Card>
@@ -466,7 +289,7 @@ export default function ProducerDashboard() {
                       <XAxis dataKey="name" />
                       <YAxis />
                       <CartesianGrid strokeDasharray="3 3" />
-                      <Tooltip formatter={(value) => [`${formatCurrency(Number(value))}`, 'Revenue']} />
+                      <Tooltip />
                       <Area
                         type="monotone"
                         dataKey="value"
@@ -483,7 +306,7 @@ export default function ProducerDashboard() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="name" />
                       <YAxis />
-                      <Tooltip formatter={(value) => [`${Number(value).toLocaleString()}`, 'Plays']} />
+                      <Tooltip />
                       <Bar dataKey="value" fill="#7C3AED" />
                     </RechartsBarChart>
                   </ResponsiveContainer>
@@ -591,7 +414,7 @@ export default function ProducerDashboard() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-sm">
-                          {formatCurrency((beat.basic_license_price_local || 0))}
+                          ₦{(beat.basic_license_price_local || 0).toLocaleString()}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           ${beat.basic_license_price_diaspora || 0}
