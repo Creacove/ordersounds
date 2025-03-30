@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { PersistentPlayer } from "@/components/player/PersistentPlayer";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { usePlayer } from "@/context/PlayerContext";
 
 interface MainLayoutWithPlayerProps {
   children: React.ReactNode;
@@ -16,6 +17,8 @@ export function MainLayoutWithPlayer({ children, activeTab, currentPath, hideSid
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
+  const { currentBeat } = usePlayer();
+  const hasPlayer = !!currentBeat;
 
   // Listen for sidebar open/close events
   useEffect(() => {
@@ -40,7 +43,7 @@ export function MainLayoutWithPlayer({ children, activeTab, currentPath, hideSid
       )}
       <div className={`flex flex-col flex-1 w-full transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "md:ml-[80px]" : "md:ml-[240px]") : ""}`}>
         <Topbar sidebarVisible={!isMobile && sidebarVisible && !hideSidebar} />
-        <main className="flex-1 w-full">
+        <main className={`flex-1 w-full ${hasPlayer ? (isMobile ? 'pb-28' : 'pb-20') : ''}`}>
           <div className="w-full flex flex-col">
             {children}
           </div>

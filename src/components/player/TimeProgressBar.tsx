@@ -18,8 +18,8 @@ export function TimeProgressBar({ currentTime, duration, seek, isMobile }: TimeP
   };
 
   return (
-    <div className={cn("flex items-center gap-1 md:gap-2 w-full max-w-lg", isMobile ? "hidden" : "flex")}>
-      <span className="text-xs text-muted-foreground w-8 md:w-10 text-right hidden xs:block">
+    <div className={cn("flex items-center gap-2 w-32 md:w-40", isMobile ? "hidden" : "flex")}>
+      <span className="text-xs text-muted-foreground min-w-8 text-right">
         {formatTime(currentTime)}
       </span>
       
@@ -38,7 +38,7 @@ export function TimeProgressBar({ currentTime, duration, seek, isMobile }: TimeP
         />
       </div>
       
-      <span className="text-xs text-muted-foreground w-8 md:w-10 hidden xs:block">
+      <span className="text-xs text-muted-foreground min-w-8">
         {formatTime(duration)}
       </span>
     </div>

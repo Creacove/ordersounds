@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Volume1, Volume2, VolumeX } from 'lucide-react';
+import { Volume2, Volume1, VolumeX } from 'lucide-react';
 
 interface VolumeControlProps {
   volume: number;
@@ -16,11 +16,11 @@ export function VolumeControl({ volume, setVolume }: VolumeControlProps) {
       : Volume2;
 
   return (
-    <div className="flex items-center gap-1 md:gap-2 sm:w-20 hidden sm:flex">
+    <div className="flex items-center gap-2 w-24">
       <Button 
         variant="ghost" 
         size="icon" 
-        className="h-8 w-8 rounded-full" 
+        className="h-8 w-8" 
         onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
       >
         <VolumeIcon size={16} />
