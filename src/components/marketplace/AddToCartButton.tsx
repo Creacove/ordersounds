@@ -1,80 +1,134 @@
-
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ShoppingCart } from 'lucide-react';
-import { useCart } from '@/context/CartContext';
+import { Heart, ShoppingCart, Loader2 } from 'lucide-react';
+import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/context/AuthContext';
-import { Beat } from '@/types';
 import { useNavigate } from 'react-router-dom';
-import { notifyBeatFavorited } from '@/lib/notificationService';
+import { addFavorite, removeFavorite, checkIfFavorite } from '@/actions/favorite-actions';
+import { notifyBeatFavorited } from '@/actions/notification-actions';
 import { toast } from 'sonner';
+import { Beat } from '@/types';
 
 interface AddToCartButtonProps {
   beat: Beat;
-  licenseType?: 'basic' | 'premium' | 'exclusive' | 'custom';
   className?: string;
-  text?: string;
-  showIcon?: boolean;
-  variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive';
-  size?: 'default' | 'sm' | 'lg' | 'icon';
+  iconOnly?: boolean;
 }
 
-export function AddToCartButton({
-  beat,
-  licenseType = 'basic',
-  className,
-  text = 'Add to Cart',
-  showIcon = true,
-  variant = 'default',
-  size = 'default'
-}: AddToCartButtonProps) {
-  const { addToCart } = useCart();
+export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonProps) {
+  const { addItem } = useCart();
+  const [isAdding, setIsAdding] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavoriting, setIsFavoriting] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const checkFavorite = async () => {
+      if (user) {
+        const favorite = await checkIfFavorite(beat.id);
+        setIsFavorite(favorite);
+      }
+    };
+
+    checkFavorite();
+  }, [beat.id, user]);
 
   const handleAddToCart = async () => {
+    setIsAdding(true);
+    try {
+      addItem(beat);
+      toast({
+        title: "Added to cart",
+        description: `${beat.title} has been added to your cart.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart.",
+        variant: "destructive",
+      });
+      console.error("Error adding item to cart:", error);
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleFavoriteClick = async () => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    setIsLoading(true);
     try {
-      addToCart(beat, licenseType);
-      toast.success(`Added ${beat.title} to cart`);
-      
-      // Example: Send notification to producer that their beat is in someone's cart
-      // This is just for demonstration - in a real app you might not want to notify for every cart add
-      if (user.id !== beat.producer_id) {
-        await notifyBeatFavorited(
-          beat.producer_id,
-          beat.id,
-          beat.title
-        );
+      setIsFavoriting(true);
+      if (isFavorite) {
+        await removeFavorite(beat.id);
+        setIsFavorite(false);
+        toast({
+          title: "Removed from favorites",
+          description: `${beat.title} has been removed from your favorites`,
+        });
+      } else {
+        await addFavorite(beat.id);
+        setIsFavorite(true);
+        notifyBeatFavorited(beat.id);
+        toast({
+          title: "Added to favorites",
+          description: `${beat.title} has been added to your favorites`,
+        });
       }
     } catch (error) {
-      console.error('Error adding to cart:', error);
-      toast.error('Failed to add to cart');
+      toast({
+        title: "Error",
+        description: "Could not update favorites. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Error updating favorite:', error);
     } finally {
-      setIsLoading(false);
+      setIsFavoriting(false);
     }
   };
 
+  if (iconOnly) {
+    return (
+      <Button
+        variant="outline"
+        size="icon"
+        className={className}
+        onClick={handleAddToCart}
+        disabled={isAdding}
+      >
+        {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="h-4 w-4" />}
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      variant={variant}
-      size={size}
-      className={className}
-      onClick={handleAddToCart}
-      disabled={isLoading}
-    >
-      {isLoading ? (
-        <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full"></span>
-      ) : (
-        showIcon && <ShoppingCart className="h-4 w-4 mr-2" />
-      )}
-      {text}
-    </Button>
+    <div className="flex items-center space-x-2">
+      <Button
+        className={className}
+        onClick={handleAddToCart}
+        disabled={isAdding}
+      >
+        {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
+        Add to Cart
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleFavoriteClick}
+        disabled={isFavoriting}
+      >
+        {isFavoriting ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Heart
+            className={`h-5 w-5 ${isFavorite ? 'text-red-500' : 'text-gray-500'
+              }`}
+          />
+        )}
+      </Button>
+    </div>
   );
 }

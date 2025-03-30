@@ -26,7 +26,8 @@ export function useNotifications() {
       if (error) throw error;
       
       if (data) {
-        setNotifications(data as Notification[]);
+        // Type assertion to ensure compatibility
+        setNotifications(data as unknown as Notification[]);
         const unread = data.filter(notification => !notification.is_read).length;
         setUnreadCount(unread);
       }
@@ -114,6 +115,34 @@ export function useNotifications() {
     }
   };
 
+  // Delete a notification
+  const deleteNotification = async (notificationId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+        .eq('recipient_id', user.id);
+      
+      if (error) throw error;
+      
+      // Update the local state
+      setNotifications(prev => 
+        prev.filter(notification => notification.id !== notificationId)
+      );
+      
+      // Update unread count if the deleted notification was unread
+      const wasUnread = notifications.find(n => n.id === notificationId)?.is_read === false;
+      if (wasUnread) {
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
   // Set up real-time listener for new notifications
   useEffect(() => {
     if (!user) return;
@@ -133,18 +162,15 @@ export function useNotifications() {
           filter: `recipient_id=eq.${user.id}`
         },
         (payload) => {
-          const newNotification = payload.new as Notification;
+          const newNotification = payload.new as unknown as Notification;
           // Add the new notification to the beginning of the list
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
           
           // Show a toast notification for real-time updates
-          toast(
-            {
-              title: newNotification.title,
-              description: newNotification.body
-            }
-          );
+          toast({
+            description: newNotification.body,
+          });
         }
       )
       .subscribe();
@@ -162,6 +188,7 @@ export function useNotifications() {
     markAsRead,
     markAsUnread,
     markAllAsRead,
+    deleteNotification,
     fetchNotifications
   };
 }
