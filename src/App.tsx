@@ -1,4 +1,3 @@
-
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
@@ -20,7 +19,6 @@ import Contact from './pages/Contact';
 
 // Admin routes
 import { AdminRoute } from './pages/admin/AdminRoute';
-import { PaymentAdminRoute } from './pages/admin/PaymentAdminRoute';
 
 // Lazy loaded pages
 const Index = lazy(() => import('./pages/Index'));
