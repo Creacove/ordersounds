@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   email: string;
-  role: 'buyer' | 'producer';
+  role: 'buyer' | 'producer' | 'admin';
   name: string;
   avatar_url?: string;
   bio?: string;
@@ -10,6 +10,11 @@ export interface User {
   country?: string;
   producer_name?: string; // For producers only
   default_currency?: 'NGN' | 'USD';
+  bank_code?: string;
+  account_number?: string;
+  verified_account_name?: string;
+  paystack_subaccount_code?: string;
+  paystack_split_code?: string;
 }
 
 export interface Beat {

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 
 export default function ProducerSettings() {
-  const { user, updateUserInfo } = useAuth();
+  const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(false);
@@ -63,16 +62,16 @@ export default function ProducerSettings() {
       }
       
       // Update local user context
-      if (updateUserInfo) {
-        updateUserInfo({
+      if (updateProfile) {
+        await updateProfile({
           ...user,
           producer_name: producerName,
           bio: bio,
           country: location
         });
+        
+        toast.success('Profile updated successfully');
       }
-      
-      toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile. Please try again.');
@@ -172,12 +171,14 @@ export default function ProducerSettings() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ProducerBankDetailsForm 
-                  producerId={user.id}
-                  existingBankCode={user.bank_code}
-                  existingAccountNumber={user.account_number}
-                  existingAccountName={user.verified_account_name}
-                />
+                {user && (
+                  <ProducerBankDetailsForm 
+                    producerId={user.id}
+                    existingBankCode={user.bank_code}
+                    existingAccountNumber={user.account_number}
+                    existingAccountName={user.verified_account_name}
+                  />
+                )}
               </CardContent>
             </Card>
           </TabsContent>
