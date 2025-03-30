@@ -297,7 +297,7 @@ export const adminFetchAllSubaccounts = async (): Promise<any[]> => {
     // Query all producers with subaccount codes
     const { data, error } = await supabase
       .from('users')
-      .select('id, full_name, producer_name, email, paystack_subaccount_code, bank_code, account_number, verified_account_name')
+      .select('id, full_name, stage_name, email, paystack_subaccount_code, bank_code, account_number, verified_account_name')
       .eq('role', 'producer')
       .not('paystack_subaccount_code', 'is', null);
       
@@ -306,10 +306,14 @@ export const adminFetchAllSubaccounts = async (): Promise<any[]> => {
       return [];
     }
     
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
     // Map to a more friendly format for the admin
     return data.map(producer => ({
       id: producer.id,
-      producer_name: producer.producer_name || producer.full_name,
+      producer_name: producer.stage_name || producer.full_name,
       email: producer.email,
       subaccount_code: producer.paystack_subaccount_code,
       bank_details: {
@@ -338,7 +342,7 @@ export const adminFetchAllSplits = async (): Promise<any[]> => {
     // Query all producers with split codes
     const { data, error } = await supabase
       .from('users')
-      .select('id, full_name, producer_name, email, paystack_split_code')
+      .select('id, full_name, stage_name, email, paystack_split_code')
       .eq('role', 'producer')
       .not('paystack_split_code', 'is', null);
       
@@ -347,10 +351,14 @@ export const adminFetchAllSplits = async (): Promise<any[]> => {
       return [];
     }
     
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
     // Map to a more friendly format for the admin
     return data.map(producer => ({
       id: producer.id,
-      producer_name: producer.producer_name || producer.full_name,
+      producer_name: producer.stage_name || producer.full_name,
       email: producer.email,
       split_code: producer.paystack_split_code,
       share_percentage: 90, // Default is 90% for producer, 10% for platform

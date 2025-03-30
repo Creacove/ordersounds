@@ -1,17 +1,18 @@
+
 import { useState, useEffect } from "react";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
-import { PersistentPlayer } from "@/components/player/PersistentPlayer";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MainLayoutProps {
   children: React.ReactNode;
   activeTab?: string;
   currentPath?: string;
+  hideSidebar?: boolean;
 }
 
 // We need to add the sidebarVisible state to coordinate between the sidebar and topbar
-export function MainLayout({ children, activeTab, currentPath }: MainLayoutProps) {
+export function MainLayout({ children, activeTab, currentPath, hideSidebar }: MainLayoutProps) {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const isMobile = useIsMobile();
 
@@ -30,7 +31,7 @@ export function MainLayout({ children, activeTab, currentPath }: MainLayoutProps
   return (
     <div className="flex min-h-screen flex-col">
       <Topbar sidebarVisible={sidebarVisible && !isMobile} />
-      <Sidebar activeTab={activeTab} currentPath={currentPath} />
+      {!hideSidebar && <Sidebar activeTab={activeTab} currentPath={currentPath} />}
       <main className="flex-1">
         <div className="w-full flex flex-col">
           {children}
