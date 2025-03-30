@@ -123,6 +123,13 @@ export function useBeats() {
         
         setBeats(transformedBeats);
         
+        // Process trending beats first
+        const shuffled = [...transformedBeats].sort(() => 0.5 - Math.random());
+        // Then sort by favorites count with a small random factor
+        const sortedByTrending = shuffled
+          .sort((a, b) => (b.favorites_count * (0.9 + Math.random() * 0.2)) - 
+                         (a.favorites_count * (0.9 + Math.random() * 0.2)));
+        
         // Refresh trending beats based on cache expiration
         const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
         if (shouldRefreshTrending) {

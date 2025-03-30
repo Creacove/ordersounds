@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -22,6 +21,7 @@ interface CartContextType {
   getCartItemCount: () => number;
   itemCount: number;
   refreshCart: () => Promise<void>;
+  toggleCartItem: (beat: Beat, licenseType: string) => void;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -34,7 +34,8 @@ const CartContext = createContext<CartContextType>({
   isInCart: () => false,
   getCartItemCount: () => 0,
   itemCount: 0,
-  refreshCart: async () => {}
+  refreshCart: async () => {},
+  toggleCartItem: () => {}
 });
 
 export const useCart = () => useContext(CartContext);
@@ -80,7 +81,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     const newTotal = cartItems.reduce((total, item) => {
       const licenseType = item.beat.selected_license || 'basic';
       
-      // Always use the getLicensePrice function for consistency
       const price = getLicensePrice(item.beat, licenseType, currency === 'USD');
       
       return total + price;
@@ -127,7 +127,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     const now = new Date().toISOString();
     const newItems: CartItem[] = [];
     
-    // Filter out beats that are already in the cart
     beats.forEach(beat => {
       if (!cartItems.some(item => item.beat.id === beat.id)) {
         newItems.push({
@@ -196,6 +195,27 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
+  const toggleCartItem = (beat: Beat, licenseType: string) => {
+    if (!user) {
+      toast.error('Please log in to add items to cart');
+      return;
+    }
+    
+    const isBeatingCart = isInCart(beat.id);
+    
+    if (isBeatingCart) {
+      removeFromCart(beat.id);
+      toast.success('Removed from cart');
+    } else {
+      const beatWithLicense = {
+        ...beat,
+        selected_license: licenseType
+      };
+      addToCart(beatWithLicense);
+      toast.success('Added to cart');
+    }
+  };
+
   const contextValue = {
     cartItems,
     addToCart,
@@ -206,7 +226,8 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     refreshCart,
     isInCart,
     getCartItemCount,
-    itemCount
+    itemCount,
+    toggleCartItem
   };
 
   return (
