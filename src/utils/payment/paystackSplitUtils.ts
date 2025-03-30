@@ -60,7 +60,7 @@ export const createProducerSubaccount = async (producerId: string): Promise<Suba
       .eq('id', producerId)
       .single();
       
-    if (userError || !userData.bank_code || !userData.account_number) {
+    if (userError || !userData?.bank_code || !userData?.account_number) {
       console.error('Error retrieving user bank details:', userError || 'Missing bank details');
       toast.error('Missing bank details. Please update your bank information first.');
       return null;
@@ -123,7 +123,7 @@ export const updateProducerBankDetails = async (
       .eq('id', producerId)
       .single();
       
-    if (!userError && userData.paystack_subaccount_code) {
+    if (!userError && userData?.paystack_subaccount_code) {
       // Update existing subaccount
       console.log('Updating existing subaccount:', userData.paystack_subaccount_code);
     } else {
@@ -297,7 +297,7 @@ export const adminFetchAllSubaccounts = async (): Promise<any[]> => {
     // Query all producers with subaccount codes
     const { data, error } = await supabase
       .from('users')
-      .select('id, full_name, producer_name, email, paystack_subaccount_code, bank_code, account_number, verified_account_name')
+      .select('id, name, producer_name, email, paystack_subaccount_code, bank_code, account_number, verified_account_name')
       .eq('role', 'producer')
       .not('paystack_subaccount_code', 'is', null);
       
@@ -306,10 +306,16 @@ export const adminFetchAllSubaccounts = async (): Promise<any[]> => {
       return [];
     }
     
+    // Ensure data is an array before mapping
+    if (!data || !Array.isArray(data)) {
+      console.error('No data or invalid data returned for subaccounts');
+      return [];
+    }
+    
     // Map to a more friendly format for the admin
     return data.map(producer => ({
       id: producer.id,
-      producer_name: producer.producer_name || producer.full_name,
+      producer_name: producer.producer_name || producer.name,
       email: producer.email,
       subaccount_code: producer.paystack_subaccount_code,
       bank_details: {
@@ -338,7 +344,7 @@ export const adminFetchAllSplits = async (): Promise<any[]> => {
     // Query all producers with split codes
     const { data, error } = await supabase
       .from('users')
-      .select('id, full_name, producer_name, email, paystack_split_code')
+      .select('id, name, producer_name, email, paystack_split_code')
       .eq('role', 'producer')
       .not('paystack_split_code', 'is', null);
       
@@ -347,10 +353,16 @@ export const adminFetchAllSplits = async (): Promise<any[]> => {
       return [];
     }
     
+    // Ensure data is an array before mapping
+    if (!data || !Array.isArray(data)) {
+      console.error('No data or invalid data returned for splits');
+      return [];
+    }
+    
     // Map to a more friendly format for the admin
     return data.map(producer => ({
       id: producer.id,
-      producer_name: producer.producer_name || producer.full_name,
+      producer_name: producer.producer_name || producer.name,
       email: producer.email,
       split_code: producer.paystack_split_code,
       share_percentage: 90, // Default is 90% for producer, 10% for platform
