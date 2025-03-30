@@ -15,6 +15,11 @@ export interface User {
   verified_account_name?: string;
   paystack_subaccount_code?: string;
   paystack_split_code?: string;
+  settings?: {
+    emailNotifications?: boolean;
+    pushNotifications?: boolean;
+    [key: string]: any;
+  };
 }
 
 export interface Beat {

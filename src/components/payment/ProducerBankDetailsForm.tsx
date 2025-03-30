@@ -142,6 +142,8 @@ export function ProducerBankDetailsForm({
         });
       }
 
+      toast.success('Bank details saved successfully');
+      
       if (onSuccess) {
         onSuccess();
       }
