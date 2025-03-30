@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
@@ -11,7 +10,6 @@ import { getProducerSplitCode } from '@/utils/payment/paystackSplitUtils';
 interface PaymentHandlerProps {
   totalAmount: number;
   onSuccess?: () => void;
-  // New property: producer ID for split payments
   producerId?: string;
   beatId?: string;
 }
@@ -31,7 +29,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   const maxScriptLoadAttempts = 3;
   const paystackCheckTimer = useRef<NodeJS.Timeout | null>(null);
 
-  // Function to verify Paystack is available and properly initialized
   const verifyPaystackAvailable = () => {
     try {
       return window.PaystackPop && 
@@ -43,7 +40,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     }
   };
 
-  // Function to load the Paystack script
   const loadPaystackScript = () => {
     if (scriptLoadAttempts.current >= maxScriptLoadAttempts) {
       console.error('Maximum script load attempts reached');
@@ -56,7 +52,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     setLoadingScript(true);
     scriptLoadAttempts.current += 1;
     
-    // Remove any existing script to avoid conflicts
     const existingScript = document.getElementById('paystack-script');
     if (existingScript) {
       document.body.removeChild(existingScript);
@@ -68,7 +63,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     script.async = true;
     
     script.onload = () => {
-      // Start a timer to check if PaystackPop is available
       if (paystackCheckTimer.current) {
         clearTimeout(paystackCheckTimer.current);
       }
@@ -84,7 +78,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
           setScriptError(false);
           setLoadingScript(false);
         } else if (checkCount < maxChecks) {
-          // Continue checking every 500ms, up to maxChecks times
           console.log(`PaystackPop not available yet, checking again (${checkCount}/${maxChecks})`);
           paystackCheckTimer.current = setTimeout(checkPaystackLoaded, 500);
         } else {
@@ -92,14 +85,12 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
           setScriptError(true);
           setLoadingScript(false);
           
-          // Try loading again after a short delay
           setTimeout(() => {
             loadPaystackScript();
           }, 2000);
         }
       };
       
-      // Start checking for PaystackPop
       paystackCheckTimer.current = setTimeout(checkPaystackLoaded, 500);
     };
     
@@ -109,7 +100,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       setLoadingScript(false);
       toast.error('Payment system failed to load. Please try again later.');
       
-      // Try loading again after a short delay
       setTimeout(() => {
         loadPaystackScript();
       }, 2000);
@@ -118,34 +108,28 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     document.body.appendChild(script);
   };
 
-  // Load Paystack script
   useEffect(() => {
-    // Initial verification for Paystack
     if (verifyPaystackAvailable()) {
       console.log('Paystack script is already loaded and PaystackPop is available');
       setScriptLoaded(true);
       return;
     }
     
-    // If we're in the process of loading the script, don't try to load it again
     if (loadingScript) return;
     
     loadPaystackScript();
     
     return () => {
-      // Cleanup timer
       if (paystackCheckTimer.current) {
         clearTimeout(paystackCheckTimer.current);
       }
     };
   }, [loadingScript]);
 
-  // Check if cart has items
   useEffect(() => {
     setHasItems(cartItems && cartItems.length > 0);
   }, [cartItems]);
   
-  // Fetch split code for the producer if producerId is provided
   useEffect(() => {
     const fetchSplitCode = async () => {
       if (!producerId) return;
@@ -168,22 +152,17 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
     
-    // Clear the cart after successful payment
     clearCart();
     
-    // Set success flags in localStorage
     localStorage.setItem('purchaseSuccess', 'true');
     localStorage.setItem('purchaseTime', Date.now().toString());
     
-    // Show success toast
     toast.success('Payment successful! Redirecting to your library...');
     
-    // Call onSuccess callback if provided
     if (onSuccess) {
       onSuccess();
     }
     
-    // Close the payment dialog
     setIsPaystackOpen(false);
   };
 
@@ -199,7 +178,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   };
 
   const handleStartPayment = () => {
-    // For cart items, check if cart is empty
     if (!producerId && (!cartItems || cartItems.length === 0)) {
       toast.error('Your cart is empty. Please add items before checkout.');
       return;
@@ -210,7 +188,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       return;
     }
     
-    // Double-check Paystack availability before proceeding
     if (!verifyPaystackAvailable()) {
       toast.error('Payment system not properly initialized. Attempting to reload...');
       handleReloadScript();
@@ -219,7 +196,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     
     setInitiatingPayment(true);
     
-    // Give a small delay to ensure everything is ready
     setTimeout(() => {
       setIsPaystackOpen(true);
       setInitiatingPayment(false);
@@ -235,7 +211,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     );
   }
 
-  // Disable payment button if cart is empty or total amount is 0 or script not loaded
   const isDisabled = totalAmount <= 0 || (!hasItems && !producerId) || !scriptLoaded || loadingScript || initiatingPayment || loadingSplitCode;
 
   return (
@@ -313,7 +288,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
           size="lg"
           disabled={isDisabled}
           onClick={() => {
-            // This will be replaced with Stripe implementation
             alert('Stripe payment integration for USD will be implemented separately');
           }}
         >

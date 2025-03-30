@@ -204,6 +204,8 @@ export type Database = {
           id: string
           order_date: string | null
           payment_method: string
+          payment_reference: string | null
+          split_code: string | null
           status: string | null
           total_price: number
         }
@@ -214,6 +216,8 @@ export type Database = {
           id?: string
           order_date?: string | null
           payment_method: string
+          payment_reference?: string | null
+          split_code?: string | null
           status?: string | null
           total_price: number
         }
@@ -224,6 +228,8 @@ export type Database = {
           id?: string
           order_date?: string | null
           payment_method?: string
+          payment_reference?: string | null
+          split_code?: string | null
           status?: string | null
           total_price?: number
         }
@@ -231,6 +237,117 @@ export type Database = {
           {
             foreignKeyName: "orders_buyer_id_fkey"
             columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          id: string
+          order_id: string
+          payment_date: string | null
+          payment_details: Json | null
+          payment_method: string
+          platform_share: number | null
+          producer_share: number | null
+          status: string
+          transaction_reference: string | null
+        }
+        Insert: {
+          amount: number
+          id?: string
+          order_id: string
+          payment_date?: string | null
+          payment_details?: Json | null
+          payment_method: string
+          platform_share?: number | null
+          producer_share?: number | null
+          status?: string
+          transaction_reference?: string | null
+        }
+        Update: {
+          amount?: number
+          id?: string
+          order_id?: string
+          payment_date?: string | null
+          payment_details?: Json | null
+          payment_method?: string
+          platform_share?: number | null
+          producer_share?: number | null
+          status?: string
+          transaction_reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payouts: {
+        Row: {
+          amount: number
+          beat_id: string | null
+          created_at: string | null
+          failure_reason: string | null
+          id: string
+          payment_id: string | null
+          payout_date: string | null
+          producer_id: string
+          status: string
+          transaction_details: Json | null
+          transaction_reference: string | null
+        }
+        Insert: {
+          amount: number
+          beat_id?: string | null
+          created_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          payment_id?: string | null
+          payout_date?: string | null
+          producer_id: string
+          status?: string
+          transaction_details?: Json | null
+          transaction_reference?: string | null
+        }
+        Update: {
+          amount?: number
+          beat_id?: string | null
+          created_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          payment_id?: string | null
+          payout_date?: string | null
+          producer_id?: string
+          status?: string
+          transaction_details?: Json | null
+          transaction_reference?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_beat_id_fkey"
+            columns: ["beat_id"]
+            isOneToOne: false
+            referencedRelation: "beats"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payouts_producer_id_fkey"
+            columns: ["producer_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -377,6 +494,8 @@ export type Database = {
       }
       users: {
         Row: {
+          account_number: string | null
+          bank_code: string | null
           bio: string | null
           country: string | null
           created_date: string | null
@@ -389,14 +508,19 @@ export type Database = {
           notifications_opt_in: boolean | null
           password_hash: string
           paystack_id: string | null
+          paystack_split_code: string | null
+          paystack_subaccount_code: string | null
           profile_picture: string | null
           role: string
           settings: Json | null
           stage_name: string | null
           storefront_url: string | null
           stripe_id: string | null
+          verified_account_name: string | null
         }
         Insert: {
+          account_number?: string | null
+          bank_code?: string | null
           bio?: string | null
           country?: string | null
           created_date?: string | null
@@ -409,14 +533,19 @@ export type Database = {
           notifications_opt_in?: boolean | null
           password_hash: string
           paystack_id?: string | null
+          paystack_split_code?: string | null
+          paystack_subaccount_code?: string | null
           profile_picture?: string | null
           role: string
           settings?: Json | null
           stage_name?: string | null
           storefront_url?: string | null
           stripe_id?: string | null
+          verified_account_name?: string | null
         }
         Update: {
+          account_number?: string | null
+          bank_code?: string | null
           bio?: string | null
           country?: string | null
           created_date?: string | null
@@ -429,12 +558,15 @@ export type Database = {
           notifications_opt_in?: boolean | null
           password_hash?: string
           paystack_id?: string | null
+          paystack_split_code?: string | null
+          paystack_subaccount_code?: string | null
           profile_picture?: string | null
           role?: string
           settings?: Json | null
           stage_name?: string | null
           storefront_url?: string | null
           stripe_id?: string | null
+          verified_account_name?: string | null
         }
         Relationships: []
       }
@@ -446,6 +578,8 @@ export type Database = {
       get_producer_of_week: {
         Args: Record<PropertyKey, never>
         Returns: {
+          account_number: string | null
+          bank_code: string | null
           bio: string | null
           country: string | null
           created_date: string | null
@@ -458,12 +592,15 @@ export type Database = {
           notifications_opt_in: boolean | null
           password_hash: string
           paystack_id: string | null
+          paystack_split_code: string | null
+          paystack_subaccount_code: string | null
           profile_picture: string | null
           role: string
           settings: Json | null
           stage_name: string | null
           storefront_url: string | null
           stripe_id: string | null
+          verified_account_name: string | null
         }[]
       }
     }

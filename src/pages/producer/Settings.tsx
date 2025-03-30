@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -9,11 +10,19 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { Loader2 } from "lucide-react";
 
 export default function ProducerSettings() {
-  const { user } = useAuth();
+  const { user, updateUserInfo } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [isLoading, setIsLoading] = useState(false);
+  const [producerName, setProducerName] = useState('');
+  const [bio, setBio] = useState('');
+  const [location, setLocation] = useState('');
   
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
@@ -24,7 +33,53 @@ export default function ProducerSettings() {
     } else if (user.role !== 'producer') {
       navigate('/');
     }
+    
+    // Set initial values
+    if (user) {
+      setProducerName(user.producer_name || '');
+      setBio(user.bio || '');
+      setLocation(user.country || '');
+    }
   }, [user, navigate]);
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Update producer info in database
+      const { error } = await supabase
+        .from('users')
+        .update({
+          producer_name: producerName,
+          bio: bio,
+          country: location
+        })
+        .eq('id', user.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update local user context
+      if (updateUserInfo) {
+        updateUserInfo({
+          ...user,
+          producer_name: producerName,
+          bio: bio,
+          country: location
+        });
+      }
+      
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
@@ -70,7 +125,8 @@ export default function ProducerSettings() {
                   <Input 
                     id="stageName" 
                     placeholder="Your stage name" 
-                    defaultValue={user.producer_name || ''}
+                    value={producerName}
+                    onChange={(e) => setProducerName(e.target.value)}
                   />
                 </div>
                 
@@ -80,7 +136,8 @@ export default function ProducerSettings() {
                     id="bio" 
                     className="w-full min-h-32 p-2 rounded-md border border-input bg-background"
                     placeholder="Tell buyers about yourself"
-                    defaultValue={user.bio || ''}
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
                   />
                 </div>
                 
@@ -89,11 +146,17 @@ export default function ProducerSettings() {
                   <Input 
                     id="location" 
                     placeholder="Your location" 
-                    defaultValue={user.country || ''}
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
                   />
                 </div>
                 
-                <Button className={cn(isMobile ? "mobile-btn-standard" : "btn-standard")}>
+                <Button 
+                  className={cn(isMobile ? "mobile-btn-standard" : "btn-standard")}
+                  onClick={handleSaveProfile}
+                  disabled={isLoading}
+                >
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Save Changes
                 </Button>
               </CardContent>
@@ -105,11 +168,16 @@ export default function ProducerSettings() {
               <CardHeader>
                 <CardTitle className="text-xl md:text-2xl">Payment Settings</CardTitle>
                 <CardDescription className="text-sm md:text-base">
-                  Configure how you'll receive payments for your beats
+                  Configure your bank details to receive payments for your beats
                 </CardDescription>
               </CardHeader>
-              <CardContent className="text-center py-10">
-                <p className="text-base text-muted-foreground mb-4">Payment settings coming soon</p>
+              <CardContent>
+                <ProducerBankDetailsForm 
+                  producerId={user.id}
+                  existingBankCode={user.bank_code}
+                  existingAccountNumber={user.account_number}
+                  existingAccountName={user.verified_account_name}
+                />
               </CardContent>
             </Card>
           </TabsContent>
