@@ -1,10 +1,14 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart, LineChart, PieChart } from "lucide-react";
 import { useBeats } from "@/hooks/useBeats";
 import { useAuth } from "@/context/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
 import {
   AreaChart,
   Area,
@@ -61,49 +65,62 @@ const genreData = [
 
 const COLORS = ["#7C3AED", "#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE"];
 
-const recentActivity = [
-  {
-    id: 1,
-    type: "sale",
-    title: "New Sale: Afrobeat 9ja Mix",
-    amount: "₦10,000",
-    time: "2 hours ago",
-  },
-  {
-    id: 2,
-    type: "favorite",
-    title: "Lagos Nights added to favorites",
-    user: "John D.",
-    time: "5 hours ago",
-  },
-  {
-    id: 3,
-    type: "comment",
-    title: "New comment on Highlife Classics",
-    comment: "This beat is fire! Perfect for my next project.",
-    user: "Sarah M.",
-    time: "1 day ago",
-  },
-  {
-    id: 4,
-    type: "royalty",
-    title: "Royalty payment received",
-    amount: "₦25,500",
-    time: "2 days ago",
-  },
-  {
-    id: 5,
-    type: "sale",
-    title: "New Sale: Amapiano Fusion",
-    amount: "₦12,000",
-    time: "3 days ago",
-  },
-];
-
 export default function ProducerDashboard() {
   const { user } = useAuth();
   const { getProducerBeats } = useBeats();
+  const { notifications } = useNotifications();
+  const navigate = useNavigate();
+  
   const producerBeats = user ? getProducerBeats(user.id) : [];
+  
+  // Sort beats by purchase count in descending order
+  const topSellingBeats = [...producerBeats].sort((a, b) => 
+    (b.purchase_count || 0) - (a.purchase_count || 0)
+  ).slice(0, 5);
+  
+  // Get recent notifications for this producer
+  const recentNotifications = notifications
+    .filter(notification => user && notification.recipient_id === user.id)
+    .slice(0, 5);
+  
+  const handleBeatClick = (beatId: string) => {
+    navigate(`/beat/${beatId}`);
+  };
+  
+  const handleNotificationClick = (notification: any) => {
+    if (notification.related_entity_id && notification.related_entity_type) {
+      switch (notification.related_entity_type) {
+        case 'beat':
+          navigate(`/beat/${notification.related_entity_id}`);
+          break;
+        case 'order':
+          navigate(`/orders`);
+          break;
+        case 'message':
+          navigate(`/messages`);
+          break;
+        default:
+          // No specific navigation for other types
+          break;
+      }
+    }
+  };
+  
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'sale':
+        return <LineChart size={16} className="text-green-500" />;
+      case 'favorite':
+        return <Heart size={16} className="text-red-500" />;
+      case 'comment':
+        return <MessageSquare size={16} className="text-blue-500" />;
+      case 'royalty':
+      case 'payment':
+        return <DollarSign size={16} className="text-yellow-500" />;
+      default:
+        return <Bell size={16} className="text-gray-500" />;
+    }
+  };
 
   return (
     <MainLayout>
@@ -256,29 +273,28 @@ export default function ProducerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 pb-4 border-b last:border-0">
-                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      {activity.type === "sale" && <LineChart size={16} className="text-green-500" />}
-                      {activity.type === "favorite" && <Heart size={16} className="text-red-500" />}
-                      {activity.type === "comment" && <MessageSquare size={16} className="text-blue-500" />}
-                      {activity.type === "royalty" && <DollarSign size={16} className="text-yellow-500" />}
+                {recentNotifications.length === 0 ? (
+                  <p className="text-muted-foreground text-sm">No recent activity to display</p>
+                ) : (
+                  recentNotifications.map((notification) => (
+                    <div 
+                      key={notification.id} 
+                      className="flex items-start gap-3 pb-4 border-b last:border-0 cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-colors"
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        {getNotificationIcon(notification.notification_type)}
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{notification.body}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(notification.created_date), { addSuffix: true })}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{activity.title}</p>
-                      {activity.amount && (
-                        <p className="text-sm text-green-500">{activity.amount}</p>
-                      )}
-                      {activity.comment && (
-                        <p className="text-sm text-muted-foreground italic">"{activity.comment}"</p>
-                      )}
-                      {activity.user && (
-                        <p className="text-xs text-muted-foreground">by {activity.user}</p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -290,13 +306,17 @@ export default function ProducerDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {producerBeats.length === 0 ? (
+                {topSellingBeats.length === 0 ? (
                   <p className="text-muted-foreground text-sm">
                     You haven't uploaded any beats yet. Go to Upload Beat to get started.
                   </p>
                 ) : (
-                  producerBeats.slice(0, 5).map((beat, index) => (
-                    <div key={beat.id} className="flex items-center gap-3 pb-4 border-b last:border-0">
+                  topSellingBeats.map((beat, index) => (
+                    <div 
+                      key={beat.id} 
+                      className="flex items-center gap-3 pb-4 border-b last:border-0 cursor-pointer hover:bg-muted/50 p-2 rounded-md transition-colors"
+                      onClick={() => handleBeatClick(beat.id)}
+                    >
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                         <span className="font-semibold text-sm">{index + 1}</span>
                       </div>
@@ -310,7 +330,7 @@ export default function ProducerDashboard() {
                       <div className="flex-1">
                         <p className="font-medium text-sm">{beat.title}</p>
                         <p className="text-xs text-muted-foreground">
-                          {beat.purchase_count} sales
+                          {beat.purchase_count || 0} sales
                         </p>
                       </div>
                       <div className="text-right">
@@ -330,6 +350,26 @@ export default function ProducerDashboard() {
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+function Bell(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
   );
 }
 

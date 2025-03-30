@@ -27,18 +27,21 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       if (!user) return;
       
       try {
-        const { data, error } = await supabase
-          .from('favorites')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('beat_id', beat.id)
+        // Check if the user has this beat in their favorites
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('favorites')
+          .eq('id', user.id)
           .single();
         
-        if (error && error.code !== 'PGSQL_ERROR') {
+        if (error) {
           console.error('Error checking favorite status:', error);
+          return;
         }
         
-        setIsFavorite(!!data);
+        // Check if beat.id exists in the favorites array
+        const favorites = userData?.favorites || [];
+        setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
       } catch (error) {
         console.error('Error checking favorite status:', error);
       }
@@ -56,10 +59,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         toast("Added to cart");
       }, 500);
     } catch (error) {
-      toast({
-        variant: "destructive",
-        description: "Failed to add item to cart."
-      });
+      toast.error("Failed to add item to cart.");
       console.error("Error adding item to cart:", error);
     } finally {
       setIsAdding(false);
@@ -75,31 +75,48 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     try {
       setIsFavoriting(true);
       
+      // Get the user's current favorites
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('favorites')
+        .eq('id', user.id)
+        .single();
+      
+      if (userError) {
+        throw userError;
+      }
+      
+      let favorites = userData?.favorites || [];
+      
       if (isFavorite) {
         // Remove from favorites
+        favorites = favorites.filter((fav: any) => fav.beat_id !== beat.id);
+        
         await supabase
-          .from('favorites')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('beat_id', beat.id);
+          .from('users')
+          .update({ favorites })
+          .eq('id', user.id);
         
         setIsFavorite(false);
         toast("Removed from favorites");
       } else {
         // Add to favorites
-        await supabase
-          .from('favorites')
-          .insert({
-            user_id: user.id,
-            beat_id: beat.id
-          });
+        favorites.push({
+          beat_id: beat.id,
+          added_at: new Date().toISOString()
+        });
         
-        // Create notification for beat owner
-        if (beat.user_id) {
+        await supabase
+          .from('users')
+          .update({ favorites })
+          .eq('id', user.id);
+        
+        // Create notification for beat owner if present
+        if (beat.producer_id) {
           await supabase
             .from('notifications')
             .insert({
-              recipient_id: beat.user_id,
+              recipient_id: beat.producer_id,
               sender_id: user.id,
               notification_type: 'favorite',
               title: 'New favorite',
@@ -114,10 +131,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         toast("Added to favorites");
       }
     } catch (error) {
-      toast({
-        variant: "destructive",
-        description: "Could not update favorites. Please try again."
-      });
+      toast.error("Could not update favorites. Please try again.");
       console.error('Error updating favorite:', error);
     } finally {
       setIsFavoriting(false);
