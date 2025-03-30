@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -17,17 +18,16 @@ import {
   ArrowRight,
   Star,
   CheckCircle,
-  Search
+  Search,
+  Calendar
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Beat } from "@/types";
 
 export default function IndexPage() {
   const { user } = useAuth();
-  const { beats, isLoading: isLoadingBeats } = useBeats();
+  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat } = useBeats();
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
-  const [trendingBeats, setTrendingBeats] = useState<Beat[]>([]);
-  const [newBeats, setNewBeats] = useState<Beat[]>([]);
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [producerOfWeek, setProducerOfWeek] = useState<User | null>(null);
   const [producerBeats, setProducerBeats] = useState<Beat[]>([]);
@@ -85,21 +85,6 @@ export default function IndexPage() {
   }, [producerOfWeek, beats]);
 
   useEffect(() => {
-    if (beats.length > 0) {
-      const trending = [...beats]
-        .sort((a, b) => (b.favorites_count || 0) - (a.favorites_count || 0))
-        .slice(0, 12);
-      setTrendingBeats(trending);
-
-      const newReleases = [...beats]
-        .sort((a, b) => new Date(b.created_at || Date.now()).getTime() - 
-                         new Date(a.created_at || Date.now()).getTime())
-        .slice(0, 12);
-      setNewBeats(newReleases);
-    }
-  }, [beats]);
-
-  useEffect(() => {
     if (playlists.length > 0) {
       setFeaturedPlaylists(playlists.filter(p => p.is_public).slice(0, 4));
     }
@@ -128,6 +113,22 @@ export default function IndexPage() {
             </div>
           </form>
         </div>
+
+        {featuredBeat && (
+          <section className="mb-12 px-4">
+            <SectionTitle 
+              title="Featured Beat" 
+              icon={<Star className="h-5 w-5" />}
+              badge="Today's Pick"
+            />
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-4">
+                <BeatCard key={featuredBeat.id} beat={featuredBeat} featured={true} />
+              </div>
+            </div>
+          </section>
+        )}
 
         {producerOfWeek && (
           <section className="mb-12 px-4">
@@ -197,20 +198,57 @@ export default function IndexPage() {
         )}
 
         <section className="mb-12 px-4">
-          <SectionTitle title="Trending" icon={<TrendingUp className="h-5 w-5" />} />
+          <SectionTitle 
+            title="Trending Beats" 
+            icon={<TrendingUp className="h-5 w-5" />} 
+            badge="Updated Daily"
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {trendingBeats.map((beat) => (
+            {trendingBeats.slice(0, 8).map((beat) => (
+              <BeatCard key={beat.id} beat={beat} />
+            ))}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/trending">
+                View all trending <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </section>
+
+        <section className="mb-12 px-4">
+          <SectionTitle 
+            title="Weekly Picks" 
+            icon={<Calendar className="h-5 w-5" />}
+            badge="Updated Weekly"
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            {weeklyPicks.slice(0, 8).map((beat) => (
+              <BeatCard key={beat.id} beat={beat} />
+            ))}
+            {weeklyPicks.length === 0 && trendingBeats.slice(10, 14).map((beat) => (
               <BeatCard key={beat.id} beat={beat} />
             ))}
           </div>
         </section>
 
         <section className="mb-12 px-4">
-          <SectionTitle title="New Releases" icon={<Flame className="h-5 w-5" />} />
+          <SectionTitle 
+            title="New Releases" 
+            icon={<Flame className="h-5 w-5" />}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-            {newBeats.map((beat) => (
+            {newBeats.slice(0, 8).map((beat) => (
               <BeatCard key={beat.id} beat={beat} />
             ))}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/new">
+                View all new releases <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </section>
 

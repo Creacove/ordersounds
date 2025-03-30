@@ -5,6 +5,23 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { FilterValues } from '@/components/filter/BeatFilters';
 
+// Utility function to get a cache expiration timestamp
+const getCacheExpiration = (intervalHours: number) => {
+  const date = new Date();
+  date.setHours(date.getHours() + intervalHours);
+  return date.getTime();
+};
+
+// Local storage keys
+const CACHE_KEYS = {
+  TRENDING_BEATS: 'trending_beats_cache',
+  FEATURED_BEATS: 'featured_beats_cache',
+  WEEKLY_PICKS: 'weekly_picks_cache',
+  TRENDING_EXPIRY: 'trending_beats_expiry',
+  FEATURED_EXPIRY: 'featured_beats_expiry',
+  WEEKLY_EXPIRY: 'weekly_picks_expiry'
+};
+
 export function useBeats() {
   const [beats, setBeats] = useState<Beat[]>([]);
   const [trendingBeats, setTrendingBeats] = useState<Beat[]>([]);
@@ -17,6 +34,15 @@ export function useBeats() {
   const { user, currency } = useAuth();
   const [activeFilters, setActiveFilters] = useState<FilterValues | null>(null);
   const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
+
+  const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
+
+  // Cache expiration durations (in hours)
+  const CACHE_DURATIONS = {
+    TRENDING: 24, // Daily
+    FEATURED: 3,  // Several times a day
+    WEEKLY: 168   // Weekly (7 days * 24 hours)
+  };
 
   const fetchBeats = useCallback(async () => {
     setIsLoading(true);
@@ -97,21 +123,61 @@ export function useBeats() {
         
         setBeats(transformedBeats);
         
-        const sortedByTrending = [...transformedBeats].sort((a, b) => b.favorites_count - a.favorites_count);
-        setTrendingBeats(sortedByTrending.slice(0, 30));
+        // Refresh trending beats based on cache expiration
+        const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
+        if (shouldRefreshTrending) {
+          refreshTrendingBeats(transformedBeats);
+        } else {
+          // Try to load from cache
+          const cachedTrending = localStorage.getItem(CACHE_KEYS.TRENDING_BEATS);
+          if (cachedTrending) {
+            setTrendingBeats(JSON.parse(cachedTrending));
+          } else {
+            refreshTrendingBeats(transformedBeats);
+          }
+        }
         
-        const sortedByPopular = [...transformedBeats].sort((a, b) => b.purchase_count - a.purchase_count);
-        setPopularBeats(sortedByPopular.slice(0, 20));
+        // Refresh featured beats based on cache expiration
+        const shouldRefreshFeatured = checkShouldRefreshCache(CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
+        if (shouldRefreshFeatured) {
+          if (sortedByTrending.length > 0) {
+            // Randomly select a featured beat from top trending
+            const randomIndex = Math.floor(Math.random() * Math.min(10, sortedByTrending.length));
+            const featured = sortedByTrending[randomIndex];
+            const newFeatured = {...featured, is_featured: true};
+            setFeaturedBeat(newFeatured);
+            localStorage.setItem(CACHE_KEYS.FEATURED_BEATS, JSON.stringify(newFeatured));
+            localStorage.setItem(CACHE_KEYS.FEATURED_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.FEATURED)));
+          }
+        } else {
+          // Try to load from cache
+          const cachedFeatured = localStorage.getItem(CACHE_KEYS.FEATURED_BEATS);
+          if (cachedFeatured) {
+            setFeaturedBeat(JSON.parse(cachedFeatured));
+          } else if (sortedByTrending.length > 0) {
+            const featured = sortedByTrending[0];
+            setFeaturedBeat({...featured, is_featured: true});
+          }
+        }
+        
+        // Refresh weekly picks based on cache expiration
+        const shouldRefreshWeekly = checkShouldRefreshCache(CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
+        if (shouldRefreshWeekly) {
+          refreshWeeklyPicks(transformedBeats);
+        } else {
+          // Try to load from cache
+          const cachedWeekly = localStorage.getItem(CACHE_KEYS.WEEKLY_PICKS);
+          if (cachedWeekly) {
+            setWeeklyPicks(JSON.parse(cachedWeekly));
+          } else {
+            refreshWeeklyPicks(transformedBeats);
+          }
+        }
         
         const sortedByNew = [...transformedBeats].sort((a, b) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setNewBeats(sortedByNew);
-        
-        if (sortedByTrending.length > 0) {
-          const featured = sortedByTrending[0];
-          setFeaturedBeat({...featured, is_featured: true});
-        }
         
         if (activeFilters) {
           applyFilters(transformedBeats, activeFilters);
@@ -131,6 +197,50 @@ export function useBeats() {
       setIsLoading(false);
     }
   }, [user, activeFilters]);
+
+  // Utility function to check if cache should be refreshed
+  const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours: number) => {
+    const expiryTime = localStorage.getItem(expiryKey);
+    if (!expiryTime) return true;
+    
+    const currentTime = new Date().getTime();
+    return currentTime > parseInt(expiryTime);
+  };
+
+  // Function to refresh trending beats with cache updates
+  const refreshTrendingBeats = (allBeats: Beat[]) => {
+    // Randomize selection slightly to ensure variation day to day
+    const shuffled = [...allBeats].sort(() => 0.5 - Math.random());
+    // Then sort by favorites count with a small random factor
+    const sortedByTrending = shuffled
+      .sort((a, b) => (b.favorites_count * (0.9 + Math.random() * 0.2)) - 
+                       (a.favorites_count * (0.9 + Math.random() * 0.2)));
+    
+    const trending = sortedByTrending.slice(0, 30);
+    setTrendingBeats(trending);
+    
+    // Update cache
+    localStorage.setItem(CACHE_KEYS.TRENDING_BEATS, JSON.stringify(trending));
+    localStorage.setItem(CACHE_KEYS.TRENDING_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.TRENDING)));
+  };
+
+  // Function to refresh weekly picks with cache updates
+  const refreshWeeklyPicks = (allBeats: Beat[]) => {
+    if (allBeats.length === 0) return;
+    
+    // For weekly picks, select based on a combination of factors
+    const shuffled = [...allBeats].sort(() => 0.5 - Math.random());
+    // Select 6 beats that have good engagement but aren't necessarily the top ones
+    const picks = shuffled
+      .filter(beat => beat.favorites_count > 0 || beat.purchase_count > 0)
+      .slice(0, 8);
+    
+    setWeeklyPicks(picks);
+    
+    // Update cache
+    localStorage.setItem(CACHE_KEYS.WEEKLY_PICKS, JSON.stringify(picks));
+    localStorage.setItem(CACHE_KEYS.WEEKLY_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.WEEKLY)));
+  };
 
   const fetchTrendingBeats = useCallback(async () => {
     setIsLoading(true);
@@ -704,6 +814,7 @@ export function useBeats() {
     newBeats,
     popularBeats,
     featuredBeat,
+    weeklyPicks,
     userFavorites,
     purchasedBeats,
     isLoading,

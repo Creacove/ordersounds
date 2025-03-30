@@ -1,126 +1,132 @@
-
-import { useState } from 'react';
-import { Beat } from '@/types';
-import { Button } from '@/components/ui/button';
-import { Heart, Play, Pause, ShoppingCart } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { Card, CardContent } from "@/components/ui/card";
-import { getLicensePrice } from '@/utils/licenseUtils';
-import { useAuth } from '@/context/AuthContext';
-import { Link } from 'react-router-dom';
+import { useState } from "react";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { MoreHorizontal, ShoppingCart } from "lucide-react";
+import { Beat } from "@/types";
+import { Link } from "react-router-dom";
+import { formatCurrency } from "@/lib/utils";
+import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
+import { LicenseSelector } from "@/components/marketplace/LicenseSelector";
+import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
 
 interface BeatCardProps {
   beat: Beat;
-  isPlaying?: boolean;
-  onPlay?: () => void;
-  isFavorite?: boolean;
-  onToggleFavorite?: (e: React.MouseEvent) => void;
-  onAddToCart?: (e: React.MouseEvent) => void;
-  className?: string;
+  isInCart?: boolean;
+  onAddToCart?: () => void;
+  showLicenseSelector?: boolean;
+  featured?: boolean;
 }
 
-export const BeatCard = ({
-  beat,
-  isPlaying = false,
-  onPlay,
-  isFavorite = false,
-  onToggleFavorite,
-  onAddToCart,
-  className
-}: BeatCardProps) => {
-  const isMobile = useIsMobile();
+export function BeatCard({ 
+  beat, 
+  isInCart, 
+  onAddToCart, 
+  showLicenseSelector = true,
+  featured = false
+}: BeatCardProps) {
   const { currency } = useAuth();
-  const [isHovered, setIsHovered] = useState(false);
-
-  const handlePlay = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (onPlay) onPlay();
+  const { toggleCartItem } = useCart();
+  const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive' | 'custom'>('basic');
+  
+  const handleAddToCart = () => {
+    toggleCartItem(beat, selectedLicense);
   };
 
-  const basicPrice = getLicensePrice(beat, 'basic', currency === 'USD');
-  const formattedPrice = currency === 'USD' ? `$${basicPrice}` : `₦${basicPrice}`;
+  const getPriceForLicense = () => {
+    if (currency === 'NGN') {
+      switch (selectedLicense) {
+        case 'basic':
+          return beat.basic_license_price_local;
+        case 'premium':
+          return beat.premium_license_price_local;
+        case 'exclusive':
+          return beat.exclusive_license_price_local;
+        case 'custom':
+          return beat.custom_license_price_local;
+        default:
+          return beat.basic_license_price_local;
+      }
+    } else {
+      switch (selectedLicense) {
+        case 'basic':
+          return beat.basic_license_price_diaspora;
+        case 'premium':
+          return beat.premium_license_price_diaspora;
+        case 'exclusive':
+          return beat.exclusive_license_price_diaspora;
+         case 'custom':
+          return beat.custom_license_price_diaspora;
+        default:
+          return beat.basic_license_price_diaspora;
+      }
+    }
+  };
+  
+  const price = getPriceForLicense();
 
+  // The component layout:
   return (
-    <Link to={`/beat/${beat.id}`}>
-      <Card 
-        className={cn(
-          "group relative overflow-hidden transition-all duration-300 hover:shadow-md bg-card border border-border",
-          "rounded-lg h-full flex flex-col",
-          className
-        )}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        <div className="relative aspect-square w-full overflow-hidden bg-muted">
-          <img
-            src={beat.cover_image_url || '/placeholder.svg'}
-            alt={beat.title}
-            className="h-full w-full object-cover transition-all group-hover:scale-105"
-          />
-          <div className={cn(
-            "absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 transition-opacity",
-            (isHovered || isMobile) && "opacity-100"
-          )}>
-            <Button 
-              onClick={handlePlay}
-              size="icon"
-              className="rounded-full h-12 w-12 bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+    <Card className={`group overflow-hidden h-full ${featured ? 'border-primary bg-primary/5' : ''}`}>
+      <CardContent className="p-0 flex flex-col h-full">
+        <div className="relative">
+          <ToggleFavoriteButton beatId={beat.id} />
+          <Link to={`/beat/${beat.id}`}>
+            <img
+              src={beat.cover_image_url || "/placeholder.svg"}
+              alt={beat.title}
+              className="aspect-square w-full object-cover rounded-none group-hover:scale-105 transition-transform duration-200"
+            />
+          </Link>
+          
+          {featured && (
+            <div className="absolute top-0 right-0 bg-primary text-white text-xs px-2 py-1 m-2 rounded-full">
+              Featured
+            </div>
+          )}
+          
+          <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black/70 to-transparent p-4 text-white flex items-end justify-between">
+            <div>
+              <h3 className="font-semibold">{beat.title}</h3>
+              <p className="text-sm opacity-70">by {beat.producer_name}</p>
+            </div>
+            <Button variant="link" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
             </Button>
           </div>
         </div>
         
-        <CardContent className="flex flex-col justify-between p-4 flex-grow">
-          <div>
-            <h3 className="font-semibold text-lg line-clamp-1">{beat.title}</h3>
-            <p className="text-sm text-muted-foreground">{beat.producer_name}</p>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {beat.genre && (
-                <span className="text-xs px-2 py-0.5 bg-secondary text-secondary-foreground rounded-full">
-                  {beat.genre}
-                </span>
-              )}
-              {beat.bpm && (
-                <span className="text-xs px-2 py-0.5 bg-secondary text-secondary-foreground rounded-full">
-                  {beat.bpm} BPM
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="p-4 flex flex-col justify-between flex-1">
+          {showLicenseSelector && (
+            <LicenseSelector onChange={setSelectedLicense} />
+          )}
           
-          <div className="flex items-center justify-between mt-3">
-            <span className="font-medium">{formattedPrice}</span>
-            <div className="flex gap-2">
-              {onToggleFavorite && (
-                <Button 
-                  onClick={onToggleFavorite} 
-                  size="icon" 
-                  variant="ghost"
-                  className={cn(
-                    "h-8 w-8 rounded-full",
-                    isFavorite && "text-red-500"
-                  )}
-                >
-                  <Heart size={16} fill={isFavorite ? "currentColor" : "none"} />
-                </Button>
-              )}
-              
-              {onAddToCart && (
-                <Button 
-                  onClick={onAddToCart} 
-                  size="icon" 
-                  variant="ghost"
-                  className="h-8 w-8 rounded-full"
-                >
-                  <ShoppingCart size={16} />
-                </Button>
-              )}
+          <CardFooter className="flex items-center justify-between p-0 mt-4">
+            <div>
+              <Label className="text-sm opacity-70">Price</Label>
+              <p className="font-semibold text-lg">
+                {formatCurrency(price || 0, currency)}
+              </p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+            <Button 
+              onClick={handleAddToCart}
+              disabled={isInCart}
+            >
+              {isInCart ? (
+                <>
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  <span>In Cart</span>
+                </>
+              ) : (
+                <>
+                  Add to Cart
+                </>
+              )}
+            </Button>
+          </CardFooter>
+        </div>
+      </CardContent>
+    </Card>
   );
-};
+}
