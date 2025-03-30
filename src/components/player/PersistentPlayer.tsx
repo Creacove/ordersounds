@@ -2,7 +2,7 @@
 import React from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QueuePopover } from './QueuePopover';
@@ -21,7 +21,9 @@ export function PersistentPlayer() {
     setVolume,
     queue = [], // Default empty array
     removeFromQueue,
-    clearQueue
+    clearQueue,
+    nextTrack,
+    previousTrack
   } = usePlayer();
   
   const isMobile = useIsMobile();
@@ -30,6 +32,15 @@ export function PersistentPlayer() {
   if (!currentBeat) {
     return <div className="fixed bottom-0 left-0 right-0 h-0 z-40" />;
   }
+
+  // Handle clicking on the top progress bar
+  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
+    const clickPosition = e.clientX - rect.left;
+    const percentage = clickPosition / rect.width;
+    seek(percentage * duration);
+  };
 
   // Player is always at z-40, below the mobile sidebar which will be at z-50
   const playerClassName = cn(
@@ -43,10 +54,21 @@ export function PersistentPlayer() {
   return (
     <div className={playerClassName}>
       {/* Spotify-like progress bar at the very top of the player */}
-      <div className="w-full h-1 bg-muted">
+      <div 
+        className="w-full h-1 bg-muted relative cursor-pointer"
+        onClick={handleProgressBarClick}
+      >
         <div 
-          className="h-full bg-primary"
+          className="h-full bg-primary transition-all"
           style={{ width: `${progressPercentage}%` }}
+        />
+        <input 
+          type="range"
+          min={0}
+          max={duration || 0}
+          value={currentTime}
+          onChange={(e) => seek(parseFloat(e.target.value))}
+          className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
         />
       </div>
       
@@ -67,7 +89,18 @@ export function PersistentPlayer() {
         </div>
         
         {/* Player controls (centered on desktop, right-aligned on mobile) */}
-        <div className={`flex items-center ${isMobile ? 'ml-auto' : 'justify-center flex-1'}`}>
+        <div className={`flex items-center gap-2 ${isMobile ? 'ml-auto' : 'justify-center flex-1'}`}>
+          {!isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-full"
+              onClick={previousTrack}
+            >
+              <SkipBack size={16} />
+            </Button>
+          )}
+          
           <Button 
             variant="default" 
             size="icon" 
@@ -76,18 +109,22 @@ export function PersistentPlayer() {
           >
             {isPlaying ? <Pause size={18} /> : <Play size={18} />}
           </Button>
+          
+          {!isMobile && (
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 rounded-full"
+              onClick={nextTrack}
+            >
+              <SkipForward size={16} />
+            </Button>
+          )}
         </div>
         
         {/* Time and volume controls (only visible on desktop) */}
         {!isMobile && (
           <div className="hidden md:flex items-center gap-4 w-1/3 justify-end">
-            <TimeProgressBar 
-              currentTime={currentTime}
-              duration={duration}
-              seek={seek}
-              isMobile={isMobile}
-            />
-            
             <VolumeControl volume={volume} setVolume={setVolume} />
             
             {/* Queue popover */}

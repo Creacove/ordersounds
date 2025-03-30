@@ -23,10 +23,19 @@ export function TimeProgressBar({ currentTime, duration, seek, isMobile }: TimeP
         {formatTime(currentTime)}
       </span>
       
-      <div className="relative w-full h-1 bg-muted rounded-full">
+      <div className="relative w-full h-1 bg-muted rounded-full overflow-hidden group">
         <div 
-          className="absolute top-0 left-0 h-full bg-primary rounded-full"
+          className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all"
           style={{ width: `${(currentTime / duration) * 100}%` }}
+        />
+        <div className="absolute top-0 left-0 h-full w-full opacity-0 cursor-pointer" 
+          onClick={(e) => {
+            const container = e.currentTarget;
+            const rect = container.getBoundingClientRect();
+            const clickPosition = e.clientX - rect.left;
+            const percentage = clickPosition / rect.width;
+            seek(percentage * duration);
+          }}
         />
         <input 
           type="range"
