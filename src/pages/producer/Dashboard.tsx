@@ -11,6 +11,8 @@ import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { ProducerBankDetailsForm } from "@/components/payment/ProducerBankDetailsForm";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCurrency } from "@/lib/utils";
+import { getProducerStats, ProducerStats } from "@/lib/producerStats";
 import {
   AreaChart,
   Area,
@@ -27,54 +29,18 @@ import {
   Legend,
 } from "recharts";
 
-const revenueData = [
-  { name: "Jan", value: 4000 },
-  { name: "Feb", value: 3000 },
-  { name: "Mar", value: 5000 },
-  { name: "Apr", value: 2780 },
-  { name: "May", value: 1890 },
-  { name: "Jun", value: 2390 },
-  { name: "Jul", value: 3490 },
-  { name: "Aug", value: 4000 },
-  { name: "Sep", value: 4500 },
-  { name: "Oct", value: 6000 },
-  { name: "Nov", value: 7000 },
-  { name: "Dec", value: 9000 },
-];
-
-const playsData = [
-  { name: "Jan", value: 1200 },
-  { name: "Feb", value: 1900 },
-  { name: "Mar", value: 2500 },
-  { name: "Apr", value: 3200 },
-  { name: "May", value: 2800 },
-  { name: "Jun", value: 3500 },
-  { name: "Jul", value: 4200 },
-  { name: "Aug", value: 5000 },
-  { name: "Sep", value: 5500 },
-  { name: "Oct", value: 6200 },
-  { name: "Nov", value: 7500 },
-  { name: "Dec", value: 8200 },
-];
-
-const genreData = [
-  { name: "Afrobeat", value: 45 },
-  { name: "Amapiano", value: 25 },
-  { name: "Hip Hop", value: 15 },
-  { name: "R&B", value: 10 },
-  { name: "Others", value: 5 },
-];
-
 const COLORS = ["#7C3AED", "#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE"];
 
 export default function ProducerDashboard() {
-  const { user } = useAuth();
+  const { user, currency } = useAuth();
   const { getProducerBeats } = useBeats();
   const { notifications } = useNotifications();
   const navigate = useNavigate();
   const [showBankDetails, setShowBankDetails] = useState(false);
   const [producerData, setProducerData] = useState<any>(null);
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
+  const [stats, setStats] = useState<ProducerStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
   
   // Fetch producer data including bank details and subaccount info
   useEffect(() => {
@@ -108,6 +74,25 @@ export default function ProducerDashboard() {
     };
     
     fetchProducerData();
+  }, [user]);
+  
+  // Fetch producer analytics data
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoadingStats(true);
+        const producerStats = await getProducerStats(user.id);
+        setStats(producerStats);
+      } catch (error) {
+        console.error('Error fetching producer stats:', error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+    
+    fetchStats();
   }, [user]);
   
   const producerBeats = user ? getProducerBeats(user.id) : [];
@@ -214,10 +199,19 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">₦152,500</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-green-500">↑ 12%</span> from last month
-              </p>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? 
+                  "Loading..." : 
+                  formatCurrency(stats?.totalRevenue || 0, currency)
+                }
+              </div>
+              {!isLoadingStats && stats && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <span className={`${stats.revenueChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {stats.revenueChange >= 0 ? '↑' : '↓'} {Math.abs(stats.revenueChange)}%
+                  </span> from last month
+                </p>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -227,10 +221,16 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">24,521</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-green-500">↑ 18%</span> from last month
-              </p>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? "Loading..." : (stats?.totalPlays || 0).toLocaleString()}
+              </div>
+              {!isLoadingStats && stats && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <span className={`${stats.playsChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {stats.playsChange >= 0 ? '↑' : '↓'} {Math.abs(stats.playsChange)}%
+                  </span> from last month
+                </p>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -240,10 +240,16 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">135</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-green-500">↑ 5%</span> from last month
-              </p>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? "Loading..." : (stats?.beatsSold || 0).toLocaleString()}
+              </div>
+              {!isLoadingStats && stats && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <span className={`${stats.salesChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {stats.salesChange >= 0 ? '↑' : '↓'} {Math.abs(stats.salesChange)}%
+                  </span> from last month
+                </p>
+              )}
             </CardContent>
           </Card>
           <Card>
@@ -253,10 +259,16 @@ export default function ProducerDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">286</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                <span className="text-green-500">↑ 24%</span> from last month
-              </p>
+              <div className="text-2xl font-bold">
+                {isLoadingStats ? "Loading..." : (stats?.totalFavorites || 0).toLocaleString()}
+              </div>
+              {!isLoadingStats && stats && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  <span className={`${stats.favoritesChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {stats.favoritesChange >= 0 ? '↑' : '↓'} {Math.abs(stats.favoritesChange)}%
+                  </span> from last month
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -278,38 +290,46 @@ export default function ProducerDashboard() {
                   </TabsTrigger>
                 </TabsList>
                 <TabsContent value="revenue" className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={revenueData}>
-                      <defs>
-                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.8} />
-                          <stop offset="95%" stopColor="#7C3AED" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <Tooltip />
-                      <Area
-                        type="monotone"
-                        dataKey="value"
-                        stroke="#7C3AED"
-                        fillOpacity={1}
-                        fill="url(#colorRevenue)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {isLoadingStats ? (
+                    <div className="h-full flex items-center justify-center">Loading...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={stats?.revenueByMonth || []}>
+                        <defs>
+                          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.8} />
+                            <stop offset="95%" stopColor="#7C3AED" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <Tooltip formatter={(value) => [formatCurrency(Number(value), currency), "Revenue"]} />
+                        <Area
+                          type="monotone"
+                          dataKey="value"
+                          stroke="#7C3AED"
+                          fillOpacity={1}
+                          fill="url(#colorRevenue)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
                 </TabsContent>
                 <TabsContent value="plays" className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsBarChart data={playsData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="#7C3AED" />
-                    </RechartsBarChart>
-                  </ResponsiveContainer>
+                  {isLoadingStats ? (
+                    <div className="h-full flex items-center justify-center">Loading...</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsBarChart data={stats?.playsByMonth || []}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="name" />
+                        <YAxis />
+                        <Tooltip formatter={(value) => [value, "Plays"]} />
+                        <Bar dataKey="value" fill="#7C3AED" />
+                      </RechartsBarChart>
+                    </ResponsiveContainer>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardHeader>
@@ -321,25 +341,29 @@ export default function ProducerDashboard() {
               <CardDescription>Sales by genre</CardDescription>
             </CardHeader>
             <CardContent className="h-[300px] flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsPieChart>
-                  <Pie
-                    data={genreData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {genreData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Legend />
-                </RechartsPieChart>
-              </ResponsiveContainer>
+              {isLoadingStats ? (
+                <div>Loading...</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={stats?.genreDistribution || []}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {stats?.genreDistribution?.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Legend />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              )}
             </CardContent>
           </Card>
         </div>
