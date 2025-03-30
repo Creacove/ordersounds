@@ -47,7 +47,7 @@ export function NotificationItem({ notification, onMarkAsRead }: NotificationIte
   
   const handleClick = async () => {
     // Mark as read first
-    if (!notification.read) {
+    if (!notification.is_read) {
       await onMarkAsRead(notification.id);
     }
     
@@ -75,33 +75,33 @@ export function NotificationItem({ notification, onMarkAsRead }: NotificationIte
       variant="ghost"
       className={cn(
         "w-full justify-start text-left px-4 py-3 space-x-3 rounded-md",
-        !notification.read ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted"
+        !notification.is_read ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted"
       )}
       onClick={handleClick}
     >
       <div className={cn(
         "flex-shrink-0 rounded-full p-1.5",
-        !notification.read ? "bg-primary/10" : "bg-muted"
+        !notification.is_read ? "bg-primary/10" : "bg-muted"
       )}>
-        {getNotificationIcon(notification.type)}
+        {getNotificationIcon(notification.notification_type)}
       </div>
       <div className="flex-grow min-w-0">
         <div className="flex items-start justify-between">
           <p className={cn(
             "text-sm font-medium leading-none",
-            !notification.read ? "text-foreground" : "text-muted-foreground"
+            !notification.is_read ? "text-foreground" : "text-muted-foreground"
           )}>
             {notification.title}
           </p>
           <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
-            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+            {formatDistanceToNow(new Date(notification.created_date), { addSuffix: true })}
           </span>
         </div>
         <p className="text-xs mt-1 text-muted-foreground line-clamp-2">
-          {notification.message}
+          {notification.body}
         </p>
       </div>
-      {!notification.read && (
+      {!notification.is_read && (
         <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
       )}
     </Button>

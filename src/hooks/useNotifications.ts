@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Notification } from '@/types';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -21,13 +21,13 @@ export function useNotifications() {
         .from('notifications')
         .select('*')
         .eq('recipient_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_date', { ascending: false });
       
       if (error) throw error;
       
       if (data) {
         setNotifications(data as Notification[]);
-        const unread = data.filter(notification => !notification.read).length;
+        const unread = data.filter(notification => !notification.is_read).length;
         setUnreadCount(unread);
       }
     } catch (error) {
@@ -44,7 +44,7 @@ export function useNotifications() {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('id', notificationId)
         .eq('recipient_id', user.id);
       
@@ -54,7 +54,7 @@ export function useNotifications() {
       setNotifications(prev => 
         prev.map(notification => 
           notification.id === notificationId 
-            ? { ...notification, read: true } 
+            ? { ...notification, is_read: true } 
             : notification
         )
       );
@@ -71,15 +71,15 @@ export function useNotifications() {
     try {
       const { error } = await supabase
         .from('notifications')
-        .update({ read: true })
+        .update({ is_read: true })
         .eq('recipient_id', user.id)
-        .eq('read', false);
+        .eq('is_read', false);
       
       if (error) throw error;
       
       // Update the local state
       setNotifications(prev => 
-        prev.map(notification => ({ ...notification, read: true }))
+        prev.map(notification => ({ ...notification, is_read: true }))
       );
       setUnreadCount(0);
     } catch (error) {
@@ -114,8 +114,8 @@ export function useNotifications() {
           // Show a toast notification for real-time updates
           toast({
             title: newNotification.title,
-            description: newNotification.message,
-            variant: newNotification.type === 'error' ? 'destructive' : 'default'
+            description: newNotification.body,
+            variant: newNotification.notification_type === 'error' ? 'destructive' : 'default'
           });
         }
       )

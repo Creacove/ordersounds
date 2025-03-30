@@ -7,7 +7,7 @@ type NotificationType = 'info' | 'success' | 'warning' | 'error';
 interface CreateNotificationParams {
   recipientId: string;
   title: string;
-  message: string;
+  body: string;
   type?: NotificationType;
   notificationType?: string;
   relatedEntityId?: string;
@@ -18,7 +18,7 @@ interface CreateNotificationParams {
 export async function createNotification({
   recipientId,
   title,
-  message,
+  body,
   type = 'info',
   notificationType = 'system',
   relatedEntityId,
@@ -31,14 +31,13 @@ export async function createNotification({
       .insert({
         recipient_id: recipientId,
         title,
-        message,
-        type,
+        body,
         notification_type: notificationType,
         related_entity_id: relatedEntityId,
         related_entity_type: relatedEntityType,
         sender_id: senderId,
-        read: false,
-        created_at: new Date().toISOString()
+        is_read: false,
+        created_date: new Date().toISOString()
       })
       .select()
       .single();
@@ -62,7 +61,7 @@ export async function notifyBeatSold(
   return createNotification({
     recipientId: producerId,
     title: 'Beat Sold!',
-    message: `${buyerName} purchased your beat "${beatTitle}"`,
+    body: `${buyerName} purchased your beat "${beatTitle}"`,
     type: 'success',
     notificationType: 'sale',
     relatedEntityId: beatId,
@@ -80,7 +79,7 @@ export async function notifyPaymentSuccess(
   return createNotification({
     recipientId: userId,
     title: 'Payment Successful',
-    message: `Your payment of ${currency === 'NGN' ? '₦' : '$'}${amount} has been processed successfully.`,
+    body: `Your payment of ${currency === 'NGN' ? '₦' : '$'}${amount} has been processed successfully.`,
     type: 'success',
     notificationType: 'payment',
     relatedEntityId: orderId,
@@ -92,13 +91,12 @@ export async function notifyPaymentSuccess(
 export async function notifyBeatFavorited(
   producerId: string,
   beatId: string,
-  beatTitle: string,
-  buyerName: string
+  beatTitle: string
 ) {
   return createNotification({
     recipientId: producerId,
     title: 'New Favorite',
-    message: `${buyerName} added your beat "${beatTitle}" to their favorites`,
+    body: `Someone added your beat "${beatTitle}" to their favorites`,
     type: 'info',
     notificationType: 'favorite',
     relatedEntityId: beatId,
@@ -115,7 +113,7 @@ export async function notifyBeatFeatured(
   return createNotification({
     recipientId: producerId,
     title: 'Beat Featured',
-    message: `Your beat "${beatTitle}" has been featured on the platform!`,
+    body: `Your beat "${beatTitle}" has been featured on the platform!`,
     type: 'success',
     notificationType: 'feature',
     relatedEntityId: beatId,
@@ -127,18 +125,17 @@ export async function notifyBeatFeatured(
 export async function sendSystemNotification(
   userIds: string[],
   title: string,
-  message: string,
+  body: string,
   type: NotificationType = 'info'
 ) {
   try {
     const notifications = userIds.map(userId => ({
       recipient_id: userId,
       title,
-      message,
-      type,
+      body,
       notification_type: 'system',
-      read: false,
-      created_at: new Date().toISOString()
+      is_read: false,
+      created_date: new Date().toISOString()
     }));
     
     const { error } = await supabase

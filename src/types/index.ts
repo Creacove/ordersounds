@@ -107,15 +107,13 @@ export interface CartItem {
 
 export interface Notification {
   id: string;
-  user_id: string;
+  recipient_id: string;
   title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  read: boolean;
-  created_at: string;
-  recipient_id: string;  // The user who receives the notification
-  notification_type?: string; // e.g., 'sale', 'message', 'system', etc.
-  related_entity_id?: string; // ID of related entity (e.g., beat ID, order ID)
-  related_entity_type?: string; // Type of related entity (e.g., 'beat', 'order')
-  sender_id?: string; // The user who triggered the notification (if applicable)
+  body: string;
+  notification_type: 'info' | 'success' | 'warning' | 'error' | string;
+  is_read: boolean;
+  created_date: string;
+  related_entity_id?: string;
+  related_entity_type?: string;
+  sender_id?: string;
 }

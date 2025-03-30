@@ -50,8 +50,7 @@ export function AddToCartButton({
         await notifyBeatFavorited(
           beat.producer_id,
           beat.id,
-          beat.title,
-          user.name
+          beat.title
         );
       }
     } catch (error) {
