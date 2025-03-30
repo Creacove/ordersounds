@@ -26,6 +26,7 @@ import Orders from "./pages/buyer/Orders";
 import Cart from "./pages/buyer/Cart";
 import Search from "./pages/buyer/Search";
 import Settings from "./pages/user/Settings";
+import ProducerSettings from "./pages/producer/Settings";
 import Contact from "./pages/Contact";
 import BuyerProfile from "./pages/buyer/BuyerProfile";
 import ProducerProfile from "./pages/producer/ProducerProfile";
@@ -105,7 +106,7 @@ const App = () => (
                   <Route path="/producer/upload" element={<UploadBeat />} />
                   <Route path="/producer/beats" element={<ProducerBeats />} />
                   <Route path="/producer/royalties" element={<Royalties />} />
-                  <Route path="/producer/settings" element={<Navigate to="/settings" replace />} />
+                  <Route path="/producer/settings" element={<ProducerSettings />} />
                   
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />
