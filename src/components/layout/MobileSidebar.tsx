@@ -29,21 +29,20 @@ export function MobileSidebar({
 
   return (
     <>
-      {/* Only show overlay on mobile */}
+      {/* Only show overlay on mobile and only when sidebar is open */}
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black/80 z-50"
+          className="fixed inset-0 bg-black/70 z-50"
           onClick={() => setIsOpen(false)}
         />
       )}
       
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
           "bg-[#0e0e0e] text-white",
           isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
-          isCollapsed ? "w-[70px]" : "w-[240px]",
-          // No box-shadow for desktop mode
+          isCollapsed ? "w-[80px]" : "w-[240px]",
           isMobile ? "shadow-lg" : ""
         )}
       >
@@ -57,14 +56,15 @@ export function MobileSidebar({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {toggleCollapsed && (
+            {/* Only show collapse toggle on desktop */}
+            {!isMobile && toggleCollapsed && (
               <Button 
                 variant="ghost" 
                 size="icon" 
                 className="h-8 w-8" 
                 onClick={toggleCollapsed}
               >
-                {isCollapsed ? <AlignJustify size={16} /> : <Menu size={16} />}
+                {isCollapsed ? <AlignJustify size={20} /> : <Menu size={20} />}
               </Button>
             )}
             {/* Only show close button on mobile */}
@@ -108,7 +108,7 @@ export function MobileSidebar({
                         )}
                       >
                         <item.icon 
-                          size={18} 
+                          size={isCollapsed ? 22 : 18} 
                           className="text-[#b3b3b3]"
                         />
                         {!isCollapsed && <span>{item.title}</span>}
@@ -137,7 +137,7 @@ export function MobileSidebar({
                       {({ isActive }) => (
                         <>
                           <item.icon 
-                            size={18} 
+                            size={isCollapsed ? 22 : 18} 
                             className={isActive ? "text-purple-500" : "text-[#b3b3b3]"}
                           />
                           {!isCollapsed && <span>{item.title}</span>}

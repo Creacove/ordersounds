@@ -38,8 +38,8 @@ export function MainLayoutWithPlayer({ children, activeTab, currentPath, hideSid
           onCollapsedChange={setIsCollapsed}
         />
       )}
-      <div className={`flex flex-col flex-1 transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "ml-[70px]" : "ml-[240px]") : ""}`}>
-        <Topbar sidebarVisible={sidebarVisible && !isMobile} />
+      <div className={`flex flex-col flex-1 transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "md:ml-[80px]" : "md:ml-[240px]") : ""}`}>
+        <Topbar sidebarVisible={!isMobile && sidebarVisible && !hideSidebar} />
         <main className="flex-1">
           <div className="w-full flex flex-col">
             {children}

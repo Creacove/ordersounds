@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -68,10 +69,10 @@ export default function ProducerBeats() {
   }
 
   return (
-    <MainLayout>
+    <MainLayout activeTab="beats">
       <div className={cn(
-        "container py-6 md:py-8",
-        isMobile ? "mobile-content-padding" : ""
+        "container py-6 md:py-8 max-w-full mx-4 md:mx-8 lg:mx-12",
+        isMobile ? "pb-20" : ""
       )}>
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">

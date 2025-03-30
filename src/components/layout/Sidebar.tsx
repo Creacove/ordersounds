@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Menu, AlignJustify } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
@@ -26,11 +26,19 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState(activeTab || "");
 
+  // Dispatch sidebar change event when isOpen changes
+  useEffect(() => {
+    const event = new CustomEvent('sidebarChange', { 
+      detail: { isOpen: isOpen } 
+    });
+    window.dispatchEvent(event);
+  }, [isOpen]);
+
   useEffect(() => {
     if (isMobile) {
       setIsOpen(false);
     } else {
-      // On desktop, the sidebar is always visible in some form
+      // On desktop, the sidebar is always visible in some form (either expanded or collapsed)
       setIsOpen(true);
     }
 
@@ -79,7 +87,7 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
   // For desktop, always render the sidebar but control its collapsed state
   if (!isMobile) {
     return (
-      <div className={`fixed inset-y-0 left-0 z-30 ${isCollapsed ? "w-[70px]" : "w-[240px]"}`}>
+      <div className="hidden md:block">
         <MobileSidebar 
           isOpen={true}
           setIsOpen={setIsOpen}
@@ -95,7 +103,7 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
 
   return (
     <>
-      {/* Show mobile sidebar for mobile devices */}
+      {/* Show mobile sidebar for mobile devices, but only when explicitly opened */}
       <MobileSidebar 
         isOpen={isOpen}
         setIsOpen={setIsOpen}
@@ -117,11 +125,11 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
         />
       )}
 
-      {/* Desktop toggle button - only needed on mobile */}
+      {/* Mobile toggle button - only show on specific pages if needed */}
       {isMobile && !isOpen && (
         <button
           onClick={toggleSidebar}
-          className="fixed top-4 left-4 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-sidebar hover:bg-sidebar-accent transition-colors"
+          className="fixed top-4 left-4 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-sidebar hover:bg-sidebar-accent transition-colors"
         >
           <Menu size={20} />
         </button>

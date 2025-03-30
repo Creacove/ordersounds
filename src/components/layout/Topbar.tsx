@@ -79,6 +79,9 @@ export function Topbar({ sidebarVisible = false }) {
     toast.success(`Currency changed to ${newCurrency === 'USD' ? 'US Dollar' : 'Nigerian Naira'}`);
   };
 
+  // Only show logo on mobile or when sidebar is not visible on desktop
+  const showLogo = isMobile || !sidebarVisible;
+
   return (
     <header 
       className={cn(
@@ -87,9 +90,9 @@ export function Topbar({ sidebarVisible = false }) {
       )}
     >
       <div className="container flex items-center justify-between h-16 py-2">
-        {/* Logo - Only show when sidebar is not visible */}
+        {/* Logo - Only show when sidebar is not visible on desktop or always on mobile */}
         <div className="flex items-center gap-2">          
-          {(!sidebarVisible || isMobile) && (
+          {showLogo && (
             <Link to="/" className="flex items-center gap-2">
               <Headphones size={isMobile ? 20 : 24} className="text-purple-600" />
               <span className={cn(
