@@ -1,15 +1,13 @@
 
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { Menu } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileBottomNav } from "./MobileBottomNav";
-import { MobileSidebar } from "./MobileSidebar";
 import { getSidebarSections } from "./SidebarContentSections";
-import { DesktopSidebar } from "./DesktopSidebar";
+import { UnifiedSidebar } from "./UnifiedSidebar";
 
 interface SidebarProps {
   activeTab?: string;
@@ -65,12 +63,6 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
     logout && logout();
   };
 
-  const toggleSidebar = () => {
-    if (isMobile) {
-      setIsOpen(!isOpen);
-    }
-  };
-
   const toggleCollapsed = () => {
     const newCollapsedState = !isCollapsed;
     setIsCollapsed(newCollapsedState);
@@ -85,32 +77,21 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
     return getSidebarSections(user, handleSignOut);
   };
 
-  // For desktop, always render the sidebar but control its collapsed state
-  if (!isMobile) {
-    return (
-      <DesktopSidebar 
-        isCollapsed={isCollapsed} 
-        toggleSidebar={toggleCollapsed} 
-        getSidebarContent={getSidebarContent}
-        location={location}
-      />
-    );
-  }
-
   return (
     <>
-      {/* Show mobile sidebar for mobile devices, but only when explicitly opened */}
-      <MobileSidebar 
+      {/* Show combined sidebar for both desktop and mobile */}
+      <UnifiedSidebar 
         isOpen={isOpen}
         setIsOpen={setIsOpen}
         user={user}
         handleSignOut={handleSignOut}
         getSidebarContent={getSidebarContent}
-        isCollapsed={false}
-        toggleCollapsed={undefined}
+        isCollapsed={isCollapsed}
+        toggleCollapsed={toggleCollapsed}
+        isMobile={isMobile}
       />
       
-      {/* Show bottom nav only on mobile devices */}
+      {/* Only show bottom nav on mobile */}
       {isMobile && (
         <MobileBottomNav 
           activeBottomTab={activeBottomTab}
@@ -119,16 +100,6 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
           setIsOpen={setIsOpen}
           setActiveBottomTab={setActiveBottomTab}
         />
-      )}
-
-      {/* Mobile toggle button - only show on specific pages if needed */}
-      {isMobile && !isOpen && (
-        <button
-          onClick={toggleSidebar}
-          className="fixed top-4 left-4 z-10 h-10 w-10 flex items-center justify-center rounded-full bg-sidebar hover:bg-sidebar-accent transition-colors"
-        >
-          <Menu size={20} />
-        </button>
       )}
     </>
   );

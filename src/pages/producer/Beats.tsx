@@ -71,7 +71,7 @@ export default function ProducerBeats() {
   return (
     <MainLayout activeTab="beats">
       <div className={cn(
-        "container py-6 md:py-8 max-w-full mx-4 md:mx-8 lg:mx-12",
+        "container py-6 md:py-8 max-w-full px-4 md:px-8 lg:px-12",
         isMobile ? "pb-20" : ""
       )}>
         <div className="flex justify-between items-center mb-6">

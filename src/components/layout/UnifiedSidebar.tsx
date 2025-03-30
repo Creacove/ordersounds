@@ -1,32 +1,31 @@
 
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Headphones, Menu, AlignJustify } from "lucide-react";
+import { ChevronLeft, Headphones, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
-import { useIsMobile } from "@/hooks/use-mobile";
 
-interface MobileSidebarProps {
+interface UnifiedSidebarProps {
   isOpen: boolean;
   setIsOpen: (isOpen: boolean) => void;
   user: User | null;
   handleSignOut: () => void;
   getSidebarContent: () => any[];
-  isCollapsed?: boolean;
-  toggleCollapsed?: () => void;
+  isCollapsed: boolean;
+  toggleCollapsed: () => void;
+  isMobile: boolean;
 }
 
-export function MobileSidebar({ 
+export function UnifiedSidebar({ 
   isOpen, 
   setIsOpen, 
   user, 
   handleSignOut, 
   getSidebarContent,
-  isCollapsed = false,
-  toggleCollapsed
-}: MobileSidebarProps) {
-  const isMobile = useIsMobile();
-
+  isCollapsed,
+  toggleCollapsed,
+  isMobile
+}: UnifiedSidebarProps) {
   return (
     <>
       {/* Only show overlay on mobile and only when sidebar is open */}
@@ -39,7 +38,7 @@ export function MobileSidebar({
       
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300 ease-in-out",
           "bg-[#0e0e0e] text-white",
           isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
           isCollapsed ? "w-[80px]" : "w-[240px]",
@@ -56,17 +55,6 @@ export function MobileSidebar({
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Only show collapse toggle on desktop */}
-            {!isMobile && toggleCollapsed && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8" 
-                onClick={toggleCollapsed}
-              >
-                {isCollapsed ? <AlignJustify size={20} /> : <Menu size={20} />}
-              </Button>
-            )}
             {/* Only show close button on mobile */}
             {isMobile && (
               <Button 
@@ -90,7 +78,7 @@ export function MobileSidebar({
                 </h2>
               )}
               <nav className="flex flex-col gap-1">
-                {section.items.map((item, idx) => {
+                {section.items.map((item: any, idx: number) => {
                   // For items with onClick (like Sign Out), they shouldn't be "active"
                   if (item.onClick) {
                     return (
@@ -108,7 +96,7 @@ export function MobileSidebar({
                         )}
                       >
                         <item.icon 
-                          size={isCollapsed ? 22 : 18} 
+                          size={20} 
                           className="text-[#b3b3b3]"
                         />
                         {!isCollapsed && <span>{item.title}</span>}
@@ -137,7 +125,7 @@ export function MobileSidebar({
                       {({ isActive }) => (
                         <>
                           <item.icon 
-                            size={isCollapsed ? 22 : 18} 
+                            size={20} 
                             className={isActive ? "text-purple-500" : "text-[#b3b3b3]"}
                           />
                           {!isCollapsed && <span>{item.title}</span>}
@@ -150,6 +138,20 @@ export function MobileSidebar({
             </div>
           ))}
         </div>
+
+        {/* Only show the collapse toggle on desktop */}
+        {!isMobile && (
+          <div className="flex items-center justify-center p-4 border-t border-[#272727]">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-8 h-8 rounded-full hover:bg-purple-500/20 hover:text-purple-500 transition-colors"
+              onClick={toggleCollapsed}
+            >
+              {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+            </Button>
+          </div>
+        )}
       </aside>
     </>
   );
