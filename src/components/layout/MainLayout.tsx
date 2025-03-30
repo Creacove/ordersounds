@@ -11,9 +11,9 @@ interface MainLayoutProps {
   hideSidebar?: boolean;
 }
 
-// We need to add the sidebarVisible state to coordinate between the sidebar and topbar
 export function MainLayout({ children, activeTab, currentPath, hideSidebar }: MainLayoutProps) {
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
 
   // Listen for sidebar open/close events
@@ -29,14 +29,22 @@ export function MainLayout({ children, activeTab, currentPath, hideSidebar }: Ma
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Topbar sidebarVisible={sidebarVisible && !isMobile} />
-      {!hideSidebar && <Sidebar activeTab={activeTab} currentPath={currentPath} />}
-      <main className="flex-1">
-        <div className="w-full flex flex-col">
-          {children}
-        </div>
-      </main>
+    <div className="flex min-h-screen">
+      {!hideSidebar && (
+        <Sidebar 
+          activeTab={activeTab} 
+          currentPath={currentPath} 
+          onCollapsedChange={setIsCollapsed}
+        />
+      )}
+      <div className={`flex flex-col flex-1 transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "ml-[70px]" : "ml-[240px]") : ""}`}>
+        <Topbar sidebarVisible={sidebarVisible && !isMobile} />
+        <main className="flex-1">
+          <div className="w-full flex flex-col">
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

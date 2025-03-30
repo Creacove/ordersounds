@@ -13,9 +13,10 @@ import { getSidebarSections } from "./SidebarContentSections";
 interface SidebarProps {
   activeTab?: string;
   currentPath?: string;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
-function Sidebar({ activeTab, currentPath }: SidebarProps) {
+function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
@@ -28,6 +29,9 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
   useEffect(() => {
     if (isMobile) {
       setIsOpen(false);
+    } else {
+      // On desktop, the sidebar is always visible in some form
+      setIsOpen(true);
     }
 
     if (activeTab) {
@@ -53,28 +57,53 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
   };
 
   const toggleSidebar = () => {
-    setIsOpen(!isOpen);
+    if (isMobile) {
+      setIsOpen(!isOpen);
+    }
   };
 
   const toggleCollapsed = () => {
-    setIsCollapsed(!isCollapsed);
+    const newCollapsedState = !isCollapsed;
+    setIsCollapsed(newCollapsedState);
+    
+    // Notify parent component about the collapse state change
+    if (onCollapsedChange) {
+      onCollapsedChange(newCollapsedState);
+    }
   };
 
   const getSidebarContent = () => {
     return getSidebarSections(user, handleSignOut);
   };
 
+  // For desktop, always render the sidebar but control its collapsed state
+  if (!isMobile) {
+    return (
+      <div className={`fixed inset-y-0 left-0 z-30 ${isCollapsed ? "w-[70px]" : "w-[240px]"}`}>
+        <MobileSidebar 
+          isOpen={true}
+          setIsOpen={setIsOpen}
+          user={user}
+          handleSignOut={handleSignOut}
+          getSidebarContent={getSidebarContent}
+          isCollapsed={isCollapsed}
+          toggleCollapsed={toggleCollapsed}
+        />
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* Show mobile sidebar for all device sizes */}
+      {/* Show mobile sidebar for mobile devices */}
       <MobileSidebar 
         isOpen={isOpen}
         setIsOpen={setIsOpen}
         user={user}
         handleSignOut={handleSignOut}
         getSidebarContent={getSidebarContent}
-        isCollapsed={!isMobile ? isCollapsed : false}
-        toggleCollapsed={!isMobile ? toggleCollapsed : undefined}
+        isCollapsed={false}
+        toggleCollapsed={undefined}
       />
       
       {/* Show bottom nav only on mobile devices */}
@@ -88,8 +117,8 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
         />
       )}
 
-      {/* Desktop toggle button */}
-      {!isMobile && !isOpen && (
+      {/* Desktop toggle button - only needed on mobile */}
+      {isMobile && !isOpen && (
         <button
           onClick={toggleSidebar}
           className="fixed top-4 left-4 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-sidebar hover:bg-sidebar-accent transition-colors"

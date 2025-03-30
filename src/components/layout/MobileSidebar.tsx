@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Headphones, Menu, AlignJustify } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -24,21 +25,26 @@ export function MobileSidebar({
   isCollapsed = false,
   toggleCollapsed
 }: MobileSidebarProps) {
+  const isMobile = useIsMobile();
+
   return (
     <>
-      {isOpen && (
+      {/* Only show overlay on mobile */}
+      {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+          className="fixed inset-0 bg-black/80 z-50"
           onClick={() => setIsOpen(false)}
         />
       )}
       
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
+          "fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300 ease-in-out",
           "bg-[#0e0e0e] text-white",
-          isOpen ? "translate-x-0" : "-translate-x-full",
-          isCollapsed ? "w-[70px]" : "w-[280px] md:w-[320px]" // Adjust width based on collapsed state
+          isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
+          isCollapsed ? "w-[70px]" : "w-[240px]",
+          // No box-shadow for desktop mode
+          isMobile ? "shadow-lg" : ""
         )}
       >
         <div className="flex items-center justify-between p-4 border-b border-[#272727]">
@@ -61,14 +67,17 @@ export function MobileSidebar({
                 {isCollapsed ? <AlignJustify size={16} /> : <Menu size={16} />}
               </Button>
             )}
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8" 
-              onClick={() => setIsOpen(false)}
-            >
-              <ChevronLeft size={16} />
-            </Button>
+            {/* Only show close button on mobile */}
+            {isMobile && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8" 
+                onClick={() => setIsOpen(false)}
+              >
+                <ChevronLeft size={16} />
+              </Button>
+            )}
           </div>
         </div>
         
@@ -89,7 +98,7 @@ export function MobileSidebar({
                         key={idx}
                         onClick={() => {
                           item.onClick && item.onClick();
-                          setIsOpen(false);
+                          if (isMobile) setIsOpen(false);
                         }}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
@@ -111,7 +120,9 @@ export function MobileSidebar({
                     <NavLink
                       key={idx}
                       to={item.href}
-                      onClick={() => setIsOpen(false)}
+                      onClick={() => {
+                        if (isMobile) setIsOpen(false);
+                      }}
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
