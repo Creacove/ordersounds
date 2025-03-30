@@ -9,6 +9,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
+import { ProducerBankDetailsForm } from "@/components/payment/ProducerBankDetailsForm";
+import { supabase } from "@/integrations/supabase/client";
 import {
   AreaChart,
   Area,
@@ -70,6 +72,43 @@ export default function ProducerDashboard() {
   const { getProducerBeats } = useBeats();
   const { notifications } = useNotifications();
   const navigate = useNavigate();
+  const [showBankDetails, setShowBankDetails] = useState(false);
+  const [producerData, setProducerData] = useState<any>(null);
+  const [isLoadingProducer, setIsLoadingProducer] = useState(true);
+  
+  // Fetch producer data including bank details and subaccount info
+  useEffect(() => {
+    const fetchProducerData = async () => {
+      if (!user) return;
+      
+      try {
+        setIsLoadingProducer(true);
+        const { data, error } = await supabase
+          .from('users')
+          .select('bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching producer data:', error);
+          return;
+        }
+        
+        setProducerData(data);
+        
+        // Show bank details form if not set up yet
+        if (!data.paystack_subaccount_code || !data.paystack_split_code) {
+          setShowBankDetails(true);
+        }
+      } catch (error) {
+        console.error('Error fetching producer data:', error);
+      } finally {
+        setIsLoadingProducer(false);
+      }
+    };
+    
+    fetchProducerData();
+  }, [user]);
   
   const producerBeats = user ? getProducerBeats(user.id) : [];
   
@@ -121,11 +160,51 @@ export default function ProducerDashboard() {
         return <Bell size={16} className="text-gray-500" />;
     }
   };
+  
+  const handleBankDetailsSubmitted = () => {
+    setShowBankDetails(false);
+    // Refresh producer data
+    if (user) {
+      supabase
+        .from('users')
+        .select('bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code')
+        .eq('id', user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error('Error refreshing producer data:', error);
+            return;
+          }
+          setProducerData(data);
+        });
+    }
+  };
 
   return (
     <MainLayout>
       <div className="container py-8">
         <h1 className="text-2xl font-bold mb-6">Producer Dashboard</h1>
+
+        {showBankDetails && user && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Set Up Payment Account</CardTitle>
+              <CardDescription>
+                Enter your bank details to receive automatic payments for your beat sales.
+                You will receive 90% of each sale directly to your bank account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProducerBankDetailsForm 
+                producerId={user.id}
+                existingBankCode={producerData?.bank_code}
+                existingAccountNumber={producerData?.account_number}
+                existingAccountName={producerData?.verified_account_name}
+                onSuccess={handleBankDetailsSubmitted}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card>

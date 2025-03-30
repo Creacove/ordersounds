@@ -41,7 +41,14 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         
         // Check if beat.id exists in the favorites array
         const favorites = userData?.favorites || [];
-        setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
+        
+        // Ensure favorites is treated as an array
+        if (Array.isArray(favorites)) {
+          setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
+        } else {
+          console.warn('favorites is not an array:', favorites);
+          setIsFavorite(false);
+        }
       } catch (error) {
         console.error('Error checking favorite status:', error);
       }
@@ -87,6 +94,11 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       }
       
       let favorites = userData?.favorites || [];
+      
+      // Ensure favorites is treated as an array
+      if (!Array.isArray(favorites)) {
+        favorites = [];
+      }
       
       if (isFavorite) {
         // Remove from favorites

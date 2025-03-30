@@ -7,9 +7,21 @@ interface PaystackProps {
   onClose: () => void;
   isOpen: boolean;
   totalAmount: number;
+  // New props for split payment
+  splitCode?: string | null;
+  producerId?: string;
+  beatId?: string;
 }
 
-export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: PaystackProps) {
+export function PaystackCheckout({ 
+  onSuccess, 
+  onClose, 
+  isOpen, 
+  totalAmount,
+  splitCode,
+  producerId,
+  beatId
+}: PaystackProps) {
   const {
     isProcessing,
     isValidating,
@@ -19,7 +31,10 @@ export function PaystackCheckout({ onSuccess, onClose, isOpen, totalAmount }: Pa
   } = usePaystackCheckout({
     onSuccess,
     onClose,
-    totalAmount
+    totalAmount,
+    splitCode,
+    producerId,
+    beatId
   });
 
   return (

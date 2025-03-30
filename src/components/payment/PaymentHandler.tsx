@@ -6,13 +6,17 @@ import { useAuth } from '@/context/AuthContext';
 import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
+import { getProducerSplitCode } from '@/utils/payment/paystackSplitUtils';
 
 interface PaymentHandlerProps {
   totalAmount: number;
   onSuccess?: () => void;
+  // New property: producer ID for split payments
+  producerId?: string;
+  beatId?: string;
 }
 
-export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) {
+export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: PaymentHandlerProps) {
   const [isPaystackOpen, setIsPaystackOpen] = useState(false);
   const { currency, user } = useAuth();
   const { clearCart, cartItems } = useCart();
@@ -21,6 +25,8 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   const [scriptError, setScriptError] = useState(false);
   const [loadingScript, setLoadingScript] = useState(false);
   const [initiatingPayment, setInitiatingPayment] = useState(false);
+  const [splitCode, setSplitCode] = useState<string | null>(null);
+  const [loadingSplitCode, setLoadingSplitCode] = useState(false);
   const scriptLoadAttempts = useRef(0);
   const maxScriptLoadAttempts = 3;
   const paystackCheckTimer = useRef<NodeJS.Timeout | null>(null);
@@ -138,6 +144,26 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   useEffect(() => {
     setHasItems(cartItems && cartItems.length > 0);
   }, [cartItems]);
+  
+  // Fetch split code for the producer if producerId is provided
+  useEffect(() => {
+    const fetchSplitCode = async () => {
+      if (!producerId) return;
+      
+      try {
+        setLoadingSplitCode(true);
+        const code = await getProducerSplitCode(producerId);
+        console.log(`Split code for producer ${producerId}:`, code);
+        setSplitCode(code);
+      } catch (error) {
+        console.error('Error fetching split code:', error);
+      } finally {
+        setLoadingSplitCode(false);
+      }
+    };
+    
+    fetchSplitCode();
+  }, [producerId]);
 
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
@@ -173,7 +199,8 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   };
 
   const handleStartPayment = () => {
-    if (!cartItems || cartItems.length === 0) {
+    // For cart items, check if cart is empty
+    if (!producerId && (!cartItems || cartItems.length === 0)) {
       toast.error('Your cart is empty. Please add items before checkout.');
       return;
     }
@@ -209,7 +236,7 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
   }
 
   // Disable payment button if cart is empty or total amount is 0 or script not loaded
-  const isDisabled = totalAmount <= 0 || !hasItems || !scriptLoaded || loadingScript || initiatingPayment;
+  const isDisabled = totalAmount <= 0 || (!hasItems && !producerId) || !scriptLoaded || loadingScript || initiatingPayment || loadingSplitCode;
 
   return (
     <div className="space-y-4">
@@ -239,6 +266,15 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
         </div>
       )}
       
+      {loadingSplitCode && producerId && (
+        <div className="p-3 border border-primary/20 bg-primary/5 rounded-md mb-4">
+          <p className="text-sm text-primary/80 flex items-center gap-2">
+            <Loader2 size={14} className="animate-spin" />
+            Preparing payment details... Please wait.
+          </p>
+        </div>
+      )}
+      
       {currency === 'NGN' ? (
         <>
           <Button 
@@ -254,6 +290,8 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
               </>
             ) : loadingScript ? (
               'Loading Payment System...'
+            ) : loadingSplitCode ? (
+              'Preparing Payment...'
             ) : (
               'Pay with Paystack (₦)'
             )}
@@ -264,6 +302,9 @@ export function PaymentHandler({ totalAmount, onSuccess }: PaymentHandlerProps) 
             onSuccess={handlePaystackSuccess}
             onClose={handlePaystackClose}
             totalAmount={totalAmount}
+            splitCode={splitCode}
+            beatId={beatId}
+            producerId={producerId}
           />
         </>
       ) : (

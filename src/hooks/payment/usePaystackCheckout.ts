@@ -17,9 +17,19 @@ interface UsePaystackCheckoutProps {
   onSuccess: (reference: string) => void;
   onClose: () => void;
   totalAmount: number;
+  splitCode?: string | null;
+  producerId?: string;
+  beatId?: string;
 }
 
-export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePaystackCheckoutProps) {
+export function usePaystackCheckout({ 
+  onSuccess, 
+  onClose, 
+  totalAmount,
+  splitCode,
+  producerId,
+  beatId
+}: UsePaystackCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -143,6 +153,60 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     setValidationError(null);
 
     try {
+      // If we're using direct beat purchase with producer split
+      if (producerId && beatId) {
+        console.log('Validating direct beat purchase:', beatId);
+        
+        // Validate the beat exists and is available
+        const { data: beatData, error: beatError } = await supabase
+          .from('beats')
+          .select('id, status, producer_id, title')
+          .eq('id', beatId)
+          .single();
+        
+        if (beatError) {
+          console.error('Error validating beat:', beatError);
+          setValidationError('Failed to validate the beat');
+          return false;
+        }
+        
+        if (beatData.status !== 'published') {
+          setValidationError('This beat is no longer available for purchase');
+          return false;
+        }
+        
+        if (beatData.producer_id !== producerId) {
+          setValidationError('Producer mismatch. Please try again.');
+          return false;
+        }
+        
+        // Check if already purchased
+        const { data: purchasedData, error: purchasedError } = await supabase
+          .from('user_purchased_beats')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('beat_id', beatId)
+          .single();
+          
+        if (purchasedError && purchasedError.code !== 'PGRST116') {
+          console.error('Error checking purchased beat:', purchasedError);
+        }
+        
+        if (purchasedData) {
+          setValidationError(`You've already purchased this beat: ${beatData.title}`);
+          return false;
+        }
+        
+        // If split code is missing
+        if (!splitCode) {
+          console.warn('Split code missing for producer:', producerId);
+          // We'll continue anyway, but the payment won't be split
+        }
+        
+        return true;
+      }
+      
+      // Normal cart validation
       console.log('Validating cart items:', cartItems);
       
       if (!cartItems || cartItems.length === 0) {
@@ -203,7 +267,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
     } finally {
       setIsValidating(false);
     }
-  }, [user, cartItems]);
+  }, [user, cartItems, producerId, beatId, splitCode]);
 
   const handlePaymentStart = useCallback(async () => {
     if (isProcessing || isValidating) return;
@@ -230,13 +294,39 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       // Generate a unique reference ID
       const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
-      // Format cart items for metadata and order creation
-      const orderItemsData = cartItems.map(item => ({
-        beat_id: item.beat.id,
-        title: item.beat.title,
-        price: item.beat.basic_license_price_local,
-        license: item.beat.selected_license || 'basic'
-      }));
+      // Prepare order item data
+      let orderItemsData;
+      
+      if (producerId && beatId) {
+        // Direct beat purchase - fetch beat details
+        const { data: beatData, error: beatError } = await supabase
+          .from('beats')
+          .select('id, title, basic_license_price_local')
+          .eq('id', beatId)
+          .single();
+          
+        if (beatError) {
+          console.error('Error fetching beat details:', beatError);
+          toast.error('Failed to fetch beat details. Please try again.');
+          setIsProcessing(false);
+          return;
+        }
+        
+        orderItemsData = [{
+          beat_id: beatData.id,
+          title: beatData.title,
+          price: beatData.basic_license_price_local,
+          license: 'basic'
+        }];
+      } else {
+        // Cart purchase
+        orderItemsData = cartItems.map(item => ({
+          beat_id: item.beat.id,
+          title: item.beat.title,
+          price: item.beat.basic_license_price_local,
+          license: item.beat.selected_license || 'basic'
+        }));
+      }
       
       // Create order in database first
       const { orderId, error: orderError } = await createOrder(user, totalAmount, orderItemsData);
@@ -256,11 +346,24 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       localStorage.setItem('redirectToLibrary', 'true');
       localStorage.setItem('purchaseTime', Date.now().toString());
       
+      // Add split_code to metadata if available
+      const metadata = {
+        custom_fields: [
+          {
+            display_name: "Order Items",
+            variable_name: "order_items",
+            value: JSON.stringify(orderItemsData)
+          }
+        ]
+      };
+      
+      // Payment log
       console.log('Starting Paystack payment with:', {
         reference,
         amount: totalAmount,
         email: user?.email,
         orderId,
+        splitCode: splitCode || 'N/A',
         cartItems: orderItemsData
       });
       
@@ -270,29 +373,28 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
         const successFunc = paystackSuccessRef.current;
         
         // Create the handler with explicit callback functions
-        const handler = window.PaystackPop.setup({
+        const handlerConfig: any = {
           key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Public test key
           email: user?.email || '',
           amount: totalAmount * 100, // Convert to kobo
           currency: 'NGN',
           ref: reference,
           label: 'OrderSOUNDS',
-          metadata: {
-            custom_fields: [
-              {
-                display_name: "Order Items",
-                variable_name: "order_items",
-                value: JSON.stringify(orderItemsData)
-              }
-            ]
-          },
+          metadata: metadata,
           onClose: function() {
             closeFunc();
           },
           callback: function(response) {
             successFunc(response);
           }
-        });
+        };
+        
+        // Add split_code if available
+        if (splitCode) {
+          handlerConfig.split_code = splitCode;
+        }
+        
+        const handler = window.PaystackPop.setup(handlerConfig);
         
         // Explicitly open the payment iframe
         handler.openIframe();
@@ -306,7 +408,7 @@ export function usePaystackCheckout({ onSuccess, onClose, totalAmount }: UsePays
       toast.error('Failed to start payment process');
       setIsProcessing(false);
     }
-  }, [isProcessing, isValidating, totalAmount, user, validateCartItems, cartItems, clearCart, onSuccess]);
+  }, [isProcessing, isValidating, totalAmount, user, validateCartItems, cartItems, clearCart, onSuccess, producerId, beatId, splitCode]);
 
   const handleRefreshCart = async () => {
     setValidationError(null);
