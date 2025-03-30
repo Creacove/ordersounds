@@ -21,10 +21,10 @@ export interface ProducerStats {
   revenueChange: number;
   salesChange: number;
   primaryCurrency: 'NGN' | 'USD';
-  // Add missing properties needed by dashboard components
+  // Properties needed by dashboard components
   totalPlays: number;
-  totalFavorites: number;
   playsChange: number;
+  totalFavorites: number;
   favoritesChange: number;
   revenueByMonth: ChartDataPoint[];
   playsByMonth: ChartDataPoint[];
@@ -49,7 +49,7 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
       return getDefaultStats();
     }
 
-    // Get total revenue and sales from purchases linked to producer's beats
+    // Get total sales and revenue from purchases linked to producer's beats
     const { data: salesData, error: salesError } = await supabase
       .from('user_purchased_beats')
       .select(`

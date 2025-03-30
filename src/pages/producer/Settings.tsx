@@ -12,9 +12,11 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Bell, Settings, DollarSign } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { Loader2, Bell, Settings, DollarSign, CreditCard, Clock, Activity } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
+import { getProducerPaymentAnalytics } from '@/utils/payment/paystackSplitUtils';
 
 export default function ProducerSettings() {
   const { user, updateProfile } = useAuth();
@@ -26,6 +28,10 @@ export default function ProducerSettings() {
   const [location, setLocation] = useState('');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
+  const [paymentAnalytics, setPaymentAnalytics] = useState<any>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  
+  const { accountName } = usePaystackSplit();
   
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
@@ -39,7 +45,7 @@ export default function ProducerSettings() {
     
     // Set initial values
     if (user) {
-      setProducerName(user.producer_name || '');
+      setProducerName(user.producer_name || user.stage_name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
       
@@ -56,8 +62,25 @@ export default function ProducerSettings() {
           console.error("Error parsing user settings:", e);
         }
       }
+      
+      // Fetch payment analytics
+      fetchPaymentAnalytics();
     }
   }, [user, navigate]);
+
+  const fetchPaymentAnalytics = async () => {
+    if (!user) return;
+    
+    try {
+      setLoadingAnalytics(true);
+      const analytics = await getProducerPaymentAnalytics(user.id);
+      setPaymentAnalytics(analytics);
+    } catch (error) {
+      console.error("Error fetching payment analytics:", error);
+    } finally {
+      setLoadingAnalytics(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -140,6 +163,17 @@ export default function ProducerSettings() {
 
   const handleBankDetailsSuccess = () => {
     toast.success('Bank details saved successfully');
+    fetchPaymentAnalytics(); // Refresh payment analytics after successful bank update
+  };
+
+  // Format currency
+  const formatCurrency = (amount: number, currency = 'NGN') => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: currency === 'USD' ? 2 : 0,
+      maximumFractionDigits: currency === 'USD' ? 2 : 0,
+    }).format(amount || 0);
   };
 
   // If not logged in or not a producer, show login prompt
@@ -234,25 +268,135 @@ export default function ProducerSettings() {
           </TabsContent>
           
           <TabsContent value="payment">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl md:text-2xl">Payment Settings</CardTitle>
-                <CardDescription className="text-sm md:text-base">
-                  Configure your bank details to receive payments for your beats
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {user && (
-                  <ProducerBankDetailsForm 
-                    producerId={user.id}
-                    existingBankCode={user.bank_code}
-                    existingAccountNumber={user.account_number}
-                    existingAccountName={user.verified_account_name}
-                    onSuccess={handleBankDetailsSuccess}
-                  />
-                )}
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {/* Bank Details Setup Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl">Payment Account</CardTitle>
+                  <CardDescription className="text-sm md:text-base">
+                    Set up your bank account to receive earnings from your beat sales
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {user && (
+                    <ProducerBankDetailsForm 
+                      producerId={user.id}
+                      existingBankCode={user.bank_code}
+                      existingAccountNumber={user.account_number}
+                      existingAccountName={user.verified_account_name}
+                      onSuccess={handleBankDetailsSuccess}
+                    />
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Payment Analytics Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl">Payment Stats</CardTitle>
+                  <CardDescription className="text-sm md:text-base">
+                    Overview of your earnings and payment history
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingAnalytics ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <p className="text-sm text-muted-foreground">Loading payment stats...</p>
+                      </div>
+                    </div>
+                  ) : paymentAnalytics ? (
+                    <div className="space-y-6">
+                      {/* Payment Stats Overview */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-muted rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CreditCard className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-muted-foreground">Total Earnings</span>
+                          </div>
+                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.total_earnings/100)}</p>
+                        </div>
+                        
+                        <div className="bg-muted rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Clock className="h-4 w-4 text-amber-500" />
+                            <span className="text-sm font-medium text-muted-foreground">Pending Balance</span>
+                          </div>
+                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.pending_balance/100)}</p>
+                        </div>
+                        
+                        <div className="bg-muted rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Activity className="h-4 w-4 text-green-500" />
+                            <span className="text-sm font-medium text-muted-foreground">Completed Payments</span>
+                          </div>
+                          <p className="text-xl font-bold">{paymentAnalytics.successful_payments}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Recent Transactions */}
+                      {paymentAnalytics.recent_transactions && paymentAnalytics.recent_transactions.length > 0 && (
+                        <div className="space-y-3">
+                          <h3 className="text-base font-semibold">Recent Transactions</h3>
+                          <div className="border rounded-lg overflow-hidden">
+                            <table className="min-w-full">
+                              <thead className="bg-muted">
+                                <tr>
+                                  <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground">Date</th>
+                                  <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground">Beat</th>
+                                  <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground">Amount</th>
+                                  <th className="py-2 px-4 text-left text-xs font-medium text-muted-foreground">Status</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y">
+                                {paymentAnalytics.recent_transactions.map((transaction: any, index: number) => (
+                                  <tr key={transaction.id || index}>
+                                    <td className="py-2 px-4 text-sm">{new Date(transaction.date).toLocaleDateString()}</td>
+                                    <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
+                                    <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount/100)}</td>
+                                    <td className="py-2 px-4 text-sm">
+                                      <span className={cn("px-2 py-1 rounded-full text-xs", {
+                                        "bg-green-100 text-green-800": transaction.status === 'successful',
+                                        "bg-amber-100 text-amber-800": transaction.status === 'pending',
+                                        "bg-red-100 text-red-800": transaction.status === 'failed'
+                                      })}>
+                                        {transaction.status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Payment Account Status */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 className="text-base font-semibold text-blue-800 mb-2">Payment Account Status</h3>
+                        <p className="text-sm text-blue-700 mb-2">
+                          {user.verified_account_name 
+                            ? `Your account is set up for automatic payments to ${user.verified_account_name}`
+                            : "Please set up your bank details to receive automatic payments"}
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          Payments for beat sales are automatically split with 90% going to your account
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground">
+                        {user.verified_account_name 
+                          ? "No payment data available yet. Start selling beats to see your earnings!"
+                          : "Please set up your bank details above to start receiving payments"}
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
           
           <TabsContent value="preferences">
