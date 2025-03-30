@@ -31,9 +31,10 @@ export function MobileSidebar({
       
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out w-[80%] max-w-[300px]",
+          "fixed inset-y-0 left-0 z-50 flex flex-col transition-all duration-300 ease-in-out",
           "bg-[#0e0e0e] text-white",
-          isOpen ? "translate-x-0" : "-translate-x-full"
+          isOpen ? "translate-x-0" : "-translate-x-full",
+          "w-[280px] md:w-[320px]" // Slightly wider on desktop
         )}
       >
         <div className="flex items-center justify-between p-4 border-b border-[#272727]">

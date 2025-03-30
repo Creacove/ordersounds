@@ -8,7 +8,6 @@ import { useCart } from "@/context/CartContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileSidebar } from "./MobileSidebar";
-import { DesktopSidebar } from "./DesktopSidebar";
 import { getSidebarSections } from "./SidebarContentSections";
 
 interface SidebarProps {
@@ -21,18 +20,9 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
   const { itemCount } = useCart();
   const location = useLocation();
   const { isPlaying, currentBeat } = usePlayer();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState(activeTab || "");
-
-  useEffect(() => {
-    if (!isMobile) {
-      setIsCollapsed(false);
-    } else {
-      setIsCollapsed(true);
-    }
-  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile) {
@@ -62,11 +52,7 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
   };
 
   const toggleSidebar = () => {
-    if (isMobile) {
-      setIsOpen(!isOpen);
-    } else {
-      setIsCollapsed(!isCollapsed);
-    }
+    setIsOpen(!isOpen);
   };
 
   const getSidebarContent = () => {
@@ -75,33 +61,48 @@ function Sidebar({ activeTab, currentPath }: SidebarProps) {
 
   return (
     <>
+      {/* Show mobile sidebar for all device sizes */}
+      <MobileSidebar 
+        isOpen={isOpen}
+        setIsOpen={setIsOpen}
+        user={user}
+        handleSignOut={handleSignOut}
+        getSidebarContent={getSidebarContent}
+      />
+      
+      {/* Show bottom nav only on mobile devices */}
       {isMobile && (
-        <>
-          <MobileSidebar 
-            isOpen={isOpen}
-            setIsOpen={setIsOpen}
-            user={user}
-            handleSignOut={handleSignOut}
-            getSidebarContent={getSidebarContent}
-          />
-          
-          <MobileBottomNav 
-            activeBottomTab={activeBottomTab}
-            user={user}
-            itemCount={itemCount}
-            setIsOpen={setIsOpen}
-            setActiveBottomTab={setActiveBottomTab}
-          />
-        </>
+        <MobileBottomNav 
+          activeBottomTab={activeBottomTab}
+          user={user}
+          itemCount={itemCount}
+          setIsOpen={setIsOpen}
+          setActiveBottomTab={setActiveBottomTab}
+        />
       )}
 
+      {/* Desktop toggle button */}
       {!isMobile && (
-        <DesktopSidebar 
-          isCollapsed={isCollapsed}
-          toggleSidebar={toggleSidebar}
-          getSidebarContent={getSidebarContent}
-          location={location}
-        />
+        <button
+          onClick={toggleSidebar}
+          className="fixed top-4 left-4 z-50 h-10 w-10 flex items-center justify-center rounded-full bg-sidebar hover:bg-sidebar-accent transition-colors"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
       )}
     </>
   );
