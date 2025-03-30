@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -36,6 +35,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 export function Topbar() {
   const { user, logout, currency, setCurrency } = useAuth();
@@ -154,6 +154,11 @@ export function Topbar() {
               )}
               <span className="sr-only">Cart</span>
             </Button>
+          )}
+          
+          {/* Notifications - Only show when user is logged in */}
+          {user && !isAuthPage && (
+            <NotificationCenter />
           )}
           
           {/* Search - Only show if not on auth page or user is logged in */}

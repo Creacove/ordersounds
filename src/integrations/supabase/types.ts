@@ -155,7 +155,11 @@ export type Database = {
           created_date: string | null
           id: string
           is_read: boolean | null
+          notification_type: string
           recipient_id: string
+          related_entity_id: string | null
+          related_entity_type: string | null
+          sender_id: string | null
           title: string
         }
         Insert: {
@@ -163,7 +167,11 @@ export type Database = {
           created_date?: string | null
           id?: string
           is_read?: boolean | null
+          notification_type?: string
           recipient_id: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sender_id?: string | null
           title: string
         }
         Update: {
@@ -171,7 +179,11 @@ export type Database = {
           created_date?: string | null
           id?: string
           is_read?: boolean | null
+          notification_type?: string
           recipient_id?: string
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          sender_id?: string | null
           title?: string
         }
         Relationships: [

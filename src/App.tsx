@@ -63,7 +63,7 @@ const App = () => (
             <PlayerProvider>
               <SidebarProvider>
                 <Toaster />
-                <Sonner />
+                <Sonner position="top-right" expand={true} closeButton={true} />
                 <Routes>
                   {/* Buyer Routes */}
                   <Route path="/" element={<Home />} />
