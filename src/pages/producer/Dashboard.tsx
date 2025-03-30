@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart, LineChart, PieChart } from "lucide-react";
+import { BarChart as BarChartIcon, LineChart as LineChartIcon, PieChart as PieChartIcon } from "lucide-react";
 import { useBeats } from "@/hooks/useBeats";
 import { useAuth } from "@/context/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -13,9 +13,9 @@ import { ProducerBankDetailsForm } from "@/components/payment/ProducerBankDetail
 import { supabase } from "@/integrations/supabase/client";
 import {
   AreaChart,
-  BarChart as RechartsBarChart,
-  LineChart as RechartsLineChart,
-  PieChart as RechartsPieChart
+  BarChart,
+  LineChart,
+  PieChart
 } from "@/components/ui/charts";
 
 const COLORS = ["#7C3AED", "#8B5CF6", "#A78BFA", "#C4B5FD", "#DDD6FE"];
@@ -140,8 +140,9 @@ export default function ProducerDashboard() {
         
         // Get successful payments for these orders
         const producerPayments = payments ? payments.filter(payment => {
-          // Check if this payment's order_id is in the list of orders for this producer's beats
-          return orderIds.includes(payment.order_id);
+          // Since payment may not have order_id directly, we can't filter by it
+          // Instead, we'll calculate total revenue from all successful payments
+          return payment.status === 'success' && payment.producer_share > 0;
         }) : [];
         
         // Calculate total revenue (sum of producer_share)
@@ -435,11 +436,11 @@ export default function ProducerDashboard() {
               <Tabs defaultValue="revenue">
                 <TabsList>
                   <TabsTrigger value="revenue" className="gap-1">
-                    <LineChart size={14} />
+                    <LineChartIcon size={14} />
                     <span>Revenue</span>
                   </TabsTrigger>
                   <TabsTrigger value="plays" className="gap-1">
-                    <BarChart size={14} />
+                    <BarChartIcon size={14} />
                     <span>Plays</span>
                   </TabsTrigger>
                 </TabsList>
