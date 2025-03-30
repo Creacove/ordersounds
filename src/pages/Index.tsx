@@ -107,8 +107,8 @@ export default function IndexPage() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container py-8">
-        <div className="mb-12 w-full max-w-4xl mx-auto">
+      <div className="py-8">
+        <div className="mb-12 w-full max-w-4xl mx-auto px-4">
           <form onSubmit={handleSearch} className="relative">
             <div className="flex items-center">
               <Input
@@ -130,7 +130,7 @@ export default function IndexPage() {
         </div>
 
         {producerOfWeek && (
-          <section className="mb-12">
+          <section className="mb-12 px-4">
             <SectionTitle 
               title="Producer of the Week" 
               icon={<Star className="h-5 w-5" />}
@@ -196,7 +196,7 @@ export default function IndexPage() {
           </section>
         )}
 
-        <section className="mb-12">
+        <section className="mb-12 px-4">
           <SectionTitle title="Trending" icon={<TrendingUp className="h-5 w-5" />} />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {trendingBeats.map((beat) => (
@@ -205,7 +205,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-12">
+        <section className="mb-12 px-4">
           <SectionTitle title="New Releases" icon={<Flame className="h-5 w-5" />} />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {newBeats.map((beat) => (
@@ -214,7 +214,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-12">
+        <section className="mb-12 px-4">
           <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
             {featuredPlaylists.map((playlist) => (
