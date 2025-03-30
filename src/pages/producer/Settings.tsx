@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -27,8 +28,11 @@ export default function ProducerSettings() {
   const [location, setLocation] = useState('');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
+  const [smsNotifications, setSmsNotifications] = useState(false);
   const [paymentAnalytics, setPaymentAnalytics] = useState<any>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [autoPlayPreviews, setAutoPlayPreviews] = useState(true);
   
   const { accountName } = usePaystackSplit();
   
@@ -57,6 +61,9 @@ export default function ProducerSettings() {
             
           setEmailNotifications(settings.emailNotifications !== false);
           setPushNotifications(settings.pushNotifications !== false);
+          setSmsNotifications(settings.smsNotifications === true);
+          setDarkMode(settings.darkMode === true);
+          setAutoPlayPreviews(settings.autoPlayPreviews !== false);
         } catch (e) {
           console.error("Error parsing user settings:", e);
         }
@@ -128,7 +135,10 @@ export default function ProducerSettings() {
       
       const settings = {
         emailNotifications,
-        pushNotifications
+        pushNotifications,
+        smsNotifications,
+        darkMode,
+        autoPlayPreviews
       };
       
       // Update preferences in database
@@ -433,6 +443,49 @@ export default function ProducerSettings() {
                     <Switch 
                       checked={pushNotifications} 
                       onCheckedChange={setPushNotifications} 
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <h4 className="text-base font-medium">SMS Notifications</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Receive important alerts via text message
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={smsNotifications} 
+                      onCheckedChange={setSmsNotifications} 
+                    />
+                  </div>
+                </div>
+                
+                <div className="border-t pt-4 space-y-4">
+                  <h3 className="text-lg font-medium">Display Settings</h3>
+                  
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <h4 className="text-base font-medium">Dark Mode</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Use dark theme for the dashboard
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={darkMode} 
+                      onCheckedChange={setDarkMode}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between py-2">
+                    <div>
+                      <h4 className="text-base font-medium">Auto-Play Previews</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically play beat previews when viewed
+                      </p>
+                    </div>
+                    <Switch 
+                      checked={autoPlayPreviews} 
+                      onCheckedChange={setAutoPlayPreviews}
                     />
                   </div>
                 </div>

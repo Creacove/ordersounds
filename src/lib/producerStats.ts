@@ -78,7 +78,10 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     salesData.forEach(sale => {
       // TypeScript safety: Check if orders property exists and is an object
       if (sale.orders && typeof sale.orders === 'object') {
-        const orderData = sale.orders as { 
+        // Type assertion needs to be fixed - use a type guard
+        const orderData = sale.orders as unknown;
+        // Now we can safely cast to our expected type
+        const typedOrderData = orderData as { 
           id: string; 
           total_price: number; 
           currency_used: string; 
@@ -86,15 +89,15 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
         };
         
         // Only count each order once
-        if (!processedOrderIds.has(orderData.id)) {
+        if (!processedOrderIds.has(typedOrderData.id)) {
           // Add order total to revenue
-          totalRevenue += (orderData.total_price || 0);
-          processedOrderIds.add(orderData.id);
+          totalRevenue += (typedOrderData.total_price || 0);
+          processedOrderIds.add(typedOrderData.id);
           
           // Count currencies
-          if (orderData.currency_used === 'NGN') {
+          if (typedOrderData.currency_used === 'NGN') {
             ngnCount++;
-          } else if (orderData.currency_used === 'USD') {
+          } else if (typedOrderData.currency_used === 'USD') {
             usdCount++;
           }
         }
@@ -131,11 +134,13 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     
     thisMonthSales.forEach(sale => {
       if (sale.orders && typeof sale.orders === 'object') {
-        const orderData = sale.orders as { id: string; total_price: number };
+        // Type assertion fix
+        const orderData = sale.orders as unknown;
+        const typedOrderData = orderData as { id: string; total_price: number };
         
-        if (!thisMonthOrderIds.has(orderData.id)) {
-          thisMonthRevenue += (orderData.total_price || 0);
-          thisMonthOrderIds.add(orderData.id);
+        if (!thisMonthOrderIds.has(typedOrderData.id)) {
+          thisMonthRevenue += (typedOrderData.total_price || 0);
+          thisMonthOrderIds.add(typedOrderData.id);
         }
       }
     });
@@ -146,11 +151,13 @@ export async function getProducerStats(producerId: string): Promise<ProducerStat
     
     lastMonthSales.forEach(sale => {
       if (sale.orders && typeof sale.orders === 'object') {
-        const orderData = sale.orders as { id: string; total_price: number };
+        // Type assertion fix
+        const orderData = sale.orders as unknown;
+        const typedOrderData = orderData as { id: string; total_price: number };
         
-        if (!lastMonthOrderIds.has(orderData.id)) {
-          lastMonthRevenue += (orderData.total_price || 0);
-          lastMonthOrderIds.add(orderData.id);
+        if (!lastMonthOrderIds.has(typedOrderData.id)) {
+          lastMonthRevenue += (typedOrderData.total_price || 0);
+          lastMonthOrderIds.add(typedOrderData.id);
         }
       }
     });
@@ -256,7 +263,10 @@ function generateMonthlyRevenueData(salesData: any[], monthsCount: number = 6): 
   salesData.forEach(sale => {
     if (!sale.purchase_date || !sale.orders || typeof sale.orders !== 'object') return;
     
-    const orderData = sale.orders as { id: string; total_price: number };
+    // Type assertion fix
+    const orderData = sale.orders as unknown;
+    const typedOrderData = orderData as { id: string; total_price: number };
+    
     const purchaseDate = new Date(sale.purchase_date);
     const purchaseMonth = purchaseDate.getMonth();
     const purchaseYear = purchaseDate.getFullYear();
@@ -270,13 +280,13 @@ function generateMonthlyRevenueData(salesData: any[], monthsCount: number = 6): 
         const monthKey = `${monthYear}-${monthIndex}`;
         
         // Only count each order once per month
-        if (!processedOrdersByMonth[monthKey].has(orderData.id)) {
+        if (!processedOrdersByMonth[monthKey].has(typedOrderData.id)) {
           // Add to the correct month's value
           const monthPosition = monthsCount - 1 - i;
-          result[monthPosition].value += (orderData.total_price || 0);
+          result[monthPosition].value += (typedOrderData.total_price || 0);
           
           // Mark this order as processed for this month
-          processedOrdersByMonth[monthKey].add(orderData.id);
+          processedOrdersByMonth[monthKey].add(typedOrderData.id);
         }
       }
     }
