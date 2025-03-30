@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -38,7 +37,6 @@ const BeatDetail = () => {
   const [favoritesCount, setFavoritesCount] = useState<number>(0);
   const [purchaseCount, setPurchaseCount] = useState<number>(0);
   const [played, setPlayed] = useState<boolean>(false);
-  // Add a state to store and update the beat data
   const [localBeat, setLocalBeat] = useState<Beat | null>(null);
 
   const { data: beat, isLoading, error } = useQuery({
@@ -104,7 +102,6 @@ const BeatDetail = () => {
     try {
       if (beat && !played) {
         setPlayed(true); // Mark as played
-        // Fix the RPC call by using a type assertion
         await supabase.rpc("increment_counter" as any, {
           p_table_name: "beats",
           p_column_name: "plays",
@@ -112,7 +109,6 @@ const BeatDetail = () => {
         });
         
         if (beat.plays !== undefined) {
-          // Update local state
           setLocalBeat({
             ...beat,
             plays: beat.plays + 1
