@@ -29,7 +29,7 @@ export function MainLayout({ children, activeTab, currentPath, hideSidebar }: Ma
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full">
       {!hideSidebar && (
         <Sidebar 
           activeTab={activeTab} 
@@ -37,9 +37,9 @@ export function MainLayout({ children, activeTab, currentPath, hideSidebar }: Ma
           onCollapsedChange={setIsCollapsed}
         />
       )}
-      <div className={`flex flex-col flex-1 transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "md:ml-[80px]" : "md:ml-[240px]") : ""}`}>
+      <div className={`flex flex-col flex-1 w-full transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "md:ml-[80px]" : "md:ml-[240px]") : ""}`}>
         <Topbar sidebarVisible={!isMobile && sidebarVisible && !hideSidebar} />
-        <main className="flex-1">
+        <main className="flex-1 w-full">
           <div className="w-full flex flex-col">
             {children}
           </div>

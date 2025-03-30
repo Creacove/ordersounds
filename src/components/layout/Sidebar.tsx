@@ -9,6 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { MobileSidebar } from "./MobileSidebar";
 import { getSidebarSections } from "./SidebarContentSections";
+import { DesktopSidebar } from "./DesktopSidebar";
 
 interface SidebarProps {
   activeTab?: string;
@@ -87,17 +88,12 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
   // For desktop, always render the sidebar but control its collapsed state
   if (!isMobile) {
     return (
-      <div className="hidden md:block">
-        <MobileSidebar 
-          isOpen={true}
-          setIsOpen={setIsOpen}
-          user={user}
-          handleSignOut={handleSignOut}
-          getSidebarContent={getSidebarContent}
-          isCollapsed={isCollapsed}
-          toggleCollapsed={toggleCollapsed}
-        />
-      </div>
+      <DesktopSidebar 
+        isCollapsed={isCollapsed} 
+        toggleSidebar={toggleCollapsed} 
+        getSidebarContent={getSidebarContent}
+        location={location}
+      />
     );
   }
 

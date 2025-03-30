@@ -23,7 +23,7 @@ export function DesktopSidebar({
       className={cn(
         "fixed inset-y-0 left-0 z-30 flex flex-col transition-all duration-300 ease-in-out",
         "bg-[#0e0e0e] text-white",
-        isCollapsed ? "w-[70px]" : "w-[240px]"
+        isCollapsed ? "w-[80px]" : "w-[240px]"
       )}
     >
       <div className="flex flex-col flex-1 gap-2 p-4 overflow-y-auto">
@@ -52,8 +52,8 @@ export function DesktopSidebar({
                             )}
                           >
                             <item.icon
-                              size={18}
-                              className="text-[#b3b3b3]"
+                              size={20}
+                              className="text-[#b3b3b3] min-w-5"
                             />
                             {!isCollapsed && <span>{item.title}</span>}
                           </button>
@@ -88,9 +88,9 @@ export function DesktopSidebar({
                           {({ isActive }) => (
                             <>
                               <item.icon
-                                size={18}
+                                size={20}
                                 className={cn(
-                                  "transition-colors",
+                                  "transition-colors min-w-5",
                                   isActive ? "text-purple-500" : "text-[#b3b3b3]"
                                 )}
                               />
@@ -120,7 +120,7 @@ export function DesktopSidebar({
           className="w-8 h-8 rounded-full hover:bg-purple-500/20 hover:text-purple-500 transition-colors"
           onClick={toggleSidebar}
         >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </Button>
       </div>
     </aside>

@@ -269,6 +269,42 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   .notification-dot {
     @apply w-1 h-8 bg-primary absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full;
   }
+  
+  /* Make sure content fills available space */
+  .content-fill {
+    @apply w-full max-w-full;
+  }
+  
+  .content-with-sidebar {
+    @apply w-full max-w-full;
+  }
+  
+  /* Sidebar specific utilities */
+  .sidebar-icon {
+    @apply min-w-5 h-5;
+  }
+  
+  /* Layout utilities */
+  .layout-with-sidebar-expanded {
+    @apply md:ml-[240px] w-[calc(100%-240px)];
+  }
+  
+  .layout-with-sidebar-collapsed {
+    @apply md:ml-[80px] w-[calc(100%-80px)];
+  }
+  
+  .layout-full {
+    @apply w-full;
+  }
+  
+  /* Page containers */
+  .page-container {
+    @apply w-full h-full p-4 md:p-6;
+  }
+  
+  .page-content {
+    @apply w-full max-w-full;
+  }
 }
 
 /* Standardized UI components for consistency */
@@ -465,8 +501,36 @@ input[type="range"].audio-progress::-webkit-slider-thumb {
   .notification-mobile-content {
     @apply flex-1 min-w-0 pr-8;
   }
+  
+  /* Improved mobile layout */
+  .mobile-content-container {
+    @apply w-full max-w-full px-4;
+  }
+  
+  .mobile-sidebar-hidden {
+    @apply hidden;
+  }
 }
 
 .z-45 {
   z-index: 45;
+}
+
+/* Ensure full width content */
+.w-full {
+  width: 100%;
+}
+
+.max-w-full {
+  max-width: 100%;
+}
+
+/* Make sure main content layouts properly */
+main {
+  width: 100%;
+  max-width: 100%;
+}
+
+.flex-grow {
+  flex-grow: 1;
 }
