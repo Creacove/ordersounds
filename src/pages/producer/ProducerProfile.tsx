@@ -53,31 +53,38 @@ export default function ProducerProfile() {
   } = useQuery({
     queryKey: ['producer', producerId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, full_name, stage_name, bio, profile_picture, country, created_at, follower_count')
-        .eq('id', producerId)
-        .eq('role', 'producer')
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, full_name, stage_name, bio, profile_picture, country, created_date, follower_count')
+          .eq('id', producerId)
+          .eq('role', 'producer')
+          .single();
+          
+        if (error) throw error;
         
-      if (error) throw error;
-      
-      // Transform the data to match our expected interface
-      const transformedData: ProducerProfileData = {
-        id: data.id,
-        full_name: data.full_name,
-        stage_name: data.stage_name,
-        bio: data.bio,
-        avatar_url: data.profile_picture, // Map profile_picture to avatar_url
-        country: data.country,
-        created_at: data.created_at,
-        follower_count: data.follower_count || 0
-      };
-      
-      // Set initial follower count
-      setFollowerCount(transformedData.follower_count);
-      
-      return transformedData;
+        if (!data) {
+          throw new Error("No producer found");
+        }
+        
+        const transformedData: ProducerProfileData = {
+          id: data.id,
+          full_name: data.full_name,
+          stage_name: data.stage_name,
+          bio: data.bio,
+          avatar_url: data.profile_picture,
+          country: data.country,
+          created_at: data.created_date,
+          follower_count: data.follower_count || 0
+        };
+        
+        setFollowerCount(transformedData.follower_count);
+        
+        return transformedData;
+      } catch (error) {
+        console.error("Error fetching producer:", error);
+        throw error;
+      }
     },
     enabled: !!producerId,
   });
@@ -98,7 +105,6 @@ export default function ProducerProfile() {
         
       if (error) throw error;
       
-      // Map the data to match the Beat type
       return data.map(beat => ({
         id: beat.id,
         title: beat.title,

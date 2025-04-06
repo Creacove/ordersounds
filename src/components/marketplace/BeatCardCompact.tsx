@@ -1,53 +1,86 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Play, Pause } from 'lucide-react';
 import { Beat } from '@/types';
-import { PlayCircle, PauseCircle } from 'lucide-react';
-import { useAudio } from '@/hooks/useAudio';
+import { usePlayer } from '@/context/PlayerContext';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
+import { Button } from '@/components/ui/button';
+import { PriceTag } from '@/components/ui/PriceTag';
+import { ToggleFavoriteButton } from '@/components/buttons/ToggleFavoriteButton';
 
 interface BeatCardCompactProps {
   beat: Beat;
 }
 
-export const BeatCardCompact = ({ beat }: BeatCardCompactProps) => {
+export function BeatCardCompact({ beat }: BeatCardCompactProps) {
+  const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
   const [isHovering, setIsHovering] = useState(false);
-  const { playing, togglePlay } = useAudio(beat.preview_url);
+  
+  const isCurrentBeat = currentBeat?.id === beat.id;
+  
+  const handlePlay = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isCurrentBeat) {
+      togglePlayPause();
+    } else {
+      playBeat(beat);
+    }
+  };
   
   return (
-    <div 
-      className="group relative rounded-lg overflow-hidden bg-card transition-all"
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
+    <Link
+      to={`/beat/${beat.id}`}
+      className="group block overflow-hidden rounded-lg border bg-card transition hover:shadow-md"
     >
-      <Link to={`/marketplace/beats/${beat.id}`} className="block">
-        <div className="relative aspect-square">
-          {/* Cover Image */}
-          <img 
-            src={beat.cover_image_url || 'https://placehold.co/600x600/1a1a1a/ffffff?text=Beat'} 
+      <div 
+        className="relative" 
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        <AspectRatio ratio={1 / 1}>
+          <img
+            src={beat.cover_image_url || "/placeholder.svg"}
             alt={beat.title}
-            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
-          
-          {/* Play Button Overlay */}
-          <button 
-            onClick={(e) => {
-              e.preventDefault();
-              togglePlay();
-            }}
-            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+        </AspectRatio>
+        
+        <div className="absolute inset-0 bg-black/20 transition-opacity group-hover:opacity-100 flex items-center justify-center">
+          <Button
+            size="icon"
+            variant="secondary" 
+            className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background/95"
+            onClick={handlePlay}
           >
-            {playing ? 
-              <PauseCircle className="h-12 w-12 text-white" /> : 
-              <PlayCircle className="h-12 w-12 text-white" />
-            }
-          </button>
+            {isCurrentBeat && isPlaying ? (
+              <Pause className="h-5 w-5" />
+            ) : (
+              <Play className="h-5 w-5 ml-0.5" />
+            )}
+          </Button>
         </div>
         
-        <div className="p-3">
-          <h3 className="font-medium line-clamp-1">{beat.title}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-1">{beat.producer_name}</p>
+        <ToggleFavoriteButton beatId={beat.id} absolutePosition />
+      </div>
+      
+      <div className="p-3">
+        <h3 className="font-medium text-sm truncate">{beat.title}</h3>
+        <p className="text-xs text-muted-foreground truncate mb-1.5">{beat.producer_name}</p>
+        
+        <div className="flex justify-between items-center mt-1">
+          <PriceTag 
+            localPrice={beat.basic_license_price_local} 
+            diasporaPrice={beat.basic_license_price_diaspora} 
+            size="sm"
+          />
+          <div className="text-xs text-muted-foreground">
+            {beat.bpm} BPM
+          </div>
         </div>
-      </Link>
-    </div>
+      </div>
+    </Link>
   );
-};
+}
