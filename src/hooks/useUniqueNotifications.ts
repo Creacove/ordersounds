@@ -24,8 +24,8 @@ export function useUniqueNotifications(dedupeTimeMs: number = 5000) {
   }, [dedupeTimeMs]);
   
   // Check if a notification is a duplicate
-  const isDuplicate = (message: string): boolean => {
-    return notificationHistory.some(n => n.message === message);
+  const isDuplicate = (id: string): boolean => {
+    return notificationHistory.some(n => n.id === id);
   };
   
   // Add a notification to history

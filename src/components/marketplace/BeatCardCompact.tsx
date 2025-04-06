@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
+import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
 
 interface BeatCardCompactProps {
   beat: Beat;
@@ -18,6 +19,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
   const { user } = useAuth();
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
   const [isHovering, setIsHovering] = useState(false);
+  const { isDuplicate, addNotification } = useUniqueNotifications();
   
   const isCurrentBeat = currentBeat?.id === beat.id;
   
@@ -36,8 +38,11 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
     e.preventDefault();
     e.stopPropagation();
     
-    // Add to cart implementation would go here
-    toast.success(`Added ${beat.title} to cart`);
+    // Prevent duplicate toast notifications
+    if (!isDuplicate(`added-to-cart-${beat.id}`)) {
+      toast.success(`Added ${beat.title} to cart`);
+      addNotification(`added-to-cart-${beat.id}`, `Added ${beat.title} to cart`, 'success');
+    }
   };
   
   return (

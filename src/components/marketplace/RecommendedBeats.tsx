@@ -10,8 +10,6 @@ import { Link } from 'react-router-dom';
 import { Sparkles, ShoppingCart } from 'lucide-react';
 import { EmptyState } from '@/components/library/EmptyState';
 import { usePlayer } from '@/context/PlayerContext';
-import { formatCurrency } from '@/utils/formatters';
-import { Play, Music } from 'lucide-react';
 
 export function RecommendedBeats() {
   const { user } = useAuth();
@@ -35,7 +33,7 @@ export function RecommendedBeats() {
         />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-4">
           {Array(5).fill(0).map((_, i) => (
-            <Skeleton key={i} className="h-64 rounded-lg" />
+            <Skeleton key={i} className="h-48 rounded-lg" />
           ))}
         </div>
       </div>
@@ -63,21 +61,6 @@ export function RecommendedBeats() {
   
   // Determine how many beats to show
   const beatsToShow = viewAll ? recommendedBeats : recommendedBeats.slice(0, 5);
-
-  // Format seconds to mm:ss
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? '0' + secs : secs}`;
-  };
-  
-  const handlePlayBeat = (beat: any, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (playBeat) {
-      playBeat(beat);
-    }
-  };
   
   return (
     <div className="my-8">
@@ -101,10 +84,10 @@ export function RecommendedBeats() {
       <div className="hidden md:block rounded-lg border bg-card overflow-hidden mt-4">
         <div className="grid grid-cols-12 text-xs font-medium text-muted-foreground bg-muted px-4 py-2.5">
           <div className="col-span-5">TITLE</div>
-          <div className="col-span-2">PRODUCER</div>
+          <div className="col-span-3">PRODUCER</div>
           <div className="col-span-2">GENRE</div>
           <div className="col-span-1 text-center">BPM</div>
-          <div className="col-span-2 text-right">PRICE</div>
+          <div className="col-span-1 text-right">PRICE</div>
         </div>
         
         <div className="max-h-[400px] overflow-y-auto">
@@ -121,18 +104,16 @@ export function RecommendedBeats() {
                       src={beat.cover_image} 
                       alt={beat.title} 
                       className="w-full h-full object-cover rounded"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder.svg';
+                      }}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-primary/10">
-                      <Music className="h-5 w-5 text-primary" />
+                      <ShoppingCart className="h-5 w-5 text-primary" />
                     </div>
                   )}
-                  <button 
-                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 rounded transition-opacity"
-                    onClick={(e) => handlePlayBeat(beat, e)}
-                  >
-                    <Play className="h-5 w-5 text-white" fill="white" />
-                  </button>
                 </div>
                 <div className="truncate">
                   <div className="font-medium truncate">{beat.title}</div>
@@ -141,8 +122,8 @@ export function RecommendedBeats() {
                   </div>
                 </div>
               </div>
-              <div className="col-span-2 truncate text-sm">
-                {beat.users?.stage_name || beat.users?.full_name || beat.producer_name || 'Unknown Producer'}
+              <div className="col-span-3 truncate text-sm">
+                {beat.users?.stage_name || beat.producer_name || 'Unknown Producer'}
               </div>
               <div className="col-span-2 truncate text-sm capitalize">
                 {beat.genre?.toLowerCase() || 'Various'}
@@ -150,10 +131,7 @@ export function RecommendedBeats() {
               <div className="col-span-1 text-center text-sm">
                 {beat.bpm || '-'}
               </div>
-              <div className="col-span-2 text-right flex items-center justify-end gap-2">
-                <span className="font-medium text-sm">
-                  {formatCurrency(beat.basic_license_price_local || beat.basic_local || 0)}
-                </span>
+              <div className="col-span-1 text-right flex items-center justify-end">
                 <Button 
                   size="icon" 
                   variant="ghost" 
@@ -162,6 +140,7 @@ export function RecommendedBeats() {
                     e.preventDefault();
                     e.stopPropagation();
                     // Add to cart functionality would go here
+                    toast.success(`Added ${beat.title} to cart`);
                   }}
                 >
                   <ShoppingCart className="h-4 w-4" />
@@ -172,8 +151,8 @@ export function RecommendedBeats() {
         </div>
       </div>
 
-      {/* Mobile view: More responsive grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 md:hidden mt-4">
+      {/* Mobile view: Grid of BeatCardCompact */}
+      <div className="grid grid-cols-2 gap-3 md:hidden mt-4">
         {beatsToShow.map((beat) => (
           <BeatCardCompact 
             key={beat.id} 
@@ -181,7 +160,7 @@ export function RecommendedBeats() {
               id: beat.id,
               title: beat.title,
               producer_id: beat.producer_id,
-              producer_name: beat.users?.stage_name || beat.users?.full_name || "Unknown Producer",
+              producer_name: beat.users?.stage_name || beat.producer_name || "Unknown Producer",
               cover_image_url: beat.cover_image,
               basic_license_price_local: beat.basic_license_price_local || beat.basic_local || 0,
               basic_license_price_diaspora: beat.basic_license_price_diaspora || beat.basic_license_price_local || 0,

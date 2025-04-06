@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -77,10 +76,10 @@ export default function ProducerSettings() {
     
     // Set initial values
     if (user) {
-      setProducerName(user.producer_name || user.stage_name || '');
+      setProducerName(user.producer_name || user.name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
-      setAvatarUrl(user.profile_picture || null);
+      setAvatarUrl(user.avatar_url || null);
       
       // Get notification preferences from user settings if available
       if (user.settings) {
@@ -207,11 +206,11 @@ export default function ProducerSettings() {
     try {
       setIsLoading(prev => ({ ...prev, profile: true }));
       
-      // Update producer info in database
+      // Update producer info in database using the fields available in our User type
       const { error } = await supabase
         .from('users')
         .update({
-          stage_name: producerName,
+          producer_name: producerName,
           bio: bio,
           country: location
         })
@@ -226,7 +225,6 @@ export default function ProducerSettings() {
         await updateProfile({
           ...user,
           producer_name: producerName,
-          stage_name: producerName,
           bio: bio,
           country: location
         });
@@ -326,10 +324,10 @@ export default function ProducerSettings() {
         
         const base64String = event.target.result.toString();
         
-        // Update profile picture in database
+        // Update profile picture in database as avatar_url
         const { error } = await supabase
           .from('users')
-          .update({ profile_picture: base64String })
+          .update({ avatar_url: base64String })
           .eq('id', user!.id);
           
         if (error) throw error;
@@ -340,7 +338,7 @@ export default function ProducerSettings() {
         if (updateProfile) {
           await updateProfile({
             ...user!,
-            profile_picture: base64String
+            avatar_url: base64String
           });
         }
         
@@ -409,7 +407,7 @@ export default function ProducerSettings() {
                   <div className="relative">
                     <Avatar className="h-24 w-24 mb-4">
                       <AvatarImage src={avatarUrl || undefined} alt={producerName} />
-                      <AvatarFallback>{getInitials(producerName || user.full_name || 'User')}</AvatarFallback>
+                      <AvatarFallback>{getInitials(producerName || user.name || 'User')}</AvatarFallback>
                     </Avatar>
                     <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
                       <DialogTrigger asChild>
@@ -432,7 +430,7 @@ export default function ProducerSettings() {
                           <div className="flex flex-col items-center justify-center gap-4">
                             <Avatar className="h-32 w-32">
                               <AvatarImage src={avatarUrl || undefined} alt={producerName} />
-                              <AvatarFallback>{getInitials(producerName || user.full_name || 'User')}</AvatarFallback>
+                              <AvatarFallback>{getInitials(producerName || user.name || 'User')}</AvatarFallback>
                             </Avatar>
                             <label htmlFor="avatar-upload">
                               <Button 

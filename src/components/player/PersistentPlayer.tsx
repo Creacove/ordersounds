@@ -76,9 +76,9 @@ export function PersistentPlayer() {
         {/* Beat info */}
         <div className="flex items-center gap-3 flex-grow md:flex-grow-0 md:w-1/3">
           <div className="w-10 h-10 md:w-12 md:h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
-            {currentBeat.cover_image_url || currentBeat.cover_image ? (
+            {currentBeat.cover_image_url ? (
               <img 
-                src={currentBeat.cover_image_url || currentBeat.cover_image}
+                src={currentBeat.cover_image_url}
                 alt={currentBeat.title}
                 className="w-full h-full object-cover"
                 onError={(e) => {
