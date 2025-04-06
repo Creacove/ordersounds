@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
@@ -56,17 +55,29 @@ export default function ProducerProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('users')
-        .select('id, full_name, stage_name, bio, profile_picture as avatar_url, country, created_at, follower_count')
+        .select('id, full_name, stage_name, bio, profile_picture, country, created_at, follower_count')
         .eq('id', producerId)
         .eq('role', 'producer')
         .single();
         
       if (error) throw error;
       
-      // Set initial follower count
-      setFollowerCount(data?.follower_count || 0);
+      // Transform the data to match our expected interface
+      const transformedData: ProducerProfileData = {
+        id: data.id,
+        full_name: data.full_name,
+        stage_name: data.stage_name,
+        bio: data.bio,
+        avatar_url: data.profile_picture, // Map profile_picture to avatar_url
+        country: data.country,
+        created_at: data.created_at,
+        follower_count: data.follower_count || 0
+      };
       
-      return data as ProducerProfileData;
+      // Set initial follower count
+      setFollowerCount(transformedData.follower_count);
+      
+      return transformedData;
     },
     enabled: !!producerId,
   });
@@ -152,6 +163,21 @@ export default function ProducerProfile() {
       month: 'long' 
     });
   };
+  
+  // Show error state if we couldn't load the producer
+  if (producerError && !isLoadingProducer) {
+    return (
+      <MainLayoutWithPlayer>
+        <div className="container py-8 text-center">
+          <h2 className="text-2xl font-bold mb-4">Failed to load producer profile</h2>
+          <p className="text-muted-foreground">There was an error loading this producer's information.</p>
+          <Button asChild className="mt-6">
+            <a href="/">Back to Home</a>
+          </Button>
+        </div>
+      </MainLayoutWithPlayer>
+    );
+  }
   
   return (
     <MainLayoutWithPlayer>
