@@ -59,7 +59,7 @@ serve(async (req) => {
     // Verify the producer exists
     const { data: producer, error: producerError } = await supabase
       .from("users")
-      .select("role")
+      .select("id, role")
       .eq("id", producerId)
       .eq("role", "producer")
       .single();

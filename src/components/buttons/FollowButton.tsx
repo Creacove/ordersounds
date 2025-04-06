@@ -36,15 +36,15 @@ export function FollowButton({
       return;
     }
     
-    // Remove the restriction for producers
-    // Now producers can follow other producers
-    
     setIsLoading(true);
     try {
       const result = await toggleFollow(producerId, followState);
       if (result && onFollowChange) {
         onFollowChange(!followState);
       }
+    } catch (error) {
+      console.error("Follow toggle error:", error);
+      toast.error("Could not update follow status. Please try again.");
     } finally {
       setIsLoading(false);
     }

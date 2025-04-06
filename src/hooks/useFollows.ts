@@ -45,7 +45,7 @@ export function useFollows() {
   
   // Follow a producer
   const followProducer = async (producerId: string) => {
-    if (!producerId) return;
+    if (!producerId) return false;
     
     setIsFollowLoading(true);
     
@@ -65,10 +65,21 @@ export function useFollows() {
         body: JSON.stringify({ producerId }),
       });
       
+      let errorMessage = 'Failed to follow producer';
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to follow producer');
+        // Try to get error message from response
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If parsing JSON fails, use default error message
+          console.error('Error parsing JSON from follow response:', e);
+        }
+        throw new Error(errorMessage);
       }
+      
+      const responseData = await response.json();
       
       // Invalidate follow status query after successful follow
       queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
@@ -89,7 +100,7 @@ export function useFollows() {
   
   // Unfollow a producer
   const unfollowProducer = async (producerId: string) => {
-    if (!producerId) return;
+    if (!producerId) return false;
     
     setIsFollowLoading(true);
     
@@ -109,10 +120,21 @@ export function useFollows() {
         body: JSON.stringify({ producerId }),
       });
       
+      let errorMessage = 'Failed to unfollow producer';
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to unfollow producer');
+        // Try to get error message from response
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          // If parsing JSON fails, use default error message
+          console.error('Error parsing JSON from unfollow response:', e);
+        }
+        throw new Error(errorMessage);
       }
+      
+      const responseData = await response.json();
       
       // Invalidate follow status query after successful unfollow
       queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
