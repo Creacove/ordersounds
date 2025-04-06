@@ -1,4 +1,3 @@
-
 # OrderSounds - Beat Marketplace Platform
 
 A digital marketplace for music producers to sell beats and for artists to discover and purchase high-quality beats, with automated payment splits between the platform and producers.
@@ -31,6 +30,7 @@ OrderSounds is a comprehensive music production platform where:
   - Buyer interface for discovering, previewing, and purchasing beats
 - **Comprehensive Beat Management**: Upload, categorize, price, and manage beats with different license types
 - **User Library**: Buyers can access their purchased beats, create playlists, and manage favorites
+- **Following System**: Buyers can follow producers to get updates on new beats and personalized recommendations
 
 ### Target Audience
 - **Buyers**: Artists looking to purchase high-quality beats for their projects
@@ -100,7 +100,8 @@ users (
   account_number text,
   verified_account_name text,
   paystack_subaccount_code text,
-  paystack_split_code text
+  paystack_split_code text,
+  follower_count integer DEFAULT 0
 )
 ```
 
@@ -147,6 +148,17 @@ user_favorites (
   user_id uuid REFERENCES users,
   beat_id uuid REFERENCES beats,
   added_at timestamp with time zone
+)
+```
+
+### Followers
+```sql
+followers (
+  id uuid PRIMARY KEY,
+  follower_id uuid REFERENCES users, -- The user who is following (buyer)
+  followee_id uuid REFERENCES users, -- The producer being followed
+  created_at timestamp with time zone DEFAULT NOW(),
+  UNIQUE(follower_id, followee_id)
 )
 ```
 
@@ -202,6 +214,20 @@ playlist_beats (
 )
 ```
 
+### Notifications
+```sql
+notifications (
+  id uuid PRIMARY KEY,
+  recipient_id uuid REFERENCES users,
+  title text,
+  body text,
+  is_read boolean DEFAULT false,
+  created_date timestamp with time zone DEFAULT NOW(),
+  related_entity_type text, -- 'beat', 'follow', etc.
+  related_entity_id uuid   -- Reference to the related entity
+)
+```
+
 ## File Directory Structure
 
 ### Frontend Structure
@@ -211,16 +237,15 @@ src/
 ├── components/
 │   ├── auth/                 # Authentication components
 │   ├── buttons/              # Reusable button components
+│   │   ├── FollowButton.tsx  # Button to follow/unfollow producers
+│   │   ├── ToggleFavoriteButton.tsx # Button to favorite/unfavorite beats
 │   ├── filter/               # Filter components for beat discovery
 │   ├── layout/               # Layout components (sidebar, header, etc.)
 │   ├── library/              # Components for user's library
 │   ├── marketplace/          # Components for the beat marketplace
+│   │   ├── RecommendedBeats.tsx # Displays beats from followed producers
 │   ├── notifications/        # Notification components
 │   ├── payment/              # Payment processing components
-│   │   ├── PaymentHandler.tsx   # Main payment handler
-│   │   ├── PaystackCheckout.tsx # Paystack checkout component
-│   │   ├── PaystackDialog.tsx   # Paystack payment dialog
-│   │   ├── ProducerBankDetailsForm.tsx # Bank details form
 │   ├── player/               # Audio player components
 │   ├── producer/             # Producer-specific components
 │   │   ├── dashboard/        # Dashboard components
@@ -230,6 +255,8 @@ src/
 │   │   │   ├── RecentActivity.tsx   # Recent sales activity
 │   │   │   ├── StatsCards.tsx       # Stats overview cards
 │   │   │   ├── TopSellingBeats.tsx  # Top selling beats list
+│   │   ├── profile/          # Producer profile components
+│   │   │   ├── FollowerCount.tsx # Display follower count with formatting
 │   ├── ui/                   # Shared UI components (shadcn)
 │   ├── upload/               # Beat upload components
 ├── context/                  # React context providers
@@ -243,6 +270,7 @@ src/
 │   │   ├── usePaystackAdmin.ts      # Admin Paystack operations
 │   │   ├── usePaystackCheckout.ts   # Checkout process
 │   │   ├── usePaystackSplit.ts      # Split payment functionality
+│   ├── useFollows.ts         # Hooks for follow functionality
 ├── integrations/             # External integrations
 │   ├── supabase/             # Supabase client setup
 ├── lib/                      # Utility libraries
@@ -252,7 +280,10 @@ src/
 │   ├── admin/                # Admin pages
 │   ├── auth/                 # Authentication pages
 │   ├── buyer/                # Buyer-facing pages
+│   │   ├── Home.tsx          # Home page with recommended beats
+│   │   ├── Producers.tsx     # Page to discover and follow producers
 │   ├── producer/             # Producer-facing pages
+│   │   ├── ProducerProfile.tsx # Producer profile with follow button
 │   ├── user/                 # User settings pages
 ├── types/                    # TypeScript type definitions
 ├── utils/                    # Utility functions
@@ -268,6 +299,10 @@ src/
 ```
 supabase/
 ├── functions/                # Edge functions
+│   ├── follow-producer/      # Handle follow producer action
+│   ├── unfollow-producer/    # Handle unfollow producer action
+│   ├── get-follow-status/    # Check if user follows a producer
+│   ├── get-recommended-beats/ # Get beats from followed producers
 │   ├── paystack-split/       # Paystack split API integration
 │   ├── paystack-webhook/     # Webhook handler for Paystack
 │   ├── verify-paystack-payment/ # Payment verification
@@ -316,6 +351,25 @@ supabase/
    - Update producer bank details
    - View transaction history
    - Resolve payment issues
+
+### Following System Flow
+1. The `ProducerProfile.tsx` component displays a producer's profile with their follower count and a follow button
+2. The `FollowButton` component uses the `useFollows` hook to check if the current user follows the producer
+3. When clicked, it calls the appropriate Supabase edge function (`follow-producer` or `unfollow-producer`)
+4. The edge functions call database functions (`follow_producer` or `unfollow_producer`) to:
+   - Insert/delete the follow relationship in the followers table
+   - Increment/decrement the producer's follower_count
+5. The `RecommendedBeats` component on the home page fetches beats from producers the user follows
+6. When a producer uploads a new beat, notifications are sent to all followers via a database trigger
+
+### User Recommendations
+1. The `useFollows` hook's `useRecommendedBeats` function calls the `get-recommended-beats` edge function
+2. The edge function:
+   - Fetches the producers the user follows from the `followers` table
+   - Gets recent beats from those producers
+   - Returns the beats sorted by upload date
+3. The `RecommendedBeats` component displays these beats on the home page
+4. The `Producers` page allows users to discover new producers to follow, sorted by popularity
 
 ## Setup Instructions
 
@@ -423,3 +477,20 @@ Contributions are welcome! Please follow these steps:
 
 ### License
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+### Followers and Recommendations System
+OrderSounds implements a comprehensive followers system:
+1. **Follow Relationships**: Buyers can follow producers (but producers cannot follow others)
+2. **Database Structure**: 
+   - `followers` table stores relationships between users
+   - `follower_count` on users table for fast access (denormalized)
+3. **Security**:
+   - Row Level Security ensures users can only manage their own follows
+   - Database functions for atomic operations and validation
+4. **Personalized Experience**:
+   - Recommended beats from followed producers on home page
+   - Notifications when followed producers release new beats
+5. **Performance Optimizations**:
+   - Indexes on follower_id and followee_id columns
+   - Follower count stored on user record to avoid expensive COUNT queries
+   - React Query for client-side caching and invalidation

@@ -107,6 +107,42 @@ export type Database = {
           },
         ]
       }
+      followers: {
+        Row: {
+          created_at: string | null
+          followee_id: string
+          follower_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          followee_id: string
+          follower_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          followee_id?: string
+          follower_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followers_followee_id_fkey"
+            columns: ["followee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "followers_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       line_items: {
         Row: {
           beat_id: string
@@ -502,6 +538,7 @@ export type Database = {
           email: string
           favorites: Json | null
           featured_beats: Json | null
+          follower_count: number | null
           full_name: string
           id: string
           is_producer_of_week: boolean | null
@@ -527,6 +564,7 @@ export type Database = {
           email: string
           favorites?: Json | null
           featured_beats?: Json | null
+          follower_count?: number | null
           full_name: string
           id?: string
           is_producer_of_week?: boolean | null
@@ -552,6 +590,7 @@ export type Database = {
           email?: string
           favorites?: Json | null
           featured_beats?: Json | null
+          follower_count?: number | null
           full_name?: string
           id?: string
           is_producer_of_week?: boolean | null
@@ -575,6 +614,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_follow_status: {
+        Args: {
+          p_follower_id: string
+          p_followee_id: string
+        }
+        Returns: boolean
+      }
+      follow_producer: {
+        Args: {
+          p_follower_id: string
+          p_followee_id: string
+        }
+        Returns: undefined
+      }
       get_producer_of_week: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -586,6 +639,7 @@ export type Database = {
           email: string
           favorites: Json | null
           featured_beats: Json | null
+          follower_count: number | null
           full_name: string
           id: string
           is_producer_of_week: boolean | null
@@ -602,6 +656,13 @@ export type Database = {
           stripe_id: string | null
           verified_account_name: string | null
         }[]
+      }
+      unfollow_producer: {
+        Args: {
+          p_follower_id: string
+          p_followee_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
