@@ -67,21 +67,18 @@ export default function ProducerSettings() {
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
     
-    // Redirect to login if not authenticated or not a producer
     if (!user) {
       navigate('/login', { state: { from: '/producer/settings' } });
     } else if (user.role !== 'producer') {
       navigate('/');
     }
     
-    // Set initial values
     if (user) {
       setProducerName(user.producer_name || user.name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
       setAvatarUrl(user.avatar_url || null);
       
-      // Get notification preferences from user settings if available
       if (user.settings) {
         try {
           const settings = typeof user.settings === 'string' 
@@ -98,12 +95,10 @@ export default function ProducerSettings() {
         }
       }
       
-      // Fetch payment analytics
       fetchPaymentAnalytics();
     }
   }, [user, navigate]);
 
-  // Reset success indicator after 3 seconds
   useEffect(() => {
     const timers: NodeJS.Timeout[] = [];
     
@@ -128,7 +123,6 @@ export default function ProducerSettings() {
     try {
       setLoadingAnalytics(true);
       
-      // Get all successful transactions (line_items with completed orders)
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('line_items')
         .select(`
@@ -153,7 +147,6 @@ export default function ProducerSettings() {
         
       if (transactionsError) throw transactionsError;
       
-      // Get payout data for the producer
       const { data: payoutsData, error: payoutsError } = await supabase
         .from('payouts')
         .select('*')
@@ -162,7 +155,6 @@ export default function ProducerSettings() {
         
       if (payoutsError) throw payoutsError;
 
-      // Format transactions for UI display
       const recentTransactions: Transaction[] = transactionsData?.map((item: any) => ({
         id: item.id,
         beat_title: item.beats?.title || 'Untitled Beat',
@@ -174,12 +166,10 @@ export default function ProducerSettings() {
         reference: item.orders?.payment_reference || ''
       })) || [];
       
-      // Calculate total earnings from all transactions
       const totalEarnings = transactionsData?.reduce((sum: number, item: any) => {
         return sum + (item.price_charged || 0);
       }, 0) || 0;
       
-      // Calculate additional analytics
       const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
       const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
       const totalPaidOut = completedPayouts.reduce((sum: number, payout: any) => sum + payout.amount, 0);
@@ -206,7 +196,6 @@ export default function ProducerSettings() {
     try {
       setIsLoading(prev => ({ ...prev, profile: true }));
       
-      // Update producer info in database using the fields available in our User type
       const { error } = await supabase
         .from('users')
         .update({
@@ -220,7 +209,6 @@ export default function ProducerSettings() {
         throw error;
       }
       
-      // Update local user context
       if (updateProfile) {
         await updateProfile({
           ...user,
@@ -254,7 +242,6 @@ export default function ProducerSettings() {
         autoPlayPreviews
       };
       
-      // Update preferences in database
       const { error } = await supabase
         .from('users')
         .update({
@@ -266,7 +253,6 @@ export default function ProducerSettings() {
         throw error;
       }
       
-      // Update local user context
       if (updateProfile) {
         await updateProfile({
           ...user,
@@ -288,12 +274,22 @@ export default function ProducerSettings() {
     toast.success('Bank details saved successfully');
     fetchPaymentAnalytics(); // Refresh payment analytics after successful bank update
     
-    // Update the user object with new bank details
     if (user && updateProfile) {
-      // This will cause a re-render that reflects the updated bank details
-      updateProfile({
-        ...user,
-      });
+      supabase
+        .from('users')
+        .select('bank_code, account_number, verified_account_name')
+        .eq('id', user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            updateProfile({
+              ...user,
+              bank_code: data.bank_code,
+              account_number: data.account_number,
+              verified_account_name: data.verified_account_name
+            });
+          }
+        });
     }
   };
   
@@ -302,13 +298,11 @@ export default function ProducerSettings() {
     
     const file = e.target.files[0];
     
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please upload an image file');
       return;
     }
     
-    // Validate file size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast.error('Image size should be less than 2MB');
       return;
@@ -317,14 +311,12 @@ export default function ProducerSettings() {
     try {
       setIsLoading(prev => ({ ...prev, avatar: true }));
       
-      // Convert the image to base64 for storage
       const reader = new FileReader();
       reader.onload = async (event) => {
         if (!event.target || !event.target.result) return;
         
         const base64String = event.target.result.toString();
         
-        // Update profile picture in database as avatar_url
         const { error } = await supabase
           .from('users')
           .update({ avatar_url: base64String })
@@ -332,7 +324,6 @@ export default function ProducerSettings() {
           
         if (error) throw error;
         
-        // Update local state and user context
         setAvatarUrl(base64String);
         
         if (updateProfile) {
@@ -355,7 +346,6 @@ export default function ProducerSettings() {
     }
   };
 
-  // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
     return (
       <MainLayout>
@@ -522,7 +512,6 @@ export default function ProducerSettings() {
           
           <TabsContent value="payment">
             <div className="space-y-6">
-              {/* Bank Details Setup Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl md:text-2xl">Payment Account</CardTitle>
@@ -543,7 +532,6 @@ export default function ProducerSettings() {
                 </CardContent>
               </Card>
               
-              {/* Payment Analytics Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl md:text-2xl">Payment Stats</CardTitle>
@@ -561,7 +549,6 @@ export default function ProducerSettings() {
                     </div>
                   ) : paymentAnalytics ? (
                     <div className="space-y-6">
-                      {/* Payment Stats Overview */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-muted rounded-lg p-4">
                           <div className="flex items-center gap-2 mb-1">
@@ -588,7 +575,6 @@ export default function ProducerSettings() {
                         </div>
                       </div>
                       
-                      {/* Recent Transactions */}
                       {paymentAnalytics.recent_transactions && paymentAnalytics.recent_transactions.length > 0 && (
                         <div className="space-y-3">
                           <h3 className="text-base font-semibold">Recent Transactions</h3>
@@ -625,7 +611,6 @@ export default function ProducerSettings() {
                         </div>
                       )}
                       
-                      {/* Payment Account Status */}
                       <div className={cn(
                         "border rounded-lg p-4",
                         user.verified_account_name ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"

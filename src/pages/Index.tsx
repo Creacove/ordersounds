@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -22,7 +21,7 @@ import {
   Search,
   Calendar
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { User, Beat } from "@/types";
 
 export default function IndexPage() {
@@ -93,8 +92,8 @@ export default function IndexPage() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="py-6">
-        <div className="mb-8 px-3">
+      <div className="pb-8">
+        <div className="mb-8">
           <form onSubmit={handleSearch} className="relative">
             <div className="flex items-center">
               <Input
@@ -117,15 +116,13 @@ export default function IndexPage() {
 
         {featuredBeat && (
           <section className="mb-6">
-            <div className="px-3">
-              <SectionTitle 
-                title="Featured Beat" 
-                icon={<Star className="h-5 w-5" />}
-                badge="Today's Pick"
-              />
-            </div>
+            <SectionTitle 
+              title="Featured Beat" 
+              icon={<Star className="h-5 w-5" />}
+              badge="Today's Pick"
+            />
             
-            <div className="mt-3 px-3">
+            <div className="mt-3">
               <BeatCard key={featuredBeat.id} beat={featuredBeat} featured={true} />
             </div>
           </section>
@@ -133,15 +130,13 @@ export default function IndexPage() {
 
         {producerOfWeek && (
           <section className="mb-6">
-            <div className="px-3">
-              <SectionTitle 
-                title="Producer of the Week" 
-                icon={<Star className="h-5 w-5" />}
-                badge="Featured"
-              />
-            </div>
+            <SectionTitle 
+              title="Producer of the Week" 
+              icon={<Star className="h-5 w-5" />}
+              badge="Featured"
+            />
             
-            <div className="bg-card rounded-lg border overflow-hidden mt-3 mx-3">
+            <div className="bg-card rounded-lg border overflow-hidden mt-3">
               <div className="relative w-full aspect-video max-h-80 bg-gray-900">
                 <img 
                   src={producerOfWeek.avatar_url || "/placeholder.svg"} 
@@ -179,7 +174,7 @@ export default function IndexPage() {
               </div>
             </div>
             
-            <div className="mt-3 grid grid-cols-2 gap-2 px-3">
+            <div className="mt-3 grid grid-cols-2 gap-2">
               {producerBeats.length > 0 ? (
                 producerBeats.map((beat) => (
                   <BeatCardCompact key={beat.id} beat={beat} />
@@ -190,7 +185,7 @@ export default function IndexPage() {
                 </div>
               )}
             </div>
-            <div className="mt-3 flex justify-end px-3">
+            <div className="mt-3 flex justify-end">
               <Button variant="ghost" size="sm" asChild>
                 <Link to={`/producer/${producerOfWeek.id}`}>
                   View all beats <ArrowRight className="ml-1 h-4 w-4" />
@@ -201,19 +196,17 @@ export default function IndexPage() {
         )}
 
         <section className="mb-6">
-          <div className="px-3">
-            <SectionTitle 
-              title="Trending Beats" 
-              icon={<TrendingUp className="h-5 w-5" />} 
-              badge="Updated Daily"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-3 px-3">
+          <SectionTitle 
+            title="Trending Beats" 
+            icon={<TrendingUp className="h-5 w-5" />} 
+            badge="Updated Daily"
+          />
+          <div className="grid grid-cols-2 gap-2 mt-3">
             {trendingBeats.slice(0, 8).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
           </div>
-          <div className="mt-3 flex justify-end px-3">
+          <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/trending">
                 View all trending <ArrowRight className="ml-1 h-4 w-4" />
@@ -223,14 +216,12 @@ export default function IndexPage() {
         </section>
 
         <section className="mb-6">
-          <div className="px-3">
-            <SectionTitle 
-              title="Weekly Picks" 
-              icon={<Calendar className="h-5 w-5" />}
-              badge="Updated Weekly"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-3 px-3">
+          <SectionTitle 
+            title="Weekly Picks" 
+            icon={<Calendar className="h-5 w-5" />}
+            badge="Updated Weekly"
+          />
+          <div className="grid grid-cols-2 gap-2 mt-3">
             {weeklyPicks.slice(0, 8).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
@@ -241,18 +232,16 @@ export default function IndexPage() {
         </section>
 
         <section className="mb-6">
-          <div className="px-3">
-            <SectionTitle 
-              title="New Releases" 
-              icon={<Flame className="h-5 w-5" />}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-3 px-3">
+          <SectionTitle 
+            title="New Releases" 
+            icon={<Flame className="h-5 w-5" />}
+          />
+          <div className="grid grid-cols-2 gap-2 mt-3">
             {newBeats.slice(0, 8).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
           </div>
-          <div className="mt-3 flex justify-end px-3">
+          <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/new">
                 View all new releases <ArrowRight className="ml-1 h-4 w-4" />
@@ -262,10 +251,8 @@ export default function IndexPage() {
         </section>
 
         <section className="mb-6">
-          <div className="px-3">
-            <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-3 px-3">
+          <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
+          <div className="grid grid-cols-2 gap-2 mt-3">
             {featuredPlaylists.map((playlist) => (
               <PlaylistCard key={playlist.id} playlist={playlist} />
             ))}
