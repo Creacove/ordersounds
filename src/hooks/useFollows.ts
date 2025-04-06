@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
 export function useFollows() {
@@ -19,21 +19,18 @@ export function useFollows() {
           const { data: session } = await supabase.auth.getSession();
           if (!session || !session.session) return false;
           
-          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-follow-status`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ producerId }),
+          // Direct database query instead of edge function to check follow status
+          const { data, error } = await supabase.rpc('check_follow_status', {
+            p_follower_id: session.session.user.id,
+            p_followee_id: producerId,
           });
           
-          if (!response.ok) {
-            throw new Error('Failed to get follow status');
+          if (error) {
+            console.error('Error checking follow status:', error);
+            return false;
           }
           
-          const data = await response.json();
-          return data.isFollowing;
+          return !!data;
         } catch (error) {
           console.error('Error getting follow status:', error);
           return false;
@@ -56,30 +53,19 @@ export function useFollows() {
         return false;
       }
       
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/follow-producer`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ producerId }),
+      // Direct database call instead of edge function
+      const { error } = await supabase.rpc('follow_producer', {
+        p_follower_id: session.session.user.id,
+        p_followee_id: producerId,
       });
       
-      let errorMessage = 'Failed to follow producer';
-      
-      if (!response.ok) {
-        // Try to get error message from response
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          // If parsing JSON fails, use default error message
-          console.error('Error parsing JSON from follow response:', e);
+      if (error) {
+        if (error.message.includes("Already following")) {
+          toast.error("You're already following this producer");
+          return false;
         }
-        throw new Error(errorMessage);
+        throw new Error(error.message);
       }
-      
-      const responseData = await response.json();
       
       // Invalidate follow status query after successful follow
       queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
@@ -88,8 +74,9 @@ export function useFollows() {
       // Update the producers list to refresh follower counts
       queryClient.invalidateQueries({ queryKey: ['producers'] });
       
+      toast.success("You're now following this producer");
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error following producer:', error);
       toast.error(error.message || 'Failed to follow producer');
       return false;
@@ -111,30 +98,19 @@ export function useFollows() {
         return false;
       }
       
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unfollow-producer`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ producerId }),
+      // Direct database call instead of edge function
+      const { error } = await supabase.rpc('unfollow_producer', {
+        p_follower_id: session.session.user.id,
+        p_followee_id: producerId,
       });
       
-      let errorMessage = 'Failed to unfollow producer';
-      
-      if (!response.ok) {
-        // Try to get error message from response
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch (e) {
-          // If parsing JSON fails, use default error message
-          console.error('Error parsing JSON from unfollow response:', e);
+      if (error) {
+        if (error.message.includes("Not following")) {
+          toast.error("You're not following this producer");
+          return false;
         }
-        throw new Error(errorMessage);
+        throw new Error(error.message);
       }
-      
-      const responseData = await response.json();
       
       // Invalidate follow status query after successful unfollow
       queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
@@ -143,8 +119,9 @@ export function useFollows() {
       // Update the producers list to refresh follower counts
       queryClient.invalidateQueries({ queryKey: ['producers'] });
       
+      toast.success("You've unfollowed this producer");
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error unfollowing producer:', error);
       toast.error(error.message || 'Failed to unfollow producer');
       return false;
@@ -182,20 +159,32 @@ export function useFollows() {
           const { data: session } = await supabase.auth.getSession();
           if (!session || !session.session) return [];
           
-          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-recommended-beats`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-          
-          if (!response.ok) {
-            throw new Error('Failed to get recommended beats');
+          // Get producers the user follows
+          const { data: followedProducers, error: followError } = await supabase
+            .from('followers')
+            .select('followee_id')
+            .eq('follower_id', session.session.user.id);
+            
+          if (followError || !followedProducers.length) {
+            return [];
           }
           
-          const data = await response.json();
-          return data.beats;
+          // Get beats from those producers
+          const producerIds = followedProducers.map(f => f.followee_id);
+          const { data: beats, error: beatsError } = await supabase
+            .from('beats')
+            .select('*')
+            .in('producer_id', producerIds)
+            .eq('status', 'published')
+            .order('upload_date', { ascending: false })
+            .limit(8);
+            
+          if (beatsError) {
+            console.error('Error fetching recommended beats:', beatsError);
+            return [];
+          }
+          
+          return beats;
         } catch (error) {
           console.error('Error getting recommended beats:', error);
           return [];

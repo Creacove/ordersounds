@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useFollows } from '@/hooks/useFollows';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { UserCheck, UserPlus } from 'lucide-react';
 
 interface FollowButtonProps {
   producerId: string;
@@ -58,7 +59,19 @@ export function FollowButton({
       disabled={isLoading || isStatusLoading}
       className={className}
     >
-      {isLoading ? 'Loading...' : (followState ? 'Following' : 'Follow')}
+      {isLoading ? (
+        'Loading...'
+      ) : followState ? (
+        <>
+          <UserCheck className="size-4" />
+          Following
+        </>
+      ) : (
+        <>
+          <UserPlus className="size-4" />
+          Follow
+        </>
+      )}
     </Button>
   );
 }
