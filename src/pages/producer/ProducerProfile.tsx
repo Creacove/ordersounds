@@ -76,7 +76,7 @@ export default function ProducerProfile() {
         .select('*')
         .eq('producer_id', producerId)
         .eq('status', 'published')
-        .order('created_at', { ascending: false });
+        .order('upload_date', { ascending: false });
 
       if (error) {
         console.error('Error fetching producer beats:', error);
