@@ -12,11 +12,10 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
-import { getProducerPaymentAnalytics } from '@/utils/payment/paystackSplitUtils';
+import { formatCurrency } from '@/utils/formatters';
 
 export default function ProducerSettings() {
   const { user, updateProfile } = useAuth();
@@ -40,8 +39,6 @@ export default function ProducerSettings() {
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [autoPlayPreviews, setAutoPlayPreviews] = useState(true);
-  
-  const { accountName } = usePaystackSplit();
   
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
@@ -105,10 +102,78 @@ export default function ProducerSettings() {
     
     try {
       setLoadingAnalytics(true);
-      const analytics = await getProducerPaymentAnalytics(user.id);
-      setPaymentAnalytics(analytics);
+      
+      // Get total earnings from payments table
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from('payments')
+        .select(`
+          amount, 
+          producer_share,
+          status,
+          payment_date,
+          transaction_reference,
+          order_id
+        `)
+        .eq('status', 'successful')
+        .order('payment_date', { ascending: false });
+        
+      if (paymentsError) throw paymentsError;
+      
+      // Get payout data
+      const { data: payoutsData, error: payoutsError } = await supabase
+        .from('payouts')
+        .select('*')
+        .eq('producer_id', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (payoutsError) throw payoutsError;
+      
+      // Get recent transactions by joining line_items, orders and beats
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('line_items')
+        .select(`
+          id,
+          price_charged,
+          currency_code,
+          orders!inner(order_date, status, payment_reference),
+          beats!inner(title, id)
+        `)
+        .eq('orders.status', 'completed')
+        .order('orders.order_date', { ascending: false })
+        .limit(5);
+        
+      if (transactionsError) throw transactionsError;
+      
+      // Calculate analytics
+      const totalEarnings = paymentsData.reduce((sum, payment) => sum + (payment.producer_share || 0), 0);
+      
+      const completedPayouts = payoutsData.filter(p => p.status === 'successful');
+      const pendingPayouts = payoutsData.filter(p => p.status === 'pending');
+      
+      const pendingBalance = totalEarnings - completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
+      
+      // Format transactions for display
+      const recentTransactions = transactionsData.map(item => ({
+        id: item.id,
+        beat_title: item.beats.title,
+        beat_id: item.beats.id,
+        date: item.orders.order_date,
+        amount: item.price_charged,
+        currency: item.currency_code,
+        status: item.orders.status,
+        reference: item.orders.payment_reference
+      }));
+      
+      setPaymentAnalytics({
+        total_earnings: totalEarnings,
+        pending_balance: pendingBalance,
+        successful_payments: completedPayouts.length,
+        pending_payments: pendingPayouts.length,
+        recent_transactions: recentTransactions
+      });
     } catch (error) {
       console.error("Error fetching payment analytics:", error);
+      toast.error("Failed to load payment analytics");
     } finally {
       setLoadingAnalytics(false);
     }
@@ -124,7 +189,7 @@ export default function ProducerSettings() {
       const { error } = await supabase
         .from('users')
         .update({
-          producer_name: producerName,
+          stage_name: producerName,
           bio: bio,
           country: location
         })
@@ -201,16 +266,6 @@ export default function ProducerSettings() {
   const handleBankDetailsSuccess = () => {
     toast.success('Bank details saved successfully');
     fetchPaymentAnalytics(); // Refresh payment analytics after successful bank update
-  };
-
-  // Format currency
-  const formatCurrency = (amount: number, currency = 'NGN') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: currency === 'USD' ? 2 : 0,
-      maximumFractionDigits: currency === 'USD' ? 2 : 0,
-    }).format(amount || 0);
   };
 
   // If not logged in or not a producer, show login prompt
@@ -363,7 +418,7 @@ export default function ProducerSettings() {
                             <CreditCard className="h-4 w-4 text-primary" />
                             <span className="text-sm font-medium text-muted-foreground">Total Earnings</span>
                           </div>
-                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.total_earnings/100)}</p>
+                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.total_earnings)}</p>
                         </div>
                         
                         <div className="bg-muted rounded-lg p-4">
@@ -371,7 +426,7 @@ export default function ProducerSettings() {
                             <Clock className="h-4 w-4 text-amber-500" />
                             <span className="text-sm font-medium text-muted-foreground">Pending Balance</span>
                           </div>
-                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.pending_balance/100)}</p>
+                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.pending_balance)}</p>
                         </div>
                         
                         <div className="bg-muted rounded-lg p-4">
@@ -402,10 +457,10 @@ export default function ProducerSettings() {
                                   <tr key={transaction.id || index}>
                                     <td className="py-2 px-4 text-sm">{new Date(transaction.date).toLocaleDateString()}</td>
                                     <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
-                                    <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount/100)}</td>
+                                    <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount, transaction.currency)}</td>
                                     <td className="py-2 px-4 text-sm">
                                       <span className={cn("px-2 py-1 rounded-full text-xs", {
-                                        "bg-green-100 text-green-800": transaction.status === 'successful',
+                                        "bg-green-100 text-green-800": transaction.status === 'completed',
                                         "bg-amber-100 text-amber-800": transaction.status === 'pending',
                                         "bg-red-100 text-red-800": transaction.status === 'failed'
                                       })}>

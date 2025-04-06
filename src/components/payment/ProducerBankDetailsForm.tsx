@@ -20,7 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, PenLine } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface Bank {
@@ -51,6 +51,7 @@ export function ProducerBankDetailsForm({
 }: ProducerBankDetailsFormProps) {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(!existingBankCode);
   const { user, updateProfile } = useAuth();
   const { 
     isLoading, 
@@ -141,9 +142,13 @@ export function ProducerBankDetailsForm({
         });
       }
 
+      setIsEditMode(false);
+
       if (onSuccess) {
         onSuccess();
       }
+      
+      toast.success('Bank details updated successfully');
     } catch (error) {
       console.error('Error saving bank details:', error);
       toast.error('Failed to save bank details. Please try again.');
@@ -157,6 +162,39 @@ export function ProducerBankDetailsForm({
     const selected = banks.find(bank => bank.code === code);
     return selected ? selected.name : '';
   };
+
+  if (!isEditMode && existingAccountName) {
+    // Show read-only view of bank details with edit button
+    return (
+      <div className="space-y-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-base font-medium text-green-800 flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                Bank Account Connected
+              </h3>
+              <p className="text-sm text-green-700 mt-1">
+                {existingAccountName}
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                Account Number: {existingAccountNumber && existingAccountNumber.slice(-4).padStart(existingAccountNumber.length, '*')}
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setIsEditMode(true)}
+              className="flex items-center gap-1"
+            >
+              <PenLine className="h-3 w-3" />
+              <span>Edit</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -192,7 +230,7 @@ export function ProducerBankDetailsForm({
                       </div>
                     ) : (
                       banks.map((bank) => (
-                        <SelectItem key={bank.name} value={bank.code}>
+                        <SelectItem key={bank.code} value={bank.code}>
                           {bank.name}
                         </SelectItem>
                       ))
@@ -270,15 +308,17 @@ export function ProducerBankDetailsForm({
           </FormDescription>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" type="button" onClick={() => form.reset()}>
-              Cancel
-            </Button>
+            {existingBankCode && (
+              <Button variant="outline" type="button" onClick={() => setIsEditMode(false)}>
+                Cancel
+              </Button>
+            )}
             <Button 
               type="submit" 
               disabled={isLoading || isVerifying}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Bank Details
+              {existingBankCode ? "Update Bank Details" : "Save Bank Details"}
             </Button>
           </div>
         </form>
