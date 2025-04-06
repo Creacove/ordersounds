@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -90,9 +91,17 @@ export default function IndexPage() {
     }
   }, [playlists]);
 
+  // Helper function to get producer name
+  const getProducerName = (beat: Beat) => {
+    if (beat.users) {
+      return beat.users.full_name || beat.users.stage_name || beat.producer_name || 'Producer';
+    }
+    return beat.producer_name || 'Producer';
+  };
+
   return (
     <MainLayoutWithPlayer>
-      <div className="pb-8">
+      <div className="pb-8 px-0 mx-0">
         <div className="mb-8">
           <form onSubmit={handleSearch} className="relative">
             <div className="flex items-center">
@@ -115,7 +124,7 @@ export default function IndexPage() {
         </div>
 
         {featuredBeat && (
-          <section className="mb-6">
+          <section className="mb-6 px-0 mx-0">
             <SectionTitle 
               title="Featured Beat" 
               icon={<Star className="h-5 w-5" />}
@@ -129,7 +138,7 @@ export default function IndexPage() {
         )}
 
         {producerOfWeek && (
-          <section className="mb-6">
+          <section className="mb-6 px-0 mx-0">
             <SectionTitle 
               title="Producer of the Week" 
               icon={<Star className="h-5 w-5" />}
@@ -147,7 +156,7 @@ export default function IndexPage() {
                 <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
                   <div className="flex items-center gap-3">
                     <h3 className="text-2xl font-bold text-white uppercase">
-                      {producerOfWeek.producer_name || producerOfWeek.name}
+                      {producerOfWeek.full_name || producerOfWeek.producer_name || producerOfWeek.name}
                     </h3>
                     <div className="flex items-center gap-1 bg-purple-900/70 text-white text-xs px-2 py-1 rounded-full">
                       <CheckCircle size={12} />
@@ -195,7 +204,7 @@ export default function IndexPage() {
           </section>
         )}
 
-        <section className="mb-6">
+        <section className="mb-6 px-0 mx-0">
           <SectionTitle 
             title="Trending Beats" 
             icon={<TrendingUp className="h-5 w-5" />} 
@@ -215,7 +224,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-6">
+        <section className="mb-6 px-0 mx-0">
           <SectionTitle 
             title="Weekly Picks" 
             icon={<Calendar className="h-5 w-5" />}
@@ -231,7 +240,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-6">
+        <section className="mb-6 px-0 mx-0">
           <SectionTitle 
             title="New Releases" 
             icon={<Flame className="h-5 w-5" />}
@@ -250,7 +259,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-6">
+        <section className="mb-6 px-0 mx-0">
           <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
           <div className="grid grid-cols-2 gap-2 mt-3">
             {featuredPlaylists.map((playlist) => (

@@ -29,7 +29,7 @@ export function RecommendedBeats() {
   // Show a loading skeleton while fetching
   if (isLoading) {
     return (
-      <div className="my-6">
+      <div className="my-6 mx-0 px-0">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
@@ -46,7 +46,7 @@ export function RecommendedBeats() {
   // If no recommended beats, don't show the section
   if (!recommendedBeats || recommendedBeats.length === 0) {
     return (
-      <div className="my-6">
+      <div className="my-6 mx-0 px-0">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
@@ -75,8 +75,16 @@ export function RecommendedBeats() {
     }
   };
   
+  // Helper function to get producer name
+  const getProducerName = (beat: any) => {
+    if (beat.users) {
+      return beat.users.full_name || beat.users.stage_name || beat.producer_name || beat.user_name || 'Producer';
+    }
+    return beat.producer_name || beat.user_name || 'Producer';
+  };
+  
   return (
-    <div className="my-6">
+    <div className="my-6 mx-0 px-0">
       <div className="flex justify-between items-center">
         <SectionTitle 
           title="Recommended for You" 
@@ -136,7 +144,7 @@ export function RecommendedBeats() {
                 </div>
               </div>
               <div className="col-span-3 truncate text-sm">
-                {beat.users?.stage_name || beat.producer_name || beat.user_name || beat.producer_id || 'Producer'}
+                {getProducerName(beat)}
               </div>
               <div className="col-span-2 truncate text-sm capitalize">
                 {beat.genre?.toLowerCase() || 'Various'}
@@ -173,7 +181,7 @@ export function RecommendedBeats() {
               id: beat.id,
               title: beat.title,
               producer_id: beat.producer_id,
-              producer_name: beat.users?.stage_name || beat.producer_name || beat.user_name || beat.producer_id || "Producer",
+              producer_name: getProducerName(beat),
               cover_image_url: beat.cover_image,
               basic_license_price_local: beat.basic_license_price_local || beat.basic_local || 0,
               basic_license_price_diaspora: beat.basic_license_price_diaspora || beat.basic_license_price_local || 0,

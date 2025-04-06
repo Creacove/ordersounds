@@ -45,6 +45,14 @@ export function RecommendedBeats() {
     navigate(`/beat/${beatId}`);
   };
 
+  // Helper to get producer name from beat data
+  const getProducerName = (beat: any) => {
+    if (beat.users) {
+      return beat.users.full_name || beat.users.stage_name || beat.users.producer_name || 'Producer';
+    }
+    return beat.producer_name || beat.user_name || 'Producer';
+  };
+
   return (
     <div className="mb-6">
       <div className="flex justify-between items-center">
@@ -116,7 +124,7 @@ export function RecommendedBeats() {
                       </div>
                     </div>
                     <div className="col-span-3 truncate text-sm">
-                      {beat.users?.stage_name || beat.producer_name || beat.user_name || beat.producer_id || 'Producer'}
+                      {getProducerName(beat)}
                     </div>
                     <div className="col-span-2 truncate text-sm capitalize">
                       {beat.genre?.toLowerCase() || 'Various'}
