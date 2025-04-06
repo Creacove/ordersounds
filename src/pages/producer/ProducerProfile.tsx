@@ -45,9 +45,9 @@ export default function ProducerProfile() {
           full_name,
           stage_name,
           bio,
-          profile_picture as avatar_url,
+          profile_picture,
           country,
-          created_date as created_at,
+          created_date,
           follower_count
         `)
         .eq('id', producerId)
@@ -59,7 +59,12 @@ export default function ProducerProfile() {
         throw error;
       }
       
-      return data as ProducerProfileData;
+      // Process data to match our interface
+      return {
+        ...data,
+        avatar_url: data.profile_picture,
+        created_at: data.created_date
+      } as ProducerProfileData;
     },
     enabled: !!producerId,
   });
