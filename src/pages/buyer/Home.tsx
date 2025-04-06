@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
@@ -121,6 +122,12 @@ export default function Home() {
     navigate(`/playlist/${playlistId}`);
   };
 
+  // Helper to get producer name from beat data
+  const getProducerName = (beat) => {
+    if (beat.producer_name) return beat.producer_name;
+    return 'Producer';
+  };
+
   const categories = [
     { name: "Afrobeat", icon: <Sparkles size={16} /> },
     { name: "Hip Hop", icon: <Flame size={16} /> },
@@ -147,10 +154,10 @@ export default function Home() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container pb-8">
-        <div className="min-h-screen">
+      <div className="mx-0 px-0">
+        <div className="min-h-screen mx-0 px-0">
           {featuredBeat && (
-            <section className="relative h-[200px] md:h-[250px] lg:h-[300px] overflow-hidden">
+            <section className="relative h-[200px] md:h-[250px] lg:h-[300px] overflow-hidden mx-0 px-0">
               <div className="absolute inset-0 z-0">
                 <img 
                   src={featuredBeat.cover_image_url} 
@@ -160,7 +167,7 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent" />
               </div>
               
-              <div className="relative z-10 h-full container flex flex-col justify-center">
+              <div className="relative z-10 h-full flex flex-col justify-center mx-0 px-6 md:px-8">
                 <div className="max-w-2xl">
                   <div className="inline-block px-3 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium mb-3 animate-pulse-gentle">
                     Featured Beat
@@ -217,8 +224,8 @@ export default function Home() {
 
           <RecommendedBeats />
 
-          <div className="container py-4 overflow-hidden bg-black/5 dark:bg-white/5">
-            <div className="flex overflow-x-auto pb-2 scrollbar-hide -mx-2 px-6">
+          <div className="py-4 overflow-hidden bg-black/5 dark:bg-white/5 mx-0 px-0">
+            <div className="flex overflow-x-auto pb-2 scrollbar-hide px-6 md:px-8">
               <div className="flex gap-2">
                 {categories.map((category, index) => (
                   <Link 
@@ -241,7 +248,7 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="container py-6">
+          <div className="py-6 mx-0 px-6 md:px-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-xl font-semibold">Browse Beats</h2>
               <Button 
@@ -384,7 +391,7 @@ export default function Home() {
                           navigate(`/producer/${beat.producer_id}`);
                         }}
                       >
-                        {beat.producer_name}
+                        {getProducerName(beat)}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-xs py-0 px-1.5 h-5 truncate">
@@ -493,7 +500,7 @@ export default function Home() {
                 </Button>
               </div>
               
-              <div className="flex overflow-x-auto pb-4 gap-5 hide-scrollbar">
+              <div className="flex overflow-x-auto pb-4 gap-5 hide-scrollbar px-0 md:pl-0">
                 {isLoadingProducers ? (
                   [...Array(5)].map((_, i) => (
                     <div key={i} className="flex flex-col items-center gap-2 min-w-[90px]">

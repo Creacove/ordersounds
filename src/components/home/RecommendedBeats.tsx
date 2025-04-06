@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useFollows } from '@/hooks/useFollows';
 import { formatCurrency } from '@/utils/formatters';
-import { Music, Play, Clock } from 'lucide-react';
+import { Music, Play } from 'lucide-react';
 import { usePlayer } from '@/context/PlayerContext';
 import { BeatCardCompact } from '@/components/marketplace/BeatCardCompact';
 import { cn } from '@/lib/utils';
@@ -47,14 +47,12 @@ export function RecommendedBeats() {
 
   // Helper to get producer name from beat data
   const getProducerName = (beat: any) => {
-    if (beat.users) {
-      return beat.users.full_name || beat.users.stage_name || beat.users.producer_name || 'Producer';
-    }
-    return beat.producer_name || beat.user_name || 'Producer';
+    if (beat.producer_name) return beat.producer_name;
+    return 'Producer';
   };
 
   return (
-    <div className="mb-6">
+    <div className="mx-0 px-6 md:px-8 mb-6">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-medium">From Producers You Follow</h2>
         <Button 

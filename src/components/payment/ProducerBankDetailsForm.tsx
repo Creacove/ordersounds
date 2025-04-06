@@ -133,20 +133,25 @@ export function ProducerBankDetailsForm({
         throw new Error('Failed to update bank details in database');
       }
       
-      // Then try to create or update Paystack subaccount
-      const success = await updateBankDetails(producerId, {
-        bank_code: values.bank_code,
-        account_number: values.account_number,
-      });
-
       // Update local user context
-      if (updateProfile && success) {
+      if (updateProfile) {
         await updateProfile({
           ...user,
           bank_code: values.bank_code,
           account_number: values.account_number,
           verified_account_name: accountName
         });
+      }
+
+      // Only try to create/update Paystack subaccount if specifically needed
+      try {
+        await updateBankDetails(producerId, {
+          bank_code: values.bank_code,
+          account_number: values.account_number,
+        });
+      } catch (splitError) {
+        console.error('Error updating Paystack split account:', splitError);
+        // Continue even if Paystack update fails - we've updated the database
       }
 
       setIsEditMode(false);
