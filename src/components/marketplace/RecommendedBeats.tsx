@@ -10,6 +10,8 @@ import { Link } from 'react-router-dom';
 import { Sparkles, ShoppingCart } from 'lucide-react';
 import { EmptyState } from '@/components/library/EmptyState';
 import { usePlayer } from '@/context/PlayerContext';
+import { toast } from 'sonner';
+import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
 
 export function RecommendedBeats() {
   const { user } = useAuth();
@@ -17,6 +19,7 @@ export function RecommendedBeats() {
   const { data: recommendedBeats, isLoading } = useRecommendedBeats();
   const [viewAll, setViewAll] = useState(false);
   const { playBeat } = usePlayer();
+  const { isDuplicate, addNotification } = useUniqueNotifications();
   
   // If not logged in, don't show anything
   if (!user) {
@@ -26,7 +29,7 @@ export function RecommendedBeats() {
   // Show a loading skeleton while fetching
   if (isLoading) {
     return (
-      <div className="my-8">
+      <div className="my-8 px-4">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
@@ -43,7 +46,7 @@ export function RecommendedBeats() {
   // If no recommended beats, don't show the section
   if (!recommendedBeats || recommendedBeats.length === 0) {
     return (
-      <div className="my-8">
+      <div className="my-8 px-4">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
@@ -62,8 +65,16 @@ export function RecommendedBeats() {
   // Determine how many beats to show
   const beatsToShow = viewAll ? recommendedBeats : recommendedBeats.slice(0, 5);
   
+  const handleAddToCart = (beatId: string, beatTitle: string) => {
+    // Prevent duplicate toast notifications
+    if (!isDuplicate(`added-to-cart-${beatId}`)) {
+      toast.success(`Added ${beatTitle} to cart`);
+      addNotification(`added-to-cart-${beatId}`, `Added ${beatTitle} to cart`, 'success');
+    }
+  };
+  
   return (
-    <div className="my-8">
+    <div className="my-8 px-4">
       <div className="flex justify-between items-center">
         <SectionTitle 
           title="Recommended for You" 
@@ -139,8 +150,8 @@ export function RecommendedBeats() {
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    // Add to cart functionality would go here
-                    toast.success(`Added ${beat.title} to cart`);
+                    // Add to cart functionality
+                    handleAddToCart(beat.id, beat.title);
                   }}
                 >
                   <ShoppingCart className="h-4 w-4" />

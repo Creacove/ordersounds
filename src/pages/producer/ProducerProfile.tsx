@@ -208,7 +208,7 @@ export default function ProducerProfile() {
                 ))}
               </div>
             ) : beats.length > 0 ? (
-              <div className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {beats.map((beat) => (
                   <BeatCardCompact key={beat.id} beat={beat} />
                 ))}

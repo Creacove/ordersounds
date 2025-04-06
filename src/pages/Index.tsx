@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -122,7 +121,7 @@ export default function IndexPage() {
               badge="Today's Pick"
             />
             
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
               <div className="md:col-span-4">
                 <BeatCard key={featuredBeat.id} beat={featuredBeat} featured={true} />
               </div>
@@ -138,7 +137,7 @@ export default function IndexPage() {
               badge="Featured"
             />
             
-            <div className="bg-card rounded-lg border overflow-hidden">
+            <div className="bg-card rounded-lg border overflow-hidden mt-4">
               <div className="relative w-full aspect-video max-h-80 bg-gray-900">
                 <img 
                   src={producerOfWeek.avatar_url || "/placeholder.svg"} 
@@ -176,10 +175,10 @@ export default function IndexPage() {
               </div>
             </div>
             
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {producerBeats.length > 0 ? (
                 producerBeats.map((beat) => (
-                  <BeatCard key={beat.id} beat={beat} />
+                  <BeatCardCompact key={beat.id} beat={beat} />
                 ))
               ) : (
                 <div className="col-span-full flex items-center justify-center h-full bg-card rounded-lg border p-6">
@@ -203,9 +202,9 @@ export default function IndexPage() {
             icon={<TrendingUp className="h-5 w-5" />} 
             badge="Updated Daily"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             {trendingBeats.slice(0, 8).map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
+              <BeatCardCompact key={beat.id} beat={beat} />
             ))}
           </div>
           <div className="mt-4 flex justify-end">
@@ -223,12 +222,12 @@ export default function IndexPage() {
             icon={<Calendar className="h-5 w-5" />}
             badge="Updated Weekly"
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             {weeklyPicks.slice(0, 8).map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
+              <BeatCardCompact key={beat.id} beat={beat} />
             ))}
             {weeklyPicks.length === 0 && trendingBeats.slice(10, 14).map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
+              <BeatCardCompact key={beat.id} beat={beat} />
             ))}
           </div>
         </section>
@@ -238,9 +237,9 @@ export default function IndexPage() {
             title="New Releases" 
             icon={<Flame className="h-5 w-5" />}
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             {newBeats.slice(0, 8).map((beat) => (
-              <BeatCard key={beat.id} beat={beat} />
+              <BeatCardCompact key={beat.id} beat={beat} />
             ))}
           </div>
           <div className="mt-4 flex justify-end">
@@ -254,7 +253,7 @@ export default function IndexPage() {
 
         <section className="mb-12 px-4">
           <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             {featuredPlaylists.map((playlist) => (
               <PlaylistCard key={playlist.id} playlist={playlist} />
             ))}
