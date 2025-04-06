@@ -29,13 +29,13 @@ export function RecommendedBeats() {
   // Show a loading skeleton while fetching
   if (isLoading) {
     return (
-      <div className="my-6 px-0">
+      <div className="my-6">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
-          className="px-2"
+          className="px-3"
         />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-3 px-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mt-3 px-3">
           {Array(5).fill(0).map((_, i) => (
             <Skeleton key={i} className="h-48 rounded-lg" />
           ))}
@@ -47,13 +47,13 @@ export function RecommendedBeats() {
   // If no recommended beats, don't show the section
   if (!recommendedBeats || recommendedBeats.length === 0) {
     return (
-      <div className="my-6 px-0">
+      <div className="my-6">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
-          className="px-2"
+          className="px-3"
         />
-        <div className="px-2">
+        <div className="px-3">
           <EmptyState
             icon={Sparkles}
             title="No recommendations yet"
@@ -78,8 +78,8 @@ export function RecommendedBeats() {
   };
   
   return (
-    <div className="my-6 px-0">
-      <div className="flex justify-between items-center px-2">
+    <div className="my-6">
+      <div className="flex justify-between items-center px-3">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
@@ -96,7 +96,7 @@ export function RecommendedBeats() {
       </div>
       
       {/* Desktop view: Table layout */}
-      <div className="hidden md:block rounded-lg border bg-card overflow-hidden mt-3 mx-2">
+      <div className="hidden md:block rounded-lg border bg-card overflow-hidden mt-3 mx-3">
         <div className="grid grid-cols-12 text-xs font-medium text-muted-foreground bg-muted px-4 py-2.5">
           <div className="col-span-5">TITLE</div>
           <div className="col-span-3">PRODUCER</div>
@@ -167,7 +167,7 @@ export function RecommendedBeats() {
       </div>
 
       {/* Mobile view: Grid of BeatCardCompact */}
-      <div className="grid grid-cols-2 gap-2 md:hidden mt-3 px-2">
+      <div className="grid grid-cols-2 gap-2 md:hidden mt-3 px-3">
         {beatsToShow.map((beat) => (
           <BeatCardCompact 
             key={beat.id} 
@@ -196,7 +196,7 @@ export function RecommendedBeats() {
       </div>
       
       {recommendedBeats.length > 5 && viewAll && (
-        <div className="flex justify-center mt-4 px-2">
+        <div className="flex justify-center mt-4 px-3">
           <Button 
             variant="outline" 
             onClick={() => setViewAll(false)}
