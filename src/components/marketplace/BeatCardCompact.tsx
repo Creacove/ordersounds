@@ -95,6 +95,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
         <div className="flex justify-between items-center mt-1">
           <PriceTag 
             localPrice={beat.basic_license_price_local} 
+            diasporaPrice={beat.basic_license_price_diaspora || beat.basic_license_price_local}
             size="sm"
           />
           <div className="text-xs text-muted-foreground">

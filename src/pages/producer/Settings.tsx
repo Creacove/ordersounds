@@ -13,9 +13,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle } from "lucide-react";
+import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle, Upload, Camera } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from '@/utils/formatters';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getInitials } from "@/utils/formatters";
 
 interface Transaction {
   id: string;
@@ -42,7 +45,8 @@ export default function ProducerSettings() {
   const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({
     profile: false,
-    preferences: false
+    preferences: false,
+    avatar: false
   });
   const [saveSuccess, setSaveSuccess] = useState<{[key: string]: boolean}>({
     profile: false,
@@ -58,6 +62,8 @@ export default function ProducerSettings() {
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [autoPlayPreviews, setAutoPlayPreviews] = useState(true);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
@@ -71,9 +77,10 @@ export default function ProducerSettings() {
     
     // Set initial values
     if (user) {
-      setProducerName(user.producer_name || '');
+      setProducerName(user.producer_name || user.stage_name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
+      setAvatarUrl(user.profile_picture || null);
       
       // Get notification preferences from user settings if available
       if (user.settings) {
@@ -130,13 +137,14 @@ export default function ProducerSettings() {
           price_charged,
           currency_code,
           beat_id,
-          orders!inner(
+          order_id,
+          orders(
             order_date, 
             status, 
             payment_reference
           ),
-          beats!inner(
-            title, 
+          beats(
+            title,
             id,
             producer_id
           )
@@ -156,26 +164,26 @@ export default function ProducerSettings() {
       if (payoutsError) throw payoutsError;
 
       // Format transactions for UI display
-      const recentTransactions = transactionsData?.map(item => ({
+      const recentTransactions: Transaction[] = transactionsData?.map((item: any) => ({
         id: item.id,
-        beat_title: item.beats.title || 'Untitled Beat',
-        beat_id: item.beats.id || '',
-        date: item.orders.order_date || '',
+        beat_title: item.beats?.title || 'Untitled Beat',
+        beat_id: item.beats?.id || '',
+        date: item.orders?.order_date || '',
         amount: item.price_charged || 0,
         currency: item.currency_code || 'NGN',
-        status: item.orders.status || 'unknown',
-        reference: item.orders.payment_reference || ''
+        status: item.orders?.status || 'unknown',
+        reference: item.orders?.payment_reference || ''
       })) || [];
       
       // Calculate total earnings from all transactions
-      const totalEarnings = transactionsData?.reduce((sum, item) => {
+      const totalEarnings = transactionsData?.reduce((sum: number, item: any) => {
         return sum + (item.price_charged || 0);
       }, 0) || 0;
       
       // Calculate additional analytics
       const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
       const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
-      const totalPaidOut = completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
+      const totalPaidOut = completedPayouts.reduce((sum: number, payout: any) => sum + payout.amount, 0);
       const pendingBalance = totalEarnings - totalPaidOut;
       
       setPaymentAnalytics({
@@ -218,6 +226,7 @@ export default function ProducerSettings() {
         await updateProfile({
           ...user,
           producer_name: producerName,
+          stage_name: producerName,
           bio: bio,
           country: location
         });
@@ -289,6 +298,64 @@ export default function ProducerSettings() {
       });
     }
   };
+  
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    
+    const file = e.target.files[0];
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size should be less than 2MB');
+      return;
+    }
+    
+    try {
+      setIsLoading(prev => ({ ...prev, avatar: true }));
+      
+      // Convert the image to base64 for storage
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (!event.target || !event.target.result) return;
+        
+        const base64String = event.target.result.toString();
+        
+        // Update profile picture in database
+        const { error } = await supabase
+          .from('users')
+          .update({ profile_picture: base64String })
+          .eq('id', user!.id);
+          
+        if (error) throw error;
+        
+        // Update local state and user context
+        setAvatarUrl(base64String);
+        
+        if (updateProfile) {
+          await updateProfile({
+            ...user!,
+            profile_picture: base64String
+          });
+        }
+        
+        toast.success('Profile picture updated successfully');
+        setIsAvatarDialogOpen(false);
+      };
+      
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      toast.error('Failed to update profile picture. Please try again.');
+    } finally {
+      setIsLoading(prev => ({ ...prev, avatar: false }));
+    }
+  };
 
   // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
@@ -338,6 +405,69 @@ export default function ProducerSettings() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex flex-col items-center mb-6">
+                  <div className="relative">
+                    <Avatar className="h-24 w-24 mb-4">
+                      <AvatarImage src={avatarUrl || undefined} alt={producerName} />
+                      <AvatarFallback>{getInitials(producerName || user.full_name || 'User')}</AvatarFallback>
+                    </Avatar>
+                    <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          size="icon" 
+                          variant="outline" 
+                          className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Update Profile Picture</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                          <p className="text-sm text-muted-foreground">
+                            Select an image to use as your profile picture. Files should be JPG, PNG or GIF and less than 2MB.
+                          </p>
+                          <div className="flex flex-col items-center justify-center gap-4">
+                            <Avatar className="h-32 w-32">
+                              <AvatarImage src={avatarUrl || undefined} alt={producerName} />
+                              <AvatarFallback>{getInitials(producerName || user.full_name || 'User')}</AvatarFallback>
+                            </Avatar>
+                            <label htmlFor="avatar-upload">
+                              <Button 
+                                variant="outline" 
+                                className="cursor-pointer"
+                                disabled={isLoading.avatar}
+                                onClick={() => {}}
+                                type="button"
+                              >
+                                {isLoading.avatar ? (
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : (
+                                  <Upload className="h-4 w-4 mr-2" />
+                                )}
+                                Choose File
+                              </Button>
+                              <input 
+                                id="avatar-upload" 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handleAvatarChange}
+                                disabled={isLoading.avatar}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  <p className="text-sm text-center text-muted-foreground">
+                    Click the camera icon to update your profile picture
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="stageName" size="lg">Stage Name</Label>
                   <Input 

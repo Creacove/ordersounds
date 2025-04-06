@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useFollows } from '@/hooks/useFollows';
-import { BeatCard } from '@/components/marketplace/BeatCard';
+import { BeatCardCompact } from '@/components/marketplace/BeatCardCompact';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,7 @@ import { Sparkles, ShoppingCart } from 'lucide-react';
 import { EmptyState } from '@/components/library/EmptyState';
 import { usePlayer } from '@/context/PlayerContext';
 import { formatCurrency } from '@/utils/formatters';
-import { Play, Music, Clock } from 'lucide-react';
+import { Play, Music } from 'lucide-react';
 
 export function RecommendedBeats() {
   const { user } = useAuth();
@@ -104,8 +104,7 @@ export function RecommendedBeats() {
           <div className="col-span-2">PRODUCER</div>
           <div className="col-span-2">GENRE</div>
           <div className="col-span-1 text-center">BPM</div>
-          <div className="col-span-1 text-center">TIME</div>
-          <div className="col-span-1 text-right">PRICE</div>
+          <div className="col-span-2 text-right">PRICE</div>
         </div>
         
         <div className="max-h-[400px] overflow-y-auto">
@@ -143,7 +142,7 @@ export function RecommendedBeats() {
                 </div>
               </div>
               <div className="col-span-2 truncate text-sm">
-                {beat.producer_name || beat.users?.stage_name || beat.users?.full_name || 'Unknown Producer'}
+                {beat.users?.stage_name || beat.users?.full_name || beat.producer_name || 'Unknown Producer'}
               </div>
               <div className="col-span-2 truncate text-sm capitalize">
                 {beat.genre?.toLowerCase() || 'Various'}
@@ -151,11 +150,7 @@ export function RecommendedBeats() {
               <div className="col-span-1 text-center text-sm">
                 {beat.bpm || '-'}
               </div>
-              <div className="col-span-1 text-center text-sm flex items-center justify-center gap-1">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span>{formatDuration(beat.duration || 0)}</span>
-              </div>
-              <div className="col-span-1 text-right flex items-center justify-end gap-2">
+              <div className="col-span-2 text-right flex items-center justify-end gap-2">
                 <span className="font-medium text-sm">
                   {formatCurrency(beat.basic_license_price_local || beat.basic_local || 0)}
                 </span>
@@ -177,10 +172,10 @@ export function RecommendedBeats() {
         </div>
       </div>
 
-      {/* Mobile view: Card grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden mt-4">
+      {/* Mobile view: More responsive grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 gap-3 md:hidden mt-4">
         {beatsToShow.map((beat) => (
-          <BeatCard 
+          <BeatCardCompact 
             key={beat.id} 
             beat={{
               id: beat.id,
@@ -189,6 +184,7 @@ export function RecommendedBeats() {
               producer_name: beat.users?.stage_name || beat.users?.full_name || "Unknown Producer",
               cover_image_url: beat.cover_image,
               basic_license_price_local: beat.basic_license_price_local || beat.basic_local || 0,
+              basic_license_price_diaspora: beat.basic_license_price_diaspora || beat.basic_license_price_local || 0,
               genre: beat.genre || '',
               created_at: beat.created_at || '',
               favorites_count: beat.favorites_count || 0,
