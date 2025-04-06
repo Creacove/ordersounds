@@ -1,19 +1,21 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, ShoppingCart } from 'lucide-react';
 import { Beat } from '@/types';
 import { usePlayer } from '@/context/PlayerContext';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
-import { ToggleFavoriteButton } from '@/components/buttons/ToggleFavoriteButton';
+import { toast } from "sonner";
+import { useAuth } from '@/context/AuthContext';
 
 interface BeatCardCompactProps {
   beat: Beat;
 }
 
 export function BeatCardCompact({ beat }: BeatCardCompactProps) {
+  const { user } = useAuth();
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
   const [isHovering, setIsHovering] = useState(false);
   
@@ -29,11 +31,19 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
       playBeat(beat);
     }
   };
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Add to cart implementation would go here
+    toast.success(`Added ${beat.title} to cart`);
+  };
   
   return (
     <Link
       to={`/beat/${beat.id}`}
-      className="group block overflow-hidden rounded-lg border bg-card transition hover:shadow-md"
+      className="group block overflow-hidden rounded-lg border bg-card transition hover:shadow-md h-full"
     >
       <div 
         className="relative" 
@@ -45,10 +55,14 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
             src={beat.cover_image_url || "/placeholder.svg"}
             alt={beat.title}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "/placeholder.svg";
+            }}
           />
         </AspectRatio>
         
-        <div className="absolute inset-0 bg-black/20 transition-opacity group-hover:opacity-100 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/20 opacity-0 transition-opacity group-hover:opacity-100 flex items-center justify-center">
           <Button
             size="icon"
             variant="secondary" 
@@ -62,8 +76,16 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
             )}
           </Button>
         </div>
-        
-        <ToggleFavoriteButton beatId={beat.id} absolutePosition />
+
+        {/* Add to cart button in the corner */}
+        <Button 
+          size="icon"
+          variant="secondary"
+          className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={handleAddToCart}
+        >
+          <ShoppingCart className="h-4 w-4" />
+        </Button>
       </div>
       
       <div className="p-3">
@@ -73,7 +95,6 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
         <div className="flex justify-between items-center mt-1">
           <PriceTag 
             localPrice={beat.basic_license_price_local} 
-            diasporaPrice={beat.basic_license_price_diaspora} 
             size="sm"
           />
           <div className="text-xs text-muted-foreground">
@@ -81,6 +102,10 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
           </div>
         </div>
       </div>
+
+      {isCurrentBeat && isPlaying && (
+        <div className="h-1 bg-primary animate-pulse" />
+      )}
     </Link>
   );
 }

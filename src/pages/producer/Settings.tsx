@@ -17,6 +17,25 @@ import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock,
 import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from '@/utils/formatters';
 
+interface Transaction {
+  id: string;
+  beat_title: string;
+  beat_id: string;
+  date: string;
+  amount: number;
+  currency: string;
+  status: string;
+  reference: string;
+}
+
+interface PaymentAnalytics {
+  total_earnings: number;
+  pending_balance: number;
+  successful_payments: number;
+  pending_payments: number;
+  recent_transactions: Transaction[];
+}
+
 export default function ProducerSettings() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
@@ -35,7 +54,7 @@ export default function ProducerSettings() {
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
-  const [paymentAnalytics, setPaymentAnalytics] = useState<any>(null);
+  const [paymentAnalytics, setPaymentAnalytics] = useState<PaymentAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [autoPlayPreviews, setAutoPlayPreviews] = useState(true);
@@ -111,12 +130,12 @@ export default function ProducerSettings() {
           price_charged,
           currency_code,
           beat_id,
-          orders(
+          orders!inner(
             order_date, 
             status, 
             payment_reference
           ),
-          beats(
+          beats!inner(
             title, 
             id,
             producer_id
@@ -139,13 +158,13 @@ export default function ProducerSettings() {
       // Format transactions for UI display
       const recentTransactions = transactionsData?.map(item => ({
         id: item.id,
-        beat_title: item.beats?.title || 'Untitled Beat',
-        beat_id: item.beats?.id || '',
-        date: item.orders?.order_date || '',
+        beat_title: item.beats.title || 'Untitled Beat',
+        beat_id: item.beats.id || '',
+        date: item.orders.order_date || '',
         amount: item.price_charged || 0,
         currency: item.currency_code || 'NGN',
-        status: item.orders?.status || 'unknown',
-        reference: item.orders?.payment_reference || ''
+        status: item.orders.status || 'unknown',
+        reference: item.orders.payment_reference || ''
       })) || [];
       
       // Calculate total earnings from all transactions
@@ -456,9 +475,9 @@ export default function ProducerSettings() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y">
-                                {paymentAnalytics.recent_transactions.map((transaction: any) => (
+                                {paymentAnalytics.recent_transactions.map((transaction) => (
                                   <tr key={transaction.id}>
-                                    <td className="py-2 px-4 text-sm">{new Date(transaction.date).toLocaleDateString()}</td>
+                                    <td className="py-2 px-4 text-sm">{transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}</td>
                                     <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
                                     <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount, transaction.currency)}</td>
                                     <td className="py-2 px-4 text-sm">

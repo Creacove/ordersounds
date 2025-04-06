@@ -1,5 +1,4 @@
 import { toast as sonnerToast } from 'sonner';
-import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
 import { v4 as uuidv4 } from 'uuid';
 
 type ToastOptions = {
