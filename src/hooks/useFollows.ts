@@ -19,7 +19,7 @@ export function useFollows() {
           const { data: session } = await supabase.auth.getSession();
           if (!session || !session.session) return false;
           
-          const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-follow-status`, {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-follow-status`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.session.access_token}`,
@@ -56,7 +56,7 @@ export function useFollows() {
         return false;
       }
       
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/follow-producer`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/follow-producer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.session.access_token}`,
@@ -74,6 +74,8 @@ export function useFollows() {
       queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
       // Update the producer's follower count in the cache
       queryClient.invalidateQueries({ queryKey: ['producer', producerId] });
+      // Update the producers list to refresh follower counts
+      queryClient.invalidateQueries({ queryKey: ['producers'] });
       
       return true;
     } catch (error) {
@@ -98,7 +100,7 @@ export function useFollows() {
         return false;
       }
       
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/unfollow-producer`, {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unfollow-producer`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.session.access_token}`,
@@ -116,6 +118,8 @@ export function useFollows() {
       queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
       // Update the producer's follower count in the cache
       queryClient.invalidateQueries({ queryKey: ['producer', producerId] });
+      // Update the producers list to refresh follower counts
+      queryClient.invalidateQueries({ queryKey: ['producers'] });
       
       return true;
     } catch (error) {
@@ -156,7 +160,7 @@ export function useFollows() {
           const { data: session } = await supabase.auth.getSession();
           if (!session || !session.session) return [];
           
-          const response = await fetch(`${supabase.supabaseUrl}/functions/v1/get-recommended-beats`, {
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-recommended-beats`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${session.session.access_token}`,

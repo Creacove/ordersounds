@@ -91,8 +91,15 @@ export function RecommendedBeats() {
               basic_license_price_local: beat.basic_license_price_local,
               genre: '',
               created_at: '',
+              favorites_count: 0,
+              purchase_count: 0,
+              plays: 0,
               preview_url: '',
-              full_track_url: ''
+              full_track_url: '',
+              bpm: 0,
+              track_type: '',
+              tags: [],
+              status: 'published',
             }} 
           />
         ))}

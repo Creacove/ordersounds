@@ -36,10 +36,8 @@ export function FollowButton({
       return;
     }
     
-    if (user.role === 'producer') {
-      toast.error('Producers cannot follow other producers');
-      return;
-    }
+    // Remove the restriction for producers
+    // Now producers can follow other producers
     
     setIsLoading(true);
     try {

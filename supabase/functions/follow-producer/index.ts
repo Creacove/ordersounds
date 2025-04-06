@@ -49,6 +49,43 @@ serve(async (req) => {
       );
     }
     
+    if (user.id === producerId) {
+      return new Response(
+        JSON.stringify({ error: "You cannot follow yourself" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // Verify the producer exists
+    const { data: producer, error: producerError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", producerId)
+      .eq("role", "producer")
+      .single();
+    
+    if (producerError || !producer) {
+      return new Response(
+        JSON.stringify({ error: "Producer not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
+    // Check if already following
+    const { data: existingFollow, error: followCheckError } = await supabase
+      .from("followers")
+      .select("id")
+      .eq("follower_id", user.id)
+      .eq("followee_id", producerId)
+      .single();
+    
+    if (!followCheckError && existingFollow) {
+      return new Response(
+        JSON.stringify({ error: "Already following this producer" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    
     // Call the database function to follow the producer
     const { error: followError } = await supabase.rpc("follow_producer", {
       p_follower_id: user.id,

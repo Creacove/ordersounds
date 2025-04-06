@@ -16,9 +16,8 @@ interface Producer {
   id: string;
   stage_name: string | null;
   full_name: string;
-  avatar_url: string | null;
-  profile_picture: string | null;
   bio: string | null;
+  profile_picture: string | null;
   follower_count: number;
   beatCount: number;
 }
@@ -36,7 +35,7 @@ export default function Producers() {
         // First, get all producers from the users table
         const { data: producersData, error } = await supabase
           .from('users')
-          .select('id, stage_name, full_name, bio, avatar_url, profile_picture, follower_count')
+          .select('id, stage_name, full_name, bio, profile_picture, follower_count')
           .eq('role', 'producer');
 
         if (error) throw error;
@@ -56,8 +55,7 @@ export default function Producers() {
 
             return { 
               ...producer, 
-              beatCount: count || 0,
-              avatar_url: producer.avatar_url || producer.profile_picture,
+              beatCount: count || 0
             };
           })
         );
@@ -103,7 +101,7 @@ export default function Producers() {
                   <CardHeader className="flex flex-row items-center gap-4 pb-2">
                     <Avatar className="h-12 w-12">
                       <AvatarImage 
-                        src={producer.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`} 
+                        src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`} 
                         alt={producer.stage_name || producer.full_name} 
                       />
                       <AvatarFallback>
