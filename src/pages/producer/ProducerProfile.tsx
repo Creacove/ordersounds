@@ -72,11 +72,7 @@ export default function ProducerProfile() {
         throw error;
       }
       
-      // Make sure the profile includes a follower_count
-      return {
-        ...data,
-        follower_count: data.follower_count || 0
-      } as ProducerProfileData;
+      return data as ProducerProfileData;
     },
     enabled: !!producerId,
   });
