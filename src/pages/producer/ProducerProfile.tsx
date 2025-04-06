@@ -1,9 +1,9 @@
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
-import { ShoppingCart, Share2, Music, ExternalLink } from 'lucide-react';
+import { Music, Share2 } from 'lucide-react';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,8 +34,6 @@ export default function ProducerProfile() {
   
   const [activeTab, setActiveTab] = useState('beats');
   
-  const queryClient = useQueryClient();
-  
   const { data: producer, isLoading: isLoadingProducer } = useQuery({
     queryKey: ['producer', producerId],
     queryFn: async () => {
@@ -47,10 +45,10 @@ export default function ProducerProfile() {
           full_name,
           stage_name,
           bio,
-          user_metadata->profile_picture as avatar_url,
+          profile_picture as avatar_url,
           country,
-          created_at,
-          (SELECT COUNT(*) FROM followers WHERE followee_id = users.id) as follower_count
+          created_date as created_at,
+          follower_count
         `)
         .eq('id', producerId)
         .eq('role', 'producer')

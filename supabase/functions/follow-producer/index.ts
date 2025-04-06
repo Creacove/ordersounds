@@ -71,43 +71,43 @@ serve(async (req) => {
       );
     }
     
-    // Check if already following
-    const { data: existingFollow, error: followCheckError } = await supabase
-      .from("followers")
-      .select("id")
-      .eq("follower_id", user.id)
-      .eq("followee_id", producerId)
-      .single();
-    
-    if (!followCheckError && existingFollow) {
+    try {
+      // Call the database function to follow the producer
+      const { error: followError } = await supabase.rpc("follow_producer", {
+        p_follower_id: user.id,
+        p_followee_id: producerId,
+      });
+      
+      if (followError) {
+        // Check if the error is due to already following
+        if (followError.message.includes("Already following")) {
+          return new Response(
+            JSON.stringify({ success: false, message: "Already following this producer" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        throw followError;
+      }
+      
+      // Return success response
       return new Response(
-        JSON.stringify({ error: "Already following this producer" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ success: true, message: "Successfully followed producer" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (error) {
+      console.error("Follow error:", error);
+      
+      return new Response(
+        JSON.stringify({ error: error.message || "Failed to follow producer" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-    
-    // Call the database function to follow the producer
-    const { error: followError } = await supabase.rpc("follow_producer", {
-      p_follower_id: user.id,
-      p_followee_id: producerId,
-    });
-    
-    if (followError) {
-      return new Response(
-        JSON.stringify({ error: followError.message }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    // Return success response
-    return new Response(
-      JSON.stringify({ success: true, message: "Successfully followed producer" }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-    
   } catch (error) {
+    console.error("Unexpected error:", error);
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: error.message || "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
