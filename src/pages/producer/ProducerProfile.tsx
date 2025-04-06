@@ -14,6 +14,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Beat } from '@/types';
 import { toast } from 'sonner';
+import { getInitials } from '@/utils/formatters';
 
 interface ProducerProfileData {
   id: string;
@@ -24,20 +25,6 @@ interface ProducerProfileData {
   country: string | null;
   follower_count: number;
   created_at: string;
-}
-
-// Helper function to get initials from a name
-function getInitials(name: string): string {
-  if (!name) return '';
-  
-  const parts = name.trim().split(/\s+/);
-  
-  if (parts.length === 1) {
-    return parts[0].charAt(0).toUpperCase();
-  }
-  
-  // Take first character of first and last name
-  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 }
 
 export default function ProducerProfile() {
