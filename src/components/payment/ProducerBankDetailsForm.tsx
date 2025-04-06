@@ -216,6 +216,7 @@ export function ProducerBankDetailsForm({
                     }
                   }}
                   defaultValue={field.value}
+                  value={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>

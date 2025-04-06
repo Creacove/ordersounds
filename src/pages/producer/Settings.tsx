@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from '@/utils/formatters';
@@ -103,7 +103,7 @@ export default function ProducerSettings() {
     try {
       setLoadingAnalytics(true);
       
-      // Get total earnings from payments table
+      // Get total earnings from payments table - FIX: Using proper order syntax
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
@@ -128,7 +128,7 @@ export default function ProducerSettings() {
         
       if (payoutsError) throw payoutsError;
       
-      // Get recent transactions by joining line_items, orders and beats
+      // Get recent transactions by joining line_items, orders and beats - FIX: Using proper order syntax
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('line_items')
         .select(`
@@ -139,7 +139,7 @@ export default function ProducerSettings() {
           beats!inner(title, id)
         `)
         .eq('orders.status', 'completed')
-        .order('orders.order_date', { ascending: false })
+        .order('id', { ascending: false })
         .limit(5);
         
       if (transactionsError) throw transactionsError;
@@ -147,13 +147,13 @@ export default function ProducerSettings() {
       // Calculate analytics
       const totalEarnings = paymentsData.reduce((sum, payment) => sum + (payment.producer_share || 0), 0);
       
-      const completedPayouts = payoutsData.filter(p => p.status === 'successful');
-      const pendingPayouts = payoutsData.filter(p => p.status === 'pending');
+      const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
+      const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
       
       const pendingBalance = totalEarnings - completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
       
       // Format transactions for display
-      const recentTransactions = transactionsData.map(item => ({
+      const recentTransactions = transactionsData?.map(item => ({
         id: item.id,
         beat_title: item.beats.title,
         beat_id: item.beats.id,
@@ -162,7 +162,7 @@ export default function ProducerSettings() {
         currency: item.currency_code,
         status: item.orders.status,
         reference: item.orders.payment_reference
-      }));
+      })) || [];
       
       setPaymentAnalytics({
         total_earnings: totalEarnings,
