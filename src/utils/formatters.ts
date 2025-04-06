@@ -70,3 +70,14 @@ export function formatDate(date: string | Date, includeTime = false): string {
   
   return new Date(date).toLocaleDateString('en-US', options);
 }
+
+/**
+ * Formats seconds to mm:ss format
+ * @param seconds Total seconds
+ * @returns Formatted time string (mm:ss)
+ */
+export function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs < 10 ? '0' + secs : secs}`;
+}

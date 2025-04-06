@@ -13,7 +13,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Bell, Settings, DollarSign, CreditCard, Clock, Activity } from "lucide-react";
+import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
 import { getProducerPaymentAnalytics } from '@/utils/payment/paystackSplitUtils';
@@ -22,7 +22,14 @@ export default function ProducerSettings() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({
+    profile: false,
+    preferences: false
+  });
+  const [saveSuccess, setSaveSuccess] = useState<{[key: string]: boolean}>({
+    profile: false,
+    preferences: false
+  });
   const [producerName, setProducerName] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
@@ -74,6 +81,25 @@ export default function ProducerSettings() {
     }
   }, [user, navigate]);
 
+  // Reset success indicator after 3 seconds
+  useEffect(() => {
+    const timers: NodeJS.Timeout[] = [];
+    
+    Object.keys(saveSuccess).forEach(key => {
+      if (saveSuccess[key]) {
+        const timer = setTimeout(() => {
+          setSaveSuccess(prev => ({
+            ...prev,
+            [key]: false
+          }));
+        }, 3000);
+        timers.push(timer);
+      }
+    });
+    
+    return () => timers.forEach(timer => clearTimeout(timer));
+  }, [saveSuccess]);
+
   const fetchPaymentAnalytics = async () => {
     if (!user) return;
     
@@ -92,7 +118,7 @@ export default function ProducerSettings() {
     if (!user) return;
     
     try {
-      setIsLoading(true);
+      setIsLoading(prev => ({ ...prev, profile: true }));
       
       // Update producer info in database
       const { error } = await supabase
@@ -118,12 +144,13 @@ export default function ProducerSettings() {
         });
         
         toast.success('Profile updated successfully');
+        setSaveSuccess(prev => ({ ...prev, profile: true }));
       }
     } catch (error) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsLoading(prev => ({ ...prev, profile: false }));
     }
   };
 
@@ -131,7 +158,7 @@ export default function ProducerSettings() {
     if (!user) return;
     
     try {
-      setIsLoading(true);
+      setIsLoading(prev => ({ ...prev, preferences: true }));
       
       const settings = {
         emailNotifications,
@@ -161,12 +188,13 @@ export default function ProducerSettings() {
         });
         
         toast.success('Preferences updated successfully');
+        setSaveSuccess(prev => ({ ...prev, preferences: true }));
       }
     } catch (error) {
       console.error('Error updating preferences:', error);
       toast.error('Failed to update preferences. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsLoading(prev => ({ ...prev, preferences: false }));
     }
   };
 
@@ -211,7 +239,7 @@ export default function ProducerSettings() {
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 overflow-hidden">
             <TabsTrigger value="profile" className="flex items-center gap-1">
-              <Settings className="w-4 h-4" />
+              <SettingsIcon className="w-4 h-4" />
               <span>Profile</span>
             </TabsTrigger>
             <TabsTrigger value="payment" className="flex items-center gap-1">
@@ -264,14 +292,25 @@ export default function ProducerSettings() {
                   />
                 </div>
                 
-                <Button 
-                  className="w-full md:w-auto"
-                  onClick={handleSaveProfile}
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Save Changes
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    className="w-full md:w-auto"
+                    onClick={handleSaveProfile}
+                    disabled={isLoading.profile}
+                    variant={saveSuccess.profile ? "outline" : "default"}
+                  >
+                    {isLoading.profile ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : saveSuccess.profile ? (
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                    ) : null}
+                    {saveSuccess.profile ? "Saved" : "Save Changes"}
+                  </Button>
+                  
+                  {saveSuccess.profile && (
+                    <span className="text-sm text-muted-foreground">Changes saved successfully</span>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -490,14 +529,25 @@ export default function ProducerSettings() {
                   </div>
                 </div>
                 
-                <Button 
-                  className="w-full md:w-auto"
-                  onClick={handleSavePreferences}
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Save Preferences
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    className="w-full md:w-auto"
+                    onClick={handleSavePreferences}
+                    disabled={isLoading.preferences}
+                    variant={saveSuccess.preferences ? "outline" : "default"}
+                  >
+                    {isLoading.preferences ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : saveSuccess.preferences ? (
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                    ) : null}
+                    {saveSuccess.preferences ? "Saved" : "Save Preferences"}
+                  </Button>
+                  
+                  {saveSuccess.preferences && (
+                    <span className="text-sm text-muted-foreground">Preferences saved successfully</span>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
