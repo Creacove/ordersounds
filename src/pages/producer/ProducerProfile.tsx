@@ -86,7 +86,40 @@ export default function ProducerProfile() {
         
       if (error) throw error;
       
-      return data as Beat[];
+      // Map the data to match the Beat type
+      return data.map(beat => ({
+        id: beat.id,
+        title: beat.title,
+        producer_id: beat.producer_id,
+        producer_name: producer?.stage_name || producer?.full_name || "",
+        cover_image_url: beat.cover_image || "",
+        preview_url: beat.audio_preview || "",
+        full_track_url: beat.audio_file || "",
+        genre: beat.genre || "",
+        track_type: beat.track_type || "",
+        bpm: beat.bpm || 0,
+        tags: beat.tags || [],
+        description: beat.description || "",
+        created_at: beat.upload_date || "",
+        updated_at: beat.upload_date || "",
+        favorites_count: beat.favorites_count || 0,
+        purchase_count: beat.purchase_count || 0,
+        status: beat.status || "published",
+        is_featured: false,
+        license_type: beat.license_type || "basic",
+        license_terms: beat.license_terms || "",
+        basic_license_price_local: beat.basic_license_price_local || 0,
+        basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+        premium_license_price_local: beat.premium_license_price_local || 0,
+        premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
+        exclusive_license_price_local: beat.exclusive_license_price_local || 0,
+        exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
+        custom_license_price_local: beat.custom_license_price_local || 0,
+        custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
+        plays: beat.plays || 0,
+        key: beat.key || "",
+        duration: ""
+      })) as Beat[];
     },
     enabled: !!producerId,
   });
