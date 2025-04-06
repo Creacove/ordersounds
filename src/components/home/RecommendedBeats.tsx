@@ -48,12 +48,13 @@ export function RecommendedBeats() {
   // Helper to get producer name from beat data
   const getProducerName = (beat: any) => {
     if (beat.producer_name) return beat.producer_name;
+    if (beat.full_name) return beat.full_name;
     return 'Producer';
   };
 
   return (
-    <div className="mx-0 px-6 md:px-8 mb-6">
-      <div className="flex justify-between items-center">
+    <div className="mx-0 mb-6">
+      <div className="flex justify-between items-center px-0 md:px-0">
         <h2 className="text-xl font-medium">From Producers You Follow</h2>
         <Button 
           variant="link" 

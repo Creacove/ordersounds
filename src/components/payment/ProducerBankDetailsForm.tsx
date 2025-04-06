@@ -52,7 +52,7 @@ export function ProducerBankDetailsForm({
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
   const [isEditMode, setIsEditMode] = useState(!existingBankCode);
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, updateUserInfo } = useAuth();
   const { 
     isLoading, 
     accountName, 
@@ -133,14 +133,21 @@ export function ProducerBankDetailsForm({
         throw new Error('Failed to update bank details in database');
       }
       
+      // Create updated user object
+      const updatedUser = {
+        ...user,
+        bank_code: values.bank_code,
+        account_number: values.account_number,
+        verified_account_name: accountName
+      };
+      
       // Update local user context
-      if (updateProfile) {
-        await updateProfile({
-          ...user,
-          bank_code: values.bank_code,
-          account_number: values.account_number,
-          verified_account_name: accountName
-        });
+      if (updateUserInfo) {
+        // This directly updates the user context without an API call
+        updateUserInfo(updatedUser);
+      } else if (updateProfile) {
+        // Fallback to updateProfile if updateUserInfo is not available
+        await updateProfile(updatedUser);
       }
 
       // Only try to create/update Paystack subaccount if specifically needed
@@ -324,7 +331,7 @@ export function ProducerBankDetailsForm({
               disabled={isLoading || isVerifying}
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {existingBankCode ? "Update Bank Details" : "Save Bank Details"}
+              {existingBankCode ? "Save Changes" : "Save Bank Details"}
             </Button>
           </div>
         </form>
