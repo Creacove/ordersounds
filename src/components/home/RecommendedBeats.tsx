@@ -46,8 +46,8 @@ export function RecommendedBeats() {
   };
 
   return (
-    <div className="space-y-3 mb-6 px-2">
-      <div className="flex justify-between items-center">
+    <div className="mb-6 px-0">
+      <div className="flex justify-between items-center px-2">
         <h2 className="text-xl font-medium">From Producers You Follow</h2>
         <Button 
           variant="link" 
@@ -60,7 +60,7 @@ export function RecommendedBeats() {
       </div>
       
       {isLoading ? (
-        <div className="space-y-2">
+        <div className="space-y-2 px-2">
           {[1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))}
@@ -68,7 +68,7 @@ export function RecommendedBeats() {
       ) : (
         <>
           {/* Desktop view: Table layout */}
-          <div className="hidden md:block">
+          <div className="hidden md:block px-2">
             <div className="rounded-lg border bg-card overflow-hidden">
               <div className="grid grid-cols-12 text-xs font-medium text-muted-foreground bg-muted px-4 py-2.5">
                 <div className="col-span-5">TITLE</div>
@@ -116,7 +116,7 @@ export function RecommendedBeats() {
                       </div>
                     </div>
                     <div className="col-span-3 truncate text-sm">
-                      {beat.users?.stage_name || beat.producer_name || 'Producer'}
+                      {beat.users?.stage_name || beat.producer_name || beat.user_name || 'Producer'}
                     </div>
                     <div className="col-span-2 truncate text-sm capitalize">
                       {beat.genre?.toLowerCase() || 'Various'}
@@ -134,7 +134,7 @@ export function RecommendedBeats() {
           </div>
           
           {/* Mobile view: Card grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:hidden px-2">
             {recommendedBeats?.slice(0, 4).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
