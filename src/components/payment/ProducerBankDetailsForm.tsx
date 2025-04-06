@@ -133,7 +133,7 @@ export function ProducerBankDetailsForm({
       });
 
       // Update local user context
-      if (updateProfile) {
+      if (updateProfile && success) {
         await updateProfile({
           ...user,
           bank_code: values.bank_code,
@@ -188,7 +188,7 @@ export function ProducerBankDetailsForm({
               className="flex items-center gap-1"
             >
               <PenLine className="h-3 w-3" />
-              <span>Edit</span>
+              <span>Edit Bank Details</span>
             </Button>
           </div>
         </div>

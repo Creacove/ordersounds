@@ -103,11 +103,46 @@ export default function ProducerSettings() {
     try {
       setLoadingAnalytics(true);
       
-      // Get total earnings from payments table - FIX: Using proper order syntax
+      // Get all successful transactions (line_items with completed orders)
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('line_items')
+        .select(`
+          id,
+          price_charged,
+          currency_code,
+          beat_id,
+          orders:order_id!inner(
+            order_date, 
+            status, 
+            payment_reference
+          ),
+          beats:beat_id!inner(
+            title, 
+            id,
+            producer_id
+          )
+        `)
+        .eq('orders.status', 'completed')
+        .eq('beats.producer_id', user.id)
+        .order('id', { ascending: false });
+        
+      if (transactionsError) throw transactionsError;
+      
+      // Get payout data for the producer
+      const { data: payoutsData, error: payoutsError } = await supabase
+        .from('payouts')
+        .select('*')
+        .eq('producer_id', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (payoutsError) throw payoutsError;
+
+      // Get payment data for the producer
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
-          amount, 
+          id,
+          amount,
           producer_share,
           status,
           payment_date,
@@ -119,50 +154,28 @@ export default function ProducerSettings() {
         
       if (paymentsError) throw paymentsError;
       
-      // Get payout data
-      const { data: payoutsData, error: payoutsError } = await supabase
-        .from('payouts')
-        .select('*')
-        .eq('producer_id', user.id)
-        .order('created_at', { ascending: false });
-        
-      if (payoutsError) throw payoutsError;
-      
-      // Get recent transactions by joining line_items, orders and beats - FIX: Using proper order syntax
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('line_items')
-        .select(`
-          id,
-          price_charged,
-          currency_code,
-          orders!inner(order_date, status, payment_reference),
-          beats!inner(title, id)
-        `)
-        .eq('orders.status', 'completed')
-        .order('id', { ascending: false })
-        .limit(5);
-        
-      if (transactionsError) throw transactionsError;
-      
-      // Calculate analytics
-      const totalEarnings = paymentsData.reduce((sum, payment) => sum + (payment.producer_share || 0), 0);
-      
-      const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
-      const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
-      
-      const pendingBalance = totalEarnings - completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
-      
-      // Format transactions for display
+      // Format transactions for UI display
       const recentTransactions = transactionsData?.map(item => ({
         id: item.id,
-        beat_title: item.beats.title,
-        beat_id: item.beats.id,
-        date: item.orders.order_date,
-        amount: item.price_charged,
-        currency: item.currency_code,
-        status: item.orders.status,
-        reference: item.orders.payment_reference
+        beat_title: item.beats?.title || 'Untitled Beat',
+        beat_id: item.beats?.id || '',
+        date: item.orders?.order_date || '',
+        amount: item.price_charged || 0,
+        currency: item.currency_code || 'NGN',
+        status: item.orders?.status || 'unknown',
+        reference: item.orders?.payment_reference || ''
       })) || [];
+      
+      // Calculate total earnings from all transactions
+      const totalEarnings = transactionsData?.reduce((sum, item) => {
+        return sum + (item.price_charged || 0);
+      }, 0) || 0;
+      
+      // Calculate additional analytics
+      const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
+      const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
+      const totalPaidOut = completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
+      const pendingBalance = totalEarnings - totalPaidOut;
       
       setPaymentAnalytics({
         total_earnings: totalEarnings,
@@ -266,6 +279,14 @@ export default function ProducerSettings() {
   const handleBankDetailsSuccess = () => {
     toast.success('Bank details saved successfully');
     fetchPaymentAnalytics(); // Refresh payment analytics after successful bank update
+    
+    // Update the user object with new bank details
+    if (user && updateProfile) {
+      // This will cause a re-render that reflects the updated bank details
+      updateProfile({
+        ...user,
+      });
+    }
   };
 
   // If not logged in or not a producer, show login prompt
@@ -432,7 +453,7 @@ export default function ProducerSettings() {
                         <div className="bg-muted rounded-lg p-4">
                           <div className="flex items-center gap-2 mb-1">
                             <Activity className="h-4 w-4 text-green-500" />
-                            <span className="text-sm font-medium text-muted-foreground">Completed Payments</span>
+                            <span className="text-sm font-medium text-muted-foreground">Completed Payouts</span>
                           </div>
                           <p className="text-xl font-bold">{paymentAnalytics.successful_payments}</p>
                         </div>
@@ -476,15 +497,31 @@ export default function ProducerSettings() {
                       )}
                       
                       {/* Payment Account Status */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h3 className="text-base font-semibold text-blue-800 mb-2">Payment Account Status</h3>
-                        <p className="text-sm text-blue-700 mb-2">
+                      <div className={cn(
+                        "border rounded-lg p-4",
+                        user.verified_account_name ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
+                      )}>
+                        <h3 className={cn(
+                          "text-base font-semibold mb-2",
+                          user.verified_account_name ? "text-blue-800" : "text-amber-800"
+                        )}>
+                          Payment Account Status
+                        </h3>
+                        <p className={cn(
+                          "text-sm mb-2",
+                          user.verified_account_name ? "text-blue-700" : "text-amber-700"
+                        )}>
                           {user.verified_account_name 
                             ? `Your account is set up for automatic payments to ${user.verified_account_name}`
-                            : "Please set up your bank details to receive automatic payments"}
+                            : "Please set up your bank details above to receive automatic payments"}
                         </p>
-                        <p className="text-xs text-blue-600">
-                          Payments for beat sales are automatically split with 90% going to your account
+                        <p className={cn(
+                          "text-xs",
+                          user.verified_account_name ? "text-blue-600" : "text-amber-600"
+                        )}>
+                          {user.verified_account_name
+                            ? "Payments for beat sales are automatically split with 90% going to your account"
+                            : "Once set up, payments for beat sales will automatically be split with 90% going to your account"}
                         </p>
                       </div>
                     </div>

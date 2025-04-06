@@ -1,3 +1,70 @@
-import { useToast, toast } from "@/hooks/use-toast";
+import { useToast as useSonnerToast, toast as sonnerToast } from 'sonner';
+import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
+import { v4 as uuidv4 } from 'uuid';
 
-export { useToast, toast };
+type ToastOptions = {
+  id?: string;
+  description?: string; 
+  action?: React.ReactNode;
+  cancel?: React.ReactNode;
+  duration?: number;
+  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
+  important?: boolean;
+};
+
+// Enhanced toast with deduplication
+const enhancedToast = {
+  // Keep track of recent notifications to prevent duplicates
+  _notificationHistory: new Map<string, number>(),
+  _dedupeTimeMs: 5000,
+  
+  _isDuplicate(message: string): boolean {
+    const now = Date.now();
+    
+    // Clean up old entries
+    for (const [key, timestamp] of this._notificationHistory.entries()) {
+      if (now - timestamp > this._dedupeTimeMs) {
+        this._notificationHistory.delete(key);
+      }
+    }
+    
+    return this._notificationHistory.has(message);
+  },
+  
+  success(message: string, options?: ToastOptions) {
+    if (this._isDuplicate(message)) return;
+    
+    this._notificationHistory.set(message, Date.now());
+    return sonnerToast.success(message, options);
+  },
+  
+  error(message: string, options?: ToastOptions) {
+    if (this._isDuplicate(message)) return;
+    
+    this._notificationHistory.set(message, Date.now());
+    return sonnerToast.error(message, options);
+  },
+  
+  info(message: string, options?: ToastOptions) {
+    if (this._isDuplicate(message)) return;
+    
+    this._notificationHistory.set(message, Date.now());
+    return sonnerToast.info(message, options);
+  },
+  
+  warning(message: string, options?: ToastOptions) {
+    if (this._isDuplicate(message)) return;
+    
+    this._notificationHistory.set(message, Date.now());
+    return sonnerToast.warning(message, options);
+  },
+  
+  // Pass through other methods
+  dismiss: sonnerToast.dismiss,
+  promise: sonnerToast.promise,
+  custom: sonnerToast.custom,
+  loading: sonnerToast.loading
+};
+
+export const toast = enhancedToast;
+export const useToast = useSonnerToast;
