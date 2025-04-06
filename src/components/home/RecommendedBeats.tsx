@@ -45,15 +45,8 @@ export function RecommendedBeats() {
     navigate(`/beat/${beatId}`);
   };
 
-  // Format seconds to mm:ss
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs < 10 ? '0' + secs : secs}`;
-  };
-
   return (
-    <div className="space-y-4 mb-8">
+    <div className="space-y-3 mb-6 px-2">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-medium">From Producers You Follow</h2>
         <Button 
@@ -79,10 +72,9 @@ export function RecommendedBeats() {
             <div className="rounded-lg border bg-card overflow-hidden">
               <div className="grid grid-cols-12 text-xs font-medium text-muted-foreground bg-muted px-4 py-2.5">
                 <div className="col-span-5">TITLE</div>
-                <div className="col-span-2">PRODUCER</div>
+                <div className="col-span-3">PRODUCER</div>
                 <div className="col-span-2">GENRE</div>
                 <div className="col-span-1 text-center">BPM</div>
-                <div className="col-span-1 text-center">TIME</div>
                 <div className="col-span-1 text-right">PRICE</div>
               </div>
               
@@ -123,18 +115,14 @@ export function RecommendedBeats() {
                         </div>
                       </div>
                     </div>
-                    <div className="col-span-2 truncate text-sm">
-                      {beat.producer_name || beat.user_name || 'Unknown Producer'}
+                    <div className="col-span-3 truncate text-sm">
+                      {beat.users?.stage_name || beat.producer_name || 'Producer'}
                     </div>
                     <div className="col-span-2 truncate text-sm capitalize">
                       {beat.genre?.toLowerCase() || 'Various'}
                     </div>
                     <div className="col-span-1 text-center text-sm">
                       {beat.bpm || '-'}
-                    </div>
-                    <div className="col-span-1 text-center text-sm flex items-center justify-center gap-1">
-                      <Clock className="h-3 w-3 text-muted-foreground" />
-                      <span>{formatDuration(beat.duration || 0)}</span>
                     </div>
                     <div className="col-span-1 text-right font-medium text-sm">
                       {formatCurrency(beat.basic_local || 0, 'NGN')}
@@ -146,7 +134,7 @@ export function RecommendedBeats() {
           </div>
           
           {/* Mobile view: Card grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:hidden">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:hidden">
             {recommendedBeats?.slice(0, 4).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
