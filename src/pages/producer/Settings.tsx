@@ -111,20 +111,19 @@ export default function ProducerSettings() {
           price_charged,
           currency_code,
           beat_id,
-          orders:order_id!inner(
+          orders(
             order_date, 
             status, 
             payment_reference
           ),
-          beats:beat_id!inner(
+          beats(
             title, 
             id,
             producer_id
           )
         `)
         .eq('orders.status', 'completed')
-        .eq('beats.producer_id', user.id)
-        .order('id', { ascending: false });
+        .eq('beats.producer_id', user.id);
         
       if (transactionsError) throw transactionsError;
       
@@ -137,23 +136,6 @@ export default function ProducerSettings() {
         
       if (payoutsError) throw payoutsError;
 
-      // Get payment data for the producer
-      const { data: paymentsData, error: paymentsError } = await supabase
-        .from('payments')
-        .select(`
-          id,
-          amount,
-          producer_share,
-          status,
-          payment_date,
-          transaction_reference,
-          order_id
-        `)
-        .eq('status', 'successful')
-        .order('payment_date', { ascending: false });
-        
-      if (paymentsError) throw paymentsError;
-      
       // Format transactions for UI display
       const recentTransactions = transactionsData?.map(item => ({
         id: item.id,
@@ -474,8 +456,8 @@ export default function ProducerSettings() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y">
-                                {paymentAnalytics.recent_transactions.map((transaction: any, index: number) => (
-                                  <tr key={transaction.id || index}>
+                                {paymentAnalytics.recent_transactions.map((transaction: any) => (
+                                  <tr key={transaction.id}>
                                     <td className="py-2 px-4 text-sm">{new Date(transaction.date).toLocaleDateString()}</td>
                                     <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
                                     <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount, transaction.currency)}</td>

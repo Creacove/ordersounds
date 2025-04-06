@@ -89,6 +89,13 @@ export function ProducerBankDetailsForm({
     loadBanks();
   }, []);
 
+  useEffect(() => {
+    // Reset edit mode when bank details change externally
+    if (existingBankCode && existingAccountNumber) {
+      setIsEditMode(false);
+    }
+  }, [existingBankCode, existingAccountNumber]);
+
   // Verify account number when changed
   const onAccountChange = async (bankCode: string, accountNumber: string) => {
     if (bankCode && accountNumber && accountNumber.length >= 10) {
@@ -155,14 +162,6 @@ export function ProducerBankDetailsForm({
     }
   };
 
-  // Selected bank name
-  const getSelectedBankName = () => {
-    const code = form.watch('bank_code');
-    if (!code) return '';
-    const selected = banks.find(bank => bank.code === code);
-    return selected ? selected.name : '';
-  };
-
   if (!isEditMode && existingAccountName) {
     // Show read-only view of bank details with edit button
     return (
@@ -196,6 +195,7 @@ export function ProducerBankDetailsForm({
     );
   }
 
+  // Show form for editing/adding bank details
   return (
     <div className="w-full">
       <Form {...form}>

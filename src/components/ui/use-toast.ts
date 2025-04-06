@@ -1,4 +1,4 @@
-import { useToast as useSonnerToast, toast as sonnerToast } from 'sonner';
+import { toast as sonnerToast } from 'sonner';
 import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -67,4 +67,3 @@ const enhancedToast = {
 };
 
 export const toast = enhancedToast;
-export const useToast = useSonnerToast;
