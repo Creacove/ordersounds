@@ -49,13 +49,14 @@ export default function ProducerProfile() {
   // Fetch producer data
   const { 
     data: producer, 
-    isLoading: isLoadingProducer 
+    isLoading: isLoadingProducer,
+    error: producerError
   } = useQuery({
     queryKey: ['producer', producerId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('users')
-        .select('id, full_name, stage_name, bio, avatar_url, country, created_at, follower_count')
+        .select('id, full_name, stage_name, bio, profile_picture as avatar_url, country, created_at, follower_count')
         .eq('id', producerId)
         .eq('role', 'producer')
         .single();
@@ -63,7 +64,7 @@ export default function ProducerProfile() {
       if (error) throw error;
       
       // Set initial follower count
-      setFollowerCount(data.follower_count || 0);
+      setFollowerCount(data?.follower_count || 0);
       
       return data as ProducerProfileData;
     },
@@ -121,7 +122,7 @@ export default function ProducerProfile() {
         duration: ""
       })) as Beat[];
     },
-    enabled: !!producerId,
+    enabled: !!producerId && !!producer,
   });
   
   // Handle follow status change
