@@ -33,7 +33,7 @@ export default function ProducerActivation() {
             size="lg"
             asChild
           >
-            <a href="mailto:admin@ordersounds.com?subject=Producer%20Account%20Activation&body=Hello%2C%0A%0APlease%20activate%20my%20producer%20account.%0A%0ARegards%2C%0A">
+            <a href="mailto:info@creacove.com?subject=Producer%20Account%20Activation&body=Hello%2C%0A%0APlease%20activate%20my%20producer%20account.%0A%0ARegards%2C%0A">
               Contact Admin
             </a>
           </Button>
