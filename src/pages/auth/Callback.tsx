@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
@@ -60,7 +61,7 @@ export default function AuthCallback() {
             });
           }
           
-          // If producer is inactive, redirect to activation page
+          // Route based on role and status
           if (userData.role === 'producer' && userData.status === 'inactive') {
             navigate('/producer-activation');
             return;

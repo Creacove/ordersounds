@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -67,13 +68,12 @@ const App = () => (
                 <Toaster />
                 <Sonner position="top-right" expand={true} closeButton={true} />
                 <Routes>
-                  {/* Buyer Routes */}
+                  {/* Public Routes - accessible to all users */}
                   <Route path="/" element={<Home />} />
                   <Route path="/trending" element={<Trending />} />
                   <Route path="/new" element={<New />} />
                   <Route path="/playlists" element={<Playlists />} />
                   <Route path="/playlists/:playlistId" element={<Playlists />} />
-                  {/* Redirect for the incorrect URL format */}
                   <Route path="/playlist/:playlistId" element={<PlaylistRedirect />} />
                   <Route path="/genres" element={<Genres />} />
                   <Route path="/producers" element={<Producers />} />
@@ -87,7 +87,14 @@ const App = () => (
                   <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
                   <Route path="/producer/:producerId" element={<ProducerProfile />} />
                   
-                  {/* Library Routes - all these routes render the Library component with different active tabs */}
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/producer-activation" element={<ProducerActivation />} />
+                  
+                  {/* Library Routes - these might require auth */}
                   <Route path="/library" element={<Library />} />
                   <Route path="/buyer/library" element={<Navigate to="/library" replace />} />
                   <Route path="/favorites" element={<Library />} />
@@ -96,14 +103,7 @@ const App = () => (
                   <Route path="/my-playlists/:playlistId" element={<Library />} />
                   <Route path="/orders" element={<Orders />} />
                   
-                  {/* Auth Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/producer-activation" element={<ProducerActivation />} />
-                  
-                  {/* Producer Routes - Protected by activation status */}
+                  {/* Producer Routes - Protected by ProtectedProducerRoute */}
                   <Route path="/producer/dashboard" element={
                     <ProtectedProducerRoute>
                       <ProducerDashboard />
