@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { usePaystackSplit } from "@/hooks/payment/usePaystackSplit";
 import { fetchSupportedBanks } from "@/utils/payment/paystackSplitUtils";
 import { useAuth } from "@/context/AuthContext";
@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, PenLine } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface Bank {
@@ -59,7 +59,8 @@ export function ProducerBankDetailsForm({
 }: ProducerBankDetailsFormProps) {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
-  const { user, updateProfile } = useAuth();
+  const [isEditMode, setIsEditMode] = useState(!existingBankCode);
+  const { user, updateProfile, updateUserInfo } = useAuth();
   const {
     isLoading,
     accountName,
@@ -75,6 +76,17 @@ export function ProducerBankDetailsForm({
       account_number: existingAccountNumber || "",
     },
   });
+
+  // Reset form when external props change
+  useEffect(() => {
+    if (existingBankCode && existingAccountNumber) {
+      form.reset({
+        bank_code: existingBankCode,
+        account_number: existingAccountNumber,
+      });
+      setIsEditMode(false);
+    }
+  }, [existingBankCode, existingAccountNumber, form]);
 
   // Load banks on component mount
   useEffect(() => {
@@ -140,21 +152,35 @@ export function ProducerBankDetailsForm({
         throw new Error("Failed to update bank details in database");
       }
 
-      // Then try to create or update Paystack subaccount
-      const success = await updateBankDetails(producerId, {
+      // Create updated user object
+      const updatedUser = {
+        ...user,
         bank_code: values.bank_code,
         account_number: values.account_number,
-      });
+        verified_account_name: accountName,
+      };
 
       // Update local user context
-      if (updateProfile) {
-        await updateProfile({
-          ...user,
+      if (updateUserInfo) {
+        // This directly updates the user context without an API call
+        updateUserInfo(updatedUser);
+      } else if (updateProfile) {
+        // Fallback to updateProfile if updateUserInfo is not available
+        await updateProfile(updatedUser);
+      }
+
+      // Only try to create/update Paystack subaccount if specifically needed
+      try {
+        await updateBankDetails(producerId, {
           bank_code: values.bank_code,
           account_number: values.account_number,
-          verified_account_name: accountName,
         });
+      } catch (splitError) {
+        console.error("Error updating Paystack split account:", splitError);
+        // Continue even if Paystack update fails - we've updated the database
       }
+
+      setIsEditMode(false);
 
       if (onSuccess) {
         onSuccess();
@@ -165,14 +191,44 @@ export function ProducerBankDetailsForm({
     }
   };
 
-  // Selected bank name
-  const getSelectedBankName = () => {
-    const code = form.watch("bank_code");
-    if (!code) return "";
-    const selected = banks.find((bank) => bank.code === code);
-    return selected ? selected.name : "";
-  };
+  if (!isEditMode && existingAccountName) {
+    // Show read-only view of bank details with edit button
+    return (
+      <div className="space-y-4">
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="text-base font-medium text-green-800 flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                Bank Account Connected
+              </h3>
+              <p className="text-sm text-green-700 mt-1">
+                {existingAccountName}
+              </p>
+              <p className="text-xs text-green-600 mt-1">
+                Account Number:{" "}
+                {existingAccountNumber &&
+                  existingAccountNumber
+                    .slice(-4)
+                    .padStart(existingAccountNumber.length, "*")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditMode(true)}
+              className="flex items-center gap-1"
+            >
+              <PenLine className="h-3 w-3" />
+              <span>Edit Bank Details</span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  // Show form for editing/adding bank details
   return (
     <div className="w-full">
       <Form {...form}>
@@ -193,6 +249,7 @@ export function ProducerBankDetailsForm({
                     }
                   }}
                   defaultValue={field.value}
+                  value={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -207,7 +264,7 @@ export function ProducerBankDetailsForm({
                       </div>
                     ) : (
                       banks.map((bank) => (
-                        <SelectItem key={bank.name} value={bank.code}>
+                        <SelectItem key={bank.code} value={bank.code}>
                           {bank.name}
                         </SelectItem>
                       ))
@@ -296,16 +353,28 @@ export function ProducerBankDetailsForm({
           </FormDescription>
 
           <div className="flex justify-end space-x-2">
+            {existingBankCode && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditMode(false)}
+              >
+                Cancel
+              </Button>
+            )}
             <Button
-              variant="outline"
-              type="button"
-              onClick={() => form.reset()}
+              type="submit"
+              disabled={isLoading || isVerifying}
+              className="relative"
             >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading || isVerifying}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Bank Details
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              )}
+              <span className={isLoading ? "opacity-0" : ""}>
+                {existingBankCode ? "Save Changes" : "Save Bank Details"}
+              </span>
             </Button>
           </div>
         </form>

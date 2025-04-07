@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
@@ -13,7 +13,7 @@ export function PersistentPlayer() {
   const {
     currentBeat,
     isPlaying,
-    togglePlay,
+    togglePlayPause,
     currentTime,
     duration,
     seek,
@@ -44,7 +44,7 @@ export function PersistentPlayer() {
 
   // Player is now at z-50, above the sidebar which will be at z-40
   const playerClassName = cn(
-    "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-50",
+    "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-40",
     isMobile ? "bottom-16" : "bottom-0" // Position above mobile nav when on mobile
   );
 
@@ -75,12 +75,22 @@ export function PersistentPlayer() {
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center gap-4">
         {/* Beat info */}
         <div className="flex items-center gap-3 flex-grow md:flex-grow-0 md:w-1/3">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded overflow-hidden flex-shrink-0">
-            <img 
-              src={currentBeat.cover_image_url || '/placeholder.svg'}
-              alt={currentBeat.title}
-              className="w-full h-full object-cover"
-            />
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
+            {currentBeat.cover_image_url ? (
+              <img 
+                src={currentBeat.cover_image_url}
+                alt={currentBeat.title}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/placeholder.svg';
+                }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full bg-primary/10">
+                <span className="font-medium text-xs text-primary">BEAT</span>
+              </div>
+            )}
           </div>
           <div className="overflow-hidden">
             <p className="font-medium text-sm md:text-base truncate">{currentBeat.title}</p>
@@ -105,9 +115,9 @@ export function PersistentPlayer() {
             variant="default" 
             size="icon" 
             className="h-10 w-10 rounded-full bg-primary" 
-            onClick={togglePlay}
+            onClick={togglePlayPause}
           >
-            {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+            {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
           </Button>
           
           {!isMobile && (

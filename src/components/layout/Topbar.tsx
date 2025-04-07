@@ -82,6 +82,19 @@ export function Topbar({ sidebarVisible = false }) {
   // Only show logo on mobile or when sidebar is not visible on desktop
   const showLogo = isMobile || !sidebarVisible;
 
+  // Determine correct settings page based on user role and current view
+  const getSettingsPath = () => {
+    // If currently in producer view, go to producer settings
+    if (location.pathname.startsWith('/producer')) {
+      return "/producer/settings";
+    }
+    // If user is a producer but in buyer view, still go to user settings
+    return "/settings";
+  };
+
+  // Check if currently in producer view
+  const isInProducerView = location.pathname.startsWith('/producer');
+
   return (
     <header 
       className={cn(
@@ -220,16 +233,18 @@ export function Topbar({ sidebarVisible = false }) {
                   <Music2 className="mr-2 h-4 w-4" />
                   <span>My Purchases</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/settings")}>
+                <DropdownMenuItem onClick={() => navigate(getSettingsPath())}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </DropdownMenuItem>
                 {user.role === "producer" && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate("/producer/dashboard")}>
-                      <span className="mr-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">Producer</span>
-                      <span>Switch to Producer View</span>
+                    <DropdownMenuItem onClick={() => isInProducerView ? navigate("/") : navigate("/producer/dashboard")}>
+                      <span className="mr-2 text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                        {isInProducerView ? 'Artist' : 'Producer'}
+                      </span>
+                      <span>Switch to {isInProducerView ? 'Artist' : 'Producer'} View</span>
                     </DropdownMenuItem>
                   </>
                 )}

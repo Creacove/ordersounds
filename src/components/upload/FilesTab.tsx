@@ -27,7 +27,7 @@ export const FilesTab = ({
   setIsPlaying
 }: FilesTabProps) => {
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 mb-24 sm:mb-16">
       <div>
         <h3 className="text-base sm:text-lg font-medium mb-1">Cover Image *</h3>
         <p className="text-xs sm:text-sm text-muted-foreground mb-4">
@@ -161,7 +161,7 @@ export const FilesTab = ({
                     <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     <div className="flex-1">
                       <p className="text-xs sm:text-sm font-medium">Upload preview</p>
-                      <p className="text-xs text-muted-foreground">30-60 sec preview</p>
+                      <p className="text-xs text-muted-foreground">Watermarked version</p>
                     </div>
                     <Button 
                       variant="outline" 
@@ -192,4 +192,4 @@ export const FilesTab = ({
       </div>
     </div>
   );
-};
+}

@@ -49,7 +49,7 @@ export function MobileBottomNav({
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0e0e0e] border-t border-[#272727] py-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0e0e0e] border-t border-[#272727] py-1 safe-area-bottom">
       <div className="flex justify-around">
         {mobileMenuItems.map((item, idx) => {
           const isActive = activeBottomTab === item.id;

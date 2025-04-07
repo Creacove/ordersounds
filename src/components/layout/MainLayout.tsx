@@ -39,7 +39,7 @@ export function MainLayout({ children, activeTab, currentPath, hideSidebar }: Ma
       )}
       <div className={`flex flex-col flex-1 w-full transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "md:ml-[80px]" : "md:ml-[240px]") : ""}`}>
         <Topbar sidebarVisible={!isMobile && sidebarVisible && !hideSidebar} />
-        <main className="flex-1 w-full">
+        <main className="flex-1 w-full pb-32 md:pb-24">
           <div className="w-full flex flex-col">
             {children}
           </div>

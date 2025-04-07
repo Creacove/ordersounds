@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { User } from '@/types';
 
 // Use the correct Supabase URL and anon key
-const supabaseUrl = 'https://uoezlwkxhbzajdivrlby.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://uoezlwkxhbzajdivrlby.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk';
 
 // Create a single instance of the supabase client to avoid duplicates
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -12,8 +12,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     persistSession: true,
     autoRefreshToken: true,
     storage: localStorage,
-    flowType: 'implicit',  // Disable email confirmation
-    detectSessionInUrl: true, // Look for the session in the URL after OAuth redirects
   }
 });
 

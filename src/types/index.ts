@@ -20,6 +20,12 @@ export interface User {
     pushNotifications?: boolean;
     [key: string]: any;
   };
+  // Add full_name for consistency with database schema
+  full_name?: string;
+  stage_name?: string;
+  follower_count?: number;
+  // Add status field
+  status?: 'active' | 'inactive';
 }
 
 export interface Beat {
@@ -54,6 +60,16 @@ export interface Beat {
   plays?: number;
   key?: string; // Added key property to the Beat interface
   duration?: string; // Added duration property to the Beat interface
+  // Add producer field to represent the joined user data
+  producer?: {
+    full_name?: string;
+    stage_name?: string;
+  };
+  // For backward compatibility with existing code
+  users?: {
+    full_name?: string;
+    stage_name?: string;
+  };
 }
 
 export interface Playlist {

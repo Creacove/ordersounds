@@ -23,6 +23,9 @@ export function usePaystackSplit() {
     try {
       setIsLoading(true);
       return await createProducerSubaccount(producerId);
+    } catch (error) {
+      console.error('Error creating subaccount:', error);
+      return null;
     } finally {
       setIsLoading(false);
     }
@@ -34,7 +37,13 @@ export function usePaystackSplit() {
     
     try {
       setIsLoading(true);
-      return await updateProducerBankDetails(producerId, bankDetails);
+      console.info('Updating producer bank details:', { producerId, bankDetails });
+      const result = await updateProducerBankDetails(producerId, bankDetails);
+      console.info('Bank details updated successfully');
+      return result;
+    } catch (error) {
+      console.error('Error updating bank details:', error);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -47,6 +56,9 @@ export function usePaystackSplit() {
     try {
       setIsLoading(true);
       return await updateProducerSplitPercentage(producerId, percentage);
+    } catch (error) {
+      console.error('Error updating split percentage:', error);
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -68,8 +80,10 @@ export function usePaystackSplit() {
   const verifyBankAccount = async (accountNumber: string, bankCode: string) => {
     try {
       setIsVerifying(true);
+      console.info('Resolving account number:', { accountNumber, bankCode });
       const resolvedName = await resolveAccountNumber(accountNumber, bankCode);
       setAccountName(resolvedName);
+      console.info(resolvedName ? 'Account resolved successfully' : 'Account resolution failed');
       return resolvedName !== null;
     } catch (error) {
       console.error('Error verifying bank account:', error);

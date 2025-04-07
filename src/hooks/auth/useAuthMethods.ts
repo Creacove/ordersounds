@@ -1,4 +1,3 @@
-
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@/types';
@@ -76,13 +75,9 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
               const mappedUser = mapSupabaseUser(finalData.user);
               setUser(mappedUser);
               setCurrency(mappedUser.default_currency || 'NGN');
-              toast.success('Login successful');
               
-              if (mappedUser.role === 'producer') {
-                navigate('/producer/dashboard');
-              } else {
-                navigate('/');
-              }
+              // Redirect to callback for proper role/status based routing
+              navigate('/auth/callback');
               return;
             }
           } else if (retryData?.user) {
@@ -90,13 +85,9 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
             const mappedUser = mapSupabaseUser(retryData.user);
             setUser(mappedUser);
             setCurrency(mappedUser.default_currency || 'NGN');
-            toast.success('Login successful');
             
-            if (mappedUser.role === 'producer') {
-              navigate('/producer/dashboard');
-            } else {
-              navigate('/');
-            }
+            // Redirect to callback for proper role/status based routing
+            navigate('/auth/callback');
             return;
           }
         }
@@ -112,19 +103,13 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         const mappedUser = mapSupabaseUser(data.user);
         setUser(mappedUser);
         setCurrency(mappedUser.default_currency || 'NGN');
-        toast.success('Login successful');
         
-        if (mappedUser.role === 'producer') {
-          navigate('/producer/dashboard');
-        } else {
-          navigate('/');
-        }
+        // Redirect to callback which will handle role/status routing
+        navigate('/auth/callback');
       }
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Failed to log in');
-      throw error;
-    } finally {
       setIsLoading(false);
     }
   };
@@ -179,6 +164,8 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
               full_name: name,
               email: email,
               role: role,
+              // Set status for producers to inactive by default
+              status: role === 'producer' ? 'inactive' : 'active',
               password_hash: 'managed-by-supabase', // Supabase Auth handles the actual hashing
             }
           ]);
@@ -205,13 +192,15 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
 
         if (signInData?.user) {
           const mappedUser = mapSupabaseUser(signInData.user);
+          // Update with the status we just set
+          mappedUser.status = role === 'producer' ? 'inactive' : 'active';
           setUser(mappedUser);
           setCurrency(mappedUser.default_currency || 'NGN');
           toast.success('Account created successfully! You are now logged in.');
           
-          // Redirect based on role
+          // If producer and inactive, redirect directly to activation
           if (role === 'producer') {
-            navigate('/producer/dashboard');
+            navigate('/producer-activation');
           } else {
             navigate('/');
           }

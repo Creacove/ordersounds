@@ -57,30 +57,67 @@ export const useAuthState = () => {
         if (session?.user) {
           try {
             const mappedUser = mapSupabaseUser(session.user);
-            setUser(mappedUser);
             
-            // Set currency based on user preference or location
-            if (mappedUser.default_currency) {
-              setCurrency(mappedUser.default_currency);
-              // Also update localStorage to match user preference
-              localStorage.setItem('preferred_currency', mappedUser.default_currency);
-            } else {
-              const defaultCurrency = await getDefaultCurrency(mappedUser.country);
-              setCurrency(defaultCurrency);
-            }
+            // To prevent deadlocks, use setTimeout for additional Supabase calls
+            setTimeout(async () => {
+              try {
+                // Get additional user data from the users table, including status
+                const { data: userData, error: userError } = await supabase
+                  .from('users')
+                  .select('role, status, full_name, country, default_currency, producer_name')
+                  .eq('id', session.user.id)
+                  .maybeSingle();
+                
+                if (userError) {
+                  console.error("Error fetching user data:", userError);
+                  setUser(mappedUser);
+                } else if (userData) {
+                  // Merge the user data with the auth data
+                  const enrichedUser: User = {
+                    ...mappedUser,
+                    role: userData.role || mappedUser.role,
+                    status: userData.status,
+                    full_name: userData.full_name,
+                    country: userData.country,
+                    producer_name: userData.producer_name,
+                  };
+                  
+                  setUser(enrichedUser);
+                  
+                  // Set currency based on user preference or location
+                  if (userData.default_currency) {
+                    setCurrency(userData.default_currency);
+                    // Also update localStorage to match user preference
+                    localStorage.setItem('preferred_currency', userData.default_currency);
+                  } else {
+                    const defaultCurrency = await getDefaultCurrency(enrichedUser.country);
+                    setCurrency(defaultCurrency);
+                  }
+                } else {
+                  setUser(mappedUser);
+                  const defaultCurrency = await getDefaultCurrency();
+                  setCurrency(defaultCurrency);
+                }
+              } catch (error) {
+                console.error("Error processing user data:", error);
+                setUser(mappedUser);
+              } finally {
+                setIsLoading(false);
+              }
+            }, 0);
           } catch (error) {
-            console.error("Error processing auth state change:", error);
-          } finally {
+            console.error("Error in auth state change:", error);
             setIsLoading(false);
           }
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           
           // Reset currency based on location for logged out users or saved preference
-          const defaultCurrency = await getDefaultCurrency();
-          setCurrency(defaultCurrency);
-          
-          setIsLoading(false);
+          setTimeout(async () => {
+            const defaultCurrency = await getDefaultCurrency();
+            setCurrency(defaultCurrency);
+            setIsLoading(false);
+          }, 0);
         }
       }
     );
@@ -100,15 +137,42 @@ export const useAuthState = () => {
         if (data?.session?.user) {
           console.log("Found existing session:", data.session.user.id);
           const mappedUser = mapSupabaseUser(data.session.user);
-          setUser(mappedUser);
           
-          // Set currency based on user preference or location
-          if (mappedUser.default_currency) {
-            setCurrency(mappedUser.default_currency);
-            // Also update localStorage to match user preference
-            localStorage.setItem('preferred_currency', mappedUser.default_currency);
+          // Get additional user data from the users table, including status
+          const { data: userData, error: userError } = await supabase
+            .from('users')
+            .select('role, status, full_name, country, default_currency, producer_name')
+            .eq('id', data.session.user.id)
+            .maybeSingle();
+          
+          if (userError) {
+            console.error("Error fetching user data:", userError);
+            setUser(mappedUser);
+          } else if (userData) {
+            // Merge the user data with the auth data
+            const enrichedUser: User = {
+              ...mappedUser,
+              role: userData.role || mappedUser.role,
+              status: userData.status,
+              full_name: userData.full_name,
+              country: userData.country,
+              producer_name: userData.producer_name,
+            };
+            
+            setUser(enrichedUser);
+            
+            // Set currency based on user preference or location
+            if (userData.default_currency) {
+              setCurrency(userData.default_currency);
+              // Also update localStorage to match user preference
+              localStorage.setItem('preferred_currency', userData.default_currency);
+            } else {
+              const defaultCurrency = await getDefaultCurrency(enrichedUser.country);
+              setCurrency(defaultCurrency);
+            }
           } else {
-            const defaultCurrency = await getDefaultCurrency(mappedUser.country);
+            setUser(mappedUser);
+            const defaultCurrency = await getDefaultCurrency();
             setCurrency(defaultCurrency);
           }
         } else {

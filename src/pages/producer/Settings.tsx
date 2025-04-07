@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -11,48 +10,75 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Bell, Settings, DollarSign, CreditCard, Clock, Activity } from "lucide-react";
+import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle, Upload, Camera } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
-import { getProducerPaymentAnalytics } from '@/utils/payment/paystackSplitUtils';
+import { formatCurrency } from '@/utils/formatters';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getInitials } from "@/utils/formatters";
+
+interface Transaction {
+  id: string;
+  beat_title: string;
+  beat_id: string;
+  date: string;
+  amount: number;
+  currency: string;
+  status: string;
+  reference: string;
+}
+
+interface PaymentAnalytics {
+  total_earnings: number;
+  pending_balance: number;
+  successful_payments: number;
+  pending_payments: number;
+  recent_transactions: Transaction[];
+}
 
 export default function ProducerSettings() {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({
+    profile: false,
+    preferences: false,
+    avatar: false
+  });
+  const [saveSuccess, setSaveSuccess] = useState<{[key: string]: boolean}>({
+    profile: false,
+    preferences: false
+  });
   const [producerName, setProducerName] = useState('');
   const [bio, setBio] = useState('');
   const [location, setLocation] = useState('');
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [smsNotifications, setSmsNotifications] = useState(false);
-  const [paymentAnalytics, setPaymentAnalytics] = useState<any>(null);
+  const [paymentAnalytics, setPaymentAnalytics] = useState<PaymentAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [autoPlayPreviews, setAutoPlayPreviews] = useState(true);
-  
-  const { accountName } = usePaystackSplit();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
   
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
     
-    // Redirect to login if not authenticated or not a producer
     if (!user) {
       navigate('/login', { state: { from: '/producer/settings' } });
     } else if (user.role !== 'producer') {
       navigate('/');
     }
     
-    // Set initial values
     if (user) {
-      setProducerName(user.producer_name || '');
+      setProducerName(user.producer_name || user.name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
+      setAvatarUrl(user.avatar_url || null);
       
-      // Get notification preferences from user settings if available
       if (user.settings) {
         try {
           const settings = typeof user.settings === 'string' 
@@ -69,20 +95,102 @@ export default function ProducerSettings() {
         }
       }
       
-      // Fetch payment analytics
       fetchPaymentAnalytics();
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    const timers: NodeJS.Timeout[] = [];
+    
+    Object.keys(saveSuccess).forEach(key => {
+      if (saveSuccess[key]) {
+        const timer = setTimeout(() => {
+          setSaveSuccess(prev => ({
+            ...prev,
+            [key]: false
+          }));
+        }, 3000);
+        timers.push(timer);
+      }
+    });
+    
+    return () => timers.forEach(timer => clearTimeout(timer));
+  }, [saveSuccess]);
 
   const fetchPaymentAnalytics = async () => {
     if (!user) return;
     
     try {
       setLoadingAnalytics(true);
-      const analytics = await getProducerPaymentAnalytics(user.id);
-      setPaymentAnalytics(analytics);
+      
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('line_items')
+        .select(`
+          id,
+          price_charged,
+          currency_code,
+          beat_id,
+          order_id,
+          orders(
+            order_date, 
+            status, 
+            payment_reference
+          ),
+          beats(
+            title,
+            id,
+            producer_id
+          )
+        `)
+        .eq('beats.producer_id', user.id);
+        
+      if (transactionsError) throw transactionsError;
+      
+      const { data: payoutsData, error: payoutsError } = await supabase
+        .from('payouts')
+        .select('*')
+        .eq('producer_id', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (payoutsError) throw payoutsError;
+
+      const recentTransactions: Transaction[] = (transactionsData || [])
+        .filter(item => 
+          item && 
+          item.orders && 
+          item.beats && 
+          item.beats.producer_id === user.id
+        )
+        .map(item => ({
+          id: item.id,
+          beat_title: item.beats?.title || 'Untitled Beat',
+          beat_id: item.beats?.id || '',
+          date: item.orders?.order_date || '',
+          amount: item.price_charged || 0,
+          currency: item.currency_code || 'NGN',
+          status: item.orders?.status || 'unknown',
+          reference: item.orders?.payment_reference || ''
+        })) || [];
+      
+      const totalEarnings = recentTransactions.reduce((sum, transaction) => {
+        return sum + (transaction.amount || 0);
+      }, 0);
+      
+      const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
+      const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
+      const totalPaidOut = completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
+      const pendingBalance = totalEarnings - totalPaidOut;
+      
+      setPaymentAnalytics({
+        total_earnings: totalEarnings,
+        pending_balance: pendingBalance,
+        successful_payments: completedPayouts.length,
+        pending_payments: pendingPayouts.length,
+        recent_transactions: recentTransactions
+      });
     } catch (error) {
       console.error("Error fetching payment analytics:", error);
+      toast.error("Failed to load payment analytics");
     } finally {
       setLoadingAnalytics(false);
     }
@@ -92,38 +200,39 @@ export default function ProducerSettings() {
     if (!user) return;
     
     try {
-      setIsLoading(true);
+      setIsLoading(prev => ({ ...prev, profile: true }));
       
-      // Update producer info in database
       const { error } = await supabase
         .from('users')
         .update({
-          producer_name: producerName,
+          stage_name: producerName,
           bio: bio,
           country: location
         })
         .eq('id', user.id);
         
       if (error) {
+        console.error('Update error:', error);
         throw error;
       }
       
-      // Update local user context
       if (updateProfile) {
         await updateProfile({
           ...user,
           producer_name: producerName,
+          name: user.name,
           bio: bio,
           country: location
         });
         
         toast.success('Profile updated successfully');
+        setSaveSuccess(prev => ({ ...prev, profile: true }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsLoading(prev => ({ ...prev, profile: false }));
     }
   };
 
@@ -131,7 +240,7 @@ export default function ProducerSettings() {
     if (!user) return;
     
     try {
-      setIsLoading(true);
+      setIsLoading(prev => ({ ...prev, preferences: true }));
       
       const settings = {
         emailNotifications,
@@ -141,7 +250,6 @@ export default function ProducerSettings() {
         autoPlayPreviews
       };
       
-      // Update preferences in database
       const { error } = await supabase
         .from('users')
         .update({
@@ -153,7 +261,6 @@ export default function ProducerSettings() {
         throw error;
       }
       
-      // Update local user context
       if (updateProfile) {
         await updateProfile({
           ...user,
@@ -161,35 +268,96 @@ export default function ProducerSettings() {
         });
         
         toast.success('Preferences updated successfully');
+        setSaveSuccess(prev => ({ ...prev, preferences: true }));
       }
     } catch (error) {
       console.error('Error updating preferences:', error);
       toast.error('Failed to update preferences. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsLoading(prev => ({ ...prev, preferences: false }));
     }
   };
 
   const handleBankDetailsSuccess = () => {
     toast.success('Bank details saved successfully');
-    fetchPaymentAnalytics(); // Refresh payment analytics after successful bank update
+    fetchPaymentAnalytics();
+    
+    if (user && updateProfile) {
+      supabase
+        .from('users')
+        .select('bank_code, account_number, verified_account_name')
+        .eq('id', user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            updateProfile({
+              ...user,
+              bank_code: data.bank_code,
+              account_number: data.account_number,
+              verified_account_name: data.verified_account_name
+            });
+          }
+        });
+    }
+  };
+  
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0]) return;
+    
+    const file = e.target.files[0];
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image size should be less than 2MB');
+      return;
+    }
+    
+    try {
+      setIsLoading(prev => ({ ...prev, avatar: true }));
+      
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (!event.target || !event.target.result) return;
+        
+        const base64String = event.target.result.toString();
+        
+        const { error } = await supabase
+          .from('users')
+          .update({ profile_picture: base64String })
+          .eq('id', user!.id);
+          
+        if (error) throw error;
+        
+        setAvatarUrl(base64String);
+        
+        if (updateProfile) {
+          await updateProfile({
+            ...user!,
+            avatar_url: base64String
+          });
+        }
+        
+        toast.success('Profile picture updated successfully');
+        setIsAvatarDialogOpen(false);
+      };
+      
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      toast.error('Failed to update profile picture. Please try again.');
+    } finally {
+      setIsLoading(prev => ({ ...prev, avatar: false }));
+    }
   };
 
-  // Format currency
-  const formatCurrency = (amount: number, currency = 'NGN') => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: currency === 'USD' ? 2 : 0,
-      maximumFractionDigits: currency === 'USD' ? 2 : 0,
-    }).format(amount || 0);
-  };
-
-  // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
     return (
       <MainLayout>
-        <div className="container py-16">
+        <div className="container py-16 pb-32">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Producer Access Required</h1>
             <p className="text-base mb-4">You need to be logged in as a producer to access this page.</p>
@@ -203,7 +371,7 @@ export default function ProducerSettings() {
   return (
     <MainLayout>
       <div className={cn(
-        "container py-6 md:py-8",
+        "container py-6 md:py-8 pb-32",
         isMobile ? "mobile-content-padding" : ""
       )}>
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Producer Settings</h1>
@@ -211,7 +379,7 @@ export default function ProducerSettings() {
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 overflow-hidden">
             <TabsTrigger value="profile" className="flex items-center gap-1">
-              <Settings className="w-4 h-4" />
+              <SettingsIcon className="w-4 h-4" />
               <span>Profile</span>
             </TabsTrigger>
             <TabsTrigger value="payment" className="flex items-center gap-1">
@@ -233,6 +401,74 @@ export default function ProducerSettings() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="flex flex-col items-center mb-6">
+                  <div className="relative">
+                    <Avatar className="h-24 w-24 mb-4">
+                      <AvatarImage src={avatarUrl || undefined} alt={producerName} />
+                      <AvatarFallback>{getInitials(producerName || user.name || 'User')}</AvatarFallback>
+                    </Avatar>
+                    <Dialog open={isAvatarDialogOpen} onOpenChange={setIsAvatarDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button 
+                          size="icon" 
+                          variant="outline" 
+                          className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+                        >
+                          <Camera className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Update Profile Picture</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4 py-2">
+                          <p className="text-sm text-muted-foreground">
+                            Select an image to use as your profile picture. Files should be JPG, PNG or GIF and less than 2MB.
+                          </p>
+                          <div className="flex flex-col items-center justify-center gap-4">
+                            <Avatar className="h-32 w-32">
+                              <AvatarImage src={avatarUrl || undefined} alt={producerName} />
+                              <AvatarFallback>{getInitials(producerName || user.name || 'User')}</AvatarFallback>
+                            </Avatar>
+                            <label htmlFor="avatar-upload">
+                              <Button 
+                                variant="outline" 
+                                className="cursor-pointer"
+                                disabled={isLoading.avatar}
+                                onClick={() => {}}
+                                type="button"
+                              >
+                                {isLoading.avatar ? (
+                                  <div className="flex items-center justify-center w-full">
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    <span>Uploading...</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    <span>Choose File</span>
+                                  </>
+                                )}
+                              </Button>
+                              <input 
+                                id="avatar-upload" 
+                                type="file" 
+                                accept="image/*" 
+                                className="hidden" 
+                                onChange={handleAvatarChange}
+                                disabled={isLoading.avatar}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  <p className="text-sm text-center text-muted-foreground">
+                    Click the camera icon to update your profile picture
+                  </p>
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="stageName" size="lg">Stage Name</Label>
                   <Input 
@@ -264,21 +500,38 @@ export default function ProducerSettings() {
                   />
                 </div>
                 
-                <Button 
-                  className="w-full md:w-auto"
-                  onClick={handleSaveProfile}
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Save Changes
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    className="w-full md:w-auto"
+                    onClick={handleSaveProfile}
+                    disabled={isLoading.profile}
+                    variant={saveSuccess.profile ? "outline" : "default"}
+                  >
+                    {isLoading.profile ? (
+                      <div className="flex items-center justify-center w-full">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                      </div>
+                    ) : saveSuccess.profile ? (
+                      <div className="flex items-center justify-center w-full">
+                        <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                        <span>Saved</span>
+                      </div>
+                    ) : (
+                      <span>Save Changes</span>
+                    )}
+                  </Button>
+                  
+                  {saveSuccess.profile && (
+                    <span className="text-sm text-muted-foreground">Changes saved successfully</span>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
           
           <TabsContent value="payment">
             <div className="space-y-6">
-              {/* Bank Details Setup Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl md:text-2xl">Payment Account</CardTitle>
@@ -299,7 +552,6 @@ export default function ProducerSettings() {
                 </CardContent>
               </Card>
               
-              {/* Payment Analytics Card */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl md:text-2xl">Payment Stats</CardTitle>
@@ -309,22 +561,19 @@ export default function ProducerSettings() {
                 </CardHeader>
                 <CardContent>
                   {loadingAnalytics ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <p className="text-sm text-muted-foreground">Loading payment stats...</p>
-                      </div>
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <p className="text-muted-foreground">Loading payment stats...</p>
                     </div>
                   ) : paymentAnalytics ? (
                     <div className="space-y-6">
-                      {/* Payment Stats Overview */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="bg-muted rounded-lg p-4">
                           <div className="flex items-center gap-2 mb-1">
                             <CreditCard className="h-4 w-4 text-primary" />
                             <span className="text-sm font-medium text-muted-foreground">Total Earnings</span>
                           </div>
-                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.total_earnings/100)}</p>
+                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.total_earnings)}</p>
                         </div>
                         
                         <div className="bg-muted rounded-lg p-4">
@@ -332,19 +581,18 @@ export default function ProducerSettings() {
                             <Clock className="h-4 w-4 text-amber-500" />
                             <span className="text-sm font-medium text-muted-foreground">Pending Balance</span>
                           </div>
-                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.pending_balance/100)}</p>
+                          <p className="text-xl font-bold">{formatCurrency(paymentAnalytics.pending_balance)}</p>
                         </div>
                         
                         <div className="bg-muted rounded-lg p-4">
                           <div className="flex items-center gap-2 mb-1">
                             <Activity className="h-4 w-4 text-green-500" />
-                            <span className="text-sm font-medium text-muted-foreground">Completed Payments</span>
+                            <span className="text-sm font-medium text-muted-foreground">Completed Payouts</span>
                           </div>
                           <p className="text-xl font-bold">{paymentAnalytics.successful_payments}</p>
                         </div>
                       </div>
                       
-                      {/* Recent Transactions */}
                       {paymentAnalytics.recent_transactions && paymentAnalytics.recent_transactions.length > 0 && (
                         <div className="space-y-3">
                           <h3 className="text-base font-semibold">Recent Transactions</h3>
@@ -359,43 +607,56 @@ export default function ProducerSettings() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y">
-                                {paymentAnalytics.recent_transactions.map((transaction: any, index: number) => (
-                                  <tr key={transaction.id || index}>
-                                    <td className="py-2 px-4 text-sm">{new Date(transaction.date).toLocaleDateString()}</td>
-                                    <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
-                                    <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount/100)}</td>
-                                    <td className="py-2 px-4 text-sm">
-                                      <span className={cn("px-2 py-1 rounded-full text-xs", {
-                                        "bg-green-100 text-green-800": transaction.status === 'successful',
-                                        "bg-amber-100 text-amber-800": transaction.status === 'pending',
-                                        "bg-red-100 text-red-800": transaction.status === 'failed'
-                                      })}>
-                                        {transaction.status}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {paymentAnalytics.recent_transactions
+                                  .filter(transaction => transaction.status === 'completed')
+                                  .map((transaction) => (
+                                    <tr key={transaction.id}>
+                                      <td className="py-2 px-4 text-sm">{transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}</td>
+                                      <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
+                                      <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount, transaction.currency)}</td>
+                                      <td className="py-2 px-4 text-sm">
+                                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                          {transaction.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
                               </tbody>
                             </table>
                           </div>
                         </div>
                       )}
                       
-                      {/* Payment Account Status */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h3 className="text-base font-semibold text-blue-800 mb-2">Payment Account Status</h3>
-                        <p className="text-sm text-blue-700 mb-2">
+                      <div className={cn(
+                        "border rounded-lg p-4",
+                        user.verified_account_name ? "bg-blue-50 border-blue-200" : "bg-amber-50 border-amber-200"
+                      )}>
+                        <h3 className={cn(
+                          "text-base font-semibold mb-2",
+                          user.verified_account_name ? "text-blue-800" : "text-amber-800"
+                        )}>
+                          Payment Account Status
+                        </h3>
+                        <p className={cn(
+                          "text-sm mb-2",
+                          user.verified_account_name ? "text-blue-700" : "text-amber-700"
+                        )}>
                           {user.verified_account_name 
                             ? `Your account is set up for automatic payments to ${user.verified_account_name}`
-                            : "Please set up your bank details to receive automatic payments"}
+                            : "Please set up your bank details above to receive automatic payments"}
                         </p>
-                        <p className="text-xs text-blue-600">
-                          Payments for beat sales are automatically split with 90% going to your account
+                        <p className={cn(
+                          "text-xs",
+                          user.verified_account_name ? "text-blue-600" : "text-amber-600"
+                        )}>
+                          {user.verified_account_name
+                            ? "Payments for beat sales are automatically split with 90% going to your account"
+                            : "Once set up, payments for beat sales will automatically be split with 90% going to your account"}
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-4">
+                    <div className="text-center py-8">
                       <p className="text-muted-foreground">
                         {user.verified_account_name 
                           ? "No payment data available yet. Start selling beats to see your earnings!"
@@ -490,14 +751,32 @@ export default function ProducerSettings() {
                   </div>
                 </div>
                 
-                <Button 
-                  className="w-full md:w-auto"
-                  onClick={handleSavePreferences}
-                  disabled={isLoading}
-                >
-                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Save Preferences
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    className="w-full md:w-auto"
+                    onClick={handleSavePreferences}
+                    disabled={isLoading.preferences}
+                    variant={saveSuccess.preferences ? "outline" : "default"}
+                  >
+                    {isLoading.preferences ? (
+                      <div className="flex items-center justify-center w-full">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                      </div>
+                    ) : saveSuccess.preferences ? (
+                      <div className="flex items-center justify-center w-full">
+                        <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                        <span>Saved</span>
+                      </div>
+                    ) : (
+                      <span>Save Preferences</span>
+                    )}
+                  </Button>
+                  
+                  {saveSuccess.preferences && (
+                    <span className="text-sm text-muted-foreground">Preferences saved successfully</span>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

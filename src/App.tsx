@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import AuthCallback from "./pages/auth/Callback";
+import ProducerActivation from "./pages/auth/ProducerActivation";
 import Library from "./pages/buyer/Library";
 import Trending from "./pages/buyer/Trending";
 import New from "./pages/buyer/New";
@@ -37,6 +38,7 @@ import ProducerDashboard from "./pages/producer/Dashboard";
 import UploadBeat from "./pages/producer/UploadBeat";
 import ProducerBeats from "./pages/producer/Beats";
 import Royalties from "./pages/producer/Royalties";
+import { ProtectedProducerRoute } from "./components/auth/ProtectedProducerRoute";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -66,13 +68,12 @@ const App = () => (
                 <Toaster />
                 <Sonner position="top-right" expand={true} closeButton={true} />
                 <Routes>
-                  {/* Buyer Routes */}
+                  {/* Public Routes - accessible to all users */}
                   <Route path="/" element={<Home />} />
                   <Route path="/trending" element={<Trending />} />
                   <Route path="/new" element={<New />} />
                   <Route path="/playlists" element={<Playlists />} />
                   <Route path="/playlists/:playlistId" element={<Playlists />} />
-                  {/* Redirect for the incorrect URL format */}
                   <Route path="/playlist/:playlistId" element={<PlaylistRedirect />} />
                   <Route path="/genres" element={<Genres />} />
                   <Route path="/producers" element={<Producers />} />
@@ -86,7 +87,14 @@ const App = () => (
                   <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
                   <Route path="/producer/:producerId" element={<ProducerProfile />} />
                   
-                  {/* Library Routes - all these routes render the Library component with different active tabs */}
+                  {/* Auth Routes */}
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/producer-activation" element={<ProducerActivation />} />
+                  
+                  {/* Library Routes - these might require auth */}
                   <Route path="/library" element={<Library />} />
                   <Route path="/buyer/library" element={<Navigate to="/library" replace />} />
                   <Route path="/favorites" element={<Library />} />
@@ -95,18 +103,32 @@ const App = () => (
                   <Route path="/my-playlists/:playlistId" element={<Library />} />
                   <Route path="/orders" element={<Orders />} />
                   
-                  {/* Auth Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/settings" element={<Settings />} />
-                  
-                  {/* Producer Routes */}
-                  <Route path="/producer/dashboard" element={<ProducerDashboard />} />
-                  <Route path="/producer/upload" element={<UploadBeat />} />
-                  <Route path="/producer/beats" element={<ProducerBeats />} />
-                  <Route path="/producer/royalties" element={<Royalties />} />
-                  <Route path="/producer/settings" element={<ProducerSettings />} />
+                  {/* Producer Routes - Protected by ProtectedProducerRoute */}
+                  <Route path="/producer/dashboard" element={
+                    <ProtectedProducerRoute>
+                      <ProducerDashboard />
+                    </ProtectedProducerRoute>
+                  } />
+                  <Route path="/producer/upload" element={
+                    <ProtectedProducerRoute>
+                      <UploadBeat />
+                    </ProtectedProducerRoute>
+                  } />
+                  <Route path="/producer/beats" element={
+                    <ProtectedProducerRoute>
+                      <ProducerBeats />
+                    </ProtectedProducerRoute>
+                  } />
+                  <Route path="/producer/royalties" element={
+                    <ProtectedProducerRoute>
+                      <Royalties />
+                    </ProtectedProducerRoute>
+                  } />
+                  <Route path="/producer/settings" element={
+                    <ProtectedProducerRoute>
+                      <ProducerSettings />
+                    </ProtectedProducerRoute>
+                  } />
                   
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />

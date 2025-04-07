@@ -73,8 +73,22 @@ export const DetailTab = ({
                 <SelectItem value="rnb">R&B</SelectItem>
                 <SelectItem value="pop">Pop</SelectItem>
                 <SelectItem value="highlife">Highlife</SelectItem>
+                <SelectItem value="dancehall">Dancehall</SelectItem>
+                <SelectItem value="reggae">Reggae</SelectItem>
+                <SelectItem value="trap">Trap</SelectItem>
+                <SelectItem value="drill">Drill</SelectItem>
+                <SelectItem value="gospel">Gospel</SelectItem>
+                <SelectItem value="fuji">Fuji</SelectItem>
+                <SelectItem value="juju">Juju</SelectItem>
+                <SelectItem value="afrofusion">Afrofusion</SelectItem>
+                <SelectItem value="edm">EDM</SelectItem>
+                <SelectItem value="house">House</SelectItem>
+                <SelectItem value="jazz">Jazz</SelectItem>
+                <SelectItem value="classical">Classical</SelectItem>
+                <SelectItem value="rock">Rock</SelectItem>
+                <SelectItem value="country">Country</SelectItem>
                 <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
+              </SelectContent>              
             </Select>
           </div>
           <div>
