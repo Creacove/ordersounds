@@ -15,7 +15,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 export default function Royalties() {
-  const { user, currency, isProducerInactive } = useAuth();
+  const { user, currency } = useAuth();
   const navigate = useNavigate();
   const [royaltySplits, setRoyaltySplits] = useState<RoyaltySplit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,19 +26,13 @@ export default function Royalties() {
   useEffect(() => {
     document.title = "Royalty Splits | OrderSOUNDS";
     
-    // Redirect to login if not authenticated
+    // Redirect to login if not authenticated or not a producer
     if (!user) {
       navigate('/login', { state: { from: '/producer/royalties' } });
-    } 
-    // Redirect to home if not a producer
-    else if (user.role !== 'producer') {
+    } else if (user.role !== 'producer') {
       navigate('/');
     }
-    // Redirect inactive producers to activation page
-    else if (isProducerInactive) {
-      navigate('/producer-activation');
-    }
-  }, [user, navigate, isProducerInactive]);
+  }, [user, navigate]);
 
   useEffect(() => {
     const fetchRoyaltySplits = async () => {
@@ -89,12 +83,18 @@ export default function Royalties() {
 
   const groupedSplits = Object.values(beatSplits);
 
-  // If not logged in or not a producer or inactive producer, show loading while redirect happens
-  if (!user || user.role !== 'producer' || isProducerInactive) {
+  // If not logged in or not a producer, show login prompt
+  if (!user || user.role !== 'producer') {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-      </div>
+      <MainLayout>
+        <div className="container py-16">
+          <div className="text-center">
+            <h1 className="heading-responsive-md mb-4">Producer Access Required</h1>
+            <p className="text-responsive-base mb-4">You need to be logged in as a producer to access this page.</p>
+            <Button onClick={() => navigate('/login')}>Login</Button>
+          </div>
+        </div>
+      </MainLayout>
     );
   }
 

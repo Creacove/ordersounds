@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useBeats } from "@/hooks/useBeats";
 import { useAuth } from "@/context/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { getProducerStats } from "@/lib/producerStats";
 
 // Import refactored components
@@ -17,7 +16,7 @@ import { TopSellingBeats } from "@/components/producer/dashboard/TopSellingBeats
 import { BankDetailsCard } from "@/components/producer/dashboard/BankDetailsCard";
 
 export default function ProducerDashboard() {
-  const { user, currency, isProducerInactive } = useAuth();
+  const { user, currency } = useAuth();
   const { getProducerBeats } = useBeats();
   const { notifications } = useNotifications();
   const navigate = useNavigate();
@@ -27,13 +26,6 @@ export default function ProducerDashboard() {
   const [stats, setStats] = useState(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
-  // Check if producer is inactive and redirect if needed
-  useEffect(() => {
-    if (isProducerInactive) {
-      navigate('/producer-activation');
-    }
-  }, [isProducerInactive, navigate]);
   
   // Fetch producer data including bank details and subaccount info
   useEffect(() => {
@@ -114,10 +106,6 @@ export default function ProducerDashboard() {
     // Refresh producer data
     setRefreshTrigger(prev => prev + 1);
   };
-
-  if (isProducerInactive) {
-    return null; // Don't render anything, redirect will happen in useEffect
-  }
 
   return (
     <MainLayout>

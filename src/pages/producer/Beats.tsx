@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -24,7 +25,7 @@ import { useCart } from "@/context/CartContext";
 type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
-  const { user, isProducerInactive } = useAuth();
+  const { user } = useAuth();
   const { beats, isLoading, isPurchased, isFavorite } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
@@ -34,19 +35,13 @@ export default function ProducerBeats() {
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
     
-    // Redirect to login if not authenticated 
+    // Redirect to login if not authenticated or not a producer
     if (!user) {
       navigate('/login', { state: { from: '/producer/beats' } });
-    } 
-    // Redirect to home if not a producer
-    else if (user.role !== 'producer') {
+    } else if (user.role !== 'producer') {
       navigate('/');
     }
-    // Redirect inactive producers to activation page
-    else if (isProducerInactive) {
-      navigate('/producer-activation');
-    }
-  }, [user, navigate, isProducerInactive]);
+  }, [user, navigate]);
 
   // Update view mode when screen size changes
   useEffect(() => {
@@ -58,12 +53,18 @@ export default function ProducerBeats() {
   // Filter beats by producer
   const producerBeats = user ? beats.filter(beat => beat.producer_id === user.id) : [];
 
-  // If not logged in or not a producer or inactive producer, show loading while redirect happens
-  if (!user || user.role !== 'producer' || isProducerInactive) {
+  // If not logged in or not a producer, show login prompt
+  if (!user || user.role !== 'producer') {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-      </div>
+      <MainLayout>
+        <div className="container py-16">
+          <div className="text-center">
+            <h1 className="heading-responsive-md mb-4">Producer Access Required</h1>
+            <p className="text-responsive-base mb-4">You need to be logged in as a producer to access this page.</p>
+            <Button onClick={() => navigate('/login')}>Login</Button>
+          </div>
+        </div>
+      </MainLayout>
     );
   }
 
