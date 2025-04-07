@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -155,12 +154,10 @@ export default function ProducerSettings() {
         
       if (payoutsError) throw payoutsError;
 
-      // Fixed: Correctly access nested objects in the response
       const recentTransactions: Transaction[] = (transactionsData || [])
         .filter(item => 
           item && 
           item.orders && 
-          item.orders.status === 'completed' && 
           item.beats && 
           item.beats.producer_id === user.id
         )
