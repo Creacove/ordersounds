@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -142,7 +143,7 @@ export default function ProducerSettings() {
             producer_id
           )
         `)
-        .eq('orders.status', 'completed')
+        .eq('orders.status', 'completed') // Filter only completed orders
         .eq('beats.producer_id', user.id);
         
       if (transactionsError) throw transactionsError;
@@ -155,20 +156,26 @@ export default function ProducerSettings() {
         
       if (payoutsError) throw payoutsError;
 
-      const recentTransactions: Transaction[] = transactionsData?.map((item: any) => ({
-        id: item.id,
-        beat_title: item.beats?.title || 'Untitled Beat',
-        beat_id: item.beats?.id || '',
-        date: item.orders?.order_date || '',
-        amount: item.price_charged || 0,
-        currency: item.currency_code || 'NGN',
-        status: item.orders?.status || 'unknown',
-        reference: item.orders?.payment_reference || ''
-      })) || [];
+      // Filter transactions to only include completed ones and where the producer owns the beat
+      const recentTransactions: Transaction[] = (transactionsData || [])
+        .filter(item => 
+          item.orders?.status === 'completed' && 
+          item.beats?.producer_id === user.id
+        )
+        .map((item: any) => ({
+          id: item.id,
+          beat_title: item.beats?.title || 'Untitled Beat',
+          beat_id: item.beats?.id || '',
+          date: item.orders?.order_date || '',
+          amount: item.price_charged || 0,
+          currency: item.currency_code || 'NGN',
+          status: item.orders?.status || 'unknown',
+          reference: item.orders?.payment_reference || ''
+        })) || [];
       
-      const totalEarnings = transactionsData?.reduce((sum: number, item: any) => {
-        return sum + (item.price_charged || 0);
-      }, 0) || 0;
+      const totalEarnings = recentTransactions.reduce((sum: number, transaction: Transaction) => {
+        return sum + (transaction.amount || 0);
+      }, 0);
       
       const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
       const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
@@ -196,23 +203,26 @@ export default function ProducerSettings() {
     try {
       setIsLoading(prev => ({ ...prev, profile: true }));
       
+      // Use the stage_name field instead of producer_name
       const { error } = await supabase
         .from('users')
         .update({
-          producer_name: producerName,
+          stage_name: producerName,
           bio: bio,
           country: location
         })
         .eq('id', user.id);
         
       if (error) {
+        console.error('Update error:', error);
         throw error;
       }
       
       if (updateProfile) {
         await updateProfile({
           ...user,
-          producer_name: producerName,
+          producer_name: producerName, // Keep this for local state compatibility
+          name: user.name, // Ensure we don't lose the name
           bio: bio,
           country: location
         });
@@ -220,7 +230,7 @@ export default function ProducerSettings() {
         toast.success('Profile updated successfully');
         setSaveSuccess(prev => ({ ...prev, profile: true }));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       toast.error('Failed to update profile. Please try again.');
     } finally {
@@ -319,7 +329,7 @@ export default function ProducerSettings() {
         
         const { error } = await supabase
           .from('users')
-          .update({ avatar_url: base64String })
+          .update({ profile_picture: base64String })
           .eq('id', user!.id);
           
         if (error) throw error;
@@ -589,22 +599,20 @@ export default function ProducerSettings() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y">
-                                {paymentAnalytics.recent_transactions.map((transaction) => (
-                                  <tr key={transaction.id}>
-                                    <td className="py-2 px-4 text-sm">{transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}</td>
-                                    <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
-                                    <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount, transaction.currency)}</td>
-                                    <td className="py-2 px-4 text-sm">
-                                      <span className={cn("px-2 py-1 rounded-full text-xs", {
-                                        "bg-green-100 text-green-800": transaction.status === 'completed',
-                                        "bg-amber-100 text-amber-800": transaction.status === 'pending',
-                                        "bg-red-100 text-red-800": transaction.status === 'failed'
-                                      })}>
-                                        {transaction.status}
-                                      </span>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {paymentAnalytics.recent_transactions
+                                  .filter(transaction => transaction.status === 'completed')
+                                  .map((transaction) => (
+                                    <tr key={transaction.id}>
+                                      <td className="py-2 px-4 text-sm">{transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}</td>
+                                      <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
+                                      <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount, transaction.currency)}</td>
+                                      <td className="py-2 px-4 text-sm">
+                                        <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                                          {transaction.status}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
                               </tbody>
                             </table>
                           </div>
