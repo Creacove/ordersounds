@@ -170,8 +170,6 @@ export function ProducerBankDetailsForm({
       if (onSuccess) {
         onSuccess();
       }
-      
-      toast.success('Bank details updated successfully');
     } catch (error) {
       console.error('Error saving bank details:', error);
       toast.error('Failed to save bank details. Please try again.');

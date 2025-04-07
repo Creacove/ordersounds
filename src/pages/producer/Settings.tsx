@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -131,12 +132,12 @@ export default function ProducerSettings() {
           currency_code,
           beat_id,
           order_id,
-          orders!inner(
+          orders(
             order_date, 
             status, 
             payment_reference
           ),
-          beats!inner(
+          beats(
             title,
             id,
             producer_id
@@ -154,8 +155,9 @@ export default function ProducerSettings() {
         
       if (payoutsError) throw payoutsError;
 
-      const recentTransactions: Transaction[] = transactionsData
-        ?.filter(item => 
+      // Fixed: Correctly access nested objects in the response
+      const recentTransactions: Transaction[] = (transactionsData || [])
+        .filter(item => 
           item && 
           item.orders && 
           item.orders.status === 'completed' && 
