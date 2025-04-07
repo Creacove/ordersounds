@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle, Upload, Camera } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -132,12 +131,12 @@ export default function ProducerSettings() {
           currency_code,
           beat_id,
           order_id,
-          orders (
+          orders!inner(
             order_date, 
             status, 
             payment_reference
           ),
-          beats (
+          beats!inner(
             title,
             id,
             producer_id
@@ -155,15 +154,15 @@ export default function ProducerSettings() {
         
       if (payoutsError) throw payoutsError;
 
-      // Filter transactions to only include completed ones and where the producer owns the beat
-      const recentTransactions: Transaction[] = (transactionsData || [])
-        .filter(item => 
+      const recentTransactions: Transaction[] = transactionsData
+        ?.filter(item => 
+          item && 
           item.orders && 
           item.orders.status === 'completed' && 
           item.beats && 
           item.beats.producer_id === user.id
         )
-        .map((item: any) => ({
+        .map(item => ({
           id: item.id,
           beat_title: item.beats?.title || 'Untitled Beat',
           beat_id: item.beats?.id || '',
@@ -174,13 +173,13 @@ export default function ProducerSettings() {
           reference: item.orders?.payment_reference || ''
         })) || [];
       
-      const totalEarnings = recentTransactions.reduce((sum: number, transaction: Transaction) => {
+      const totalEarnings = recentTransactions.reduce((sum, transaction) => {
         return sum + (transaction.amount || 0);
       }, 0);
       
       const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
       const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
-      const totalPaidOut = completedPayouts.reduce((sum: number, payout: any) => sum + payout.amount, 0);
+      const totalPaidOut = completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
       const pendingBalance = totalEarnings - totalPaidOut;
       
       setPaymentAnalytics({
@@ -204,7 +203,6 @@ export default function ProducerSettings() {
     try {
       setIsLoading(prev => ({ ...prev, profile: true }));
       
-      // Use the stage_name field instead of producer_name
       const { error } = await supabase
         .from('users')
         .update({
@@ -222,8 +220,8 @@ export default function ProducerSettings() {
       if (updateProfile) {
         await updateProfile({
           ...user,
-          producer_name: producerName, // Keep this for local state compatibility
-          name: user.name, // Ensure we don't lose the name
+          producer_name: producerName,
+          name: user.name,
           bio: bio,
           country: location
         });
@@ -283,7 +281,7 @@ export default function ProducerSettings() {
 
   const handleBankDetailsSuccess = () => {
     toast.success('Bank details saved successfully');
-    fetchPaymentAnalytics(); // Refresh payment analytics after successful bank update
+    fetchPaymentAnalytics();
     
     if (user && updateProfile) {
       supabase

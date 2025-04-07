@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/use-toast';
 import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
 import { fetchSupportedBanks } from '@/utils/payment/paystackSplitUtils';
 import { useAuth } from '@/context/AuthContext';
@@ -333,9 +333,16 @@ export function ProducerBankDetailsForm({
             <Button 
               type="submit" 
               disabled={isLoading || isVerifying}
+              className="relative"
             >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {existingBankCode ? "Save Changes" : "Save Bank Details"}
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                </div>
+              )}
+              <span className={isLoading ? "opacity-0" : ""}>
+                {existingBankCode ? "Save Changes" : "Save Bank Details"}
+              </span>
             </Button>
           </div>
         </form>

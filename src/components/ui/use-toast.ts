@@ -1,6 +1,4 @@
-
 import { toast as sonnerToast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
 
 type ToastOptions = {
   id?: string;
@@ -36,7 +34,7 @@ const enhancedToast = {
     
     this._notificationHistory.set(message, Date.now());
     return sonnerToast.success(message, {
-      id: `${message}-${Date.now()}`, // Add unique ID to prevent duplicates
+      id: options?.id || `${message}-${Date.now()}`, // Add unique ID to prevent duplicates
       ...options
     });
   },
@@ -46,7 +44,7 @@ const enhancedToast = {
     
     this._notificationHistory.set(message, Date.now());
     return sonnerToast.error(message, {
-      id: `${message}-${Date.now()}`,
+      id: options?.id || `${message}-${Date.now()}`,
       ...options
     });
   },
@@ -56,7 +54,7 @@ const enhancedToast = {
     
     this._notificationHistory.set(message, Date.now());
     return sonnerToast.info(message, {
-      id: `${message}-${Date.now()}`,
+      id: options?.id || `${message}-${Date.now()}`,
       ...options
     });
   },
@@ -66,7 +64,7 @@ const enhancedToast = {
     
     this._notificationHistory.set(message, Date.now());
     return sonnerToast.warning(message, {
-      id: `${message}-${Date.now()}`,
+      id: options?.id || `${message}-${Date.now()}`,
       ...options
     });
   },
