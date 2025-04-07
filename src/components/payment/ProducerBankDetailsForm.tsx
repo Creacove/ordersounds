@@ -1,12 +1,11 @@
-
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { toast } from 'sonner';
-import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
-import { fetchSupportedBanks } from '@/utils/payment/paystackSplitUtils';
-import { useAuth } from '@/context/AuthContext';
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
+import { usePaystackSplit } from "@/hooks/payment/usePaystackSplit";
+import { fetchSupportedBanks } from "@/utils/payment/paystackSplitUtils";
+import { useAuth } from "@/context/AuthContext";
 
 import {
   Form,
@@ -16,17 +15,24 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+} from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 interface Bank {
   name: string;
   code: string;
   active: boolean;
+  id: number;
 }
 
 interface ProducerBankDetailsFormProps {
@@ -39,7 +45,9 @@ interface ProducerBankDetailsFormProps {
 
 const formSchema = z.object({
   bank_code: z.string().min(1, "Bank selection is required"),
-  account_number: z.string().min(10, "Account number must be at least 10 digits"),
+  account_number: z
+    .string()
+    .min(10, "Account number must be at least 10 digits"),
 });
 
 export function ProducerBankDetailsForm({
@@ -47,17 +55,17 @@ export function ProducerBankDetailsForm({
   existingBankCode,
   existingAccountNumber,
   existingAccountName,
-  onSuccess
+  onSuccess,
 }: ProducerBankDetailsFormProps) {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
   const { user, updateProfile } = useAuth();
-  const { 
-    isLoading, 
-    accountName, 
-    isVerifying, 
-    updateBankDetails, 
-    verifyBankAccount 
+  const {
+    isLoading,
+    accountName,
+    isVerifying,
+    updateBankDetails,
+    verifyBankAccount,
   } = usePaystackSplit();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -76,10 +84,12 @@ export function ProducerBankDetailsForm({
         const banksList = await fetchSupportedBanks();
         // Filter only active banks
         const activeBanks = banksList.filter((bank: Bank) => bank.active);
-        setBanks(activeBanks.sort((a: Bank, b: Bank) => a.name.localeCompare(b.name)));
+        setBanks(
+          activeBanks.sort((a: Bank, b: Bank) => a.name.localeCompare(b.name))
+        );
       } catch (error) {
-        console.error('Error loading banks:', error);
-        toast.error('Failed to load bank list. Please try again later.');
+        console.error("Error loading banks:", error);
+        toast.error("Failed to load bank list. Please try again later.");
       } finally {
         setIsLoadingBanks(false);
       }
@@ -97,34 +107,39 @@ export function ProducerBankDetailsForm({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
-      toast.error('User session not found');
+      toast.error("User session not found");
       return;
     }
-    
+
     // Verify the account first
-    const isVerified = await verifyBankAccount(values.account_number, values.bank_code);
-    
+    const isVerified = await verifyBankAccount(
+      values.account_number,
+      values.bank_code
+    );
+
     if (!isVerified) {
-      toast.error('Bank account verification failed. Please check your details.');
+      toast.error(
+        "Bank account verification failed. Please check your details."
+      );
       return;
     }
 
     try {
       // First, update the database directly
       const { error } = await supabase
-        .from('users')
+        .from("users")
         .update({
           bank_code: values.bank_code,
           account_number: values.account_number,
-          verified_account_name: accountName
+          verified_account_name: accountName,
         })
-        .eq('id', producerId);
-        
+        .eq("id", producerId);
+
       if (error) {
-        console.error('Error updating bank details in database:', error);
-        throw new Error('Failed to update bank details in database');
+        console.error("Error updating bank details in database:", error);
+        throw new Error("Failed to update bank details in database");
       }
-      
+
       // Then try to create or update Paystack subaccount
       const success = await updateBankDetails(producerId, {
         bank_code: values.bank_code,
@@ -137,7 +152,7 @@ export function ProducerBankDetailsForm({
           ...user,
           bank_code: values.bank_code,
           account_number: values.account_number,
-          verified_account_name: accountName
+          verified_account_name: accountName,
         });
       }
 
@@ -145,17 +160,17 @@ export function ProducerBankDetailsForm({
         onSuccess();
       }
     } catch (error) {
-      console.error('Error saving bank details:', error);
-      toast.error('Failed to save bank details. Please try again.');
+      console.error("Error saving bank details:", error);
+      toast.error("Failed to save bank details. Please try again.");
     }
   };
 
   // Selected bank name
   const getSelectedBankName = () => {
-    const code = form.watch('bank_code');
-    if (!code) return '';
-    const selected = banks.find(bank => bank.code === code);
-    return selected ? selected.name : '';
+    const code = form.watch("bank_code");
+    if (!code) return "";
+    const selected = banks.find((bank) => bank.code === code);
+    return selected ? selected.name : "";
   };
 
   return (
@@ -172,7 +187,7 @@ export function ProducerBankDetailsForm({
                   disabled={isLoadingBanks || isLoading}
                   onValueChange={(value) => {
                     field.onChange(value);
-                    const accountNumber = form.getValues('account_number');
+                    const accountNumber = form.getValues("account_number");
                     if (accountNumber) {
                       onAccountChange(value, accountNumber);
                     }
@@ -217,7 +232,7 @@ export function ProducerBankDetailsForm({
                     disabled={isLoading}
                     onChange={(e) => {
                       field.onChange(e);
-                      const bankCode = form.getValues('bank_code');
+                      const bankCode = form.getValues("bank_code");
                       if (bankCode && e.target.value.length >= 10) {
                         onAccountChange(bankCode, e.target.value);
                       }
@@ -231,33 +246,43 @@ export function ProducerBankDetailsForm({
 
           {/* Account name verification result */}
           {(isVerifying || accountName || existingAccountName) && (
-            <div className={`p-3 rounded-md ${
-              isVerifying 
-                ? 'bg-blue-50 border border-blue-200' 
-                : accountName 
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-amber-50 border border-amber-200'
-            }`}>
+            <div
+              className={`p-3 rounded-md ${
+                isVerifying
+                  ? "bg-blue-50 border border-blue-200"
+                  : accountName
+                  ? "bg-green-50 border border-green-200"
+                  : "bg-amber-50 border border-amber-200"
+              }`}
+            >
               <div className="flex items-center gap-2">
                 {isVerifying ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                    <span className="text-sm text-blue-600">Verifying account details...</span>
+                    <span className="text-sm text-blue-600">
+                      Verifying account details...
+                    </span>
                   </>
                 ) : accountName ? (
                   <>
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600">Account Name: {accountName}</span>
+                    <span className="text-sm text-green-600">
+                      Account Name: {accountName}
+                    </span>
                   </>
                 ) : existingAccountName ? (
                   <>
                     <CheckCircle2 className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm text-amber-600">Account Name: {existingAccountName}</span>
+                    <span className="text-sm text-amber-600">
+                      Account Name: {existingAccountName}
+                    </span>
                   </>
                 ) : (
                   <>
                     <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm text-red-600">Account verification failed</span>
+                    <span className="text-sm text-red-600">
+                      Account verification failed
+                    </span>
                   </>
                 )}
               </div>
@@ -265,18 +290,20 @@ export function ProducerBankDetailsForm({
           )}
 
           <FormDescription className="text-xs">
-            Your bank details are securely encrypted and only used for payment processing.
-            Please ensure your account details are correct to avoid payment issues.
+            Your bank details are securely encrypted and only used for payment
+            processing. Please ensure your account details are correct to avoid
+            payment issues.
           </FormDescription>
 
           <div className="flex justify-end space-x-2">
-            <Button variant="outline" type="button" onClick={() => form.reset()}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => form.reset()}
+            >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading || isVerifying}
-            >
+            <Button type="submit" disabled={isLoading || isVerifying}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Bank Details
             </Button>
