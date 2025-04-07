@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -157,8 +158,10 @@ export default function ProducerSettings() {
       // Filter transactions to only include completed ones and where the producer owns the beat
       const recentTransactions: Transaction[] = (transactionsData || [])
         .filter(item => 
-          item.orders && item.orders.status === 'completed' && 
-          item.beats && item.beats.producer_id === user.id
+          item.orders && 
+          item.orders.status === 'completed' && 
+          item.beats && 
+          item.beats.producer_id === user.id
         )
         .map((item: any) => ({
           id: item.id,
@@ -439,11 +442,16 @@ export default function ProducerSettings() {
                                 type="button"
                               >
                                 {isLoading.avatar ? (
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  <div className="flex items-center justify-center w-full">
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    <span>Uploading...</span>
+                                  </div>
                                 ) : (
-                                  <Upload className="h-4 w-4 mr-2" />
+                                  <>
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    <span>Choose File</span>
+                                  </>
                                 )}
-                                Choose File
                               </Button>
                               <input 
                                 id="avatar-upload" 
@@ -503,11 +511,18 @@ export default function ProducerSettings() {
                     variant={saveSuccess.profile ? "outline" : "default"}
                   >
                     {isLoading.profile ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <div className="flex items-center justify-center w-full">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                      </div>
                     ) : saveSuccess.profile ? (
-                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                    ) : null}
-                    {saveSuccess.profile ? "Saved" : "Save Changes"}
+                      <div className="flex items-center justify-center w-full">
+                        <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                        <span>Saved</span>
+                      </div>
+                    ) : (
+                      <span>Save Changes</span>
+                    )}
                   </Button>
                   
                   {saveSuccess.profile && (
@@ -549,11 +564,9 @@ export default function ProducerSettings() {
                 </CardHeader>
                 <CardContent>
                   {loadingAnalytics ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <p className="text-sm text-muted-foreground">Loading payment stats...</p>
-                      </div>
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <p className="text-muted-foreground">Loading payment stats...</p>
                     </div>
                   ) : paymentAnalytics ? (
                     <div className="space-y-6">
@@ -646,7 +659,7 @@ export default function ProducerSettings() {
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-4">
+                    <div className="text-center py-8">
                       <p className="text-muted-foreground">
                         {user.verified_account_name 
                           ? "No payment data available yet. Start selling beats to see your earnings!"
@@ -749,11 +762,18 @@ export default function ProducerSettings() {
                     variant={saveSuccess.preferences ? "outline" : "default"}
                   >
                     {isLoading.preferences ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <div className="flex items-center justify-center w-full">
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                      </div>
                     ) : saveSuccess.preferences ? (
-                      <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                    ) : null}
-                    {saveSuccess.preferences ? "Saved" : "Save Preferences"}
+                      <div className="flex items-center justify-center w-full">
+                        <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                        <span>Saved</span>
+                      </div>
+                    ) : (
+                      <span>Save Preferences</span>
+                    )}
                   </Button>
                   
                   {saveSuccess.preferences && (

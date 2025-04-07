@@ -69,6 +69,17 @@ export function ProducerBankDetailsForm({
     },
   });
 
+  // Reset form when external props change
+  useEffect(() => {
+    if (existingBankCode && existingAccountNumber) {
+      form.reset({
+        bank_code: existingBankCode,
+        account_number: existingAccountNumber
+      });
+      setIsEditMode(false);
+    }
+  }, [existingBankCode, existingAccountNumber, form]);
+
   // Load banks on component mount
   useEffect(() => {
     const loadBanks = async () => {
@@ -88,13 +99,6 @@ export function ProducerBankDetailsForm({
 
     loadBanks();
   }, []);
-
-  useEffect(() => {
-    // Reset edit mode when bank details change externally
-    if (existingBankCode && existingAccountNumber) {
-      setIsEditMode(false);
-    }
-  }, [existingBankCode, existingAccountNumber]);
 
   // Verify account number when changed
   const onAccountChange = async (bankCode: string, accountNumber: string) => {
@@ -322,7 +326,7 @@ export function ProducerBankDetailsForm({
 
           <div className="flex justify-end space-x-2">
             {existingBankCode && (
-              <Button variant="outline" type="button" onClick={() => setIsEditMode(false)}>
+              <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>
                 Cancel
               </Button>
             )}
