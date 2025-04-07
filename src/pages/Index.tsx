@@ -65,7 +65,8 @@ export default function IndexPage() {
             country: data[0].country,
             producer_name: data[0].stage_name,
             updated_at: data[0].created_date,
-            default_currency: 'NGN' as 'NGN' | 'USD'
+            default_currency: 'NGN' as 'NGN' | 'USD',
+            full_name: data[0].full_name
           };
           
           setProducerOfWeek(producer);
@@ -93,9 +94,14 @@ export default function IndexPage() {
 
   // Helper function to get producer name
   const getProducerName = (beat: Beat) => {
-    if (beat.users) {
-      return beat.users.full_name || beat.users.stage_name || beat.producer_name || 'Producer';
+    if (beat.producer) {
+      return beat.producer.full_name || beat.producer.stage_name || beat.producer_name;
     }
+    
+    if (beat.users) {
+      return beat.users.full_name || beat.users.stage_name || beat.producer_name;
+    }
+    
     return beat.producer_name || 'Producer';
   };
 
@@ -156,7 +162,7 @@ export default function IndexPage() {
                 <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
                   <div className="flex items-center gap-3">
                     <h3 className="text-2xl font-bold text-white uppercase">
-                      {producerOfWeek.full_name || producerOfWeek.producer_name || producerOfWeek.name}
+                      {producerOfWeek.producer_name || producerOfWeek.full_name || producerOfWeek.name}
                     </h3>
                     <div className="flex items-center gap-1 bg-purple-900/70 text-white text-xs px-2 py-1 rounded-full">
                       <CheckCircle size={12} />

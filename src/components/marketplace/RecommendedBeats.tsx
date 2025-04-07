@@ -77,8 +77,20 @@ export function RecommendedBeats() {
   
   // Helper function to get producer name
   const getProducerName = (beat: any) => {
-    if (beat.producer_name) return beat.producer_name;
+    // Check for the producer object first
+    if (beat.producer) {
+      return beat.producer.full_name || beat.producer.stage_name || 'Producer';
+    }
+    
+    // Check for the users object (backward compatibility)
+    if (beat.users) {
+      return beat.users.full_name || beat.users.stage_name || 'Producer';
+    }
+    
+    // Fallback to direct properties
     if (beat.full_name) return beat.full_name;
+    if (beat.producer_name) return beat.producer_name;
+    
     return 'Producer';
   };
   
