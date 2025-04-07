@@ -551,6 +551,7 @@ export type Database = {
           role: string
           settings: Json | null
           stage_name: string | null
+          status: string | null
           storefront_url: string | null
           stripe_id: string | null
           verified_account_name: string | null
@@ -577,6 +578,7 @@ export type Database = {
           role: string
           settings?: Json | null
           stage_name?: string | null
+          status?: string | null
           storefront_url?: string | null
           stripe_id?: string | null
           verified_account_name?: string | null
@@ -603,6 +605,7 @@ export type Database = {
           role?: string
           settings?: Json | null
           stage_name?: string | null
+          status?: string | null
           storefront_url?: string | null
           stripe_id?: string | null
           verified_account_name?: string | null
@@ -652,6 +655,7 @@ export type Database = {
           role: string
           settings: Json | null
           stage_name: string | null
+          status: string | null
           storefront_url: string | null
           stripe_id: string | null
           verified_account_name: string | null

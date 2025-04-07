@@ -8,7 +8,7 @@ import { RoleSelectionDialog } from '@/components/auth/RoleSelectionDialog';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, updateUserInfo } = useAuth();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,7 +32,7 @@ export default function AuthCallback() {
           // Check if user exists and has a role
           const { data: userData, error: userError } = await supabase
             .from('users')
-            .select('role')
+            .select('role, status')
             .eq('id', data.session.user.id)
             .single();
             
@@ -49,7 +49,22 @@ export default function AuthCallback() {
             return;
           }
           
-          console.log("User has role:", userData.role);
+          console.log("User has role:", userData.role, "Status:", userData.status);
+          
+          // Update user info with status
+          if (userData && user) {
+            updateUserInfo({
+              ...user,
+              role: userData.role,
+              status: userData.status
+            });
+          }
+          
+          // If producer is inactive, redirect to activation page
+          if (userData.role === 'producer' && userData.status === 'inactive') {
+            navigate('/producer-activation');
+            return;
+          }
           
           // Otherwise, redirect based on role
           if (userData.role === 'producer') {
@@ -74,7 +89,7 @@ export default function AuthCallback() {
     };
     
     handleAuthCallback();
-  }, [navigate]);
+  }, [navigate, updateUserInfo, user]);
 
   return (
     <MainLayout hideSidebar>

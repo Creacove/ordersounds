@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -25,6 +24,8 @@ export interface User {
   full_name?: string;
   stage_name?: string;
   follower_count?: number;
+  // Add status field
+  status?: 'active' | 'inactive';
 }
 
 export interface Beat {

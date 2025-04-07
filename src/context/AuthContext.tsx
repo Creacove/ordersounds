@@ -14,6 +14,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
   updateUserInfo: (user: User) => void; // Added this function
+  isProducerInactive: boolean; // New field to check producer activation status
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,6 +44,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const updateUserInfo = (updatedUser: User) => {
     setUser(updatedUser);
   };
+  
+  // Check if producer is inactive
+  const isProducerInactive = 
+    user?.role === 'producer' && 
+    user?.status === 'inactive';
 
   return (
     <AuthContext.Provider
@@ -55,7 +61,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         signup,
         logout,
         updateProfile,
-        updateUserInfo, // Added to the context
+        updateUserInfo,
+        isProducerInactive,
       }}
     >
       {children}
