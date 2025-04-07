@@ -161,7 +161,7 @@ export const FilesTab = ({
                     <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     <div className="flex-1">
                       <p className="text-xs sm:text-sm font-medium">Upload preview</p>
-                      <p className="text-xs text-muted-foreground">30-60 sec preview</p>
+                      <p className="text-xs text-muted-foreground">Watermarked version</p>
                     </div>
                     <Button 
                       variant="outline" 
