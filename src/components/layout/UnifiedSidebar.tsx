@@ -1,9 +1,10 @@
 
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Headphones, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
+import { useAuth } from "@/context/AuthContext";
 
 interface UnifiedSidebarProps {
   isOpen: boolean;
@@ -26,6 +27,29 @@ export function UnifiedSidebar({
   toggleCollapsed,
   isMobile
 }: UnifiedSidebarProps) {
+  const navigate = useNavigate();
+  const { isProducerInactive } = useAuth();
+  
+  // Handle navigation with inactive producer check
+  const handleNavigation = (href: string, onClick?: () => void) => {
+    // If there's a custom onClick handler, call it
+    if (onClick) {
+      onClick();
+      if (isMobile) setIsOpen(false);
+      return;
+    }
+    
+    // If producer is inactive and trying to access producer routes, redirect to activation
+    if (isProducerInactive && href.startsWith('/producer')) {
+      navigate('/producer-activation');
+    } else {
+      navigate(href);
+    }
+    
+    // Close sidebar on mobile after navigation
+    if (isMobile) setIsOpen(false);
+  };
+  
   return (
     <>
       {/* Only show overlay on mobile and only when sidebar is open */}
@@ -79,15 +103,12 @@ export function UnifiedSidebar({
               )}
               <nav className="flex flex-col gap-1">
                 {section.items.map((item: any, idx: number) => {
-                  // For items with onClick (like Sign Out), they shouldn't be "active"
+                  // For items with onClick (like Sign Out), use a button
                   if (item.onClick) {
                     return (
                       <button
                         key={idx}
-                        onClick={() => {
-                          item.onClick && item.onClick();
-                          if (isMobile) setIsOpen(false);
-                        }}
+                        onClick={() => handleNavigation(item.href, item.onClick)}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
                           "hover:bg-purple-500/20 hover:text-white",
@@ -104,34 +125,28 @@ export function UnifiedSidebar({
                     );
                   }
                   
+                  // Special handling for producer routes with inactive check
+                  const isProducerRoute = item.href.startsWith('/producer');
+                  
                   return (
-                    <NavLink
+                    <button
                       key={idx}
-                      to={item.href}
-                      onClick={() => {
-                        if (isMobile) setIsOpen(false);
-                      }}
-                      className={({ isActive }) =>
-                        cn(
-                          "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
-                          "hover:bg-purple-500/20 hover:text-white",
-                          isActive
-                            ? "text-purple-500 border-r-4 border-purple-500 font-medium rounded-r-none"
-                            : "text-[#b3b3b3] border-r-0",
-                          isCollapsed && "justify-center"
-                        )
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <item.icon 
-                            size={20} 
-                            className={isActive ? "text-purple-500" : "text-[#b3b3b3]"}
-                          />
-                          {!isCollapsed && <span>{item.title}</span>}
-                        </>
+                      onClick={() => handleNavigation(item.href)}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",
+                        "hover:bg-purple-500/20 hover:text-white",
+                        (window.location.pathname === item.href)
+                          ? "text-purple-500 border-r-4 border-purple-500 font-medium rounded-r-none"
+                          : "text-[#b3b3b3] border-r-0",
+                        isCollapsed && "justify-center"
                       )}
-                    </NavLink>
+                    >
+                      <item.icon 
+                        size={20} 
+                        className={(window.location.pathname === item.href) ? "text-purple-500" : "text-[#b3b3b3]"}
+                      />
+                      {!isCollapsed && <span>{item.title}</span>}
+                    </button>
                   );
                 })}
               </nav>
