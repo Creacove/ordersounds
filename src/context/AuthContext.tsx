@@ -13,8 +13,8 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string, role: 'buyer' | 'producer') => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => Promise<void>;
-  updateUserInfo: (user: User) => void; // Added this function
-  isProducerInactive: boolean; // New field to check producer activation status
+  updateUserInfo: (user: User) => void;
+  isProducerInactive: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
