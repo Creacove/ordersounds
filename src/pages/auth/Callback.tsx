@@ -35,9 +35,9 @@ export default function AuthCallback() {
             .from('users')
             .select('role, status')
             .eq('id', data.session.user.id)
-            .single();
+            .maybeSingle();
             
-          if (userError && userError.code !== 'PGRST116') {
+          if (userError) {
             console.error("User data fetch error:", userError);
             throw userError;
           }

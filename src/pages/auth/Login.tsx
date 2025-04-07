@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,7 +18,7 @@ export default function Login() {
     email: "",
     password: ""
   });
-  const { login, isLoading: authLoading } = useAuth();
+  const { login } = useAuth();
 
   const validateForm = () => {
     let valid = true;
@@ -62,9 +61,6 @@ export default function Login() {
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
-
-  // Use local isSubmitting state for button disabled state, not global authLoading
-  const buttonIsLoading = isSubmitting;
 
   return (
     <MainLayout hideSidebar>
@@ -116,7 +112,7 @@ export default function Login() {
                         autoCapitalize="none"
                         autoComplete="email"
                         autoCorrect="off"
-                        disabled={buttonIsLoading}
+                        disabled={isSubmitting}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                       />
@@ -135,7 +131,7 @@ export default function Login() {
                         className="pl-10 pr-10"
                         autoCapitalize="none"
                         autoComplete="current-password"
-                        disabled={buttonIsLoading}
+                        disabled={isSubmitting}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                       />
@@ -154,10 +150,10 @@ export default function Login() {
                   </div>
                   <Button 
                     type="submit" 
-                    disabled={buttonIsLoading} 
+                    disabled={isSubmitting} 
                     className="mt-2 w-full transition-all hover:shadow-[0_0_20px_rgba(124,58,237,0.3)]"
                   >
-                    {buttonIsLoading ? (
+                    {isSubmitting ? (
                       <>
                         <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
                         Signing in...
