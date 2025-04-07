@@ -30,7 +30,7 @@ export function UnifiedSidebar({
   const navigate = useNavigate();
   const { isProducerInactive } = useAuth();
   
-  // Handle navigation with inactive producer check
+  // Enhanced navigation handler with inactive producer check
   const handleNavigation = (href: string, onClick?: () => void) => {
     // If there's a custom onClick handler, call it
     if (onClick) {
@@ -39,7 +39,7 @@ export function UnifiedSidebar({
       return;
     }
     
-    // If producer is inactive and trying to access producer routes, redirect to activation
+    // Check if producer is inactive and trying to access producer routes
     if (isProducerInactive && href.startsWith('/producer')) {
       navigate('/producer-activation');
     } else {
@@ -124,9 +124,6 @@ export function UnifiedSidebar({
                       </button>
                     );
                   }
-                  
-                  // Special handling for producer routes with inactive check
-                  const isProducerRoute = item.href.startsWith('/producer');
                   
                   return (
                     <button
