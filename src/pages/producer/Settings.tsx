@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -132,18 +131,17 @@ export default function ProducerSettings() {
           currency_code,
           beat_id,
           order_id,
-          orders(
+          orders (
             order_date, 
             status, 
             payment_reference
           ),
-          beats(
+          beats (
             title,
             id,
             producer_id
           )
         `)
-        .eq('orders.status', 'completed') // Filter only completed orders
         .eq('beats.producer_id', user.id);
         
       if (transactionsError) throw transactionsError;
@@ -159,8 +157,8 @@ export default function ProducerSettings() {
       // Filter transactions to only include completed ones and where the producer owns the beat
       const recentTransactions: Transaction[] = (transactionsData || [])
         .filter(item => 
-          item.orders?.status === 'completed' && 
-          item.beats?.producer_id === user.id
+          item.orders && item.orders.status === 'completed' && 
+          item.beats && item.beats.producer_id === user.id
         )
         .map((item: any) => ({
           id: item.id,
@@ -359,7 +357,7 @@ export default function ProducerSettings() {
   if (!user || user.role !== 'producer') {
     return (
       <MainLayout>
-        <div className="container py-16">
+        <div className="container py-16 pb-32">
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Producer Access Required</h1>
             <p className="text-base mb-4">You need to be logged in as a producer to access this page.</p>
@@ -373,7 +371,7 @@ export default function ProducerSettings() {
   return (
     <MainLayout>
       <div className={cn(
-        "container py-6 md:py-8",
+        "container py-6 md:py-8 pb-32",
         isMobile ? "mobile-content-padding" : ""
       )}>
         <h1 className="text-2xl md:text-3xl font-bold mb-6 md:mb-8">Producer Settings</h1>
