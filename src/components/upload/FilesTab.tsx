@@ -27,7 +27,7 @@ export const FilesTab = ({
   setIsPlaying
 }: FilesTabProps) => {
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 mb-24 sm:mb-16">
       <div>
         <h3 className="text-base sm:text-lg font-medium mb-1">Cover Image *</h3>
         <p className="text-xs sm:text-sm text-muted-foreground mb-4">
@@ -192,4 +192,4 @@ export const FilesTab = ({
       </div>
     </div>
   );
-};
+}

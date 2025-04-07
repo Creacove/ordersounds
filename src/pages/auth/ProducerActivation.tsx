@@ -10,7 +10,7 @@ export default function ProducerActivation() {
   
   return (
     <MainLayout hideSidebar>
-      <div className="min-h-[calc(100vh-4rem)] bg-background flex items-center justify-center p-6">
+      <div className="min-h-[calc(100vh-4rem)] bg-background flex items-center justify-center p-6 pb-24 sm:pb-6">
         <div className="bg-card p-8 rounded-lg shadow-lg max-w-md w-full text-center border border-border">
           <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
             <Mail className="h-8 w-8" />

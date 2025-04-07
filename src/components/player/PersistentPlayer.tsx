@@ -44,7 +44,7 @@ export function PersistentPlayer() {
 
   // Player is now at z-50, above the sidebar which will be at z-40
   const playerClassName = cn(
-    "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-50",
+    "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-40",
     isMobile ? "bottom-16" : "bottom-0" // Position above mobile nav when on mobile
   );
 

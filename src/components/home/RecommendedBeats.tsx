@@ -65,7 +65,7 @@ export function RecommendedBeats() {
   };
 
   return (
-    <div className="mb-6 px-6 md:px-8">
+    <div className="mb-6 px-6 md:px-8 pb-4">
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-medium">From Producers You Follow</h2>
         <Button 
@@ -153,7 +153,7 @@ export function RecommendedBeats() {
           </div>
           
           {/* Mobile view: Card grid */}
-          <div className="grid grid-cols-2 gap-2 md:hidden mt-3">
+          <div className="grid grid-cols-2 gap-4 md:hidden mt-3">
             {recommendedBeats?.slice(0, 4).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
