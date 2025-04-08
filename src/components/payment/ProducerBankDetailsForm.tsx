@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -48,12 +49,12 @@ export function ProducerBankDetailsForm({
   existingAccountName,
   onSuccess
 }: ProducerBankDetailsFormProps) {
-  // Determine initial edit mode based on props - don't default to edit mode if we have complete bank details
-  const initialEditMode = !(existingBankCode && existingAccountNumber && existingAccountName);
+  // Always default to read-only mode if bank details exist
+  const hasCompleteDetails = !!(existingBankCode && existingAccountNumber && existingAccountName);
   
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(initialEditMode);
+  const [isEditMode, setIsEditMode] = useState(!hasCompleteDetails);
   const { user, updateProfile, updateUserInfo } = useAuth();
   const { 
     isLoading, 
@@ -204,7 +205,8 @@ export function ProducerBankDetailsForm({
     return accountNumber.slice(-4).padStart(accountNumber.length, '*');
   };
 
-  if (!isEditMode && existingAccountName) {
+  // Always check for complete bank details first - this is our absolute priority
+  if (hasCompleteDetails && !isEditMode) {
     // Show read-only view of bank details with edit button
     return (
       <div className="space-y-4">
@@ -351,7 +353,7 @@ export function ProducerBankDetailsForm({
           </FormDescription>
 
           <div className="flex justify-end space-x-2">
-            {existingBankCode && existingAccountName && (
+            {hasCompleteDetails && (
               <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>
                 Cancel
               </Button>
