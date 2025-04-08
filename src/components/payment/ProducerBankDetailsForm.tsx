@@ -51,7 +51,7 @@ export function ProducerBankDetailsForm({
 }: ProducerBankDetailsFormProps) {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(!existingBankCode);
+  const [isEditMode, setIsEditMode] = useState(false);
   const { user, updateProfile, updateUserInfo } = useAuth();
   const { 
     isLoading, 
@@ -69,14 +69,16 @@ export function ProducerBankDetailsForm({
     },
   });
 
-  // Reset form when external props change
+  // Set initial edit mode based on if bank details exist
   useEffect(() => {
     if (existingBankCode && existingAccountNumber) {
+      setIsEditMode(false);
       form.reset({
         bank_code: existingBankCode,
         account_number: existingAccountNumber
       });
-      setIsEditMode(false);
+    } else {
+      setIsEditMode(true);
     }
   }, [existingBankCode, existingAccountNumber, form]);
 
@@ -91,7 +93,11 @@ export function ProducerBankDetailsForm({
         setBanks(activeBanks.sort((a: Bank, b: Bank) => a.name.localeCompare(b.name)));
       } catch (error) {
         console.error('Error loading banks:', error);
-        toast.error('Failed to load bank list. Please try again later.');
+        toast({
+          title: "Error",
+          description: 'Failed to load bank list. Please try again later.',
+          variant: "destructive"
+        });
       } finally {
         setIsLoadingBanks(false);
       }
@@ -109,7 +115,11 @@ export function ProducerBankDetailsForm({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
-      toast.error('User session not found');
+      toast({
+        title: "Error",
+        description: 'User session not found',
+        variant: "destructive"
+      });
       return;
     }
     
@@ -117,7 +127,11 @@ export function ProducerBankDetailsForm({
     const isVerified = await verifyBankAccount(values.account_number, values.bank_code);
     
     if (!isVerified) {
-      toast.error('Bank account verification failed. Please check your details.');
+      toast({
+        title: "Error",
+        description: 'Bank account verification failed. Please check your details.',
+        variant: "destructive"
+      });
       return;
     }
 
@@ -167,12 +181,22 @@ export function ProducerBankDetailsForm({
 
       setIsEditMode(false);
 
+      toast({
+        title: "Success",
+        description: 'Bank details saved successfully',
+        variant: "default"
+      });
+
       if (onSuccess) {
         onSuccess();
       }
     } catch (error) {
       console.error('Error saving bank details:', error);
-      toast.error('Failed to save bank details. Please try again.');
+      toast({
+        title: "Error",
+        description: 'Failed to save bank details. Please try again.',
+        variant: "destructive"
+      });
     }
   };
 

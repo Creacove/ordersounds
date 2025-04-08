@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -64,6 +64,7 @@ export default function ProducerSettings() {
   const [autoPlayPreviews, setAutoPlayPreviews] = useState(true);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
@@ -78,7 +79,7 @@ export default function ProducerSettings() {
       setProducerName(user.producer_name || user.name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
-      setAvatarUrl(user.avatar_url || user.profile_picture || null);
+      setAvatarUrl(user.avatar_url || '');
       
       if (user.settings) {
         try {
@@ -191,7 +192,7 @@ export default function ProducerSettings() {
           reference: item.orders?.payment_reference || ''
         })) || [];
       
-      // Calculate total earnings from transactions
+      // Calculate total earnings from transactions (90% goes to producer)
       const totalEarnings = recentTransactions.reduce((sum, transaction) => {
         return transaction.status === 'completed' ? sum + (transaction.amount * 0.9) : sum;
       }, 0);
@@ -213,7 +214,11 @@ export default function ProducerSettings() {
       });
     } catch (error) {
       console.error("Error fetching payment analytics:", error);
-      toast.error("Failed to load payment analytics");
+      toast({
+        title: "Error",
+        description: "Failed to load payment analytics",
+        variant: "destructive"
+      });
     } finally {
       setLoadingAnalytics(false);
     }
@@ -248,12 +253,20 @@ export default function ProducerSettings() {
           country: location
         });
         
-        toast.success('Profile updated successfully');
+        toast({
+          title: "Success",
+          description: "Profile updated successfully",
+          variant: "default"
+        });
         setSaveSuccess(prev => ({ ...prev, profile: true }));
       }
     } catch (error: any) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(prev => ({ ...prev, profile: false }));
     }
@@ -290,19 +303,31 @@ export default function ProducerSettings() {
           settings
         });
         
-        toast.success('Preferences updated successfully');
+        toast({
+          title: "Success",
+          description: "Preferences updated successfully",
+          variant: "default"
+        });
         setSaveSuccess(prev => ({ ...prev, preferences: true }));
       }
     } catch (error) {
       console.error('Error updating preferences:', error);
-      toast.error('Failed to update preferences. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to update preferences. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(prev => ({ ...prev, preferences: false }));
     }
   };
 
   const handleBankDetailsSuccess = () => {
-    toast.success('Bank details saved successfully');
+    toast({
+      title: "Success",
+      description: "Bank details saved successfully",
+      variant: "default"
+    });
     
     // Do not reload the page, just fetch updated user data
     if (user && updateProfile) {
@@ -327,18 +352,33 @@ export default function ProducerSettings() {
     fetchPaymentAnalytics();
   };
   
+  const handleChooseFileClick = () => {
+    // Trigger the hidden file input click
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return;
     
     const file = e.target.files[0];
     
     if (!file.type.startsWith('image/')) {
-      toast.error('Please upload an image file');
+      toast({
+        title: "Error",
+        description: "Please upload an image file",
+        variant: "destructive"
+      });
       return;
     }
     
     if (file.size > 2 * 1024 * 1024) {
-      toast.error('Image size should be less than 2MB');
+      toast({
+        title: "Error",
+        description: "Image size should be less than 2MB",
+        variant: "destructive"
+      });
       return;
     }
     
@@ -363,19 +403,26 @@ export default function ProducerSettings() {
         if (updateProfile) {
           await updateProfile({
             ...user!,
-            profile_picture: base64String,
             avatar_url: base64String
           });
         }
         
-        toast.success('Profile picture updated successfully');
+        toast({
+          title: "Success",
+          description: "Profile picture updated successfully",
+          variant: "default"
+        });
         setIsAvatarDialogOpen(false);
       };
       
       reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error updating profile picture:', error);
-      toast.error('Failed to update profile picture. Please try again.');
+      toast({
+        title: "Error",
+        description: "Failed to update profile picture. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(prev => ({ ...prev, avatar: false }));
     }
@@ -457,34 +504,36 @@ export default function ProducerSettings() {
                               <AvatarImage src={avatarUrl || undefined} alt={producerName} />
                               <AvatarFallback>{getInitials(producerName || user.name || 'User')}</AvatarFallback>
                             </Avatar>
-                            <label htmlFor="avatar-upload" className="cursor-pointer">
-                              <Button 
-                                variant="outline" 
-                                className="cursor-pointer"
-                                disabled={isLoading.avatar}
-                                type="button"
-                              >
-                                {isLoading.avatar ? (
-                                  <div className="flex items-center justify-center w-full">
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    <span>Uploading...</span>
-                                  </div>
-                                ) : (
-                                  <>
-                                    <Upload className="h-4 w-4 mr-2" />
-                                    <span>Choose File</span>
-                                  </>
-                                )}
-                              </Button>
-                              <input 
-                                id="avatar-upload" 
-                                type="file" 
-                                accept="image/*" 
-                                className="hidden" 
-                                onChange={handleAvatarChange}
-                                disabled={isLoading.avatar}
-                              />
-                            </label>
+                            
+                            {/* Hidden file input */}
+                            <input 
+                              ref={fileInputRef}
+                              id="avatar-upload" 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={handleAvatarChange}
+                              disabled={isLoading.avatar}
+                            />
+                            
+                            <Button 
+                              variant="outline" 
+                              className="cursor-pointer"
+                              disabled={isLoading.avatar}
+                              onClick={handleChooseFileClick}
+                            >
+                              {isLoading.avatar ? (
+                                <div className="flex items-center justify-center w-full">
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  <span>Uploading...</span>
+                                </div>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4 mr-2" />
+                                  <span>Choose File</span>
+                                </>
+                              )}
+                            </Button>
                           </div>
                         </div>
                       </DialogContent>
@@ -639,7 +688,7 @@ export default function ProducerSettings() {
                                     <tr key={transaction.id}>
                                       <td className="py-2 px-4 text-sm">{transaction.date ? new Date(transaction.date).toLocaleDateString() : 'N/A'}</td>
                                       <td className="py-2 px-4 text-sm">{transaction.beat_title}</td>
-                                      <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount, transaction.currency)}</td>
+                                      <td className="py-2 px-4 text-sm">{formatCurrency(transaction.amount * 0.9, transaction.currency)}</td>
                                       <td className="py-2 px-4 text-sm">
                                         <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
                                           {transaction.status}
