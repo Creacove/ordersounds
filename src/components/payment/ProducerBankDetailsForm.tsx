@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -49,9 +48,12 @@ export function ProducerBankDetailsForm({
   existingAccountName,
   onSuccess
 }: ProducerBankDetailsFormProps) {
+  // Determine initial edit mode based on props - don't default to edit mode if we have complete bank details
+  const initialEditMode = !(existingBankCode && existingAccountNumber && existingAccountName);
+  
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(initialEditMode);
   const { user, updateProfile, updateUserInfo } = useAuth();
   const { 
     isLoading, 
@@ -70,21 +72,7 @@ export function ProducerBankDetailsForm({
     },
   });
 
-  // Set initial edit mode based on if verified bank details exist
-  useEffect(() => {
-    if (existingBankCode && existingAccountNumber && existingAccountName) {
-      setIsEditMode(false); // Show read-only view if we have complete bank details
-    } else {
-      setIsEditMode(true); // Show form if we're missing any bank details
-    }
-    
-    form.reset({
-      bank_code: existingBankCode || "",
-      account_number: existingAccountNumber || "",
-    });
-  }, [existingBankCode, existingAccountNumber, existingAccountName, form]);
-
-  // Load banks on component mount
+  // Load banks only when in edit mode
   useEffect(() => {
     const loadBanks = async () => {
       setIsLoadingBanks(true);
