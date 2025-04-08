@@ -127,7 +127,7 @@ export default function ProducerSettings() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <ProfilePictureUploader 
-                  avatarUrl={user.avatar_url || user.profile_picture || null} 
+                  avatarUrl={user.avatar_url || null} 
                   displayName={user.producer_name || user.name || 'User'}
                 />
 

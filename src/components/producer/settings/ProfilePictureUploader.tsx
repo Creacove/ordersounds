@@ -71,8 +71,7 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
         if (updateProfile) {
           await updateProfile({
             ...user,
-            avatar_url: base64String,
-            profile_picture: base64String
+            avatar_url: base64String
           });
         }
         
