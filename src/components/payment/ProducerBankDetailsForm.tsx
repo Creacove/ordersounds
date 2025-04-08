@@ -70,18 +70,19 @@ export function ProducerBankDetailsForm({
     },
   });
 
-  // Set initial edit mode based on if bank details exist
+  // Set initial edit mode based on if verified bank details exist
   useEffect(() => {
-    if (existingBankCode && existingAccountNumber) {
-      setIsEditMode(false);
-      form.reset({
-        bank_code: existingBankCode,
-        account_number: existingAccountNumber
-      });
+    if (existingBankCode && existingAccountNumber && existingAccountName) {
+      setIsEditMode(false); // Show read-only view if we have complete bank details
     } else {
-      setIsEditMode(true);
+      setIsEditMode(true); // Show form if we're missing any bank details
     }
-  }, [existingBankCode, existingAccountNumber, form]);
+    
+    form.reset({
+      bank_code: existingBankCode || "",
+      account_number: existingAccountNumber || "",
+    });
+  }, [existingBankCode, existingAccountNumber, existingAccountName, form]);
 
   // Load banks on component mount
   useEffect(() => {
@@ -104,8 +105,10 @@ export function ProducerBankDetailsForm({
       }
     };
 
-    loadBanks();
-  }, [toast]);
+    if (isEditMode) {
+      loadBanks();
+    }
+  }, [toast, isEditMode]);
 
   // Verify account number when changed
   const onAccountChange = async (bankCode: string, accountNumber: string) => {
@@ -200,6 +203,19 @@ export function ProducerBankDetailsForm({
     }
   };
 
+  // Find bank name from bank code
+  const getBankNameFromCode = (code: string | undefined): string => {
+    if (!code) return "Your Bank";
+    const bank = banks.find(b => b.code === code);
+    return bank ? bank.name : "Bank Account";
+  };
+
+  // Format account number to show only last 4 digits
+  const formatAccountNumber = (accountNumber: string | undefined): string => {
+    if (!accountNumber) return "";
+    return accountNumber.slice(-4).padStart(accountNumber.length, '*');
+  };
+
   if (!isEditMode && existingAccountName) {
     // Show read-only view of bank details with edit button
     return (
@@ -212,10 +228,10 @@ export function ProducerBankDetailsForm({
                 Bank Account Connected
               </h3>
               <p className="text-sm text-green-700 mt-1">
-                {existingAccountName}
+                {getBankNameFromCode(existingBankCode)} Account {existingAccountName}
               </p>
               <p className="text-xs text-green-600 mt-1">
-                Account Number: {existingAccountNumber && existingAccountNumber.slice(-4).padStart(existingAccountNumber.length, '*')}
+                Account Number: {formatAccountNumber(existingAccountNumber)}
               </p>
             </div>
             <Button 
@@ -347,7 +363,7 @@ export function ProducerBankDetailsForm({
           </FormDescription>
 
           <div className="flex justify-end space-x-2">
-            {existingBankCode && (
+            {existingBankCode && existingAccountName && (
               <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>
                 Cancel
               </Button>
