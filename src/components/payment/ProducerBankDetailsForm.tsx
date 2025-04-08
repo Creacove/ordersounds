@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react"; // Import useRef
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -59,7 +59,8 @@ export function ProducerBankDetailsForm({
 }: ProducerBankDetailsFormProps) {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(!existingBankCode);
+  const [isEditMode, setIsEditMode] = useState(true);
+
   const { user, updateProfile, updateUserInfo } = useAuth();
   const {
     isLoading,
@@ -77,16 +78,23 @@ export function ProducerBankDetailsForm({
     },
   });
 
+  const isFormReady = useRef(false); // Add a ref to track form readiness
+
   // Reset form when external props change
   useEffect(() => {
-    if (existingBankCode && existingAccountNumber) {
+    if (
+      isFormReady.current &&
+      existingBankCode &&
+      existingAccountNumber &&
+      existingAccountName
+    ) {
       form.reset({
         bank_code: existingBankCode,
         account_number: existingAccountNumber,
       });
       setIsEditMode(false);
     }
-  }, [existingBankCode, existingAccountNumber, form]);
+  }, [existingBankCode, existingAccountNumber, form, existingAccountName]);
 
   // Load banks on component mount
   useEffect(() => {
@@ -108,6 +116,7 @@ export function ProducerBankDetailsForm({
     };
 
     loadBanks();
+    isFormReady.current = true; // Set form as ready after initial setup
   }, []);
 
   // Verify account number when changed
@@ -152,7 +161,7 @@ export function ProducerBankDetailsForm({
         throw new Error("Failed to update bank details in database");
       }
 
-      // Create updated user object
+      // Create updated user object immutably
       const updatedUser = {
         ...user,
         bank_code: values.bank_code,
@@ -191,7 +200,12 @@ export function ProducerBankDetailsForm({
     }
   };
 
-  if (!isEditMode && existingAccountName) {
+  if (
+    !isEditMode &&
+    existingAccountName &&
+    existingBankCode &&
+    existingAccountNumber
+  ) {
     // Show read-only view of bank details with edit button
     return (
       <div className="space-y-4">
@@ -248,8 +262,7 @@ export function ProducerBankDetailsForm({
                       onAccountChange(value, accountNumber);
                     }
                   }}
-                  defaultValue={field.value}
-                  value={field.value}
+                  value={field.value} // Use value instead of defaultValue
                 >
                   <FormControl>
                     <SelectTrigger>
