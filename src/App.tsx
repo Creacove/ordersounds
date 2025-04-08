@@ -14,6 +14,7 @@ import Home from "./pages/buyer/Home";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import ResetPassword from "./pages/auth/ResetPassword";
 import AuthCallback from "./pages/auth/Callback";
 import ProducerActivation from "./pages/auth/ProducerActivation";
 import Library from "./pages/buyer/Library";
@@ -90,6 +91,7 @@ const App = () => (
                   {/* Auth Routes */}
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/producer-activation" element={<ProducerActivation />} />

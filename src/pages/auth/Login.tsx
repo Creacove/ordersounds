@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -19,6 +23,9 @@ export default function Login() {
     password: ""
   });
   const { login } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const validateForm = () => {
     let valid = true;
@@ -62,6 +69,188 @@ export default function Login() {
     setShowPassword(!showPassword);
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetEmail.trim() || !/\S+@\S+\.\S+/.test(resetEmail)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setResetEmailSent(true);
+      toast({
+        title: "Password Reset Email Sent",
+        description: "Please check your inbox (and spam/junk folder) for instructions",
+      });
+    } catch (error) {
+      console.error("Password reset error:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderLoginForm = () => (
+    <form onSubmit={handleSubmit}>
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="email">Email</Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="email"
+              placeholder="name@example.com"
+              type="email"
+              className="pl-10"
+              autoCapitalize="none"
+              autoComplete="email"
+              autoCorrect="off"
+              disabled={isSubmitting}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          {errors.email && (
+            <p className="text-xs text-red-500">{errors.email}</p>
+          )}
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              className="pl-10 pr-10"
+              autoCapitalize="none"
+              autoComplete="current-password"
+              disabled={isSubmitting}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={togglePasswordVisibility}
+              className="absolute right-3 top-3 h-4 w-4 text-muted-foreground"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          {errors.password && (
+            <p className="text-xs text-red-500">{errors.password}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setShowForgotPassword(true);
+              setResetEmail(email);
+            }}
+            className="text-sm text-muted-foreground hover:text-primary transition-colors text-left underline underline-offset-4"
+          >
+            Forgot password?
+          </button>
+        </div>
+        <Button 
+          type="submit" 
+          disabled={isSubmitting} 
+          className="mt-2 w-full transition-all hover:shadow-[0_0_20px_rgba(124,58,237,0.3)]"
+        >
+          {isSubmitting ? (
+            <>
+              <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
+              Signing in...
+            </>
+          ) : (
+            "Sign In"
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+
+  const renderForgotPasswordForm = () => (
+    <form onSubmit={handleForgotPassword}>
+      <div className="grid gap-4">
+        {resetEmailSent ? (
+          <Alert className="mb-4">
+            <AlertDescription>
+              Password reset email sent! Please check your inbox and spam/junk folders for instructions.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <>
+            <div className="grid gap-2">
+              <Label htmlFor="reset-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="reset-email"
+                  placeholder="name@example.com"
+                  type="email"
+                  className="pl-10"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect="off"
+                  disabled={isSubmitting}
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting} 
+              className="mt-2 w-full transition-all hover:shadow-[0_0_20px_rgba(124,58,237,0.3)]"
+            >
+              {isSubmitting ? (
+                <>
+                  <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
+                  Sending reset email...
+                </>
+              ) : (
+                "Send Reset Link"
+              )}
+            </Button>
+          </>
+        )}
+        <Button 
+          type="button" 
+          variant="ghost" 
+          onClick={() => {
+            setShowForgotPassword(false);
+            setResetEmailSent(false);
+          }}
+          className="mt-2"
+        >
+          Back to Login
+        </Button>
+      </div>
+    </form>
+  );
+
   return (
     <MainLayout hideSidebar>
       <div className="container relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
@@ -92,98 +281,41 @@ export default function Login() {
           <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-800/20 to-zinc-900/10 lg:hidden" />
           <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-background/95 backdrop-blur-sm border border-border/20 shadow-xl animate-fade-in relative z-10">
             <CardHeader className="space-y-1">
-              <CardTitle className="text-2xl font-bold tracking-tight text-center">Welcome back</CardTitle>
+              <CardTitle className="text-2xl font-bold tracking-tight text-center">
+                {showForgotPassword ? "Reset Password" : "Welcome back"}
+              </CardTitle>
               <CardDescription className="text-center">
-                Enter your credentials to sign in to your account
+                {showForgotPassword 
+                  ? "Enter your email to receive a password reset link" 
+                  : "Enter your credentials to sign in to your account"}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6">
-              <form onSubmit={handleSubmit}>
-                <div className="grid gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="email">Email</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="email"
-                        placeholder="name@example.com"
-                        type="email"
-                        className="pl-10"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        autoCorrect="off"
-                        disabled={isSubmitting}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                      />
+              {showForgotPassword ? renderForgotPasswordForm() : renderLoginForm()}
+              {!showForgotPassword && (
+                <>
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
                     </div>
-                    {errors.email && (
-                      <p className="text-xs text-red-500">{errors.email}</p>
-                    )}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="password">Password</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        className="pl-10 pr-10"
-                        autoCapitalize="none"
-                        autoComplete="current-password"
-                        disabled={isSubmitting}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        onClick={togglePasswordVisibility}
-                        className="absolute right-3 top-3 h-4 w-4 text-muted-foreground"
-                        tabIndex={-1}
-                      >
-                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">
+                        Or
+                      </span>
                     </div>
-                    {errors.password && (
-                      <p className="text-xs text-red-500">{errors.password}</p>
-                    )}
                   </div>
-                  <Button 
-                    type="submit" 
-                    disabled={isSubmitting} 
-                    className="mt-2 w-full transition-all hover:shadow-[0_0_20px_rgba(124,58,237,0.3)]"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <span className="animate-spin mr-2 h-4 w-4 border-b-2 border-current rounded-full" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign In"
-                    )}
-                  </Button>
-                </div>
-              </form>
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or
-                  </span>
-                </div>
-              </div>
-              <GoogleAuthButton mode="login" />
+                  <GoogleAuthButton mode="login" />
+                </>
+              )}
             </CardContent>
             <div className="p-4 pt-0 text-center">
               <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
+                {showForgotPassword ? "" : "Don't have an account? "}
                 <Link
                   to="/signup"
                   className="underline underline-offset-4 hover:text-primary transition-colors"
                 >
-                  Sign up
+                  {showForgotPassword ? "" : "Sign up"}
                 </Link>
               </p>
             </div>
