@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react"; // Import useRef
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { usePaystackSplit } from "@/hooks/payment/usePaystackSplit";
 import { fetchSupportedBanks } from "@/utils/payment/paystackSplitUtils";
 import { useAuth } from "@/context/AuthContext";
@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, CheckCircle2, AlertCircle, PenLine } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Bank {
   name: string;
@@ -57,10 +57,16 @@ export function ProducerBankDetailsForm({
   existingAccountName,
   onSuccess,
 }: ProducerBankDetailsFormProps) {
+  // Always default to read-only mode if bank details exist
+  const hasCompleteDetails = !!(
+    existingBankCode &&
+    existingAccountNumber &&
+    existingAccountName
+  );
+
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(true);
-
+  const [isEditMode, setIsEditMode] = useState(!hasCompleteDetails);
   const { user, updateProfile, updateUserInfo } = useAuth();
   const {
     isLoading,
@@ -69,6 +75,7 @@ export function ProducerBankDetailsForm({
     updateBankDetails,
     verifyBankAccount,
   } = usePaystackSplit();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -78,25 +85,7 @@ export function ProducerBankDetailsForm({
     },
   });
 
-  const isFormReady = useRef(false); // Add a ref to track form readiness
-
-  // Reset form when external props change
-  useEffect(() => {
-    if (
-      isFormReady.current &&
-      existingBankCode &&
-      existingAccountNumber &&
-      existingAccountName
-    ) {
-      form.reset({
-        bank_code: existingBankCode,
-        account_number: existingAccountNumber,
-      });
-      setIsEditMode(false);
-    }
-  }, [existingBankCode, existingAccountNumber, form, existingAccountName]);
-
-  // Load banks on component mount
+  // Load banks only when in edit mode
   useEffect(() => {
     const loadBanks = async () => {
       setIsLoadingBanks(true);
@@ -109,15 +98,20 @@ export function ProducerBankDetailsForm({
         );
       } catch (error) {
         console.error("Error loading banks:", error);
-        toast.error("Failed to load bank list. Please try again later.");
+        toast({
+          title: "Error",
+          description: "Failed to load bank list. Please try again later.",
+          variant: "destructive",
+        });
       } finally {
         setIsLoadingBanks(false);
       }
     };
 
-    loadBanks();
-    isFormReady.current = true; // Set form as ready after initial setup
-  }, []);
+    if (isEditMode) {
+      loadBanks();
+    }
+  }, [toast, isEditMode]);
 
   // Verify account number when changed
   const onAccountChange = async (bankCode: string, accountNumber: string) => {
@@ -128,7 +122,11 @@ export function ProducerBankDetailsForm({
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
-      toast.error("User session not found");
+      toast({
+        title: "Error",
+        description: "User session not found",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -139,9 +137,12 @@ export function ProducerBankDetailsForm({
     );
 
     if (!isVerified) {
-      toast.error(
-        "Bank account verification failed. Please check your details."
-      );
+      toast({
+        title: "Error",
+        description:
+          "Bank account verification failed. Please check your details.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -191,21 +192,39 @@ export function ProducerBankDetailsForm({
 
       setIsEditMode(false);
 
+      toast({
+        title: "Success",
+        description: "Bank details saved successfully",
+      });
+
       if (onSuccess) {
         onSuccess();
       }
     } catch (error) {
       console.error("Error saving bank details:", error);
-      toast.error("Failed to save bank details. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to save bank details. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  if (
-    !isEditMode &&
-    existingAccountName &&
-    existingBankCode &&
-    existingAccountNumber
-  ) {
+  // Find bank name from bank code
+  const getBankNameFromCode = (code: string | undefined): string => {
+    if (!code) return "Your Bank";
+    const bank = banks.find((b) => b.code === code);
+    return bank ? bank.name : "Bank Account";
+  };
+
+  // Format account number to show only last 4 digits
+  const formatAccountNumber = (accountNumber: string | undefined): string => {
+    if (!accountNumber) return "";
+    return accountNumber.slice(-4).padStart(accountNumber.length, "*");
+  };
+
+  // Always check for complete bank details first - this is our absolute priority
+  if (hasCompleteDetails && !isEditMode) {
     // Show read-only view of bank details with edit button
     return (
       <div className="space-y-4">
@@ -217,14 +236,11 @@ export function ProducerBankDetailsForm({
                 Bank Account Connected
               </h3>
               <p className="text-sm text-green-700 mt-1">
+                {getBankNameFromCode(existingBankCode)} Account{" "}
                 {existingAccountName}
               </p>
               <p className="text-xs text-green-600 mt-1">
-                Account Number:{" "}
-                {existingAccountNumber &&
-                  existingAccountNumber
-                    .slice(-4)
-                    .padStart(existingAccountNumber.length, "*")}
+                Account Number: {formatAccountNumber(existingAccountNumber)}
               </p>
             </div>
             <Button
@@ -366,7 +382,7 @@ export function ProducerBankDetailsForm({
           </FormDescription>
 
           <div className="flex justify-end space-x-2">
-            {existingBankCode && (
+            {hasCompleteDetails && (
               <Button
                 type="button"
                 variant="outline"
