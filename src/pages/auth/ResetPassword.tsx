@@ -107,6 +107,9 @@ export default function ResetPassword() {
         description: "Your password has been successfully updated. You will be redirected to login."
       });
       
+      // Sign out to prevent auto-login
+      await supabase.auth.signOut();
+      
       // Redirect to login after successful password reset
       setTimeout(() => navigate('/login'), 3000);
     } catch (error) {
