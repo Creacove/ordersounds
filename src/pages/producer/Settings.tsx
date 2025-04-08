@@ -15,11 +15,20 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from "@/components/payment/ProducerBankDetailsForm";
 import { supabase } from "@/integrations/supabase/client";
-import { Bell, Settings as SettingsIcon, DollarSign } from "lucide-react";
+import {
+  Bell,
+  Settings as SettingsIcon,
+  DollarSign,
+  User,
+  KeyRound,
+} from "lucide-react";
 import { ProfileForm } from "@/components/producer/settings/ProfileForm";
 import { ProfilePictureUploader } from "@/components/producer/settings/ProfilePictureUploader";
 import { PaymentStatsSection } from "@/components/producer/settings/PaymentStatsSection";
 import { PreferencesForm } from "@/components/producer/settings/PreferencesForm";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 export default function ProducerSettings() {
   const { user } = useAuth();
@@ -39,6 +48,12 @@ export default function ProducerSettings() {
     autoPlayPreviews: true,
   });
   const [producerData, setProducerData] = useState<any>(null);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   useEffect(() => {
     document.title = "Producer Settings | OrderSOUNDS";
@@ -114,6 +129,176 @@ export default function ProducerSettings() {
     }
   };
 
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate passwords
+    if (!currentPassword) {
+      toast.error("Please enter your current password");
+      return;
+    }
+
+    if (!newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters long");
+      return;
+    }
+
+    if (!/[A-Z]/.test(newPassword)) {
+      toast.error("New password must include at least one uppercase letter");
+      return;
+    }
+
+    if (!/[0-9]/.test(newPassword)) {
+      toast.error("New password must include at least one number");
+      return;
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      toast.error("New password must include at least one special character");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirmation do not match");
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+
+      // Verify current password by attempting to sign in
+      if (!user?.email) {
+        toast.error(
+          "Unable to verify your current session, please log in again"
+        );
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error("Current password is incorrect");
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // Update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        toast.error(`Password update failed: ${updateError.message}`);
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // Success
+      toast.success("Password updated successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      console.error("Password change error:", error);
+      toast.error("An error occurred while changing your password");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate passwords
+    if (!currentPassword) {
+      toast.error("Please enter your current password");
+      return;
+    }
+
+    if (!newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters long");
+      return;
+    }
+
+    if (!/[A-Z]/.test(newPassword)) {
+      toast.error("New password must include at least one uppercase letter");
+      return;
+    }
+
+    if (!/[0-9]/.test(newPassword)) {
+      toast.error("New password must include at least one number");
+      return;
+    }
+
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+      toast.error("New password must include at least one special character");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirmation do not match");
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+
+      // Verify current password by attempting to sign in
+      if (!user?.email) {
+        toast.error(
+          "Unable to verify your current session, please log in again"
+        );
+        return;
+      }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        toast.error("Current password is incorrect");
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // Update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        toast.error(`Password update failed: ${updateError.message}`);
+        setIsChangingPassword(false);
+        return;
+      }
+
+      // Success
+      toast.success("Password updated successfully");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      console.error("Password change error:", error);
+      toast.error("An error occurred while changing your password");
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   if (!user || user.role !== "producer") {
     return (
       <MainLayout>
@@ -145,9 +330,9 @@ export default function ProducerSettings() {
         </h1>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 overflow-hidden">
+          <TabsList className="grid w-full max-w-md grid-cols-4 mb-6 md:mb-8 overflow-hidden">
             <TabsTrigger value="profile" className="flex items-center gap-1">
-              <SettingsIcon className="w-4 h-4" />
+              <User className="w-4 h-4" />
               <span>Profile</span>
             </TabsTrigger>
             <TabsTrigger value="payment" className="flex items-center gap-1">
@@ -160,6 +345,10 @@ export default function ProducerSettings() {
             >
               <Bell className="w-4 h-4" />
               <span>Preferences</span>
+            </TabsTrigger>
+            <TabsTrigger value="account" className="flex items-center gap-1">
+              <KeyRound className="w-4 h-4" />
+              <span>Account</span>
             </TabsTrigger>
           </TabsList>
 
@@ -240,6 +429,82 @@ export default function ProducerSettings() {
                   initialDarkMode={producerSettings.darkMode}
                   initialAutoPlayPreviews={producerSettings.autoPlayPreviews}
                 />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="account">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl md:text-2xl">
+                  Account Security
+                </CardTitle>
+                <CardDescription className="text-sm md:text-base">
+                  Change your password to keep your account secure
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handlePasswordChange} className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="current-password">Current Password</Label>
+                      <Input
+                        id="current-password"
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter your current password"
+                        className="bg-background"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password">New Password</Label>
+                      <Input
+                        id="new-password"
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Enter your new password"
+                        className="bg-background"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-password">
+                        Confirm New Password
+                      </Label>
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Confirm your new password"
+                        className="bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-muted-foreground">
+                    <p>Password requirements:</p>
+                    <ul className="list-disc list-inside pl-2 mt-1 space-y-1">
+                      <li>At least 8 characters long</li>
+                      <li>At least one uppercase letter</li>
+                      <li>At least one number</li>
+                      <li>At least one special character</li>
+                    </ul>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="w-full md:w-auto"
+                  >
+                    {isChangingPassword
+                      ? "Updating Password..."
+                      : "Update Password"}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           </TabsContent>
