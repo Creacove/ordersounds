@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from '@/components/payment/ProducerBankDetailsForm';
 import { toast } from "@/components/ui/use-toast";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Bell, Settings as SettingsIcon, DollarSign, CreditCard, Clock, Activity, CheckCircle, Upload, Camera } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { formatCurrency } from '@/utils/formatters';
@@ -77,7 +78,7 @@ export default function ProducerSettings() {
       setProducerName(user.producer_name || user.name || '');
       setBio(user.bio || '');
       setLocation(user.country || '');
-      setAvatarUrl(user.avatar_url || null);
+      setAvatarUrl(user.avatar_url || user.profile_picture || null);
       
       if (user.settings) {
         try {
@@ -123,6 +124,29 @@ export default function ProducerSettings() {
     try {
       setLoadingAnalytics(true);
       
+      // Get producer's beats
+      const { data: producerBeats, error: beatsError } = await supabase
+        .from('beats')
+        .select('id')
+        .eq('producer_id', user.id);
+        
+      if (beatsError) throw beatsError;
+      
+      if (!producerBeats || producerBeats.length === 0) {
+        setPaymentAnalytics({
+          total_earnings: 0,
+          pending_balance: 0,
+          successful_payments: 0,
+          pending_payments: 0,
+          recent_transactions: []
+        });
+        setLoadingAnalytics(false);
+        return;
+      }
+      
+      const beatIds = producerBeats.map(beat => beat.id);
+      
+      // Get transactions for producer's beats only
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('line_items')
         .select(`
@@ -131,21 +155,21 @@ export default function ProducerSettings() {
           currency_code,
           beat_id,
           order_id,
-          orders(
+          orders:order_id(
             order_date, 
             status, 
             payment_reference
           ),
-          beats(
+          beats:beat_id(
             title,
-            id,
-            producer_id
+            id
           )
         `)
-        .eq('beats.producer_id', user.id);
+        .in('beat_id', beatIds);
         
       if (transactionsError) throw transactionsError;
       
+      // Get payouts for this producer
       const { data: payoutsData, error: payoutsError } = await supabase
         .from('payouts')
         .select('*')
@@ -155,16 +179,11 @@ export default function ProducerSettings() {
       if (payoutsError) throw payoutsError;
 
       const recentTransactions: Transaction[] = (transactionsData || [])
-        .filter(item => 
-          item && 
-          item.orders && 
-          item.beats && 
-          item.beats.producer_id === user.id
-        )
+        .filter(item => item && item.orders && item.beats)
         .map(item => ({
           id: item.id,
           beat_title: item.beats?.title || 'Untitled Beat',
-          beat_id: item.beats?.id || '',
+          beat_id: item.beat_id || '',
           date: item.orders?.order_date || '',
           amount: item.price_charged || 0,
           currency: item.currency_code || 'NGN',
@@ -172,13 +191,17 @@ export default function ProducerSettings() {
           reference: item.orders?.payment_reference || ''
         })) || [];
       
+      // Calculate total earnings from transactions
       const totalEarnings = recentTransactions.reduce((sum, transaction) => {
-        return sum + (transaction.amount || 0);
+        return transaction.status === 'completed' ? sum + (transaction.amount * 0.9) : sum;
       }, 0);
       
+      // Calculate total paid out from completed payouts
       const completedPayouts = payoutsData?.filter(p => p.status === 'successful') || [];
       const pendingPayouts = payoutsData?.filter(p => p.status === 'pending') || [];
       const totalPaidOut = completedPayouts.reduce((sum, payout) => sum + payout.amount, 0);
+      
+      // Calculate pending balance as the difference between total earnings and paid out amount
       const pendingBalance = totalEarnings - totalPaidOut;
       
       setPaymentAnalytics({
@@ -280,8 +303,8 @@ export default function ProducerSettings() {
 
   const handleBankDetailsSuccess = () => {
     toast.success('Bank details saved successfully');
-    fetchPaymentAnalytics();
     
+    // Do not reload the page, just fetch updated user data
     if (user && updateProfile) {
       supabase
         .from('users')
@@ -299,6 +322,9 @@ export default function ProducerSettings() {
           }
         });
     }
+    
+    // Update payment analytics without full page reload
+    fetchPaymentAnalytics();
   };
   
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,6 +363,7 @@ export default function ProducerSettings() {
         if (updateProfile) {
           await updateProfile({
             ...user!,
+            profile_picture: base64String,
             avatar_url: base64String
           });
         }
@@ -430,12 +457,11 @@ export default function ProducerSettings() {
                               <AvatarImage src={avatarUrl || undefined} alt={producerName} />
                               <AvatarFallback>{getInitials(producerName || user.name || 'User')}</AvatarFallback>
                             </Avatar>
-                            <label htmlFor="avatar-upload">
+                            <label htmlFor="avatar-upload" className="cursor-pointer">
                               <Button 
                                 variant="outline" 
                                 className="cursor-pointer"
                                 disabled={isLoading.avatar}
-                                onClick={() => {}}
                                 type="button"
                               >
                                 {isLoading.avatar ? (
