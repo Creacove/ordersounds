@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
 import { fetchSupportedBanks } from '@/utils/payment/paystackSplitUtils';
 import { useAuth } from '@/context/AuthContext';
@@ -60,6 +60,7 @@ export function ProducerBankDetailsForm({
     updateBankDetails, 
     verifyBankAccount 
   } = usePaystackSplit();
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -104,7 +105,7 @@ export function ProducerBankDetailsForm({
     };
 
     loadBanks();
-  }, []);
+  }, [toast]);
 
   // Verify account number when changed
   const onAccountChange = async (bankCode: string, accountNumber: string) => {
@@ -184,7 +185,6 @@ export function ProducerBankDetailsForm({
       toast({
         title: "Success",
         description: 'Bank details saved successfully',
-        variant: "default"
       });
 
       if (onSuccess) {
