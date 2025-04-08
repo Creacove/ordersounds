@@ -1,12 +1,11 @@
-
-import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { useToast } from '@/hooks/use-toast';
-import { usePaystackSplit } from '@/hooks/payment/usePaystackSplit';
-import { fetchSupportedBanks } from '@/utils/payment/paystackSplitUtils';
-import { useAuth } from '@/context/AuthContext';
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { usePaystackSplit } from "@/hooks/payment/usePaystackSplit";
+import { fetchSupportedBanks } from "@/utils/payment/paystackSplitUtils";
+import { useAuth } from "@/context/AuthContext";
 
 import {
   Form,
@@ -16,17 +15,24 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, CheckCircle2, AlertCircle, PenLine } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+} from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, CheckCircle2, AlertCircle, PenLine } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Bank {
   name: string;
   code: string;
   active: boolean;
+  id: number;
 }
 
 interface ProducerBankDetailsFormProps {
@@ -39,7 +45,9 @@ interface ProducerBankDetailsFormProps {
 
 const formSchema = z.object({
   bank_code: z.string().min(1, "Bank selection is required"),
-  account_number: z.string().min(10, "Account number must be at least 10 digits"),
+  account_number: z
+    .string()
+    .min(10, "Account number must be at least 10 digits"),
 });
 
 export function ProducerBankDetailsForm({
@@ -47,21 +55,25 @@ export function ProducerBankDetailsForm({
   existingBankCode,
   existingAccountNumber,
   existingAccountName,
-  onSuccess
+  onSuccess,
 }: ProducerBankDetailsFormProps) {
   // Always default to read-only mode if bank details exist
-  const hasCompleteDetails = !!(existingBankCode && existingAccountNumber && existingAccountName);
-  
+  const hasCompleteDetails = !!(
+    existingBankCode &&
+    existingAccountNumber &&
+    existingAccountName
+  );
+
   const [banks, setBanks] = useState<Bank[]>([]);
   const [isLoadingBanks, setIsLoadingBanks] = useState(false);
   const [isEditMode, setIsEditMode] = useState(!hasCompleteDetails);
   const { user, updateProfile, updateUserInfo } = useAuth();
-  const { 
-    isLoading, 
-    accountName, 
-    isVerifying, 
-    updateBankDetails, 
-    verifyBankAccount 
+  const {
+    isLoading,
+    accountName,
+    isVerifying,
+    updateBankDetails,
+    verifyBankAccount,
   } = usePaystackSplit();
   const { toast } = useToast();
 
@@ -81,13 +93,15 @@ export function ProducerBankDetailsForm({
         const banksList = await fetchSupportedBanks();
         // Filter only active banks
         const activeBanks = banksList.filter((bank: Bank) => bank.active);
-        setBanks(activeBanks.sort((a: Bank, b: Bank) => a.name.localeCompare(b.name)));
+        setBanks(
+          activeBanks.sort((a: Bank, b: Bank) => a.name.localeCompare(b.name))
+        );
       } catch (error) {
-        console.error('Error loading banks:', error);
+        console.error("Error loading banks:", error);
         toast({
           title: "Error",
-          description: 'Failed to load bank list. Please try again later.',
-          variant: "destructive"
+          description: "Failed to load bank list. Please try again later.",
+          variant: "destructive",
         });
       } finally {
         setIsLoadingBanks(false);
@@ -110,20 +124,24 @@ export function ProducerBankDetailsForm({
     if (!user) {
       toast({
         title: "Error",
-        description: 'User session not found',
-        variant: "destructive"
+        description: "User session not found",
+        variant: "destructive",
       });
       return;
     }
-    
+
     // Verify the account first
-    const isVerified = await verifyBankAccount(values.account_number, values.bank_code);
-    
+    const isVerified = await verifyBankAccount(
+      values.account_number,
+      values.bank_code
+    );
+
     if (!isVerified) {
       toast({
         title: "Error",
-        description: 'Bank account verification failed. Please check your details.',
-        variant: "destructive"
+        description:
+          "Bank account verification failed. Please check your details.",
+        variant: "destructive",
       });
       return;
     }
@@ -131,27 +149,27 @@ export function ProducerBankDetailsForm({
     try {
       // First, update the database directly
       const { error } = await supabase
-        .from('users')
+        .from("users")
         .update({
           bank_code: values.bank_code,
           account_number: values.account_number,
-          verified_account_name: accountName
+          verified_account_name: accountName,
         })
-        .eq('id', producerId);
-        
+        .eq("id", producerId);
+
       if (error) {
-        console.error('Error updating bank details in database:', error);
-        throw new Error('Failed to update bank details in database');
+        console.error("Error updating bank details in database:", error);
+        throw new Error("Failed to update bank details in database");
       }
-      
-      // Create updated user object
+
+      // Create updated user object immutably
       const updatedUser = {
         ...user,
         bank_code: values.bank_code,
         account_number: values.account_number,
-        verified_account_name: accountName
+        verified_account_name: accountName,
       };
-      
+
       // Update local user context
       if (updateUserInfo) {
         // This directly updates the user context without an API call
@@ -168,7 +186,7 @@ export function ProducerBankDetailsForm({
           account_number: values.account_number,
         });
       } catch (splitError) {
-        console.error('Error updating Paystack split account:', splitError);
+        console.error("Error updating Paystack split account:", splitError);
         // Continue even if Paystack update fails - we've updated the database
       }
 
@@ -176,18 +194,18 @@ export function ProducerBankDetailsForm({
 
       toast({
         title: "Success",
-        description: 'Bank details saved successfully',
+        description: "Bank details saved successfully",
       });
 
       if (onSuccess) {
         onSuccess();
       }
     } catch (error) {
-      console.error('Error saving bank details:', error);
+      console.error("Error saving bank details:", error);
       toast({
         title: "Error",
-        description: 'Failed to save bank details. Please try again.',
-        variant: "destructive"
+        description: "Failed to save bank details. Please try again.",
+        variant: "destructive",
       });
     }
   };
@@ -195,14 +213,14 @@ export function ProducerBankDetailsForm({
   // Find bank name from bank code
   const getBankNameFromCode = (code: string | undefined): string => {
     if (!code) return "Your Bank";
-    const bank = banks.find(b => b.code === code);
+    const bank = banks.find((b) => b.code === code);
     return bank ? bank.name : "Bank Account";
   };
 
   // Format account number to show only last 4 digits
   const formatAccountNumber = (accountNumber: string | undefined): string => {
     if (!accountNumber) return "";
-    return accountNumber.slice(-4).padStart(accountNumber.length, '*');
+    return accountNumber.slice(-4).padStart(accountNumber.length, "*");
   };
 
   // Always check for complete bank details first - this is our absolute priority
@@ -218,14 +236,15 @@ export function ProducerBankDetailsForm({
                 Bank Account Connected
               </h3>
               <p className="text-sm text-green-700 mt-1">
-                {getBankNameFromCode(existingBankCode)} Account {existingAccountName}
+                {getBankNameFromCode(existingBankCode)} Account{" "}
+                {existingAccountName}
               </p>
               <p className="text-xs text-green-600 mt-1">
                 Account Number: {formatAccountNumber(existingAccountNumber)}
               </p>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setIsEditMode(true)}
               className="flex items-center gap-1"
@@ -254,13 +273,12 @@ export function ProducerBankDetailsForm({
                   disabled={isLoadingBanks || isLoading}
                   onValueChange={(value) => {
                     field.onChange(value);
-                    const accountNumber = form.getValues('account_number');
+                    const accountNumber = form.getValues("account_number");
                     if (accountNumber) {
                       onAccountChange(value, accountNumber);
                     }
                   }}
-                  defaultValue={field.value}
-                  value={field.value}
+                  value={field.value} // Use value instead of defaultValue
                 >
                   <FormControl>
                     <SelectTrigger>
@@ -300,7 +318,7 @@ export function ProducerBankDetailsForm({
                     disabled={isLoading}
                     onChange={(e) => {
                       field.onChange(e);
-                      const bankCode = form.getValues('bank_code');
+                      const bankCode = form.getValues("bank_code");
                       if (bankCode && e.target.value.length >= 10) {
                         onAccountChange(bankCode, e.target.value);
                       }
@@ -314,33 +332,43 @@ export function ProducerBankDetailsForm({
 
           {/* Account name verification result */}
           {(isVerifying || accountName || existingAccountName) && (
-            <div className={`p-3 rounded-md ${
-              isVerifying 
-                ? 'bg-blue-50 border border-blue-200' 
-                : accountName 
-                  ? 'bg-green-50 border border-green-200'
-                  : 'bg-amber-50 border border-amber-200'
-            }`}>
+            <div
+              className={`p-3 rounded-md ${
+                isVerifying
+                  ? "bg-blue-50 border border-blue-200"
+                  : accountName
+                  ? "bg-green-50 border border-green-200"
+                  : "bg-amber-50 border border-amber-200"
+              }`}
+            >
               <div className="flex items-center gap-2">
                 {isVerifying ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                    <span className="text-sm text-blue-600">Verifying account details...</span>
+                    <span className="text-sm text-blue-600">
+                      Verifying account details...
+                    </span>
                   </>
                 ) : accountName ? (
                   <>
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-green-600">Account Name: {accountName}</span>
+                    <span className="text-sm text-green-600">
+                      Account Name: {accountName}
+                    </span>
                   </>
                 ) : existingAccountName ? (
                   <>
                     <CheckCircle2 className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm text-amber-600">Account Name: {existingAccountName}</span>
+                    <span className="text-sm text-amber-600">
+                      Account Name: {existingAccountName}
+                    </span>
                   </>
                 ) : (
                   <>
                     <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-sm text-red-600">Account verification failed</span>
+                    <span className="text-sm text-red-600">
+                      Account verification failed
+                    </span>
                   </>
                 )}
               </div>
@@ -348,18 +376,23 @@ export function ProducerBankDetailsForm({
           )}
 
           <FormDescription className="text-xs">
-            Your bank details are securely encrypted and only used for payment processing.
-            Please ensure your account details are correct to avoid payment issues.
+            Your bank details are securely encrypted and only used for payment
+            processing. Please ensure your account details are correct to avoid
+            payment issues.
           </FormDescription>
 
           <div className="flex justify-end space-x-2">
             {hasCompleteDetails && (
-              <Button type="button" variant="outline" onClick={() => setIsEditMode(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsEditMode(false)}
+              >
                 Cancel
               </Button>
             )}
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isLoading || isVerifying}
               className="relative"
             >
