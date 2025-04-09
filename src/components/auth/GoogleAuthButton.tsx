@@ -26,7 +26,11 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
         options: {
           redirectTo: 'https://app.ordersounds.com/auth/callback',
           queryParams: {
+            // Force account selection to prevent issues with Google Suite accounts
+            prompt: 'select_account',
+            // Include access_type offline to get refresh token
             access_type: 'offline',
+            // Explicitly request consent to ensure refresh token is provided
             prompt: 'consent',
           }
         },
