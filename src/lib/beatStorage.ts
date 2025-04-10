@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';

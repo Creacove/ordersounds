@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -152,6 +151,8 @@ export const useBeatUpload = () => {
         const { supabase } = await import('@/integrations/supabase/client');
         const filePath = `full-tracks/${Date.now()}_${file.name}`;
         
+        toast.info("Uploading full track...");
+        
         const { data, error } = await supabase.storage
           .from('beats')
           .upload(filePath, file, { 
@@ -173,6 +174,7 @@ export const useBeatUpload = () => {
         setUploadedFileUrl(publicUrlData.publicUrl);
 
         // Generate preview
+        toast.info("Processing audio and generating preview...");
         await generatePreview(publicUrlData.publicUrl);
         
         toast.success("Full track uploaded");
