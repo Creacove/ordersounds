@@ -57,7 +57,8 @@ export const useBeatUpload = () => {
   const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']); // Default to basic license
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
+  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
     title: "",
     description: "",
@@ -141,6 +142,7 @@ export const useBeatUpload = () => {
       }
       
       setUploadedFile(file);
+      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
       // Clear preview file as it will be auto-generated
       setPreviewFile(null);
@@ -148,16 +150,22 @@ export const useBeatUpload = () => {
       
       try {
         // Upload the file immediately
-        const { supabase } = await import('@/integrations/supabase/client');
-        const filePath = `full-tracks/${Date.now()}_${file.name}`;
-        
         toast.info("Uploading full track...");
+
+        // Track upload progress
+        const onProgress = (progress: { loaded: number; total: number }) => {
+          const percentage = Math.round((progress.loaded / progress.total) * 100);
+          setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
+        };
+        
+        const filePath = `full-tracks/${Date.now()}_${file.name}`;
         
         const { data, error } = await supabase.storage
           .from('beats')
           .upload(filePath, file, { 
             cacheControl: '3600',
-            upsert: false
+            upsert: false,
+            onUploadProgress: onProgress
           });
         
         if (error) {
@@ -208,10 +216,13 @@ export const useBeatUpload = () => {
       
       if (data && data.publicUrl) {
         // Set the preview URL
+        console.log("Preview generated successfully:", data.publicUrl);
         setPreviewUrl(data.publicUrl);
         toast.success("Audio processing complete");
         return data.publicUrl;
       } else {
+        console.error("No preview URL returned from processing");
+        toast.error("Failed to generate audio preview");
         throw new Error("No preview URL returned from processing");
       }
     } catch (error) {
@@ -225,8 +236,64 @@ export const useBeatUpload = () => {
 
   const handlePreviewUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setPreviewFile(e.target.files[0]);
-      toast.success("Preview track uploaded");
+      const file = e.target.files[0];
+      
+      // Validate file size
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("Preview file must be less than 10MB");
+        return;
+      }
+      
+      // Validate file type
+      if (file.type !== "audio/mpeg" && !file.name.endsWith('.mp3')) {
+        toast.error("Preview file must be in MP3 format");
+        return;
+      }
+      
+      setPreviewFile(file);
+      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+      
+      // Upload the preview file immediately
+      uploadPreviewFile(file);
+    }
+  };
+  
+  const uploadPreviewFile = async (file: File) => {
+    try {
+      toast.info("Uploading preview...");
+      
+      // Track upload progress
+      const onProgress = (progress: { loaded: number; total: number }) => {
+        const percentage = Math.round((progress.loaded / progress.total) * 100);
+        setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
+      };
+      
+      const filePath = `previews/${Date.now()}_${file.name}`;
+      
+      const { data, error } = await supabase.storage
+        .from('beats')
+        .upload(filePath, file, { 
+          cacheControl: '3600',
+          upsert: false,
+          onUploadProgress: onProgress
+        });
+      
+      if (error) {
+        console.error(`Error uploading preview:`, error);
+        toast.error("Failed to upload preview. Please try again.");
+        return;
+      }
+      
+      // Get public URL for the file
+      const { data: publicUrlData } = supabase.storage
+        .from('beats')
+        .getPublicUrl(data.path);
+      
+      setPreviewUrl(publicUrlData.publicUrl);
+      toast.success("Preview uploaded");
+    } catch (error) {
+      console.error("Error uploading preview:", error);
+      toast.error("Failed to upload preview. Please try again.");
     }
   };
 
@@ -240,14 +307,57 @@ export const useBeatUpload = () => {
         return;
       }
       
-      setImageFile(file);
+      // Validate file type
+      if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+        toast.error("Cover image must be JPG, PNG, or GIF format");
+        return;
+      }
       
+      setImageFile(file);
+      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+      
+      // Show preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
+      
+      // Upload the image file immediately
+      uploadImageFile(file);
+    }
+  };
+  
+  const uploadImageFile = async (file: File) => {
+    try {
+      toast.info("Uploading cover image...");
+      
+      // Track upload progress
+      const onProgress = (progress: { loaded: number; total: number }) => {
+        const percentage = Math.round((progress.loaded / progress.total) * 100);
+        setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
+      };
+      
+      const filePath = `covers/${Date.now()}_${file.name}`;
+      
+      const { data, error } = await supabase.storage
+        .from('beats')
+        .upload(filePath, file, { 
+          cacheControl: '3600',
+          upsert: false,
+          onUploadProgress: onProgress
+        });
+      
+      if (error) {
+        console.error(`Error uploading image:`, error);
+        toast.error("Failed to upload cover image. Please try again.");
+        return;
+      }
+      
       toast.success("Cover image uploaded");
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload cover image. Please try again.");
     }
   };
 
@@ -368,7 +478,7 @@ export const useBeatUpload = () => {
       return false;
     }
     
-    if (!uploadedFile) {
+    if (!uploadedFile && !uploadedFileUrl) {
       toast.error("Full track file is required");
       return false;
     }
@@ -418,6 +528,12 @@ export const useBeatUpload = () => {
       return false;
     }
     
+    // Preview is required
+    if (!previewUrl && !previewFile) {
+      toast.error("Preview track is required. Please try re-uploading the full track or upload a separate preview");
+      return false;
+    }
+    
     const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
     if (totalPercentage !== 100) {
       toast.error("Collaborator percentages must sum to 100%");
@@ -427,7 +543,6 @@ export const useBeatUpload = () => {
     return true;
   };
 
-  // Method to regenerate the preview on demand
   const regeneratePreview = async () => {
     if (!uploadedFileUrl) {
       toast.error("Please upload a full track first");
@@ -442,53 +557,60 @@ export const useBeatUpload = () => {
     }
   };
 
-  // Process audio method used during publishing
-  const processAudio = async (fullTrackUrl: string) => {
-    try {
-      setProcessingFiles(true);
+  const handleStemsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
       
-      // Call the process-audio edge function
-      const { data, error } = await supabase.functions.invoke('process-audio', {
-        body: { 
-          fullTrackUrl,
-          requiresWav: selectedLicenseTypes.includes('premium') || selectedLicenseTypes.includes('exclusive')
-        }
-      });
+      // Validate file size
+      if (file.size > 100 * 1024 * 1024) {
+        toast.error("Stems file must be less than 100MB");
+        return;
+      }
+      
+      // Validate file type
+      if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
+        toast.error("Stems file must be a ZIP archive");
+        return;
+      }
+      
+      setStems(file);
+      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+      
+      // Upload the stems file immediately
+      uploadStemsFile(file);
+    }
+  };
+  
+  const uploadStemsFile = async (file: File) => {
+    try {
+      toast.info("Uploading stems...");
+      
+      // Track upload progress
+      const onProgress = (progress: { loaded: number; total: number }) => {
+        const percentage = Math.round((progress.loaded / progress.total) * 100);
+        setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
+      };
+      
+      const filePath = `stems/${Date.now()}_${file.name}`;
+      
+      const { data, error } = await supabase.storage
+        .from('beats')
+        .upload(filePath, file, { 
+          cacheControl: '3600',
+          upsert: false,
+          onUploadProgress: onProgress
+        });
       
       if (error) {
-        console.error("Error processing audio:", error);
-        toast.error("Failed to process audio. Please try again.");
-        throw error;
+        console.error(`Error uploading stems:`, error);
+        toast.error("Failed to upload stems. Please try again.");
+        return;
       }
       
-      if (data && data.previewUrl) {
-        // Download the processed preview to show in UI
-        const { data: fileData, error: downloadError } = await supabase.storage
-          .from('beats')
-          .download(data.previewUrl);
-          
-        if (downloadError) {
-          console.error("Error downloading preview:", downloadError);
-          throw downloadError;
-        }
-        
-        // Create a File object from the downloaded blob
-        const previewFileObj = new File([fileData], "preview.mp3", { 
-          type: "audio/mpeg" 
-        });
-        
-        setPreviewFile(previewFileObj);
-        toast.success("Audio processing complete");
-        return data.previewUrl;
-      }
-      
-      return null;
+      toast.success("Stems uploaded");
     } catch (error) {
-      console.error("Error in audio processing:", error);
-      toast.error("Failed to process audio");
-      return null;
-    } finally {
-      setProcessingFiles(false);
+      console.error("Error uploading stems:", error);
+      toast.error("Failed to upload stems. Please try again.");
     }
   };
 
@@ -508,6 +630,7 @@ export const useBeatUpload = () => {
     stems, setStems,
     processingFiles, setProcessingFiles,
     previewUrl, setPreviewUrl,
+    uploadProgress,
     validateForm,
     handleLicenseTypeChange,
     handleCollaboratorChange,
@@ -519,8 +642,9 @@ export const useBeatUpload = () => {
     handleImageUpload,
     handlePreviewUpload,
     handleFullTrackUpload,
-    processAudio,
+    handleStemsUpload,
     regeneratePreview,
-    licenseOptions
+    licenseOptions,
+    uploadedFileUrl
   };
 };

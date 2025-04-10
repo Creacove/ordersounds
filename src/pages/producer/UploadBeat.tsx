@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +16,6 @@ import { RoyaltiesTab } from "@/components/upload/RoyaltiesTab";
 import { useBeatUpload } from "@/hooks/useBeatUpload";
 
 export default function UploadBeat() {
-  // Define the new order of tabs
   const tabOrder = ["details", "licensing", "files", "pricing", "royalties"];
 
   const { 
@@ -34,23 +32,21 @@ export default function UploadBeat() {
     isSubmitting, setIsSubmitting,
     selectedLicenseTypes, stems, setStems,
     processingFiles,
-    previewUrl,
+    previewUrl, setPreviewUrl,
     validateForm, handleLicenseTypeChange,
     handleCollaboratorChange, handleRemoveCollaborator, handleAddCollaborator,
     handleRemoveTag, handleAddTag,
     handleBeatChange, handleImageUpload, handlePreviewUpload, handleFullTrackUpload,
-    processAudio, regeneratePreview, licenseOptions
+    handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl, uploadProgress
   } = useBeatUpload();
   
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
 
   const nextTab = () => {
     const currentIndex = tabOrder.indexOf(activeTab);
     if (currentIndex < tabOrder.length - 1) {
-      // Validate current tab before proceeding
       if (validateCurrentTab()) {
         setActiveTab(tabOrder[currentIndex + 1]);
       }
@@ -64,7 +60,6 @@ export default function UploadBeat() {
     }
   };
 
-  // Validate the current tab before moving to next
   const validateCurrentTab = () => {
     const newErrors: { [key: string]: string } = {};
     
@@ -89,11 +84,10 @@ export default function UploadBeat() {
       if (!imageFile) {
         newErrors.coverImage = "Cover image is required";
       }
-      if (!uploadedFile) {
+      if (!uploadedFile && !uploadedFileUrl) {
         newErrors.fullTrack = "Full track is required";
       }
       
-      // Check if WAV is required but MP3 was provided
       const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
                               selectedLicenseTypes.includes('exclusive');
       if (requiresWavFormat && uploadedFile && 
@@ -102,7 +96,6 @@ export default function UploadBeat() {
         newErrors.fullTrack = "Premium and exclusive licenses require WAV format";
       }
     } else if (activeTab === "pricing") {
-      // Check that license prices are set
       selectedLicenseTypes.forEach(license => {
         if (license === 'basic' && (!beatDetails.basicLicensePriceLocal || !beatDetails.basicLicensePriceDiaspora)) {
           newErrors.basicPrice = "Basic license prices are required";
@@ -123,7 +116,6 @@ export default function UploadBeat() {
         newErrors.royalties = "Collaborator percentages must sum to 100%";
       }
       
-      // Check that all collaborators have required fields
       collaborators.forEach((c, index) => {
         if (!c.name) {
           newErrors[`collaborator_${index}_name`] = "Name is required";
@@ -134,18 +126,15 @@ export default function UploadBeat() {
       });
     }
     
-    // If there are errors, show them and prevent moving to next tab
     if (Object.keys(newErrors).length > 0) {
       setValidationErrors(newErrors);
       
-      // Show the first error as a toast
       const firstError = Object.values(newErrors)[0];
       toast.error(firstError);
       
       return false;
     }
     
-    // Clear errors for this tab
     setValidationErrors({});
     return true;
   };
@@ -180,17 +169,27 @@ export default function UploadBeat() {
         }
       });
       
-      // Generate preview if needed
-      let previewTrackUrl = '';
-      if (!previewFile && uploadedFile) {
-        // Process the full track to generate preview
-        const uploadResult = await uploadFile(uploadedFile, 'beats', 'full-tracks');
-        if (uploadResult) {
-          previewTrackUrl = await processAudio(uploadResult);
-          if (!previewTrackUrl) {
-            throw new Error("Failed to process audio and generate preview");
-          }
-        }
+      if (!imageFile) {
+        toast.error("Cover image is required");
+        setActiveTab("files");
+        return;
+      }
+      
+      if (!uploadedFile && !uploadedFileUrl) {
+        toast.error("Full track is required");
+        setActiveTab("files");
+        return;
+      }
+      
+      if (!previewFile && !previewUrl) {
+        toast.error("Preview track is required");
+        setActiveTab("files");
+        return;
+      }
+
+      if (collaborators[0].id === 1) {
+        collaborators[0].name = user.name || 'Producer';
+        collaborators[0].email = user.email || '';
       }
       
       const beatData = {
@@ -211,19 +210,10 @@ export default function UploadBeat() {
         custom_license_price_diaspora: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceDiaspora : undefined,
         status: "published" as const,
         license_type: selectedLicenseTypes.join(','),
-        license_terms: beatDetails.licenseTerms
+        license_terms: beatDetails.licenseTerms || ''
       };
 
       console.log('Beat data to upload:', beatData);
-      
-      if (!uploadedFile || !imageFile) {
-        throw new Error("Missing required files");
-      }
-
-      if (collaborators[0].id === 1) {
-        collaborators[0].name = user.name;
-        collaborators[0].email = user.email || '';
-      }
       
       const result = await uploadBeat(
         beatData,
@@ -234,7 +224,8 @@ export default function UploadBeat() {
         user.id,
         user.producer_name || user.name,
         collaborators,
-        selectedLicenseTypes
+        selectedLicenseTypes,
+        previewUrl
       );
       
       if (result.success) {
@@ -261,16 +252,27 @@ export default function UploadBeat() {
     setIsSubmitting(true);
     
     try {
-      const primaryLicenseType = selectedLicenseTypes[0] || "basic";
+      if (!imageFile) {
+        toast.error("Cover image is required");
+        setActiveTab("files");
+        return;
+      }
       
-      // Generate preview if needed
-      let previewTrackUrl = '';
-      if (!previewFile && uploadedFile) {
-        // Process the full track to generate preview
-        const uploadResult = await uploadFile(uploadedFile, 'beats', 'full-tracks');
-        if (uploadResult) {
-          previewTrackUrl = await processAudio(uploadResult);
-        }
+      if (!uploadedFile && !uploadedFileUrl) {
+        toast.error("Full track is required");
+        setActiveTab("files");
+        return;
+      }
+      
+      if (!previewFile && !previewUrl) {
+        toast.error("Preview track is required");
+        setActiveTab("files");
+        return;
+      }
+
+      if (collaborators[0].id === 1) {
+        collaborators[0].name = user.name || 'Producer';
+        collaborators[0].email = user.email || '';
       }
       
       const beatData = {
@@ -291,17 +293,8 @@ export default function UploadBeat() {
         custom_license_price_diaspora: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceDiaspora : undefined,
         status: "draft" as const,
         license_type: selectedLicenseTypes.join(','),
-        license_terms: beatDetails.licenseTerms
+        license_terms: beatDetails.licenseTerms || ''
       };
-      
-      if (!uploadedFile || !imageFile) {
-        throw new Error("Missing required files");
-      }
-
-      if (collaborators[0].id === 1) {
-        collaborators[0].name = user.name;
-        collaborators[0].email = user.email || '';
-      }
       
       const result = await uploadBeat(
         beatData,
@@ -312,7 +305,8 @@ export default function UploadBeat() {
         user.id,
         user.producer_name || user.name,
         collaborators,
-        selectedLicenseTypes
+        selectedLicenseTypes,
+        previewUrl
       );
       
       if (result.success) {
@@ -329,9 +323,7 @@ export default function UploadBeat() {
     }
   };
 
-  // This function is used to upload files in the background
   const uploadFile = async (file: File, bucketName: string, folder: string) => {
-    // Helper function to upload a file to Supabase Storage
     return new Promise<string | null>(async (resolve, reject) => {
       try {
         const { supabase } = await import('@/integrations/supabase/client');
@@ -350,7 +342,6 @@ export default function UploadBeat() {
           return;
         }
         
-        // Get public URL for the file
         const { data: publicUrlData } = supabase.storage
           .from(bucketName)
           .getPublicUrl(data.path);
@@ -363,7 +354,6 @@ export default function UploadBeat() {
     });
   };
 
-  // Show better error messages for required fields
   useEffect(() => {
     if (validationErrors.title) {
       setActiveTab("details");
@@ -466,6 +456,8 @@ export default function UploadBeat() {
                   uploadProgress={uploadProgress}
                   regeneratePreview={regeneratePreview}
                   previewUrl={previewUrl}
+                  handlePreviewUpload={handlePreviewUpload}
+                  handleStemsUpload={handleStemsUpload}
                 />
               </TabsContent>
 

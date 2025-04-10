@@ -33,6 +33,7 @@ toast.success = (message: string, options?: Omit<ToastOptions, 'title'>) => {
 };
 
 toast.error = (message: string, options?: Omit<ToastOptions, 'title'>) => {
+  console.error("Toast error:", message); // Log errors for debugging
   return sonnerToast.error(message, options);
 };
 

@@ -8,6 +8,7 @@ interface UseAudioReturn {
   togglePlay: () => void;
   stop: () => void;
   seek: (time: number) => void;
+  error: boolean;
 }
 
 export const useAudio = (url: string): UseAudioReturn => {
@@ -15,87 +16,89 @@ export const useAudio = (url: string): UseAudioReturn => {
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [error, setError] = useState(false);
 
   // Initialize audio element and event listeners
   useEffect(() => {
+    if (!url) {
+      setError(true);
+      return;
+    }
+    
     if (!audioRef.current) {
-      audioRef.current = new Audio(url);
-      
-      // Set up event listeners
-      const handleLoadedMetadata = () => {
-        setDuration(audioRef.current?.duration || 0);
-      };
-      
-      const handleTimeUpdate = () => {
-        setCurrentTime(audioRef.current?.currentTime || 0);
-      };
-      
-      const handleEnded = () => {
-        setPlaying(false);
-      };
-      
-      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-      audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
-      audioRef.current.addEventListener('ended', handleEnded);
-      
-      // Cleanup function
-      return () => {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-          audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
-          audioRef.current.removeEventListener('ended', handleEnded);
-        }
-      };
+      audioRef.current = new Audio();
     }
-  }, []);
-  
-  // Update source if URL changes
-  useEffect(() => {
-    if (audioRef.current && url) {
-      // If URL changed, pause first, then update source
-      if (audioRef.current.src !== url) {
-        const wasPlaying = playing;
+    
+    // Set up event listeners
+    const handleLoadedMetadata = () => {
+      setDuration(audioRef.current?.duration || 0);
+      setError(false);
+    };
+    
+    const handleTimeUpdate = () => {
+      setCurrentTime(audioRef.current?.currentTime || 0);
+    };
+    
+    const handleEnded = () => {
+      setPlaying(false);
+    };
+    
+    const handleError = () => {
+      console.error("Error playing audio:", audioRef.current?.error);
+      setError(true);
+      setPlaying(false);
+    };
+    
+    // Set the source and attach event listeners
+    audioRef.current.src = url;
+    audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
+    audioRef.current.addEventListener('ended', handleEnded);
+    audioRef.current.addEventListener('error', handleError);
+    
+    // Set initial state in case audio is already loaded
+    if (audioRef.current.readyState >= 2) {
+      handleLoadedMetadata();
+    }
+    
+    // Cleanup function
+    return () => {
+      if (audioRef.current) {
         audioRef.current.pause();
-        setPlaying(false);
-        
-        audioRef.current.src = url;
-        audioRef.current.load();
-        setCurrentTime(0);
-        setDuration(0);
-        
-        // If it was playing before, start playing again after source change
-        if (wasPlaying) {
-          const playPromise = audioRef.current.play();
-          
-          if (playPromise !== undefined) {
-            playPromise.then(() => {
-              setPlaying(true);
-            }).catch(error => {
-              console.error("Error playing audio:", error);
-            });
-          }
-        }
+        audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+        audioRef.current.removeEventListener('ended', handleEnded);
+        audioRef.current.removeEventListener('error', handleError);
       }
-    }
-  }, [url, playing]);
-
+    };
+  }, [url]);
+  
   // Play/pause toggle function
   const togglePlay = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !url) return;
     
     if (playing) {
       audioRef.current.pause();
       setPlaying(false);
     } else {
-      const playPromise = audioRef.current.play();
+      setError(false); // Clear any previous errors
       
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          setPlaying(true);
-        }).catch(error => {
-          console.error("Error playing audio:", error);
-        });
+      try {
+        const playPromise = audioRef.current.play();
+        
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            setPlaying(true);
+          }).catch(error => {
+            console.error("Error playing audio:", error);
+            setError(true);
+            setPlaying(false);
+          });
+        }
+      } catch (error) {
+        console.error("Error playing audio:", error);
+        setError(true);
+        setPlaying(false);
       }
     }
   };
@@ -124,6 +127,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     currentTime,
     togglePlay,
     stop,
-    seek
+    seek,
+    error
   };
 };

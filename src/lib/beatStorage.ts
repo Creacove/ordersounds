@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -69,7 +70,8 @@ export const uploadBeat = async (
     role: string;
     percentage: number;
   }>,
-  selectedLicenseTypes: string[] = ['basic']
+  selectedLicenseTypes: string[] = ['basic'],
+  previewUrl?: string
 ): Promise<{success: boolean; beatId?: string; error?: string}> => {
   try {
     console.log('Uploading files to storage...');
@@ -86,15 +88,17 @@ export const uploadBeat = async (
     const fullTrackUrl = await uploadFile(fullTrackFile, 'beats', fullTrackFolder);
     console.log('Full track uploaded:', fullTrackUrl);
     
-    // Upload preview if provided, or process full track to create preview
-    let previewUrl = '';
+    // Use provided preview URL or upload preview if provided
+    let finalPreviewUrl = previewUrl || '';
     if (previewFile) {
-      previewUrl = await uploadFile(previewFile, 'beats', 'previews');
-      console.log('Preview track uploaded:', previewUrl);
+      finalPreviewUrl = await uploadFile(previewFile, 'beats', 'previews');
+      console.log('Preview track uploaded:', finalPreviewUrl);
+    } else if (!previewUrl) {
+      // No preview file and no preview URL provided - this is an error case
+      console.log('No preview file or URL provided, one should be generated before calling uploadBeat');
+      throw new Error('No preview audio was generated. Please try again.');
     } else {
-      // Process audio should happen before calling this function
-      // but we'll handle the error case here
-      console.log('No preview file provided, one should be generated before calling uploadBeat');
+      console.log('Using provided preview URL:', previewUrl);
     }
     
     // Upload stems if provided (only for exclusive licenses)
@@ -117,7 +121,7 @@ export const uploadBeat = async (
       tags: beatInfo.tags,
       status: beatInfo.status,
       cover_image: coverImageUrl,
-      audio_preview: previewUrl,
+      audio_preview: finalPreviewUrl,
       audio_file: fullTrackUrl,
       favorites_count: 0,
       purchase_count: 0,

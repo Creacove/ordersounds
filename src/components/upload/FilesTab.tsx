@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { useAudio } from "@/hooks/useAudio";
 
 type FilesTabProps = {
   imagePreview: string | null;
@@ -23,6 +23,8 @@ type FilesTabProps = {
   uploadProgress?: { [key: string]: number };
   regeneratePreview?: () => Promise<void>;
   previewUrl?: string | null;
+  handlePreviewUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleStemsUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
 
 export const FilesTab = ({
@@ -41,23 +43,27 @@ export const FilesTab = ({
   processingFiles,
   uploadProgress = {},
   regeneratePreview,
-  previewUrl
+  previewUrl,
+  handlePreviewUpload,
+  handleStemsUpload
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
-
-  // Audio player reference
-  const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
   
+  // Setup audio for preview
+  const audioPreviewUrl = previewUrl || (previewFile ? URL.createObjectURL(previewFile) : '');
+  const { 
+    playing: isAudioPlaying, 
+    togglePlay: toggleAudioPlay,
+    duration: audioDuration
+  } = useAudio(audioPreviewUrl);
+  
+  // Keep isPlaying in sync with the audio hook
   useEffect(() => {
-    return () => {
-      if (audioPlayer) {
-        audioPlayer.pause();
-      }
-    };
-  }, [audioPlayer]);
+    setIsPlaying(isAudioPlaying);
+  }, [isAudioPlaying, setIsPlaying]);
 
   // Get accepted file types based on license type
   const getAcceptedAudioTypes = () => {
@@ -91,7 +97,13 @@ export const FilesTab = ({
     }
   }, [uploadedFile, requiresWavFormat]);
 
-  const handleStemsUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle stems upload if no external handler provided
+  const handleStemsUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (handleStemsUpload) {
+      handleStemsUpload(e);
+      return;
+    }
+    
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
@@ -112,22 +124,15 @@ export const FilesTab = ({
     }
   };
 
-  const togglePlayPause = () => {
-    if (!previewFile && !previewUrl) return;
+  // Handle preview upload if no external handler provided
+  const handlePreviewUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (handlePreviewUpload) {
+      handlePreviewUpload(e);
+      return;
+    }
     
-    if (!audioPlayer) {
-      const audio = new Audio(previewUrl || (previewFile ? URL.createObjectURL(previewFile) : ''));
-      audio.onended = () => setIsPlaying(false);
-      setAudioPlayer(audio);
-      audio.play();
-      setIsPlaying(true);
-    } else {
-      if (isPlaying) {
-        audioPlayer.pause();
-      } else {
-        audioPlayer.play();
-      }
-      setIsPlaying(!isPlaying);
+    if (e.target.files && e.target.files[0]) {
+      setPreviewFile(e.target.files[0]);
     }
   };
 
@@ -239,7 +244,7 @@ export const FilesTab = ({
               </div>
             </div>
             
-            {/* Preview track section now indicates that it will be auto-generated */}
+            {/* Preview track section */}
             <div>
               <h4 className="text-sm font-medium mb-1">Preview Track</h4>
               <div 
@@ -251,17 +256,25 @@ export const FilesTab = ({
                   <>
                     <button
                       className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
-                      onClick={togglePlayPause}
+                      onClick={toggleAudioPlay}
+                      disabled={!audioPreviewUrl}
                     >
-                      {isPlaying ? <Pause size={14} /> : <Play size={14} />}
+                      {isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
                         {previewFile ? previewFile.name : "Preview.mp3"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {previewFile ? `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : "Preview ready"}
+                        {previewFile ? `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : audioPreviewUrl ? `Preview ready (${Math.round(audioDuration)}s)` : "Loading preview..."}
                       </p>
+                      
+                      {previewFile && uploadProgress[previewFile.name] !== undefined && uploadProgress[previewFile.name] < 100 && (
+                        <Progress 
+                          value={uploadProgress[previewFile.name]} 
+                          className="h-1 mt-1" 
+                        />
+                      )}
                     </div>
                     {regeneratePreview && (
                       <Button 
@@ -286,12 +299,9 @@ export const FilesTab = ({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (audioPlayer) {
-                          audioPlayer.pause();
-                          setIsPlaying(false);
-                        }
                         setPreviewFile(null);
                       }}
+                      disabled={!previewFile} // Don't allow clearing if it's the auto-generated preview
                     >
                       <X size={16} />
                     </Button>
@@ -307,9 +317,26 @@ export const FilesTab = ({
                         30-second watermarked MP3 sample
                       </p>
                     </div>
-                    {processingFiles && (
+                    {processingFiles ? (
                       <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => document.getElementById("previewTrack")?.click()}
+                        className="px-2 sm:px-3"
+                      >
+                        <span className="hidden sm:inline">Upload</span>
+                        <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
+                      </Button>
                     )}
+                    <input 
+                      id="previewTrack" 
+                      type="file" 
+                      className="hidden" 
+                      accept="audio/mpeg"
+                      onChange={handlePreviewUploadInternal}
+                    />
                   </>
                 )}
               </div>
@@ -372,7 +399,7 @@ export const FilesTab = ({
                         type="file" 
                         className="hidden" 
                         accept=".zip,application/zip,application/x-zip-compressed" 
-                        onChange={handleStemsUpload}
+                        onChange={handleStemsUploadInternal}
                       />
                     </>
                   )}

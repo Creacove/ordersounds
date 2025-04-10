@@ -1,5 +1,5 @@
 
-import { supabase } from './supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -20,6 +20,8 @@ export const uploadFile = async (
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
+    console.log(`Uploading file to ${bucket}/${filePath}`);
+    
     // Upload file to Supabase storage
     const { data, error } = await supabase.storage
       .from(bucket)
@@ -38,6 +40,7 @@ export const uploadFile = async (
       .from(bucket)
       .getPublicUrl(data.path);
     
+    console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
     return publicUrlData.publicUrl;
   } catch (error) {
     console.error('Error uploading file:', error);
