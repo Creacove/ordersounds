@@ -23,80 +23,56 @@ export const uploadFile = async (
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
-
-    // Create a FormData object for manual XHR upload to track progress
-    const formData = new FormData();
-    formData.append('file', file);
     
     // If progress callback provided, use XHR for tracking progress
     if (progressCallback) {
-      return new Promise((resolve, reject) => {
-        // Get the upload URL from Supabase
-        const uploadUrl = supabase.storage.from(bucket).getUploadUrl(filePath);
-        
-        // Create XHR request
-        const xhr = new XMLHttpRequest();
-        
-        // Configure the request
-        xhr.open('POST', `${supabase.storageUrl}/object/${bucket}/${filePath}`);
-        
-        // Add authentication headers
-        xhr.setRequestHeader('Authorization', `Bearer ${supabase.auth.session()?.access_token}`);
-        
-        // Track upload progress
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
+      // Use Supabase's built-in progress tracking
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          onUploadProgress: (progress) => {
+            const percentComplete = Math.round((progress.loaded / progress.total) * 100);
             console.log(`Upload progress: ${percentComplete}%`);
             progressCallback(percentComplete);
           }
-        };
+        });
         
-        // Handle completion
-        xhr.onload = async () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            console.log('Upload completed successfully');
-            // Get public URL for the file
-            const { data: publicUrlData } = supabase.storage
-              .from(bucket)
-              .getPublicUrl(filePath);
-            
-            resolve(publicUrlData.publicUrl);
-          } else {
-            reject(new Error(`Upload failed with status: ${xhr.status}`));
-          }
-        };
-        
-        // Handle errors
-        xhr.onerror = () => {
-          reject(new Error('Upload failed'));
-        };
-        
-        // Send the request with file data
-        xhr.send(file);
-      });
+      if (error) {
+        console.error(`Error uploading to ${bucket}/${filePath}:`, error);
+        throw error;
+      }
+      
+      // Get public URL for the file
+      const { data: publicUrlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(data.path);
+      
+      console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
+      return publicUrlData.publicUrl;
+    } else {
+      // Standard upload without progress tracking
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error(`Error uploading to ${bucket}/${filePath}:`, error);
+        throw error;
+      }
+      
+      // Get public URL for the file
+      const { data: publicUrlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(data.path);
+      
+      console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
+      return publicUrlData.publicUrl;
     }
-    
-    // If no progress tracking needed, use standard upload
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-    
-    if (error) {
-      console.error(`Error uploading to ${bucket}/${filePath}:`, error);
-      throw error;
-    }
-    
-    // Get public URL for the file
-    const { data: publicUrlData } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(data.path);
-    
-    console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
-    return publicUrlData.publicUrl;
   } catch (error) {
     console.error('Error uploading file:', error);
     throw error;
