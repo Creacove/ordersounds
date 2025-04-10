@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -21,8 +22,9 @@ import {
   Search,
   Calendar
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { User, Beat } from "@/types";
+import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 
 export default function IndexPage() {
   const { user } = useAuth();
@@ -207,6 +209,9 @@ export default function IndexPage() {
             </div>
           </section>
         )}
+
+        {/* Recommended Beats section */}
+        <RecommendedBeats />
 
         <section className="mb-6 px-0 mx-0">
           <SectionTitle 
