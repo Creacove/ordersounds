@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { uploadFile } from "@/lib/storage";
 
 export type LicenseOption = {
   value: string;

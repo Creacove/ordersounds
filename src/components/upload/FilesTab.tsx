@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FileAudio, FileUp, Image, Play, Pause, Upload, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
 
 type FilesTabProps = {
   imagePreview: string | null;
@@ -19,6 +20,7 @@ type FilesTabProps = {
   stems: File | null;
   setStems: React.Dispatch<React.SetStateAction<File | null>>;
   processingFiles: boolean;
+  uploadProgress?: { [key: string]: number };
 };
 
 export const FilesTab = ({
@@ -34,12 +36,24 @@ export const FilesTab = ({
   selectedLicenseTypes,
   stems,
   setStems,
-  processingFiles
+  processingFiles,
+  uploadProgress = {}
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
+
+  // Audio player reference
+  const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    return () => {
+      if (audioPlayer) {
+        audioPlayer.pause();
+      }
+    };
+  }, [audioPlayer]);
 
   // Get accepted file types based on license type
   const getAcceptedAudioTypes = () => {
@@ -91,6 +105,25 @@ export const FilesTab = ({
       
       setStems(file);
       setValidationError(null);
+    }
+  };
+
+  const togglePlayPause = () => {
+    if (!previewFile) return;
+    
+    if (!audioPlayer) {
+      const audio = new Audio(URL.createObjectURL(previewFile));
+      audio.onended = () => setIsPlaying(false);
+      setAudioPlayer(audio);
+      audio.play();
+      setIsPlaying(true);
+    } else {
+      if (isPlaying) {
+        audioPlayer.pause();
+      } else {
+        audioPlayer.play();
+      }
+      setIsPlaying(!isPlaying);
     }
   };
 
@@ -151,10 +184,17 @@ export const FilesTab = ({
                       <p className="text-xs sm:text-sm font-medium truncate">{uploadedFile.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
-                        {requiresWavFormat && uploadedFile.type !== "audio/wav" && (
+                        {requiresWavFormat && uploadedFile.type !== "audio/wav" && !uploadedFile.name.endsWith('.wav') && (
                           <span className="text-destructive ml-2">WAV format required</span>
                         )}
                       </p>
+                      
+                      {uploadProgress[uploadedFile.name] !== undefined && uploadProgress[uploadedFile.name] < 100 && (
+                        <Progress 
+                          value={uploadProgress[uploadedFile.name]} 
+                          className="h-1 mt-1" 
+                        />
+                      )}
                     </div>
                     <Button 
                       variant="ghost" 
@@ -207,7 +247,7 @@ export const FilesTab = ({
                   <>
                     <button
                       className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
-                      onClick={() => setIsPlaying(!isPlaying)}
+                      onClick={togglePlayPause}
                     >
                       {isPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
@@ -222,6 +262,10 @@ export const FilesTab = ({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (audioPlayer) {
+                          audioPlayer.pause();
+                          setIsPlaying(false);
+                        }
                         setPreviewFile(null);
                       }}
                     >
@@ -264,6 +308,13 @@ export const FilesTab = ({
                         <p className="text-xs text-muted-foreground">
                           {(stems.size / (1024 * 1024)).toFixed(2)} MB
                         </p>
+                        
+                        {uploadProgress[stems.name] !== undefined && uploadProgress[stems.name] < 100 && (
+                          <Progress 
+                            value={uploadProgress[stems.name]} 
+                            className="h-1 mt-1" 
+                          />
+                        )}
                       </div>
                       <Button 
                         variant="ghost" 
