@@ -27,47 +27,51 @@ export const uploadFile = async (
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
       // Create a new XMLHttpRequest to manually track upload progress
-      return new Promise<string>((resolve, reject) => {
-        // First, get the upload URL from Supabase
-        const { data } = await supabase.storage.from(bucket).createSignedUploadUrl(filePath);
-        if (!data) {
-          reject(new Error('Failed to create upload URL'));
-          return;
+      return new Promise<string>(async (resolve, reject) => {
+        try {
+          // First, get the upload URL from Supabase
+          const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(filePath);
+          if (!data || error) {
+            reject(new Error('Failed to create upload URL'));
+            return;
+          }
+          
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', data.signedUrl);
+          
+          // Track upload progress events
+          xhr.upload.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              console.log(`Upload progress: ${percentComplete}%`);
+              progressCallback(percentComplete);
+            }
+          });
+          
+          // Handle successful completion
+          xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              // Get public URL for the file
+              const { data: publicUrlData } = supabase.storage
+                .from(bucket)
+                .getPublicUrl(filePath);
+              
+              console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
+              resolve(publicUrlData.publicUrl);
+            } else {
+              reject(new Error(`Upload failed with status: ${xhr.status}`));
+            }
+          };
+          
+          xhr.onerror = () => {
+            reject(new Error('Network error during upload'));
+          };
+          
+          // Start the upload
+          xhr.send(file);
+        } catch (error) {
+          reject(error);
         }
-        
-        const xhr = new XMLHttpRequest();
-        xhr.open('PUT', data.signedUrl);
-        
-        // Track upload progress events
-        xhr.upload.addEventListener('progress', (event) => {
-          if (event.lengthComputable) {
-            const percentComplete = Math.round((event.loaded / event.total) * 100);
-            console.log(`Upload progress: ${percentComplete}%`);
-            progressCallback(percentComplete);
-          }
-        });
-        
-        // Handle successful completion
-        xhr.onload = async () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            // Get public URL for the file
-            const { data: publicUrlData } = supabase.storage
-              .from(bucket)
-              .getPublicUrl(filePath);
-            
-            console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
-            resolve(publicUrlData.publicUrl);
-          } else {
-            reject(new Error(`Upload failed with status: ${xhr.status}`));
-          }
-        };
-        
-        xhr.onerror = () => {
-          reject(new Error('Network error during upload'));
-        };
-        
-        // Start the upload
-        xhr.send(file);
       });
     } else {
       // Standard upload without progress tracking
