@@ -52,7 +52,6 @@ export const FilesTab = ({
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
   
-  // Setup audio for preview
   const audioPreviewUrl = previewUrl || (previewFile ? URL.createObjectURL(previewFile) : '');
   const { 
     playing: isAudioPlaying, 
@@ -60,12 +59,10 @@ export const FilesTab = ({
     duration: audioDuration
   } = useAudio(audioPreviewUrl);
   
-  // Keep isPlaying in sync with the audio hook
   useEffect(() => {
     setIsPlaying(isAudioPlaying);
   }, [isAudioPlaying, setIsPlaying]);
 
-  // Get accepted file types based on license type
   const getAcceptedAudioTypes = () => {
     if (requiresWavFormat) {
       return "audio/wav";
@@ -73,7 +70,6 @@ export const FilesTab = ({
     return ".mp3,.wav,audio/*";
   };
   
-  // Instructions based on license type
   const getAudioInstructions = () => {
     if (requiresWavFormat) {
       return "WAV format required for premium/exclusive licenses (max 50MB)";
@@ -82,8 +78,6 @@ export const FilesTab = ({
   };
   
   useEffect(() => {
-    // If the user changes from premium/exclusive to basic and has a WAV file,
-    // warn them that they may want to change the file
     if (!requiresWavFormat && 
         uploadedFile && 
         uploadedFile.type === "audio/wav") {
@@ -97,7 +91,6 @@ export const FilesTab = ({
     }
   }, [uploadedFile, requiresWavFormat]);
 
-  // Handle stems upload if no external handler provided
   const handleStemsUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (handleStemsUpload) {
       handleStemsUpload(e);
@@ -107,13 +100,11 @@ export const FilesTab = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size
       if (file.size > 100 * 1024 * 1024) {
         setValidationError("Stems file must be less than 100MB");
         return;
       }
       
-      // Validate file type
       if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
         setValidationError("Stems file must be a ZIP archive");
         return;
@@ -124,7 +115,6 @@ export const FilesTab = ({
     }
   };
 
-  // Handle preview upload if no external handler provided
   const handlePreviewUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (handlePreviewUpload) {
       handlePreviewUpload(e);
@@ -198,11 +188,18 @@ export const FilesTab = ({
                         )}
                       </p>
                       
-                      {uploadProgress[uploadedFile.name] !== undefined && uploadProgress[uploadedFile.name] < 100 && (
-                        <Progress 
-                          value={uploadProgress[uploadedFile.name]} 
-                          className="h-1 mt-1" 
-                        />
+                      {uploadProgress && uploadedFile && uploadProgress[uploadedFile.name] !== undefined && (
+                        <div className="mt-2">
+                          <Progress 
+                            value={uploadProgress[uploadedFile.name]} 
+                            className="h-1" 
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {uploadProgress[uploadedFile.name] < 100 ? 
+                              `Uploading: ${uploadProgress[uploadedFile.name]}%` : 
+                              'Upload complete'}
+                          </p>
+                        </div>
                       )}
                     </div>
                     <Button 
@@ -244,7 +241,6 @@ export const FilesTab = ({
               </div>
             </div>
             
-            {/* Preview track section */}
             <div>
               <h4 className="text-sm font-medium mb-1">Preview Track</h4>
               <div 
@@ -269,11 +265,18 @@ export const FilesTab = ({
                         {previewFile ? `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : audioPreviewUrl ? `Preview ready (${Math.round(audioDuration)}s)` : "Loading preview..."}
                       </p>
                       
-                      {previewFile && uploadProgress[previewFile.name] !== undefined && uploadProgress[previewFile.name] < 100 && (
-                        <Progress 
-                          value={uploadProgress[previewFile.name]} 
-                          className="h-1 mt-1" 
-                        />
+                      {previewFile && uploadProgress[previewFile.name] !== undefined && (
+                        <div className="mt-2">
+                          <Progress 
+                            value={uploadProgress[previewFile.name]} 
+                            className="h-1" 
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {uploadProgress[previewFile.name] < 100 ? 
+                              `Uploading: ${uploadProgress[previewFile.name]}%` : 
+                              'Upload complete'}
+                          </p>
+                        </div>
                       )}
                     </div>
                     {regeneratePreview && (
@@ -301,7 +304,7 @@ export const FilesTab = ({
                         e.stopPropagation();
                         setPreviewFile(null);
                       }}
-                      disabled={!previewFile} // Don't allow clearing if it's the auto-generated preview
+                      disabled={!previewFile}
                     >
                       <X size={16} />
                     </Button>
@@ -342,7 +345,6 @@ export const FilesTab = ({
               </div>
             </div>
 
-            {/* Stems upload for exclusive licenses only */}
             {hasExclusiveLicense && (
               <div>
                 <h4 className="text-sm font-medium mb-1">Stems (Optional for Exclusive)</h4>

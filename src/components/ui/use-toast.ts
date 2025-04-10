@@ -29,7 +29,10 @@ export const toast = (options: ToastOptions) => {
 
 // Add variants for easier usage
 toast.success = (message: string, options?: Omit<ToastOptions, 'title'>) => {
-  return sonnerToast.success(message, options);
+  return sonnerToast.success(message, {
+    duration: 3000,
+    ...options
+  });
 };
 
 toast.error = (message: string, options?: Omit<ToastOptions, 'title'>) => {
@@ -41,11 +44,17 @@ toast.error = (message: string, options?: Omit<ToastOptions, 'title'>) => {
 };
 
 toast.info = (message: string, options?: Omit<ToastOptions, 'title'>) => {
-  return sonnerToast.info(message, options);
+  return sonnerToast.info(message, {
+    duration: 3000,
+    ...options
+  });
 };
 
 toast.warning = (message: string, options?: Omit<ToastOptions, 'title'>) => {
-  return sonnerToast.warning(message, options);
+  return sonnerToast.warning(message, {
+    duration: 4000, // Show warnings a bit longer too
+    ...options
+  });
 };
 
 toast.dismiss = sonnerToast.dismiss;

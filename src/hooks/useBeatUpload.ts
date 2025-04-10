@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -142,6 +143,8 @@ export const useBeatUpload = () => {
       }
       
       setUploadedFile(file);
+      
+      // Initialize progress at 0 for this file
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
       // Clear preview file as it will be auto-generated
@@ -154,6 +157,7 @@ export const useBeatUpload = () => {
 
         // Track upload progress with the updated uploadFile function
         const url = await uploadFile(file, 'beats', 'full-tracks', (progress) => {
+          console.log(`Upload progress for ${file.name}: ${progress}%`);
           setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
         });
         
