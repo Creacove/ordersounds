@@ -54,7 +54,7 @@ export const useBeatUpload = () => {
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [processingFiles, setProcessingFiles] = useState(false);
-  const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']); // Default to basic license
+  const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
@@ -66,19 +66,19 @@ export const useBeatUpload = () => {
     trackType: "",
     bpm: 90,
     key: "Not Sure",
-    priceLocal: 10000, // NGN
-    priceDiaspora: 25, // USD
-    basicLicensePriceLocal: 5000, // NGN
-    basicLicensePriceDiaspora: 15, // USD
-    premiumLicensePriceLocal: 10000, // NGN
-    premiumLicensePriceDiaspora: 25, // USD
-    exclusiveLicensePriceLocal: 30000, // NGN
-    exclusiveLicensePriceDiaspora: 75, // USD
+    priceLocal: 10000,
+    priceDiaspora: 25,
+    basicLicensePriceLocal: 5000,
+    basicLicensePriceDiaspora: 15,
+    premiumLicensePriceLocal: 10000,
+    premiumLicensePriceDiaspora: 25,
+    exclusiveLicensePriceLocal: 30000,
+    exclusiveLicensePriceDiaspora: 75,
     status: "draft",
-    licenseType: "basic", // Default license type
+    licenseType: "basic",
     licenseTerms: "",
-    customLicensePriceLocal: 15000, // NGN for custom license
-    customLicensePriceDiaspora: 40, // USD for custom license
+    customLicensePriceLocal: 15000,
+    customLicensePriceDiaspora: 40,
   });
 
   const [collaborators, setCollaborators] = useState<Collaborator[]>([
@@ -152,40 +152,17 @@ export const useBeatUpload = () => {
         // Upload the file immediately
         toast.info("Uploading full track...");
 
-        // Track upload progress
-        const onProgress = (progress: { loaded: number; total: number }) => {
-          const percentage = Math.round((progress.loaded / progress.total) * 100);
-          setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
-        };
+        // Track upload progress with the updated uploadFile function
+        const url = await uploadFile(file, 'beats', 'full-tracks', (progress) => {
+          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+        });
         
-        const filePath = `full-tracks/${Date.now()}_${file.name}`;
-        
-        const { data, error } = await supabase.storage
-          .from('beats')
-          .upload(filePath, file, { 
-            cacheControl: '3600',
-            upsert: false,
-            onUploadProgress: onProgress
-          });
-        
-        if (error) {
-          console.error(`Error uploading file:`, error);
-          toast.error("Failed to upload file. Please try again.");
-          return;
-        }
-        
-        // Get public URL for the file
-        const { data: publicUrlData } = supabase.storage
-          .from('beats')
-          .getPublicUrl(data.path);
-        
-        setUploadedFileUrl(publicUrlData.publicUrl);
+        setUploadedFileUrl(url);
+        toast.success("Full track uploaded");
 
         // Generate preview
         toast.info("Processing audio and generating preview...");
-        await generatePreview(publicUrlData.publicUrl);
-        
-        toast.success("Full track uploaded");
+        await generatePreview(url);
       } catch (error) {
         console.error("Error uploading file:", error);
         toast.error("Failed to upload file. Please try again.");
@@ -262,34 +239,12 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading preview...");
       
-      // Track upload progress
-      const onProgress = (progress: { loaded: number; total: number }) => {
-        const percentage = Math.round((progress.loaded / progress.total) * 100);
-        setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
-      };
+      // Use the updated uploadFile function with progress tracking
+      const url = await uploadFile(file, 'beats', 'previews', (progress) => {
+        setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+      });
       
-      const filePath = `previews/${Date.now()}_${file.name}`;
-      
-      const { data, error } = await supabase.storage
-        .from('beats')
-        .upload(filePath, file, { 
-          cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: onProgress
-        });
-      
-      if (error) {
-        console.error(`Error uploading preview:`, error);
-        toast.error("Failed to upload preview. Please try again.");
-        return;
-      }
-      
-      // Get public URL for the file
-      const { data: publicUrlData } = supabase.storage
-        .from('beats')
-        .getPublicUrl(data.path);
-      
-      setPreviewUrl(publicUrlData.publicUrl);
+      setPreviewUrl(url);
       toast.success("Preview uploaded");
     } catch (error) {
       console.error("Error uploading preview:", error);
@@ -332,27 +287,10 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading cover image...");
       
-      // Track upload progress
-      const onProgress = (progress: { loaded: number; total: number }) => {
-        const percentage = Math.round((progress.loaded / progress.total) * 100);
-        setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
-      };
-      
-      const filePath = `covers/${Date.now()}_${file.name}`;
-      
-      const { data, error } = await supabase.storage
-        .from('beats')
-        .upload(filePath, file, { 
-          cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: onProgress
-        });
-      
-      if (error) {
-        console.error(`Error uploading image:`, error);
-        toast.error("Failed to upload cover image. Please try again.");
-        return;
-      }
+      // Use the updated uploadFile function with progress tracking
+      await uploadFile(file, 'covers', 'beats', (progress) => {
+        setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+      });
       
       toast.success("Cover image uploaded");
     } catch (error) {
@@ -585,27 +523,10 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading stems...");
       
-      // Track upload progress
-      const onProgress = (progress: { loaded: number; total: number }) => {
-        const percentage = Math.round((progress.loaded / progress.total) * 100);
-        setUploadProgress(prev => ({ ...prev, [file.name]: percentage }));
-      };
-      
-      const filePath = `stems/${Date.now()}_${file.name}`;
-      
-      const { data, error } = await supabase.storage
-        .from('beats')
-        .upload(filePath, file, { 
-          cacheControl: '3600',
-          upsert: false,
-          onUploadProgress: onProgress
-        });
-      
-      if (error) {
-        console.error(`Error uploading stems:`, error);
-        toast.error("Failed to upload stems. Please try again.");
-        return;
-      }
+      // Use the updated uploadFile function with progress tracking
+      await uploadFile(file, 'beats', 'stems', (progress) => {
+        setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+      });
       
       toast.success("Stems uploaded");
     } catch (error) {

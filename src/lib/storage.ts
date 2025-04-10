@@ -7,12 +7,14 @@ import { v4 as uuidv4 } from 'uuid';
  * @param file The file to upload
  * @param bucket The storage bucket to use (e.g., 'beats', 'covers')
  * @param path Optional path within the bucket
+ * @param progressCallback Optional callback function to track upload progress
  * @returns The public URL of the uploaded file
  */
 export const uploadFile = async (
   file: File, 
   bucket: 'beats' | 'covers' | 'avatars', 
-  path = ''
+  path = '',
+  progressCallback?: (progress: number) => void
 ): Promise<string> => {
   try {
     // Generate a unique filename to prevent collisions
@@ -22,13 +24,34 @@ export const uploadFile = async (
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
     
-    // Upload file to Supabase storage
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+    // Create upload options
+    const options: Record<string, any> = {
+      cacheControl: '3600',
+      upsert: false
+    };
+
+    // Upload with progress tracking if callback provided
+    const { data, error } = await new Promise<any>((resolve) => {
+      const uploadTask = supabase.storage
+        .from(bucket)
+        .upload(filePath, file, options);
+
+      if (progressCallback) {
+        // Use the Supabase upload progress event
+        const xhr = uploadTask.xhr;
+        if (xhr) {
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const progress = Math.round((event.loaded / event.total) * 100);
+              progressCallback(progress);
+            }
+          };
+        }
+      }
+
+      // Complete the upload
+      uploadTask.then(result => resolve(result));
+    });
     
     if (error) {
       console.error(`Error uploading to ${bucket}/${filePath}:`, error);
