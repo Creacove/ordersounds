@@ -1,7 +1,9 @@
 
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileAudio, Image, Play, Pause, Upload, X } from "lucide-react";
+import { FileAudio, FileUp, Image, Play, Pause, Upload, X } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type FilesTabProps = {
   imagePreview: string | null;
@@ -13,6 +15,10 @@ type FilesTabProps = {
   setPreviewFile: React.Dispatch<React.SetStateAction<File | null>>;
   isPlaying: boolean;
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedLicenseTypes: string[];
+  stems: File | null;
+  setStems: React.Dispatch<React.SetStateAction<File | null>>;
+  processingFiles: boolean;
 };
 
 export const FilesTab = ({
@@ -24,8 +30,70 @@ export const FilesTab = ({
   previewFile,
   setPreviewFile,
   isPlaying,
-  setIsPlaying
+  setIsPlaying,
+  selectedLicenseTypes,
+  stems,
+  setStems,
+  processingFiles
 }: FilesTabProps) => {
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
+  const hasPremiumLicense = selectedLicenseTypes.includes('premium');
+  const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
+
+  // Get accepted file types based on license type
+  const getAcceptedAudioTypes = () => {
+    if (requiresWavFormat) {
+      return "audio/wav";
+    }
+    return ".mp3,.wav,audio/*";
+  };
+  
+  // Instructions based on license type
+  const getAudioInstructions = () => {
+    if (requiresWavFormat) {
+      return "WAV format required for premium/exclusive licenses (max 50MB)";
+    }
+    return "MP3, WAV (max 50MB)";
+  };
+  
+  useEffect(() => {
+    // If the user changes from premium/exclusive to basic and has a WAV file,
+    // warn them that they may want to change the file
+    if (!requiresWavFormat && 
+        uploadedFile && 
+        uploadedFile.type === "audio/wav") {
+      setValidationError("You've selected a basic license but uploaded a WAV file. For basic licenses, MP3 is recommended.");
+    } else if (requiresWavFormat && 
+              uploadedFile && 
+              uploadedFile.type === "audio/mpeg") {
+      setValidationError("Premium and exclusive licenses require WAV format. Please upload a WAV file.");
+    } else {
+      setValidationError(null);
+    }
+  }, [uploadedFile, requiresWavFormat]);
+
+  const handleStemsUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      // Validate file size
+      if (file.size > 100 * 1024 * 1024) {
+        setValidationError("Stems file must be less than 100MB");
+        return;
+      }
+      
+      // Validate file type
+      if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
+        setValidationError("Stems file must be a ZIP archive");
+        return;
+      }
+      
+      setStems(file);
+      setValidationError(null);
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 mb-24 sm:mb-16">
       <div>
@@ -83,6 +151,9 @@ export const FilesTab = ({
                       <p className="text-xs sm:text-sm font-medium truncate">{uploadedFile.name}</p>
                       <p className="text-xs text-muted-foreground">
                         {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
+                        {requiresWavFormat && uploadedFile.type !== "audio/wav" && (
+                          <span className="text-destructive ml-2">WAV format required</span>
+                        )}
                       </p>
                     </div>
                     <Button 
@@ -101,7 +172,7 @@ export const FilesTab = ({
                     <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     <div className="flex-1">
                       <p className="text-xs sm:text-sm font-medium">Upload full track</p>
-                      <p className="text-xs text-muted-foreground">MP3, WAV (max 50MB)</p>
+                      <p className="text-xs text-muted-foreground">{getAudioInstructions()}</p>
                     </div>
                     <Button 
                       variant="outline" 
@@ -116,7 +187,7 @@ export const FilesTab = ({
                       id="fullTrack" 
                       type="file" 
                       className="hidden" 
-                      accept=".mp3,.wav,audio/*" 
+                      accept={getAcceptedAudioTypes()}
                       onChange={handleFullTrackUpload}
                     />
                   </>
@@ -124,12 +195,13 @@ export const FilesTab = ({
               </div>
             </div>
             
+            {/* Preview track section now indicates that it will be auto-generated */}
             <div>
-              <h4 className="text-sm font-medium mb-1">Preview Track *</h4>
+              <h4 className="text-sm font-medium mb-1">Preview Track</h4>
               <div 
-                className={`border rounded-lg p-3 flex items-center gap-3 ${
-                  previewFile ? "bg-primary/5 border-primary/30" : "border-muted"
-                } transition-colors`}
+                className={`border rounded-lg p-3 flex items-center gap-3
+                  ${previewFile ? "bg-primary/5 border-primary/30" : "border-muted"} 
+                  transition-colors`}
               >
                 {previewFile ? (
                   <>
@@ -160,36 +232,87 @@ export const FilesTab = ({
                   <>
                     <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     <div className="flex-1">
-                      <p className="text-xs sm:text-sm font-medium">Upload preview</p>
-                      <p className="text-xs text-muted-foreground">Watermarked version</p>
+                      <p className="text-xs sm:text-sm font-medium">
+                        {processingFiles ? "Generating preview..." : "Preview will be auto-generated"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        30-second watermarked MP3 sample
+                      </p>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => document.getElementById("previewTrack")?.click()}
-                      className="px-2 sm:px-3"
-                    >
-                      <span className="hidden sm:inline">Upload</span>
-                      <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
-                    </Button>
-                    <input 
-                      id="previewTrack" 
-                      type="file" 
-                      className="hidden" 
-                      accept=".mp3,.wav,audio/*"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setPreviewFile(e.target.files[0]);
-                        }
-                      }}
-                    />
+                    {processingFiles && (
+                      <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+                    )}
                   </>
                 )}
               </div>
             </div>
+
+            {/* Stems upload for exclusive licenses only */}
+            {hasExclusiveLicense && (
+              <div>
+                <h4 className="text-sm font-medium mb-1">Stems (Optional for Exclusive)</h4>
+                <div 
+                  className={`border rounded-lg p-3 flex items-center gap-3 ${
+                    stems ? "bg-primary/5 border-primary/30" : "border-muted"
+                  } transition-colors`}
+                >
+                  {stems ? (
+                    <>
+                      <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                      <div className="flex-1 overflow-hidden">
+                        <p className="text-xs sm:text-sm font-medium truncate">{stems.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(stems.size / (1024 * 1024)).toFixed(2)} MB
+                        </p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStems(null);
+                        }}
+                      >
+                        <X size={16} />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="text-xs sm:text-sm font-medium">Upload stems</p>
+                        <p className="text-xs text-muted-foreground">ZIP file, max 100MB</p>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => document.getElementById("stems")?.click()}
+                        className="px-2 sm:px-3"
+                      >
+                        <span className="hidden sm:inline">Upload</span>
+                        <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
+                      </Button>
+                      <input 
+                        id="stems" 
+                        type="file" 
+                        className="hidden" 
+                        accept=".zip,application/zip,application/x-zip-compressed" 
+                        onChange={handleStemsUpload}
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {validationError && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertDescription>{validationError}</AlertDescription>
+          </Alert>
+        )}
       </div>
     </div>
   );
-}
+};

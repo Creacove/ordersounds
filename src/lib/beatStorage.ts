@@ -17,6 +17,7 @@ interface BeatUploadData {
   cover_image: string;
   audio_preview: string;
   audio_file: string;
+  stems_url?: string;
   favorites_count: number;
   purchase_count: number;
   plays: number;
@@ -57,8 +58,9 @@ export const uploadBeat = async (
     custom_license_price_diaspora?: number;
   },
   fullTrackFile: File,
-  previewFile: File,
+  previewFile: File | null,
   coverImageFile: File,
+  stemsFile: File | null,
   producerId: string,
   producerName: string,
   collaborators: Array<{
@@ -67,18 +69,41 @@ export const uploadBeat = async (
     email: string;
     role: string;
     percentage: number;
-  }>
+  }>,
+  selectedLicenseTypes: string[] = ['basic']
 ): Promise<{success: boolean; beatId?: string; error?: string}> => {
   try {
     console.log('Uploading files to storage...');
-    const uploadPromises = [
-      uploadFile(coverImageFile, 'covers', 'beats'),
-      uploadFile(previewFile, 'beats', 'previews'),
-      uploadFile(fullTrackFile, 'beats', 'full-tracks')
-    ];
     
-    const [coverImageUrl, previewUrl, fullTrackUrl] = await Promise.all(uploadPromises);
-    console.log('Files uploaded successfully:', { coverImageUrl, previewUrl, fullTrackUrl });
+    // Upload cover image first
+    const coverImageUrl = await uploadFile(coverImageFile, 'covers', 'beats');
+    console.log('Cover image uploaded:', coverImageUrl);
+    
+    // Upload full track
+    const fullTrackFolder = selectedLicenseTypes.includes('premium') || 
+                           selectedLicenseTypes.includes('exclusive') 
+                           ? 'wav-tracks' : 'full-tracks';
+                           
+    const fullTrackUrl = await uploadFile(fullTrackFile, 'beats', fullTrackFolder);
+    console.log('Full track uploaded:', fullTrackUrl);
+    
+    // Upload preview if provided, or process full track to create preview
+    let previewUrl = '';
+    if (previewFile) {
+      previewUrl = await uploadFile(previewFile, 'beats', 'previews');
+      console.log('Preview track uploaded:', previewUrl);
+    } else {
+      // Process audio should happen before calling this function
+      // but we'll handle the error case here
+      console.log('No preview file provided, one should be generated before calling uploadBeat');
+    }
+    
+    // Upload stems if provided (only for exclusive licenses)
+    let stemsUrl = '';
+    if (stemsFile && selectedLicenseTypes.includes('exclusive')) {
+      stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
+      console.log('Stems uploaded:', stemsUrl);
+    }
 
     console.log('Inserting beat record into database...');
     
@@ -100,6 +125,11 @@ export const uploadBeat = async (
       plays: 0,
       license_terms: beatInfo.license_terms || ''
     };
+    
+    // Add stems URL if available
+    if (stemsUrl) {
+      beatData.stems_url = stemsUrl;
+    }
     
     // Save all specified license prices for each license type selected
     if (beatInfo.license_type) {

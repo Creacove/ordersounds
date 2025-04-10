@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,12 +29,13 @@ export default function UploadBeat() {
     collaborators, setCollaborators,
     isPlaying, setIsPlaying,
     isSubmitting, setIsSubmitting,
-    selectedLicenseTypes,
+    selectedLicenseTypes, stems, setStems,
+    processingFiles,
     validateForm, handleLicenseTypeChange,
     handleCollaboratorChange, handleRemoveCollaborator, handleAddCollaborator,
     handleRemoveTag, handleAddTag,
     handleBeatChange, handleImageUpload, handlePreviewUpload, handleFullTrackUpload,
-    licenseOptions
+    processAudio, licenseOptions
   } = useBeatUpload();
   
   const { user } = useAuth();
@@ -83,6 +85,19 @@ export default function UploadBeat() {
         }
       });
       
+      // Generate preview if needed
+      let previewTrackUrl = '';
+      if (!previewFile) {
+        // Process the full track to generate preview
+        const uploadResult = await uploadFile(uploadedFile, 'beats', 'full-tracks');
+        if (uploadResult) {
+          previewTrackUrl = await processAudio(uploadResult);
+          if (!previewTrackUrl) {
+            throw new Error("Failed to process audio and generate preview");
+          }
+        }
+      }
+      
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
@@ -108,7 +123,7 @@ export default function UploadBeat() {
 
       console.log('Beat data to upload:', beatData);
       
-      if (!uploadedFile || !previewFile || !imageFile) {
+      if (!uploadedFile || !imageFile) {
         throw new Error("Missing required files");
       }
 
@@ -122,9 +137,11 @@ export default function UploadBeat() {
         uploadedFile,
         previewFile,
         imageFile,
+        stems,
         user.id,
         user.producer_name || user.name,
-        collaborators
+        collaborators,
+        selectedLicenseTypes
       );
       
       if (result.success) {
@@ -153,6 +170,16 @@ export default function UploadBeat() {
     try {
       const primaryLicenseType = selectedLicenseTypes[0] || "basic";
       
+      // Generate preview if needed
+      let previewTrackUrl = '';
+      if (!previewFile && uploadedFile) {
+        // Process the full track to generate preview
+        const uploadResult = await uploadFile(uploadedFile, 'beats', 'full-tracks');
+        if (uploadResult) {
+          previewTrackUrl = await processAudio(uploadResult);
+        }
+      }
+      
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
@@ -174,7 +201,7 @@ export default function UploadBeat() {
         license_terms: beatDetails.licenseTerms
       };
       
-      if (!uploadedFile || !previewFile || !imageFile) {
+      if (!uploadedFile || !imageFile) {
         throw new Error("Missing required files");
       }
 
@@ -188,9 +215,11 @@ export default function UploadBeat() {
         uploadedFile,
         previewFile,
         imageFile,
+        stems,
         user.id,
         user.producer_name || user.name,
-        collaborators
+        collaborators,
+        selectedLicenseTypes
       );
       
       if (result.success) {
@@ -277,6 +306,10 @@ export default function UploadBeat() {
                   setPreviewFile={setPreviewFile}
                   isPlaying={isPlaying}
                   setIsPlaying={setIsPlaying}
+                  selectedLicenseTypes={selectedLicenseTypes}
+                  stems={stems}
+                  setStems={setStems}
+                  processingFiles={processingFiles}
                 />
               </TabsContent>
 
@@ -352,4 +385,37 @@ export default function UploadBeat() {
       </div>
     </MainLayout>
   );
+}
+
+function uploadFile(file: File, bucketName: string, folder: string) {
+  // Helper function to upload a file to Supabase Storage
+  return new Promise<string | null>(async (resolve, reject) => {
+    try {
+      const { supabase } = await import('@/lib/supabase');
+      const filePath = `${folder}/${Date.now()}_${file.name}`;
+      
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(filePath, file, { 
+          cacheControl: '3600',
+          upsert: false 
+        });
+      
+      if (error) {
+        console.error(`Error uploading file to ${bucketName}/${filePath}:`, error);
+        reject(error);
+        return;
+      }
+      
+      // Get public URL for the file
+      const { data: publicUrlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(data.path);
+      
+      resolve(publicUrlData.publicUrl);
+    } catch (err) {
+      console.error('Error in uploadFile:', err);
+      reject(err);
+    }
+  });
 }

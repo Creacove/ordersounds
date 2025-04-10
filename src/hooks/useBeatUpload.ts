@@ -47,10 +47,12 @@ export const useBeatUpload = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewFile, setPreviewFile] = useState<File | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [stems, setStems] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState(false);
   const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']); // Default to basic license
   
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
@@ -83,19 +85,19 @@ export const useBeatUpload = () => {
     {
       value: "basic",
       label: "Basic License",
-      description: "Non-exclusive rights, limited distribution (up to 5,000 streams/sales).",
+      description: "Non-exclusive rights, limited distribution (up to 5,000 streams/sales). MP3 format only.",
       terms: "This is a non-exclusive license granting the right to use the beat for one single commercial release with up to 5,000 streams/downloads/sales. No broadcasting rights for radio, TV, or similar platforms. Credit must be given to the producer."
     },
     {
       value: "premium",
       label: "Premium License",
-      description: "Non-exclusive rights, unlimited distribution, some broadcasting rights.",
+      description: "Non-exclusive rights, unlimited distribution, some broadcasting rights. WAV format included.",
       terms: "This is a non-exclusive license granting the right to use the beat for one single commercial release with unlimited streams/downloads/sales. Includes limited broadcasting rights (for online videos, podcasts). Credit must be given to the producer."
     },
     {
       value: "exclusive",
       label: "Exclusive License",
-      description: "Full ownership transfer, all rights to the beat (limited to one buyer).",
+      description: "Full ownership transfer, all rights to the beat (limited to one buyer). WAV + Stems included.",
       terms: "This is an exclusive license transferring full ownership rights to the beat. The producer retains credits as the original creator but transfers all commercial exploitation rights to the buyer. The beat will be removed from all marketplaces after purchase."
     },
     {
@@ -118,7 +120,28 @@ export const useBeatUpload = () => {
 
   const handleFullTrackUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setUploadedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      
+      // Validate file size
+      if (file.size > 50 * 1024 * 1024) {
+        toast.error("File must be less than 50MB");
+        return;
+      }
+      
+      // Check if premium/exclusive license requires WAV
+      const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
+                                selectedLicenseTypes.includes('exclusive');
+                                
+      if (requiresWavFormat && file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
+        toast.error("Premium and exclusive licenses require WAV format");
+        return;
+      }
+      
+      setUploadedFile(file);
+      
+      // Clear preview file as it will be auto-generated
+      setPreviewFile(null);
+      
       toast.success("Full track uploaded");
     }
   };
@@ -133,6 +156,13 @@ export const useBeatUpload = () => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      
+      // Validate file size
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Cover image must be less than 5MB");
+        return;
+      }
+      
       setImageFile(file);
       
       const reader = new FileReader();
@@ -243,6 +273,16 @@ export const useBeatUpload = () => {
         });
       }
     }
+    
+    // If we're changing license types, check if the uploaded file format is compatible
+    if (uploadedFile) {
+      const requiresWavFormat = (value === 'premium' || value === 'exclusive') && isChecked;
+      const hasWav = uploadedFile.type === "audio/wav" || uploadedFile.name.endsWith('.wav');
+      
+      if (requiresWavFormat && !hasWav) {
+        toast.warning("Premium and exclusive licenses require WAV format. Please upload a WAV file.");
+      }
+    }
   };
 
   const validateForm = () => {
@@ -253,11 +293,6 @@ export const useBeatUpload = () => {
     
     if (!uploadedFile) {
       toast.error("Full track file is required");
-      return false;
-    }
-    
-    if (!previewFile) {
-      toast.error("Preview track is required");
       return false;
     }
     
@@ -286,6 +321,26 @@ export const useBeatUpload = () => {
       return false;
     }
     
+    // Check for premium/exclusive license requiring WAV format
+    const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
+                              selectedLicenseTypes.includes('exclusive');
+                              
+    if (requiresWavFormat && uploadedFile && 
+        uploadedFile.type !== "audio/wav" && 
+        !uploadedFile.name.endsWith('.wav')) {
+      toast.error("Premium and exclusive licenses require WAV format");
+      return false;
+    }
+    
+    // Validate stems for exclusive license
+    if (selectedLicenseTypes.includes('exclusive') && 
+        stems && 
+        stems.type !== "application/zip" && 
+        !stems.name.endsWith('.zip')) {
+      toast.error("Stems must be a ZIP file");
+      return false;
+    }
+    
     const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
     if (totalPercentage !== 100) {
       toast.error("Collaborator percentages must sum to 100%");
@@ -293,6 +348,55 @@ export const useBeatUpload = () => {
     }
     
     return true;
+  };
+
+  const processAudio = async (fullTrackUrl: string) => {
+    try {
+      setProcessingFiles(true);
+      
+      // Call the process-audio edge function
+      const { data, error } = await supabase.functions.invoke('process-audio', {
+        body: { 
+          fullTrackUrl,
+          requiresWav: selectedLicenseTypes.includes('premium') || selectedLicenseTypes.includes('exclusive')
+        }
+      });
+      
+      if (error) {
+        console.error("Error processing audio:", error);
+        toast.error("Failed to process audio. Please try again.");
+        throw error;
+      }
+      
+      if (data && data.previewUrl) {
+        // Download the processed preview to show in UI
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('beats')
+          .download(data.previewUrl);
+          
+        if (downloadError) {
+          console.error("Error downloading preview:", downloadError);
+          throw downloadError;
+        }
+        
+        // Create a File object from the downloaded blob
+        const previewFileObj = new File([fileData], "preview.mp3", { 
+          type: "audio/mpeg" 
+        });
+        
+        setPreviewFile(previewFileObj);
+        toast.success("Audio processing complete");
+        return data.previewUrl;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error("Error in audio processing:", error);
+      toast.error("Failed to process audio");
+      return null;
+    } finally {
+      setProcessingFiles(false);
+    }
   };
 
   return {
@@ -308,6 +412,8 @@ export const useBeatUpload = () => {
     isPlaying, setIsPlaying,
     isSubmitting, setIsSubmitting,
     selectedLicenseTypes, setSelectedLicenseTypes,
+    stems, setStems,
+    processingFiles, setProcessingFiles,
     validateForm,
     handleLicenseTypeChange,
     handleCollaboratorChange,
@@ -319,6 +425,7 @@ export const useBeatUpload = () => {
     handleImageUpload,
     handlePreviewUpload,
     handleFullTrackUpload,
+    processAudio,
     licenseOptions
   };
 };
