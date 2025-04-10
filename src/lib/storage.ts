@@ -30,28 +30,18 @@ export const uploadFile = async (
       upsert: false
     };
 
-    // Upload with progress tracking if callback provided
-    const { data, error } = await new Promise<any>((resolve) => {
-      const uploadTask = supabase.storage
-        .from(bucket)
-        .upload(filePath, file, options);
+    // Add progress callback if provided
+    if (progressCallback) {
+      options.onUploadProgress = (progress: { loaded: number; total: number }) => {
+        const percent = Math.round((progress.loaded / progress.total) * 100);
+        progressCallback(percent);
+      };
+    }
 
-      if (progressCallback) {
-        // Use the Supabase upload progress event
-        const xhr = uploadTask.xhr;
-        if (xhr) {
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const progress = Math.round((event.loaded / event.total) * 100);
-              progressCallback(progress);
-            }
-          };
-        }
-      }
-
-      // Complete the upload
-      uploadTask.then(result => resolve(result));
-    });
+    // Upload file with progress tracking
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file, options);
     
     if (error) {
       console.error(`Error uploading to ${bucket}/${filePath}:`, error);
