@@ -51,17 +51,29 @@ export default function AuthCallback() {
           
           console.log("User has role:", userData.role, "Status:", userData.status);
           
+          // Ensure role is a valid type
+          const validRole: 'buyer' | 'producer' | 'admin' = 
+            (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
+              ? userData.role 
+              : 'buyer';
+          
+          // Ensure status is a valid type
+          const validStatus: 'active' | 'inactive' =
+            userData.status === 'active' || userData.status === 'inactive'
+              ? userData.status
+              : 'inactive';
+          
           // Update user info with status
           if (userData && user) {
             updateUserInfo({
               ...user,
-              role: userData.role,
-              status: userData.status
+              role: validRole,
+              status: validStatus
             });
           }
           
           // Handle inactive producer - ALWAYS redirect to activation page
-          if (userData.role === 'producer' && userData.status === 'inactive') {
+          if (validRole === 'producer' && validStatus === 'inactive') {
             console.log("Inactive producer, redirecting to activation page");
             navigate('/producer-activation');
             toast.info('Please complete your activation to access the producer features');
@@ -69,7 +81,7 @@ export default function AuthCallback() {
           }
           
           // Otherwise, redirect based on role
-          if (userData.role === 'producer') {
+          if (validRole === 'producer') {
             navigate('/producer/dashboard');
           } else {
             navigate('/');

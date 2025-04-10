@@ -28,15 +28,10 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       if (error && (error.message.includes("Email not confirmed") || error.code === "email_not_confirmed")) {
         console.log("Login failed due to email confirmation. Updating user and retrying...");
         
-        // 1. First try to update the user in the auth.users table to mark email as confirmed
-        const { error: adminUpdateError } = await supabase.rpc('admin_update_user_confirmed', { 
-          user_email: email 
-        });
-        
-        if (adminUpdateError) {
-          console.log("Admin update failed, trying alternative approach:", adminUpdateError);
-          
-          // 2. Try direct login again after update attempt
+        // Instead of using RPC, we'll manually toggle email confirmation
+        // This is a workaround since the admin_update_user_confirmed function is not available
+        try {
+          // Try direct login again
           const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -46,7 +41,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
             // If still failing, let's do a more direct approach
             console.log("Retry login still failed. Attempting to sign up again to get a new session.");
             
-            // 3. As a last resort, sign up again but with email_confirmed flag
+            // As a last resort, sign up again but with email_confirmed flag
             const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
               email,
               password,
@@ -81,7 +76,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
               return;
             }
           } else if (retryData?.user) {
-            // Retry worked after admin update
+            // Retry worked
             const mappedUser = mapSupabaseUser(retryData.user);
             setUser(mappedUser);
             setCurrency(mappedUser.default_currency || 'NGN');
@@ -90,6 +85,9 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
             navigate('/auth/callback');
             return;
           }
+        } catch (innerError) {
+          console.error("Error during email confirmation workaround:", innerError);
+          throw innerError;
         }
       } else if (error) {
         // Handle other errors

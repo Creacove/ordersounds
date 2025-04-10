@@ -144,7 +144,7 @@ export function RecommendedBeats() {
                       {beat.bpm || '-'}
                     </div>
                     <div className="col-span-1 text-right font-medium text-sm">
-                      {formatCurrency(beat.basic_local || 0, 'NGN')}
+                      {formatCurrency(beat.basic_license_price_local || 0, 'NGN')}
                     </div>
                   </div>
                 ))}
@@ -155,7 +155,29 @@ export function RecommendedBeats() {
           {/* Mobile view: Card grid */}
           <div className="grid grid-cols-2 gap-4 md:hidden mt-3">
             {recommendedBeats?.slice(0, 4).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
+              <BeatCardCompact 
+                key={beat.id} 
+                beat={{
+                  id: beat.id,
+                  title: beat.title,
+                  producer_id: beat.producer_id,
+                  producer_name: getProducerName(beat),
+                  cover_image_url: beat.cover_image || '',
+                  basic_license_price_local: beat.basic_license_price_local || 0,
+                  basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+                  genre: beat.genre || '',
+                  created_at: beat.upload_date || '',
+                  favorites_count: beat.favorites_count || 0,
+                  purchase_count: beat.purchase_count || 0,
+                  plays: beat.plays || 0,
+                  preview_url: beat.audio_preview || '',
+                  full_track_url: beat.audio_file || '',
+                  bpm: beat.bpm || 0,
+                  track_type: beat.track_type || '',
+                  tags: beat.tags || [],
+                  status: (beat.status as 'draft' | 'published') || 'published',
+                }} 
+              />
             ))}
           </div>
         </>

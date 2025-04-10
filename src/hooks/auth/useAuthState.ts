@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { User } from "@/types";
 import { supabase } from "@/lib/supabase";
@@ -56,11 +57,23 @@ export const useAuthState = () => {
                 console.error("Error fetching user data:", userError);
                 setUser(mappedUser);
               } else if (userData) {
+                // Ensure role is a valid type
+                const validRole: 'buyer' | 'producer' | 'admin' = 
+                  (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
+                    ? userData.role 
+                    : 'buyer';
+                
+                // Ensure status is a valid type
+                const validStatus: 'active' | 'inactive' =
+                  userData.status === 'active' || userData.status === 'inactive'
+                    ? userData.status
+                    : 'inactive';
+
                 // Merge the user data with the auth data
                 const enrichedUser: User = {
                   ...mappedUser,
-                  role: userData.role || mappedUser.role,
-                  status: userData.status,
+                  role: validRole,
+                  status: validStatus,
                   full_name: userData.full_name,
                   country: userData.country,
                 };
@@ -124,11 +137,23 @@ export const useAuthState = () => {
             console.error("Error fetching user data:", userError);
             setUser(mappedUser);
           } else if (userData) {
+            // Ensure role is a valid type
+            const validRole: 'buyer' | 'producer' | 'admin' = 
+              (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
+                ? userData.role 
+                : 'buyer';
+            
+            // Ensure status is a valid type
+            const validStatus: 'active' | 'inactive' =
+              userData.status === 'active' || userData.status === 'inactive'
+                ? userData.status
+                : 'inactive';
+
             // Merge the user data with the auth data
             const enrichedUser: User = {
               ...mappedUser,
-              role: userData.role || mappedUser.role,
-              status: userData.status,
+              role: validRole,
+              status: validStatus,
               full_name: userData.full_name,
               country: userData.country,
             };
