@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart, RefreshCcw } from "lucide-react";
+import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { BeatCard } from "@/components/ui/BeatCard";
@@ -30,7 +30,7 @@ import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { format } from "date-fns";
 
 export default function Home() {
-  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased, fetchTrendingBeats, getLastTrendingRefresh } = useBeats();
+  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased, getLastTrendingRefresh } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
@@ -127,13 +127,6 @@ export default function Home() {
       return;
     }
     toggleFavorite(beatId);
-  };
-
-  const handleRefreshTrending = () => {
-    fetchTrendingBeats();
-    toast.success("Trending beats refreshed!");
-    const now = new Date();
-    setLastRefreshTime(format(now, "MMM d, h:mm a"));
   };
 
   const navigateToBeat = (beatId) => {
@@ -345,21 +338,10 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="gap-1 text-muted-foreground hover:text-primary"
-                    onClick={handleRefreshTrending}
-                  >
-                    <RefreshCcw size={14} />
-                    <span>Refresh</span>
-                  </Button>
-                  <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
-                    Show all
-                    <ArrowRight size={14} />
-                  </Link>
-                </div>
+                <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  Show all
+                  <ArrowRight size={14} />
+                </Link>
               </div>
               
               {isLoading ? (

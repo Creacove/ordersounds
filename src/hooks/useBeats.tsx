@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -219,23 +220,32 @@ export function useBeats() {
   const refreshTrendingBeats = (allBeats: Beat[]) => {
     console.log('Refreshing trending beats - hourly refresh');
     
-    // Randomize selection slightly to ensure variation hour to hour
-    const shuffled = [...allBeats].sort(() => 0.5 - Math.random());
+    // Completely randomize the order of beats to maximize variety
+    const shuffled = [...allBeats].sort(() => Math.random() - 0.5);
     
-    // Then sort by favorites count with a small random factor
-    const sortedByTrending = shuffled
-      .sort((a, b) => {
-        // Add more randomness to the sorting to ensure variation
-        const randomFactorA = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
-        const randomFactorB = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
-        
-        // Use both favorites and purchase count with random factors
-        const scoreA = (b.favorites_count * randomFactorA) + (b.purchase_count * 2 * randomFactorB);
-        const scoreB = (a.favorites_count * randomFactorA) + (a.purchase_count * 2 * randomFactorB);
-        
-        return scoreA - scoreB;
-      });
+    // Create a scoring system that considers multiple factors with high randomization
+    const sortedByTrending = shuffled.sort((a, b) => {
+      // Create a unique random seed for each beat to ensure different ordering each time
+      const randomFactorA = 0.5 + Math.random(); // 0.5 to 1.5
+      const randomFactorB = 0.5 + Math.random(); // 0.5 to 1.5
+      
+      // Use multiple factors with high randomness to ensure varied ordering
+      const scoreA = (
+        (b.favorites_count * randomFactorA) + 
+        (b.purchase_count * 2 * randomFactorB) + 
+        (Math.random() * 10) // Add significant random component
+      );
+      
+      const scoreB = (
+        (a.favorites_count * randomFactorA) + 
+        (a.purchase_count * 2 * randomFactorB) + 
+        (Math.random() * 10) // Add significant random component
+      );
+      
+      return scoreA - scoreB;
+    });
     
+    // Get trending beats - limiting to 30
     const trending = sortedByTrending.slice(0, 30);
     setTrendingBeats(trending);
     
@@ -582,6 +592,17 @@ export function useBeats() {
 
   useEffect(() => {
     fetchBeats();
+    
+    // Add an interval check to refresh trending beats if needed
+    // Check every 5 minutes if the cache has expired
+    const intervalId = setInterval(() => {
+      const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
+      if (shouldRefresh && beats.length > 0) {
+        refreshTrendingBeats(beats);
+      }
+    }, 5 * 60 * 1000); // Check every 5 minutes
+    
+    return () => clearInterval(intervalId);
   }, [fetchBeats]);
 
   const applyFilters = (beatsToFilter: Beat[], filters: FilterValues) => {

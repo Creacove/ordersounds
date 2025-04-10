@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -92,7 +91,6 @@ export default function IndexPage() {
     }
   }, [playlists]);
 
-  // Helper function to get producer name
   const getProducerName = (beat: Beat) => {
     if (beat.producer) {
       return beat.producer.full_name || beat.producer.stage_name || beat.producer_name;
@@ -214,7 +212,7 @@ export default function IndexPage() {
           <SectionTitle 
             title="Trending Beats" 
             icon={<TrendingUp className="h-5 w-5" />} 
-            badge="Updated Daily"
+            badge="Updated Hourly"
           />
           <div className="grid grid-cols-2 gap-2 mt-3">
             {trendingBeats.slice(0, 8).map((beat) => (
