@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
+import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart, RefreshCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { BeatCard } from "@/components/ui/BeatCard";
@@ -28,14 +27,30 @@ import { getUserPlaylists } from "@/lib/playlistService";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
+import { format } from "date-fns";
 
 export default function Home() {
-  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
+  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased, fetchTrendingBeats, getLastTrendingRefresh } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    const refreshTime = getLastTrendingRefresh();
+    if (refreshTime) {
+      try {
+        const date = new Date(refreshTime);
+        setLastRefreshTime(format(date, "MMM d, h:mm a"));
+      } catch (error) {
+        console.error("Error formatting refresh time:", error);
+      }
+    } else {
+      setLastRefreshTime("Recently");
+    }
+  }, [getLastTrendingRefresh]);
 
   const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
     queryKey: ['topProducers'],
@@ -114,6 +129,13 @@ export default function Home() {
     toggleFavorite(beatId);
   };
 
+  const handleRefreshTrending = () => {
+    fetchTrendingBeats();
+    toast.success("Trending beats refreshed!");
+    const now = new Date();
+    setLastRefreshTime(format(now, "MMM d, h:mm a"));
+  };
+
   const navigateToBeat = (beatId) => {
     navigate(`/beat/${beatId}`);
   };
@@ -122,7 +144,6 @@ export default function Home() {
     navigate(`/playlist/${playlistId}`);
   };
 
-  // Helper to get producer name from beat data
   const getProducerName = (beat) => {
     if (beat.producer_name) return beat.producer_name;
     return 'Producer';
@@ -318,11 +339,27 @@ export default function Home() {
                     <Flame size={12} />
                     <span>Hot</span>
                   </div>
+                  {lastRefreshTime && (
+                    <div className="text-xs text-muted-foreground ml-2">
+                      Updated: {lastRefreshTime}
+                    </div>
+                  )}
                 </div>
-                <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
-                  Show all
-                  <ArrowRight size={14} />
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="gap-1 text-muted-foreground hover:text-primary"
+                    onClick={handleRefreshTrending}
+                  >
+                    <RefreshCcw size={14} />
+                    <span>Refresh</span>
+                  </Button>
+                  <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
+                    Show all
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
               </div>
               
               {isLoading ? (

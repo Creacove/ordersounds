@@ -19,7 +19,8 @@ const CACHE_KEYS = {
   WEEKLY_PICKS: 'weekly_picks_cache',
   TRENDING_EXPIRY: 'trending_beats_expiry',
   FEATURED_EXPIRY: 'featured_beats_expiry',
-  WEEKLY_EXPIRY: 'weekly_picks_expiry'
+  WEEKLY_EXPIRY: 'weekly_picks_expiry',
+  LAST_TRENDING_REFRESH: 'last_trending_refresh'
 };
 
 export function useBeats() {
@@ -39,7 +40,7 @@ export function useBeats() {
 
   // Cache expiration durations (in hours)
   const CACHE_DURATIONS = {
-    TRENDING: 24, // Daily
+    TRENDING: 1,  // Changed from 24 to 1 hour for trending beats
     FEATURED: 3,  // Several times a day
     WEEKLY: 168   // Weekly (7 days * 24 hours)
   };
@@ -123,14 +124,7 @@ export function useBeats() {
         
         setBeats(transformedBeats);
         
-        // Process trending beats first
-        const shuffled = [...transformedBeats].sort(() => 0.5 - Math.random());
-        // Then sort by favorites count with a small random factor
-        const sortedByTrending = shuffled
-          .sort((a, b) => (b.favorites_count * (0.9 + Math.random() * 0.2)) - 
-                         (a.favorites_count * (0.9 + Math.random() * 0.2)));
-        
-        // Refresh trending beats based on cache expiration
+        // Check if trending beats need to be refreshed (every hour)
         const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
         if (shouldRefreshTrending) {
           refreshTrendingBeats(transformedBeats);
@@ -147,6 +141,13 @@ export function useBeats() {
         // Refresh featured beats based on cache expiration
         const shouldRefreshFeatured = checkShouldRefreshCache(CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
         if (shouldRefreshFeatured) {
+          // Process trending beats first for featured selection
+          const shuffled = [...transformedBeats].sort(() => 0.5 - Math.random());
+          // Then sort by favorites count with a small random factor
+          const sortedByTrending = shuffled
+            .sort((a, b) => (b.favorites_count * (0.9 + Math.random() * 0.2)) - 
+                          (a.favorites_count * (0.9 + Math.random() * 0.2)));
+                          
           if (sortedByTrending.length > 0) {
             // Randomly select a featured beat from top trending
             const randomIndex = Math.floor(Math.random() * Math.min(10, sortedByTrending.length));
@@ -161,8 +162,8 @@ export function useBeats() {
           const cachedFeatured = localStorage.getItem(CACHE_KEYS.FEATURED_BEATS);
           if (cachedFeatured) {
             setFeaturedBeat(JSON.parse(cachedFeatured));
-          } else if (sortedByTrending.length > 0) {
-            const featured = sortedByTrending[0];
+          } else if (trendingBeats.length > 0) {
+            const featured = trendingBeats[0];
             setFeaturedBeat({...featured, is_featured: true});
           }
         }
@@ -216,19 +217,32 @@ export function useBeats() {
 
   // Function to refresh trending beats with cache updates
   const refreshTrendingBeats = (allBeats: Beat[]) => {
-    // Randomize selection slightly to ensure variation day to day
+    console.log('Refreshing trending beats - hourly refresh');
+    
+    // Randomize selection slightly to ensure variation hour to hour
     const shuffled = [...allBeats].sort(() => 0.5 - Math.random());
+    
     // Then sort by favorites count with a small random factor
     const sortedByTrending = shuffled
-      .sort((a, b) => (b.favorites_count * (0.9 + Math.random() * 0.2)) - 
-                       (a.favorites_count * (0.9 + Math.random() * 0.2)));
+      .sort((a, b) => {
+        // Add more randomness to the sorting to ensure variation
+        const randomFactorA = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+        const randomFactorB = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+        
+        // Use both favorites and purchase count with random factors
+        const scoreA = (b.favorites_count * randomFactorA) + (b.purchase_count * 2 * randomFactorB);
+        const scoreB = (a.favorites_count * randomFactorA) + (a.purchase_count * 2 * randomFactorB);
+        
+        return scoreA - scoreB;
+      });
     
     const trending = sortedByTrending.slice(0, 30);
     setTrendingBeats(trending);
     
-    // Update cache
+    // Update cache with timestamp
     localStorage.setItem(CACHE_KEYS.TRENDING_BEATS, JSON.stringify(trending));
     localStorage.setItem(CACHE_KEYS.TRENDING_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.TRENDING)));
+    localStorage.setItem(CACHE_KEYS.LAST_TRENDING_REFRESH, new Date().toISOString());
   };
 
   // Function to refresh weekly picks with cache updates
@@ -840,6 +854,7 @@ export function useBeats() {
     fetchPurchasedBeats,
     fetchTrendingBeats,
     fetchPopularBeats,
-    fetchBeats
+    fetchBeats,
+    getLastTrendingRefresh: () => localStorage.getItem(CACHE_KEYS.LAST_TRENDING_REFRESH)
   };
 }
