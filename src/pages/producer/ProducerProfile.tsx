@@ -1,7 +1,6 @@
-
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase, mapSupabaseBeats } from '@/lib/supabase';
 import { useEffect, useState } from 'react';
 import { Music, Share2, Users, Calendar } from 'lucide-react';
 import { SectionTitle } from '@/components/ui/SectionTitle';
@@ -83,7 +82,8 @@ export default function ProducerProfile() {
         throw error;
       }
       
-      return data as Beat[];
+      // Use the mapSupabaseBeats helper function to convert database beats to our Beat type
+      return mapSupabaseBeats(data);
     },
     enabled: !!producerId && activeTab === 'beats',
   });
