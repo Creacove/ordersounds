@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile } from "@/lib/storage";
@@ -127,13 +126,11 @@ export const useBeatUpload = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size
       if (file.size > 50 * 1024 * 1024) {
         toast.error("File must be less than 50MB");
         return;
       }
       
-      // Check if premium/exclusive license requires WAV
       const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
                                 selectedLicenseTypes.includes('exclusive');
                                 
@@ -144,18 +141,14 @@ export const useBeatUpload = () => {
       
       setUploadedFile(file);
       
-      // Initialize progress at 0 for this file
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
-      // Clear preview file as it will be auto-generated
       setPreviewFile(null);
       setPreviewUrl(null);
       
       try {
-        // Upload the file immediately
         toast.info("Uploading full track...");
 
-        // Track upload progress with the updated uploadFile function
         const url = await uploadFile(file, 'beats', 'full-tracks', (progress) => {
           console.log(`Upload progress for ${file.name}: ${progress}%`);
           setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
@@ -164,7 +157,6 @@ export const useBeatUpload = () => {
         setUploadedFileUrl(url);
         toast.success("Full track uploaded");
 
-        // Generate preview
         toast.info("Processing audio and generating preview...");
         await generatePreview(url);
       } catch (error) {
@@ -180,7 +172,6 @@ export const useBeatUpload = () => {
       setPreviewUrl(null);
       setPreviewFile(null);
       
-      // Call the process-audio edge function
       const { data, error } = await supabase.functions.invoke('process-audio', {
         body: { 
           fullTrackUrl: fileUrl,
@@ -196,7 +187,6 @@ export const useBeatUpload = () => {
       }
       
       if (data && data.publicUrl) {
-        // Set the preview URL
         console.log("Preview generated successfully:", data.publicUrl);
         setPreviewUrl(data.publicUrl);
         toast.success("Audio processing complete");
@@ -219,13 +209,11 @@ export const useBeatUpload = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size
       if (file.size > 10 * 1024 * 1024) {
         toast.error("Preview file must be less than 10MB");
         return;
       }
       
-      // Validate file type
       if (file.type !== "audio/mpeg" && !file.name.endsWith('.mp3')) {
         toast.error("Preview file must be in MP3 format");
         return;
@@ -234,7 +222,6 @@ export const useBeatUpload = () => {
       setPreviewFile(file);
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
-      // Upload the preview file immediately
       uploadPreviewFile(file);
     }
   };
@@ -243,8 +230,8 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading preview...");
       
-      // Use the updated uploadFile function with progress tracking
       const url = await uploadFile(file, 'beats', 'previews', (progress) => {
+        console.log(`Preview upload progress: ${progress}%`);
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });
       
@@ -260,13 +247,11 @@ export const useBeatUpload = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size
       if (file.size > 5 * 1024 * 1024) {
         toast.error("Cover image must be less than 5MB");
         return;
       }
       
-      // Validate file type
       if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
         toast.error("Cover image must be JPG, PNG, or GIF format");
         return;
@@ -275,14 +260,12 @@ export const useBeatUpload = () => {
       setImageFile(file);
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
-      // Show preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
       
-      // Upload the image file immediately
       uploadImageFile(file);
     }
   };
@@ -291,15 +274,17 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading cover image...");
       
-      // Use the updated uploadFile function with progress tracking
-      await uploadFile(file, 'covers', 'beats', (progress) => {
+      const url = await uploadFile(file, 'covers', 'beats', (progress) => {
+        console.log(`Image upload progress: ${progress}%`);
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });
       
       toast.success("Cover image uploaded");
+      return url;
     } catch (error) {
       console.error("Error uploading image:", error);
       toast.error("Failed to upload cover image. Please try again.");
+      throw error;
     }
   };
 
@@ -363,10 +348,8 @@ export const useBeatUpload = () => {
 
   const handleLicenseTypeChange = (value: string, isChecked: boolean) => {
     if (isChecked) {
-      // Add license type
       setSelectedLicenseTypes(prev => [...prev, value]);
       
-      // If this is a custom license, update the license terms
       if (value === 'custom') {
         const customOption = licenseOptions.find(option => option.value === 'custom');
         if (customOption) {
@@ -377,18 +360,15 @@ export const useBeatUpload = () => {
         }
       }
     } else {
-      // Remove license type
       setSelectedLicenseTypes(prev => prev.filter(type => type !== value));
     }
     
-    // Update the primary license type if needed
     if (isChecked && beatDetails.licenseType === '') {
       setBeatDetails({
         ...beatDetails,
         licenseType: value
       });
     } else if (!isChecked && beatDetails.licenseType === value) {
-      // If we're unchecking the current primary license, set the first available one
       const newLicenseTypes = selectedLicenseTypes.filter(type => type !== value);
       if (newLicenseTypes.length > 0) {
         setBeatDetails({
@@ -403,7 +383,6 @@ export const useBeatUpload = () => {
       }
     }
     
-    // If we're changing license types, check if the uploaded file format is compatible
     if (uploadedFile) {
       const requiresWavFormat = (value === 'premium' || value === 'exclusive') && isChecked;
       const hasWav = uploadedFile.type === "audio/wav" || uploadedFile.name.endsWith('.wav');
@@ -450,7 +429,6 @@ export const useBeatUpload = () => {
       return false;
     }
     
-    // Check for premium/exclusive license requiring WAV format
     const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
                               selectedLicenseTypes.includes('exclusive');
                               
@@ -461,7 +439,6 @@ export const useBeatUpload = () => {
       return false;
     }
     
-    // Validate stems for exclusive license
     if (selectedLicenseTypes.includes('exclusive') && 
         stems && 
         stems.type !== "application/zip" && 
@@ -470,7 +447,6 @@ export const useBeatUpload = () => {
       return false;
     }
     
-    // Preview is required
     if (!previewUrl && !previewFile) {
       toast.error("Preview track is required. Please try re-uploading the full track or upload a separate preview");
       return false;
@@ -503,13 +479,11 @@ export const useBeatUpload = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Validate file size
       if (file.size > 100 * 1024 * 1024) {
         toast.error("Stems file must be less than 100MB");
         return;
       }
       
-      // Validate file type
       if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
         toast.error("Stems file must be a ZIP archive");
         return;
@@ -518,7 +492,6 @@ export const useBeatUpload = () => {
       setStems(file);
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
-      // Upload the stems file immediately
       uploadStemsFile(file);
     }
   };
@@ -527,15 +500,17 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading stems...");
       
-      // Use the updated uploadFile function with progress tracking
-      await uploadFile(file, 'beats', 'stems', (progress) => {
+      const url = await uploadFile(file, 'beats', 'stems', (progress) => {
+        console.log(`Stems upload progress: ${progress}%`);
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });
       
       toast.success("Stems uploaded");
+      return url;
     } catch (error) {
       console.error("Error uploading stems:", error);
       toast.error("Failed to upload stems. Please try again.");
+      throw error;
     }
   };
 

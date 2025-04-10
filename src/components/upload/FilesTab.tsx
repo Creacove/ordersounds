@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,6 +6,7 @@ import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw } from "luc
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/hooks/useAudio";
+import { toast } from "@/components/ui/use-toast";
 
 type FilesTabProps = {
   imagePreview: string | null;
@@ -62,6 +64,13 @@ export const FilesTab = ({
   useEffect(() => {
     setIsPlaying(isAudioPlaying);
   }, [isAudioPlaying, setIsPlaying]);
+
+  // Debug upload progress
+  useEffect(() => {
+    if (uploadedFile && uploadProgress[uploadedFile.name] !== undefined) {
+      console.log(`Progress update for ${uploadedFile.name}: ${uploadProgress[uploadedFile.name]}%`);
+    }
+  }, [uploadedFile, uploadProgress]);
 
   const getAcceptedAudioTypes = () => {
     if (requiresWavFormat) {
@@ -126,6 +135,24 @@ export const FilesTab = ({
     }
   };
 
+  const renderProgressBar = (file: File | null, progressValue: number | undefined) => {
+    if (!file || progressValue === undefined) return null;
+    
+    return (
+      <div className="mt-2">
+        <Progress 
+          value={progressValue} 
+          className="h-1" 
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          {progressValue < 100 ? 
+            `Uploading: ${progressValue}%` : 
+            'Upload complete'}
+        </p>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 mb-24 sm:mb-16">
       <div>
@@ -188,18 +215,8 @@ export const FilesTab = ({
                         )}
                       </p>
                       
-                      {uploadProgress && uploadedFile && uploadProgress[uploadedFile.name] !== undefined && (
-                        <div className="mt-2">
-                          <Progress 
-                            value={uploadProgress[uploadedFile.name]} 
-                            className="h-1" 
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {uploadProgress[uploadedFile.name] < 100 ? 
-                              `Uploading: ${uploadProgress[uploadedFile.name]}%` : 
-                              'Upload complete'}
-                          </p>
-                        </div>
+                      {uploadedFile && uploadProgress[uploadedFile.name] !== undefined && (
+                        renderProgressBar(uploadedFile, uploadProgress[uploadedFile.name])
                       )}
                     </div>
                     <Button 
@@ -266,17 +283,7 @@ export const FilesTab = ({
                       </p>
                       
                       {previewFile && uploadProgress[previewFile.name] !== undefined && (
-                        <div className="mt-2">
-                          <Progress 
-                            value={uploadProgress[previewFile.name]} 
-                            className="h-1" 
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {uploadProgress[previewFile.name] < 100 ? 
-                              `Uploading: ${uploadProgress[previewFile.name]}%` : 
-                              'Upload complete'}
-                          </p>
-                        </div>
+                        renderProgressBar(previewFile, uploadProgress[previewFile.name])
                       )}
                     </div>
                     {regeneratePreview && (
@@ -362,11 +369,8 @@ export const FilesTab = ({
                           {(stems.size / (1024 * 1024)).toFixed(2)} MB
                         </p>
                         
-                        {uploadProgress[stems.name] !== undefined && uploadProgress[stems.name] < 100 && (
-                          <Progress 
-                            value={uploadProgress[stems.name]} 
-                            className="h-1 mt-1" 
-                          />
+                        {uploadProgress[stems.name] !== undefined && (
+                          renderProgressBar(stems, uploadProgress[stems.name])
                         )}
                       </div>
                       <Button 

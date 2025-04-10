@@ -23,25 +23,67 @@ export const uploadFile = async (
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
+
+    // Create a FormData object for manual XHR upload to track progress
+    const formData = new FormData();
+    formData.append('file', file);
     
-    // Create upload options
-    const options: Record<string, any> = {
-      cacheControl: '3600',
-      upsert: false
-    };
-
-    // Add progress callback if provided
+    // If progress callback provided, use XHR for tracking progress
     if (progressCallback) {
-      options.onUploadProgress = (progress: { loaded: number; total: number }) => {
-        const percent = Math.round((progress.loaded / progress.total) * 100);
-        progressCallback(percent);
-      };
+      return new Promise((resolve, reject) => {
+        // Get the upload URL from Supabase
+        const uploadUrl = supabase.storage.from(bucket).getUploadUrl(filePath);
+        
+        // Create XHR request
+        const xhr = new XMLHttpRequest();
+        
+        // Configure the request
+        xhr.open('POST', `${supabase.storageUrl}/object/${bucket}/${filePath}`);
+        
+        // Add authentication headers
+        xhr.setRequestHeader('Authorization', `Bearer ${supabase.auth.session()?.access_token}`);
+        
+        // Track upload progress
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            console.log(`Upload progress: ${percentComplete}%`);
+            progressCallback(percentComplete);
+          }
+        };
+        
+        // Handle completion
+        xhr.onload = async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            console.log('Upload completed successfully');
+            // Get public URL for the file
+            const { data: publicUrlData } = supabase.storage
+              .from(bucket)
+              .getPublicUrl(filePath);
+            
+            resolve(publicUrlData.publicUrl);
+          } else {
+            reject(new Error(`Upload failed with status: ${xhr.status}`));
+          }
+        };
+        
+        // Handle errors
+        xhr.onerror = () => {
+          reject(new Error('Upload failed'));
+        };
+        
+        // Send the request with file data
+        xhr.send(file);
+      });
     }
-
-    // Upload file with progress tracking
+    
+    // If no progress tracking needed, use standard upload
     const { data, error } = await supabase.storage
       .from(bucket)
-      .upload(filePath, file, options);
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
     
     if (error) {
       console.error(`Error uploading to ${bucket}/${filePath}:`, error);
