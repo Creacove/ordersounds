@@ -27,30 +27,14 @@ import { getUserPlaylists } from "@/lib/playlistService";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
-import { format } from "date-fns";
 
 export default function Home() {
-  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased, getLastTrendingRefresh } = useBeats();
+  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [lastRefreshTime, setLastRefreshTime] = useState<string | null>(null);
-
-  useEffect(() => {
-    const refreshTime = getLastTrendingRefresh();
-    if (refreshTime) {
-      try {
-        const date = new Date(refreshTime);
-        setLastRefreshTime(format(date, "MMM d, h:mm a"));
-      } catch (error) {
-        console.error("Error formatting refresh time:", error);
-      }
-    } else {
-      setLastRefreshTime("Recently");
-    }
-  }, [getLastTrendingRefresh]);
 
   const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
     queryKey: ['topProducers'],
@@ -332,11 +316,6 @@ export default function Home() {
                     <Flame size={12} />
                     <span>Hot</span>
                   </div>
-                  {lastRefreshTime && (
-                    <div className="text-xs text-muted-foreground ml-2">
-                      Updated: {lastRefreshTime}
-                    </div>
-                  )}
                 </div>
                 <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
                   Show all

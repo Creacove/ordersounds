@@ -29,7 +29,7 @@ export function RecommendedBeats() {
   // Show a loading skeleton while fetching
   if (isLoading) {
     return (
-      <div className="mx-0 my-6">
+      <div className="mx-0 px-6 md:px-8 my-6">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
@@ -46,7 +46,7 @@ export function RecommendedBeats() {
   // If no recommended beats, don't show the section
   if (!recommendedBeats || recommendedBeats.length === 0) {
     return (
-      <div className="mx-0 my-6">
+      <div className="mx-0 px-6 md:px-8 my-6">
         <SectionTitle 
           title="Recommended for You" 
           icon={<Sparkles className="text-yellow-500 h-5 w-5" />}
@@ -95,7 +95,7 @@ export function RecommendedBeats() {
   };
   
   return (
-    <div className="mx-0 my-6">
+    <div className="mx-0 px-6 md:px-8 my-6">
       <div className="flex justify-between items-center">
         <SectionTitle 
           title="Recommended for You" 
