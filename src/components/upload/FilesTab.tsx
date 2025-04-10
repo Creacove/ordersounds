@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +64,6 @@ export const FilesTab = ({
     setIsPlaying(isAudioPlaying);
   }, [isAudioPlaying, setIsPlaying]);
 
-  // Debug upload progress
   useEffect(() => {
     if (uploadedFile && uploadProgress[uploadedFile.name] !== undefined) {
       console.log(`Progress update for ${uploadedFile.name}: ${uploadProgress[uploadedFile.name]}%`);
@@ -138,16 +136,36 @@ export const FilesTab = ({
   const renderProgressBar = (file: File | null, progressValue: number | undefined) => {
     if (!file || progressValue === undefined) return null;
     
+    const safeValue = Math.min(100, Math.max(0, progressValue));
+    
+    let statusMessage = `Uploading: ${safeValue}%`;
+    if (safeValue === 0) {
+      statusMessage = "Preparing upload...";
+    } else if (safeValue === 100) {
+      statusMessage = "Upload complete";
+    } else if (safeValue > 0 && safeValue < 100) {
+      statusMessage = `Uploading: ${safeValue}%`;
+    }
+    
     return (
       <div className="mt-2">
-        <Progress 
-          value={progressValue} 
-          className="h-1" 
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          {progressValue < 100 ? 
-            `Uploading: ${progressValue}%` : 
-            'Upload complete'}
+        <div className="relative">
+          <Progress 
+            value={safeValue} 
+            className="h-1.5 bg-gray-200" 
+          />
+          {safeValue > 0 && safeValue < 100 && (
+            <div className="absolute right-0 top-0 transform -translate-y-1/2" 
+                 style={{ right: `${100 - safeValue}%` }}>
+              <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground mt-1 flex items-center">
+          {safeValue > 0 && safeValue < 100 && (
+            <span className="w-3 h-3 mr-1 rounded-full border-2 border-t-transparent border-primary animate-spin inline-block"></span>
+          )}
+          {statusMessage}
         </p>
       </div>
     );
