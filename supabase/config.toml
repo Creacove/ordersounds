@@ -3,3 +3,6 @@ project_id = "uoezlwkxhbzajdivrlby"
 
 [functions.process-audio]
 verify_jwt = true
+import_map = "./import_map.json"
+timeout_seconds = 60
+

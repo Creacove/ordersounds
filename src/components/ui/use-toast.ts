@@ -9,7 +9,6 @@ type ToastOptions = {
   cancel?: React.ReactNode;
   duration?: number;
   position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center';
-  important?: boolean;
   variant?: "default" | "destructive";
 };
 
@@ -25,7 +24,6 @@ export const toast = (options: ToastOptions) => {
     duration: options.duration,
     id: options.id,
     position: options.position,
-    important: options.important,
   });
 };
 

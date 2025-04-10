@@ -47,6 +47,14 @@ serve(async (req: Request) => {
     const pathParts = urlObj.pathname.split('/');
     let filePath = pathParts[pathParts.length - 1];
     
+    // If the URL contains the bucket name followed by the path, extract just the path
+    if (pathParts.includes("beats")) {
+      const beatsIndex = pathParts.indexOf("beats");
+      filePath = pathParts.slice(beatsIndex + 1).join('/');
+    }
+    
+    console.log(`Extracted file path: ${filePath}`);
+    
     // Check if file exists in storage
     const { data: fileData, error: fileError } = await supabase.storage
       .from('beats')
@@ -55,7 +63,7 @@ serve(async (req: Request) => {
     if (fileError) {
       console.error("Error downloading file:", fileError);
       return new Response(
-        JSON.stringify({ error: "Failed to download audio file" }),
+        JSON.stringify({ error: "Failed to download audio file", details: fileError.message }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -76,10 +84,41 @@ serve(async (req: Request) => {
 
     // Write input file to disk
     await Deno.writeFile(inputPath, new Uint8Array(await fileData.arrayBuffer()));
+    console.log("Successfully wrote input file to disk");
+
+    try {
+      // Validate the input file using ffprobe
+      const validateCmd = new Deno.Command("ffprobe", {
+        args: [
+          "-v", "error",
+          "-show_entries", "format=duration",
+          "-of", "default=noprint_wrappers=1:nokey=1",
+          inputPath
+        ]
+      });
+      
+      const validateResult = await validateCmd.output();
+      if (!validateResult.success) {
+        console.error("File validation failed");
+        throw new Error("Invalid audio file. Please upload a valid audio file.");
+      }
+      
+      console.log("File validation successful");
+    } catch (error) {
+      console.error("Error validating audio file:", error);
+      return new Response(
+        JSON.stringify({ error: "Invalid audio file. Please upload a valid audio file.", details: error.message }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     // Convert WAV to MP3 if needed
     if (fileExt === 'wav') {
       try {
+        console.log("Converting WAV to MP3");
         const ffmpegCmd = new Deno.Command("ffmpeg", {
           args: [
             "-i", inputPath,
@@ -90,13 +129,14 @@ serve(async (req: Request) => {
         const { success, stdout, stderr } = await ffmpegCmd.output();
         
         if (!success) {
+          console.error("WAV to MP3 conversion failed");
           throw new Error("Failed to convert WAV to MP3");
         }
         console.log("Successfully converted WAV to MP3");
       } catch (error) {
         console.error("Error converting WAV to MP3:", error);
         return new Response(
-          JSON.stringify({ error: "Failed to process audio file - conversion error" }),
+          JSON.stringify({ error: "Failed to process audio file - conversion error", details: error.message }),
           {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -106,10 +146,12 @@ serve(async (req: Request) => {
     } else {
       // Just rename the file if it's already an MP3
       await Deno.copyFile(inputPath, mp3Path);
+      console.log("Using existing MP3 file");
     }
 
     // Extract 30-second preview
     try {
+      console.log("Extracting 30-second preview");
       const previewCmd = new Deno.Command("ffmpeg", {
         args: [
           "-i", mp3Path,
@@ -120,13 +162,14 @@ serve(async (req: Request) => {
       const { success } = await previewCmd.output();
       
       if (!success) {
+        console.error("Preview extraction failed");
         throw new Error("Failed to extract preview");
       }
       console.log("Successfully extracted 30-second preview");
     } catch (error) {
       console.error("Error extracting preview:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to process audio file - preview extraction error" }),
+        JSON.stringify({ error: "Failed to process audio file - preview extraction error", details: error.message }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -137,6 +180,7 @@ serve(async (req: Request) => {
     // Add watermark (if watermark file exists)
     let finalPreviewFile;
     try {
+      console.log("Checking for watermark file");
       const { data: watermarkData, error: watermarkError } = await supabase.storage
         .from('audio')
         .download('watermark.mp3');
@@ -147,8 +191,10 @@ serve(async (req: Request) => {
       } else {
         // Write watermark file to disk
         await Deno.writeFile("watermark.mp3", new Uint8Array(await watermarkData.arrayBuffer()));
+        console.log("Watermark file downloaded");
         
         // Add watermark to the preview
+        console.log("Adding watermark to preview");
         const watermarkCmd = new Deno.Command("ffmpeg", {
           args: [
             "-i", previewPath,
@@ -161,6 +207,7 @@ serve(async (req: Request) => {
         const { success } = await watermarkCmd.output();
         
         if (!success) {
+          console.error("Watermark application failed");
           throw new Error("Failed to add watermark");
         }
         
@@ -170,10 +217,11 @@ serve(async (req: Request) => {
     } catch (error) {
       console.error("Error adding watermark:", error);
       finalPreviewFile = previewPath;
-      console.log("Using preview without watermark due to error");
+      console.log("Using preview without watermark due to error:", error.message);
     }
 
     // Upload the processed preview to Supabase Storage
+    console.log("Uploading processed preview");
     const previewFileBuffer = await Deno.readFile(finalPreviewFile);
     const uploadPath = `previews/${Date.now()}_${fileName}_preview.mp3`;
     
@@ -187,7 +235,7 @@ serve(async (req: Request) => {
     if (uploadError) {
       console.error("Error uploading preview file:", uploadError);
       return new Response(
-        JSON.stringify({ error: "Failed to upload processed audio" }),
+        JSON.stringify({ error: "Failed to upload processed audio", details: uploadError.message }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -199,6 +247,8 @@ serve(async (req: Request) => {
     const { data: publicUrlData } = supabase.storage
       .from('beats')
       .getPublicUrl(uploadData.path);
+      
+    console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
 
     // Clean up temporary files
     try {
@@ -211,6 +261,7 @@ serve(async (req: Request) => {
       if (await Deno.stat("watermark.mp3").catch(() => null)) {
         await Deno.remove("watermark.mp3");
       }
+      console.log("Temporary files cleaned up");
     } catch (error) {
       console.error("Error cleaning up temporary files:", error);
     }

@@ -34,11 +34,12 @@ export default function UploadBeat() {
     isSubmitting, setIsSubmitting,
     selectedLicenseTypes, stems, setStems,
     processingFiles,
+    previewUrl,
     validateForm, handleLicenseTypeChange,
     handleCollaboratorChange, handleRemoveCollaborator, handleAddCollaborator,
     handleRemoveTag, handleAddTag,
     handleBeatChange, handleImageUpload, handlePreviewUpload, handleFullTrackUpload,
-    processAudio, licenseOptions
+    processAudio, regeneratePreview, licenseOptions
   } = useBeatUpload();
   
   const { user } = useAuth();
@@ -200,9 +201,6 @@ export default function UploadBeat() {
         bpm: beatDetails.bpm,
         key: beatDetails.key,
         tags: tags,
-        status: beatDetails.status,
-        price_local: beatDetails.priceLocal,
-        price_diaspora: beatDetails.priceDiaspora,
         basic_license_price_local: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceLocal : 0,
         basic_license_price_diaspora: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceDiaspora : 0,
         premium_license_price_local: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceLocal : 0,
@@ -283,14 +281,14 @@ export default function UploadBeat() {
         bpm: beatDetails.bpm,
         key: beatDetails.key,
         tags: tags,
-        price_local: beatDetails.priceLocal,
-        price_diaspora: beatDetails.priceDiaspora,
         basic_license_price_local: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceLocal : 0,
         basic_license_price_diaspora: selectedLicenseTypes.includes('basic') ? beatDetails.basicLicensePriceDiaspora : 0,
         premium_license_price_local: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceLocal : 0,
         premium_license_price_diaspora: selectedLicenseTypes.includes('premium') ? beatDetails.premiumLicensePriceDiaspora : 0,
         exclusive_license_price_local: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceLocal : 0,
         exclusive_license_price_diaspora: selectedLicenseTypes.includes('exclusive') ? beatDetails.exclusiveLicensePriceDiaspora : 0,
+        custom_license_price_local: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceLocal : undefined,
+        custom_license_price_diaspora: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceDiaspora : undefined,
         status: "draft" as const,
         license_type: selectedLicenseTypes.join(','),
         license_terms: beatDetails.licenseTerms
@@ -343,11 +341,7 @@ export default function UploadBeat() {
           .from(bucketName)
           .upload(filePath, file, { 
             cacheControl: '3600',
-            upsert: false,
-            onUploadProgress: (progress) => {
-              const percent = (progress.loaded / progress.total) * 100;
-              setUploadProgress(prev => ({ ...prev, [file.name]: percent }));
-            }
+            upsert: false
           });
         
         if (error) {
@@ -470,6 +464,8 @@ export default function UploadBeat() {
                   setStems={setStems}
                   processingFiles={processingFiles}
                   uploadProgress={uploadProgress}
+                  regeneratePreview={regeneratePreview}
+                  previewUrl={previewUrl}
                 />
               </TabsContent>
 

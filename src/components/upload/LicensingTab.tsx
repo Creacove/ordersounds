@@ -51,7 +51,7 @@ export const LicensingTab = ({
       
       <div className="space-y-4">
         {selectedLicenseTypes.length === 0 && (
-          <Alert variant="warning" className="bg-amber-50 text-amber-800 border-amber-200">
+          <Alert variant="destructive" className="bg-amber-50 text-amber-800 border-amber-200">
             <AlertDescription className="flex items-center">
               <FileKey className="h-4 w-4 mr-2" />
               Please select at least one license type for your beat

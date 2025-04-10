@@ -19,6 +19,24 @@ type DetailTabProps = {
   handleRemoveTag: (tag: string) => void;
 };
 
+const keys = [
+  'Not Sure',
+  'C Major', 'C Minor', 'C# Major', 'C# Minor',
+  'D Major', 'D Minor', 'D# Major', 'D# Minor',
+  'E Major', 'E Minor', 'F Major', 'F Minor',
+  'F# Major', 'F# Minor', 'G Major', 'G Minor',
+  'G# Major', 'G# Minor', 'A Major', 'A Minor',
+  'A# Major', 'A# Minor', 'B Major', 'B Minor',
+];
+
+const trackTypes = [
+  'Full Beat',
+  'Sample Pack',
+  'Beat with Hook',
+  'Instrumental Loop',
+  'Drum Kit',
+];
+
 export const DetailTab = ({
   beatDetails,
   handleBeatChange,
@@ -102,10 +120,11 @@ export const DetailTab = ({
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="single">Single</SelectItem>
-                <SelectItem value="mix">Mix</SelectItem>
-                <SelectItem value="loop">Loop</SelectItem>
-                <SelectItem value="sample">Sample</SelectItem>
+                {trackTypes.map(type => (
+                  <SelectItem key={type} value={type.toLowerCase().replace(/\s+/g, '_')}>
+                    {type}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -139,18 +158,9 @@ export const DetailTab = ({
                 <SelectValue placeholder="Select key" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="C">C</SelectItem>
-                <SelectItem value="C#">C#</SelectItem>
-                <SelectItem value="D">D</SelectItem>
-                <SelectItem value="D#">D#</SelectItem>
-                <SelectItem value="E">E</SelectItem>
-                <SelectItem value="F">F</SelectItem>
-                <SelectItem value="F#">F#</SelectItem>
-                <SelectItem value="G">G</SelectItem>
-                <SelectItem value="G#">G#</SelectItem>
-                <SelectItem value="A">A</SelectItem>
-                <SelectItem value="A#">A#</SelectItem>
-                <SelectItem value="B">B</SelectItem>
+                {keys.map(k => (
+                  <SelectItem key={k} value={k}>{k}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

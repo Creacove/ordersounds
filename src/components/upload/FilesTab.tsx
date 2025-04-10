@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileAudio, FileUp, Image, Play, Pause, Upload, X } from "lucide-react";
+import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 
@@ -21,6 +21,8 @@ type FilesTabProps = {
   setStems: React.Dispatch<React.SetStateAction<File | null>>;
   processingFiles: boolean;
   uploadProgress?: { [key: string]: number };
+  regeneratePreview?: () => Promise<void>;
+  previewUrl?: string | null;
 };
 
 export const FilesTab = ({
@@ -37,7 +39,9 @@ export const FilesTab = ({
   stems,
   setStems,
   processingFiles,
-  uploadProgress = {}
+  uploadProgress = {},
+  regeneratePreview,
+  previewUrl
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
@@ -109,10 +113,10 @@ export const FilesTab = ({
   };
 
   const togglePlayPause = () => {
-    if (!previewFile) return;
+    if (!previewFile && !previewUrl) return;
     
     if (!audioPlayer) {
-      const audio = new Audio(URL.createObjectURL(previewFile));
+      const audio = new Audio(previewUrl || (previewFile ? URL.createObjectURL(previewFile) : ''));
       audio.onended = () => setIsPlaying(false);
       setAudioPlayer(audio);
       audio.play();
@@ -240,10 +244,10 @@ export const FilesTab = ({
               <h4 className="text-sm font-medium mb-1">Preview Track</h4>
               <div 
                 className={`border rounded-lg p-3 flex items-center gap-3
-                  ${previewFile ? "bg-primary/5 border-primary/30" : "border-muted"} 
+                  ${previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted"} 
                   transition-colors`}
               >
-                {previewFile ? (
+                {(previewFile || previewUrl) ? (
                   <>
                     <button
                       className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
@@ -252,11 +256,31 @@ export const FilesTab = ({
                       {isPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
-                      <p className="text-xs sm:text-sm font-medium truncate">{previewFile.name}</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">
+                        {previewFile ? previewFile.name : "Preview.mp3"}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {(previewFile.size / (1024 * 1024)).toFixed(2)} MB
+                        {previewFile ? `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : "Preview ready"}
                       </p>
                     </div>
+                    {regeneratePreview && (
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          regeneratePreview();
+                        }}
+                        className="mr-1"
+                        disabled={processingFiles}
+                      >
+                        {processingFiles ? (
+                          <RefreshCw size={16} className="animate-spin" />
+                        ) : (
+                          <RefreshCw size={16} />
+                        )}
+                      </Button>
+                    )}
                     <Button 
                       variant="ghost" 
                       size="sm"
