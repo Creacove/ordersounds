@@ -17,6 +17,7 @@ export const useAudio = (url: string): UseAudioReturn => {
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [error, setError] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   // Initialize audio element and event listeners
   useEffect(() => {
@@ -29,10 +30,20 @@ export const useAudio = (url: string): UseAudioReturn => {
       audioRef.current = new Audio();
     }
     
+    // Reset state for new audio source
+    setIsReady(false);
+    setPlaying(false);
+    setError(false);
+    
     // Set up event listeners
     const handleLoadedMetadata = () => {
       setDuration(audioRef.current?.duration || 0);
+      setIsReady(true);
       setError(false);
+    };
+    
+    const handleCanPlay = () => {
+      setIsReady(true);
     };
     
     const handleTimeUpdate = () => {
@@ -52,6 +63,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     // Set the source and attach event listeners
     audioRef.current.src = url;
     audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audioRef.current.addEventListener('canplay', handleCanPlay);
     audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
     audioRef.current.addEventListener('ended', handleEnded);
     audioRef.current.addEventListener('error', handleError);
@@ -66,6 +78,7 @@ export const useAudio = (url: string): UseAudioReturn => {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        audioRef.current.removeEventListener('canplay', handleCanPlay);
         audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
         audioRef.current.removeEventListener('ended', handleEnded);
         audioRef.current.removeEventListener('error', handleError);
@@ -83,22 +96,39 @@ export const useAudio = (url: string): UseAudioReturn => {
     } else {
       setError(false); // Clear any previous errors
       
-      try {
-        const playPromise = audioRef.current.play();
+      const playAudio = () => {
+        if (!audioRef.current) return;
         
-        if (playPromise !== undefined) {
-          playPromise.then(() => {
-            setPlaying(true);
-          }).catch(error => {
-            console.error("Error playing audio:", error);
-            setError(true);
-            setPlaying(false);
-          });
+        try {
+          const playPromise = audioRef.current.play();
+          
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              setPlaying(true);
+            }).catch(error => {
+              console.error("Error playing audio:", error);
+              setError(true);
+              setPlaying(false);
+            });
+          }
+        } catch (error) {
+          console.error("Error playing audio:", error);
+          setError(true);
+          setPlaying(false);
         }
-      } catch (error) {
-        console.error("Error playing audio:", error);
-        setError(true);
-        setPlaying(false);
+      };
+      
+      // If audio is ready, play it immediately; otherwise wait for canplay event
+      if (isReady) {
+        playAudio();
+      } else {
+        // Add a temporary event listener for canplay that will be removed after first trigger
+        const handleCanPlayToStart = () => {
+          playAudio();
+          audioRef.current?.removeEventListener('canplay', handleCanPlayToStart);
+        };
+        
+        audioRef.current.addEventListener('canplay', handleCanPlayToStart);
       }
     }
   };

@@ -97,7 +97,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
   const playBeat = (beat: Beat | null) => {
     if (beat === null) {
       setIsPlaying(false);
-      togglePlay(); // Ensure audio is paused when beat is null
+      stop(); // Use stop instead of togglePlay to ensure complete reset
       setCurrentBeat(null);
       return;
     }
@@ -117,10 +117,11 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       // Update to the new beat
       setCurrentBeat(beat);
       
-      // Force it to play immediately
-      setTimeout(() => {
+      // Force it to play immediately without waiting for state updates
+      requestAnimationFrame(() => {
         togglePlay();
-      }, 50);
+        setIsPlaying(true);
+      });
     } else {
       // Same beat, just toggle play/pause
       togglePlayPause();

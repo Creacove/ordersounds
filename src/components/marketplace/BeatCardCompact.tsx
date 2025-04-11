@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Pause, ShoppingCart } from 'lucide-react';
@@ -51,6 +50,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
     if (isCurrentBeat) {
       togglePlayPause();
     } else {
+      // Increment play count and play the beat
       playBeat(beat);
       incrementPlayCount(beat.id);
     }
@@ -58,7 +58,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
     // Re-enable the button after a short delay
     setTimeout(() => {
       setIsPlayButtonClicked(false);
-    }, 300);
+    }, 500); // Increased debounce time for more reliability
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {

@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
@@ -42,17 +41,14 @@ export function PersistentPlayer() {
     seek(percentage * duration);
   };
 
-  // Player is now at z-50, above the sidebar which will be at z-40
-  const playerClassName = cn(
-    "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-40",
-    isMobile ? "bottom-16" : "bottom-0" // Position above mobile nav when on mobile
-  );
-
   // Calculate progress percentage
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className={playerClassName}>
+    <div className={cn(
+      "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-40",
+      isMobile ? "bottom-16" : "bottom-0" // Position above mobile nav when on mobile
+    )}>
       {/* Spotify-like progress bar at the very top of the player */}
       <div 
         className="w-full h-1 bg-muted relative cursor-pointer"
