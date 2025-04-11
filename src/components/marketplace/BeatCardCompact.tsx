@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
 import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
 import { supabase } from '@/integrations/supabase/client';
+import { ToggleFavoriteButton } from '@/components/buttons/ToggleFavoriteButton';
 
 interface BeatCardCompactProps {
   beat: Beat;
@@ -108,6 +109,9 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
             )}
           </Button>
         </div>
+
+        {/* Add favorite button */}
+        <ToggleFavoriteButton beatId={beat.id} />
 
         {/* Add to cart button in the corner */}
         <Button 

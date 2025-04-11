@@ -65,7 +65,8 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     currentTime, 
     duration, 
     togglePlay, 
-    seek 
+    seek,
+    stop
   } = useAudio(audioUrl);
   
   useEffect(() => {
@@ -101,22 +102,28 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       return;
     }
 
-    if (currentBeat && currentBeat.id === beat.id) {
-      // If the same beat, just toggle play/pause
-      togglePlayPause();
-    } else {
-      // Different beat, update current beat and start playing
+    // If we're switching to a different beat
+    if (!currentBeat || currentBeat.id !== beat.id) {
+      // If something is currently playing, stop it first
+      if (isPlaying) {
+        stop(); // Stop the current audio immediately
+      }
+      
+      // Save current beat to history if it exists
       if (currentBeat) {
         setPreviousBeats(prev => [...prev, currentBeat]);
       }
+      
+      // Update to the new beat
       setCurrentBeat(beat);
       
-      // Small delay to ensure the audio source has updated before playing
+      // Force it to play immediately
       setTimeout(() => {
-        if (!isPlaying) {
-          togglePlay();
-        }
+        togglePlay();
       }, 50);
+    } else {
+      // Same beat, just toggle play/pause
+      togglePlayPause();
     }
   };
 
