@@ -47,7 +47,8 @@ export function BeatListItem({
   const navigate = useNavigate();
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
-  const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
+  const isCurrentBeat = currentBeat?.id === beat.id;
+  const isCurrentlyPlaying = isCurrentBeat && isPlaying;
 
   const handlePlay = async (e: React.MouseEvent) => {
     e.stopPropagation();
