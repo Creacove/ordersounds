@@ -2,7 +2,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAudio } from '@/hooks/useAudio';
-// Remove toast import as we're not going to show errors anymore
 
 interface PlayerContextType {
   isPlaying: boolean;
@@ -81,6 +80,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     }
   }, [error, currentBeat]);
   
+  // Use the actual playing state from useAudio
   useEffect(() => {
     setIsPlaying(playing);
   }, [playing]);
@@ -138,7 +138,6 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       // Use requestAnimationFrame for better timing
       requestAnimationFrame(() => {
         togglePlay();
-        setIsPlaying(true);
       });
     } else {
       // Same beat, just toggle play/pause
@@ -184,8 +183,6 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       
       setCurrentBeat(nextBeat);
       setQueue(newQueue);
-      setIsPlaying(true);
-      setProgress(0);
       
       // Force playback of the next track
       requestAnimationFrame(() => togglePlay());
@@ -203,8 +200,6 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       
       setCurrentBeat(prevBeat);
       setPreviousBeats(newPreviousBeats);
-      setIsPlaying(true);
-      setProgress(0);
       
       // Force playback of the previous track
       requestAnimationFrame(() => togglePlay());

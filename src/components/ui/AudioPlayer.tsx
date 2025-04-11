@@ -11,6 +11,7 @@ interface AudioPlayerProps {
 
 export function AudioPlayer({ src, className, compact = false }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [actuallyPlaying, setActuallyPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
@@ -30,10 +31,26 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
 
     const setAudioTime = () => {
       setCurrentTime(audio.currentTime);
+      
+      // If we're getting time updates and current time is advancing, audio is definitely playing
+      if (!actuallyPlaying && audio.currentTime > 0.5) {
+        setActuallyPlaying(true);
+      }
+    };
+    
+    const handlePlaying = () => {
+      setActuallyPlaying(true);
+      setIsPlaying(true);
+    };
+    
+    const handlePause = () => {
+      setActuallyPlaying(false);
+      setIsPlaying(false);
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
+      setActuallyPlaying(false);
       setCurrentTime(0);
       audio.currentTime = 0;
     };
@@ -43,7 +60,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
       setIsLoading(false);
       setHasError(true);
       setIsPlaying(false);
-      // Don't show toast, just set error state
+      setActuallyPlaying(false);
     };
     
     const handleLoadStart = () => {
@@ -58,6 +75,8 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     // Events
     audio.addEventListener('loadeddata', setAudioData);
     audio.addEventListener('timeupdate', setAudioTime);
+    audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('pause', handlePause);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('error', handleError as EventListener);
     audio.addEventListener('loadstart', handleLoadStart);
@@ -66,6 +85,8 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     return () => {
       audio.removeEventListener('loadeddata', setAudioData);
       audio.removeEventListener('timeupdate', setAudioTime);
+      audio.removeEventListener('playing', handlePlaying);
+      audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('error', handleError as EventListener);
       audio.removeEventListener('loadstart', handleLoadStart);
@@ -82,6 +103,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
       const wasPlaying = isPlaying;
       audio.pause();
       setIsPlaying(false);
+      setActuallyPlaying(false);
       setHasError(false);
       
       audio.src = src;
@@ -92,10 +114,12 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
         if (playPromise !== undefined) {
           playPromise.then(() => {
             setIsPlaying(true);
+            // Don't set actuallyPlaying here - wait for the 'playing' event
           }).catch((error) => {
             console.error("Error playing audio:", error);
             setHasError(true);
-            // Don't show toast notification
+            setIsPlaying(false);
+            setActuallyPlaying(false);
           });
         }
       }
@@ -115,6 +139,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     if (isPlaying) {
       audio.pause();
       setIsPlaying(false);
+      setActuallyPlaying(false);
     } else {
       setIsLoading(true);
       const playPromise = audio.play();
@@ -122,11 +147,13 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
         playPromise.then(() => {
           setIsPlaying(true);
           setIsLoading(false);
+          // Don't set actuallyPlaying here - wait for the 'playing' event or timeupdate
         }).catch(error => {
           console.error("Error playing audio:", error);
           setIsLoading(false);
           setHasError(true);
-          // Don't show toast error
+          setIsPlaying(false);
+          setActuallyPlaying(false);
         });
       }
     }
@@ -185,7 +212,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
         >
           {isLoading ? (
             <div className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
-          ) : isPlaying ? <Pause size={16} /> : <Play size={16} />}
+          ) : actuallyPlaying ? <Pause size={16} /> : <Play size={16} />}
         </button>
         <div className="w-full max-w-[100px]">
           <input
@@ -216,7 +243,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
         >
           {isLoading ? (
             <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-          ) : isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+          ) : actuallyPlaying ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
         </button>
         
         <div className="text-xs font-medium text-muted-foreground w-14 text-right">

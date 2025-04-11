@@ -25,6 +25,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
   const isCurrentBeat = currentBeat?.id === beat.id;
+  const isCurrentlyPlaying = isCurrentBeat && isPlaying;
   
   const incrementPlayCount = async (beatId: string) => {
     try {
@@ -118,7 +119,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
             onClick={handlePlay}
             disabled={isPlayButtonClicked}
           >
-            {isCurrentBeat && isPlaying ? (
+            {isCurrentlyPlaying ? (
               <Pause className="h-5 w-5" />
             ) : (
               <Play className="h-5 w-5 ml-0.5" />
@@ -156,7 +157,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
         </div>
       </div>
 
-      {isCurrentBeat && isPlaying && (
+      {isCurrentlyPlaying && (
         <div className="h-1 bg-primary animate-pulse" />
       )}
     </Link>

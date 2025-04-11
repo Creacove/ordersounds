@@ -18,6 +18,7 @@ export const useAudio = (url: string): UseAudioReturn => {
   const [currentTime, setCurrentTime] = useState(0);
   const [error, setError] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [actuallyPlaying, setActuallyPlaying] = useState(false);
 
   // Initialize audio element and event listeners
   useEffect(() => {
@@ -33,6 +34,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     // Reset state for new audio source
     setIsReady(false);
     setPlaying(false);
+    setActuallyPlaying(false);
     setError(false);
     
     // Set up event listeners
@@ -49,18 +51,35 @@ export const useAudio = (url: string): UseAudioReturn => {
     };
     
     const handleTimeUpdate = () => {
+      // If we're getting time updates, audio is definitely playing
       setCurrentTime(audioRef.current?.currentTime || 0);
+      if (!actuallyPlaying && audioRef.current?.currentTime > 0.5) {
+        setActuallyPlaying(true);
+      }
+    };
+    
+    const handlePlaying = () => {
+      console.log("Audio is now playing");
+      setActuallyPlaying(true);
+      setPlaying(true);
+    };
+    
+    const handlePause = () => {
+      console.log("Audio paused");
+      setActuallyPlaying(false);
+      setPlaying(false);
     };
     
     const handleEnded = () => {
       setPlaying(false);
+      setActuallyPlaying(false);
     };
     
     const handleError = (e: any) => {
       console.error("Error playing audio:", audioRef.current?.error, e);
       setError(true);
       setPlaying(false);
-      // Don't show toast here - just set error state
+      setActuallyPlaying(false);
     };
     
     // Set the source and attach event listeners
@@ -73,6 +92,8 @@ export const useAudio = (url: string): UseAudioReturn => {
     audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
     audioRef.current.addEventListener('ended', handleEnded);
     audioRef.current.addEventListener('error', handleError);
+    audioRef.current.addEventListener('playing', handlePlaying);
+    audioRef.current.addEventListener('pause', handlePause);
     
     // Set initial state in case audio is already loaded
     if (audioRef.current.readyState >= 2) {
@@ -88,6 +109,8 @@ export const useAudio = (url: string): UseAudioReturn => {
         audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
         audioRef.current.removeEventListener('ended', handleEnded);
         audioRef.current.removeEventListener('error', handleError);
+        audioRef.current.removeEventListener('playing', handlePlaying);
+        audioRef.current.removeEventListener('pause', handlePause);
       }
     };
   }, [url]);
@@ -105,6 +128,7 @@ export const useAudio = (url: string): UseAudioReturn => {
       console.log("Pausing audio");
       audioRef.current.pause();
       setPlaying(false);
+      setActuallyPlaying(false);
     } else {
       console.log("Attempting to play audio");
       setError(false); // Clear any previous errors
@@ -120,17 +144,20 @@ export const useAudio = (url: string): UseAudioReturn => {
             playPromise.then(() => {
               console.log("Audio playing successfully");
               setPlaying(true);
+              // We won't set actuallyPlaying here - we'll wait for the 'playing' event
+              // or for timeUpdate to confirm audio is actually playing
             }).catch(error => {
               console.error("Error playing audio:", error);
               setError(true);
               setPlaying(false);
-              // Silent failure - no toast
+              setActuallyPlaying(false);
             });
           }
         } catch (error) {
           console.error("Exception playing audio:", error);
           setError(true);
           setPlaying(false);
+          setActuallyPlaying(false);
         }
       };
       
@@ -162,6 +189,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     audioRef.current.pause();
     audioRef.current.currentTime = 0;
     setPlaying(false);
+    setActuallyPlaying(false);
     setCurrentTime(0);
   };
 
@@ -178,16 +206,17 @@ export const useAudio = (url: string): UseAudioReturn => {
     console.log("Audio state:", {
       url,
       playing,
+      actuallyPlaying,
       duration,
       currentTime,
       error,
       isReady,
       readyState: audioRef.current?.readyState
     });
-  }, [url, playing, duration, currentTime, error, isReady]);
+  }, [url, playing, actuallyPlaying, duration, currentTime, error, isReady]);
 
   return {
-    playing,
+    playing: actuallyPlaying, // Return actuallyPlaying instead of playing
     duration,
     currentTime,
     togglePlay,
