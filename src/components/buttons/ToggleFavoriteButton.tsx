@@ -38,28 +38,6 @@ export function ToggleFavoriteButton({
     try {
       const result = await toggleFavorite(beatId);
       setFavorite(result);
-      
-      if (result) {
-        // Use type assertion to fix the TypeScript error
-        await supabase.rpc('increment_counter' as any, {
-          p_table_name: 'beats',
-          p_column_name: 'favorites_count',
-          p_id: beatId
-        });
-      } else {
-        const { data: beat } = await supabase
-          .from('beats')
-          .select('favorites_count')
-          .eq('id', beatId)
-          .single();
-          
-        if (beat && beat.favorites_count > 0) {
-          await supabase
-            .from('beats')
-            .update({ favorites_count: beat.favorites_count - 1 })
-            .eq('id', beatId);
-        }
-      }
     } catch (error) {
       console.error('Error toggling favorite:', error);
       toast.error('Failed to update favorite status');

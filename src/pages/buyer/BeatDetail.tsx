@@ -108,13 +108,7 @@ const BeatDetail = () => {
           p_id: beat.id
         });
         
-        if (beat.plays !== undefined) {
-          setLocalBeat({
-            ...beat,
-            plays: beat.plays + 1
-          });
-          setPlayCount(prev => prev + 1);
-        }
+        setPlayCount(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error incrementing play count:', error);

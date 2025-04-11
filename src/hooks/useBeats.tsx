@@ -687,15 +687,15 @@ export function useBeats() {
         throw error;
       }
       
-      const countUpdate = isFavorite ? -1 : 1;
-      if (countUpdate > 0) {
-        // Fix the RPC call by using a type assertion
+      if (!isFavorite) {
+        // Increment favorites_count
         await supabase.rpc("increment_counter" as any, {
           p_table_name: "beats",
           p_column_name: "favorites_count",
           p_id: beatId
         });
       } else {
+        // Decrement favorites_count
         const { data: beatData } = await supabase
           .from('beats')
           .select('favorites_count')

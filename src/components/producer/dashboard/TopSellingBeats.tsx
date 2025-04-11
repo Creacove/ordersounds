@@ -57,6 +57,11 @@ export function TopSellingBeats({ beats }: TopSellingBeatsProps) {
                         {beat.plays} plays
                       </Badge>
                     )}
+                    {beat.favorites_count > 0 && (
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 bg-red-50">
+                        {beat.favorites_count} likes
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">

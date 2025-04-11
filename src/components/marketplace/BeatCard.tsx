@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -39,9 +38,9 @@ export function BeatCard({
   const incrementPlayCount = async (beatId: string) => {
     try {
       // Use type assertion to fix the TypeScript error
-      await supabase.rpc('increment_counter' as any, {
-        p_table_name: 'beats',
-        p_column_name: 'plays',
+      await supabase.rpc("increment_counter" as any, {
+        p_table_name: "beats",
+        p_column_name: "plays",
         p_id: beatId
       });
       console.log('Incremented play count for beat:', beatId);
@@ -110,9 +109,16 @@ export function BeatCard({
               <h3 className="font-semibold">{beat.title}</h3>
               <p className="text-sm opacity-70">by {beat.producer_name}</p>
             </div>
-            <Button variant="link" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
+            <div className="flex flex-col items-end text-xs">
+              <div className="flex items-center space-x-1">
+                <span>{beat.plays || 0}</span>
+                <span>plays</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <span>{beat.favorites_count || 0}</span>
+                <span>likes</span>
+              </div>
+            </div>
           </div>
         </div>
         
