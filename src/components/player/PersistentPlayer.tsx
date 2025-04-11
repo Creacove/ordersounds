@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
@@ -58,13 +59,15 @@ export function PersistentPlayer() {
           className="h-full bg-primary transition-all"
           style={{ width: `${progressPercentage}%` }}
         />
+        {/* Make the input cover the entire area for better touch targets */}
         <input 
           type="range"
           min={0}
           max={duration || 0}
           value={currentTime}
           onChange={(e) => seek(parseFloat(e.target.value))}
-          className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+          className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
+          style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile
         />
       </div>
       

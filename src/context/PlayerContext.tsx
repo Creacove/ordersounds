@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAudio } from '@/hooks/useAudio';
+import { toast } from 'sonner';
 
 interface PlayerContextType {
   isPlaying: boolean;
@@ -54,30 +55,43 @@ export const usePlayer = () => useContext(PlayerContext);
 export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBeat, setCurrentBeat] = useState<Beat | null>(null);
-  const [volume, setVolume] = useState(0.5);
+  const [volume, setVolume] = useState(0.7); // Higher default volume for better audibility
   const [progress, setProgress] = useState(0);
   const [queue, setQueue] = useState<Beat[]>([]);
   const [previousBeats, setPreviousBeats] = useState<Beat[]>([]);
   
   const audioUrl = currentBeat?.preview_url || '';
+  console.log("Current audio URL:", audioUrl);
+  
   const { 
     playing, 
     currentTime, 
     duration, 
     togglePlay, 
     seek,
-    stop
+    stop,
+    error
   } = useAudio(audioUrl);
+  
+  // Handle audio errors
+  useEffect(() => {
+    if (error && currentBeat) {
+      toast.error(`Failed to play ${currentBeat.title}. Please try again.`);
+      console.error("Audio playback error for beat:", currentBeat?.title);
+    }
+  }, [error, currentBeat]);
   
   useEffect(() => {
     setIsPlaying(playing);
   }, [playing]);
   
+  // Set volume for audio element
   useEffect(() => {
-    const audioElement = document.querySelector('audio');
-    if (audioElement) {
-      audioElement.volume = volume;
-    }
+    const audioElements = document.querySelectorAll('audio');
+    audioElements.forEach(audio => {
+      audio.volume = volume;
+    });
+    console.log("Set volume to:", volume);
   }, [volume]);
   
   useEffect(() => {
@@ -95,6 +109,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
   }, [progress]);
   
   const playBeat = (beat: Beat | null) => {
+    console.log("playBeat called with:", beat?.title);
     if (beat === null) {
       setIsPlaying(false);
       stop(); // Use stop instead of togglePlay to ensure complete reset
@@ -106,6 +121,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     if (!currentBeat || currentBeat.id !== beat.id) {
       // If something is currently playing, stop it first
       if (isPlaying) {
+        console.log("Stopping current audio before playing new beat");
         stop(); // Stop the current audio immediately
       }
       
@@ -115,26 +131,31 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       }
       
       // Update to the new beat
+      console.log("Setting new beat:", beat.title);
       setCurrentBeat(beat);
       
       // Force it to play immediately without waiting for state updates
-      requestAnimationFrame(() => {
+      setTimeout(() => {
+        console.log("Triggering play after timeout");
         togglePlay();
         setIsPlaying(true);
-      });
+      }, 50);
     } else {
       // Same beat, just toggle play/pause
+      console.log("Same beat, toggling play/pause");
       togglePlayPause();
     }
   };
 
   const togglePlayPause = () => {
+    console.log("togglePlayPause called");
     if (currentBeat) {
       togglePlay();
     }
   };
   
   const pausePlayback = () => {
+    console.log("pausePlayback called");
     if (isPlaying) {
       togglePlay();
     }
@@ -165,6 +186,9 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setQueue(newQueue);
       setIsPlaying(true);
       setProgress(0);
+      
+      // Force playback of the next track
+      setTimeout(() => togglePlay(), 50);
     }
   };
   
@@ -181,6 +205,9 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setPreviousBeats(newPreviousBeats);
       setIsPlaying(true);
       setProgress(0);
+      
+      // Force playback of the previous track
+      setTimeout(() => togglePlay(), 50);
     }
   };
 

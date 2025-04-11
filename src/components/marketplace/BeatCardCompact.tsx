@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, Pause, ShoppingCart } from 'lucide-react';
@@ -47,18 +48,33 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
     
     setIsPlayButtonClicked(true);
     
-    if (isCurrentBeat) {
-      togglePlayPause();
-    } else {
-      // Increment play count and play the beat
-      playBeat(beat);
-      incrementPlayCount(beat.id);
-    }
+    console.log("Play button clicked for:", beat.title);
     
-    // Re-enable the button after a short delay
-    setTimeout(() => {
-      setIsPlayButtonClicked(false);
-    }, 500); // Increased debounce time for more reliability
+    try {
+      if (isCurrentBeat) {
+        console.log("Toggling current beat:", beat.title);
+        togglePlayPause();
+      } else {
+        console.log("Playing new beat:", beat.title);
+        // Ensure we have a preview URL before attempting to play
+        if (!beat.preview_url) {
+          toast.error("This beat doesn't have a preview available");
+          return;
+        }
+        
+        // Play the beat and increment play count
+        playBeat(beat);
+        incrementPlayCount(beat.id);
+      }
+    } catch (error) {
+      console.error("Error handling play:", error);
+      toast.error("Failed to play beat. Please try again.");
+    } finally {
+      // Re-enable the button after a short delay
+      setTimeout(() => {
+        setIsPlayButtonClicked(false);
+      }, 800); // Increased debounce time for more reliability
+    }
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {

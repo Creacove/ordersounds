@@ -40,10 +40,12 @@ export const useAudio = (url: string): UseAudioReturn => {
       setDuration(audioRef.current?.duration || 0);
       setIsReady(true);
       setError(false);
+      console.log("Audio metadata loaded successfully", { url, duration: audioRef.current?.duration });
     };
     
     const handleCanPlay = () => {
       setIsReady(true);
+      console.log("Audio can play now", { url });
     };
     
     const handleTimeUpdate = () => {
@@ -54,14 +56,17 @@ export const useAudio = (url: string): UseAudioReturn => {
       setPlaying(false);
     };
     
-    const handleError = () => {
-      console.error("Error playing audio:", audioRef.current?.error);
+    const handleError = (e: any) => {
+      console.error("Error playing audio:", audioRef.current?.error, e);
       setError(true);
       setPlaying(false);
     };
     
     // Set the source and attach event listeners
+    console.log("Setting audio source:", url);
     audioRef.current.src = url;
+    audioRef.current.load(); // Explicitly load the audio
+    audioRef.current.volume = 0.7; // Set a default volume
     audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
     audioRef.current.addEventListener('canplay', handleCanPlay);
     audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
@@ -88,31 +93,52 @@ export const useAudio = (url: string): UseAudioReturn => {
   
   // Play/pause toggle function
   const togglePlay = () => {
-    if (!audioRef.current || !url) return;
+    console.log("Toggle play called", { url, playing, isReady });
+    if (!audioRef.current || !url) {
+      console.error("No audio element or URL available");
+      return;
+    }
     
     if (playing) {
+      console.log("Pausing audio");
       audioRef.current.pause();
       setPlaying(false);
     } else {
+      console.log("Attempting to play audio");
       setError(false); // Clear any previous errors
       
-      const playAudio = () => {
+      const playAudio = async () => {
         if (!audioRef.current) return;
         
         try {
+          console.log("Calling play() method");
           const playPromise = audioRef.current.play();
           
           if (playPromise !== undefined) {
             playPromise.then(() => {
+              console.log("Audio playing successfully");
               setPlaying(true);
             }).catch(error => {
               console.error("Error playing audio:", error);
               setError(true);
               setPlaying(false);
+              // Try one more time after a short delay
+              setTimeout(() => {
+                if (audioRef.current) {
+                  audioRef.current.play()
+                    .then(() => {
+                      console.log("Retry successful");
+                      setPlaying(true);
+                    })
+                    .catch(retryError => {
+                      console.error("Retry failed:", retryError);
+                    });
+                }
+              }, 300);
             });
           }
         } catch (error) {
-          console.error("Error playing audio:", error);
+          console.error("Exception playing audio:", error);
           setError(true);
           setPlaying(false);
         }
@@ -122,19 +148,25 @@ export const useAudio = (url: string): UseAudioReturn => {
       if (isReady) {
         playAudio();
       } else {
+        console.log("Audio not ready, waiting for canplay event");
         // Add a temporary event listener for canplay that will be removed after first trigger
         const handleCanPlayToStart = () => {
+          console.log("Can play event triggered for delayed playback");
           playAudio();
           audioRef.current?.removeEventListener('canplay', handleCanPlayToStart);
         };
         
         audioRef.current.addEventListener('canplay', handleCanPlayToStart);
+        
+        // Also try to load the audio again
+        audioRef.current.load();
       }
     }
   };
 
   // Stop function (pause and reset time)
   const stop = () => {
+    console.log("Stop audio called");
     if (!audioRef.current) return;
     
     audioRef.current.pause();
@@ -150,6 +182,19 @@ export const useAudio = (url: string): UseAudioReturn => {
     audioRef.current.currentTime = time;
     setCurrentTime(time);
   };
+
+  // Add debugging information for development
+  useEffect(() => {
+    console.log("Audio state:", {
+      url,
+      playing,
+      duration,
+      currentTime,
+      error,
+      isReady,
+      readyState: audioRef.current?.readyState
+    });
+  }, [url, playing, duration, currentTime, error, isReady]);
 
   return {
     playing,
