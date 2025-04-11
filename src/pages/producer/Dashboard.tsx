@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useBeats } from "@/hooks/useBeats";
@@ -64,7 +65,6 @@ export default function ProducerDashboard() {
   }, [user, refreshTrigger]);
 
   // Fetch producer analytics data
-
   useEffect(() => {
     const fetchStats = async () => {
       if (!user) return;
@@ -116,7 +116,7 @@ export default function ProducerDashboard() {
         <h1 className="text-2xl font-bold mb-6">Producer Dashboard</h1>
 
         {isLoadingProducer ? (
-          <div className="text-center">Loading bank details...</div> // Or a loading spinner/skeleton
+          <div className="text-center">Loading bank details...</div>
         ) : (
           showBankDetails &&
           user && (

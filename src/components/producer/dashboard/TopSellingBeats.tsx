@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { useNavigate } from "react-router-dom";
 import { Beat } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/AuthContext";
 
 interface TopSellingBeatsProps {
   beats: Beat[];
@@ -10,6 +11,7 @@ interface TopSellingBeatsProps {
 
 export function TopSellingBeats({ beats }: TopSellingBeatsProps) {
   const navigate = useNavigate();
+  const { currency } = useAuth();
 
   const handleBeatClick = (beatId: string) => {
     navigate(`/beat/${beatId}`);
@@ -59,10 +61,10 @@ export function TopSellingBeats({ beats }: TopSellingBeatsProps) {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-sm">
-                    ₦{(beat.basic_license_price_local || 0).toLocaleString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    ${beat.basic_license_price_diaspora || 0}
+                    {currency === 'NGN' ? '₦' : '$'}
+                    {(currency === 'NGN' ? 
+                      beat.basic_license_price_local : 
+                      beat.basic_license_price_diaspora || 0).toLocaleString()}
                   </p>
                 </div>
               </div>

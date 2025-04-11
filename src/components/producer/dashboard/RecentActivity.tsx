@@ -3,19 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { formatDistanceToNow } from "date-fns";
 import { Bell, Heart, MessageSquare, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-
-interface Notification {
-  id: string;
-  recipient_id: string;
-  title: string;
-  body: string;
-  notification_type: string;
-  is_read: boolean;
-  created_date: string;
-  related_entity_id?: string;
-  related_entity_type?: string;
-  sender_id?: string;
-}
+import { Notification } from "@/types";
 
 interface RecentActivityProps {
   notifications: Notification[];
