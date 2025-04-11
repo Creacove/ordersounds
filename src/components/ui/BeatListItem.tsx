@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
@@ -44,17 +45,28 @@ export function BeatListItem({
   const { addToCart } = useCart();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
 
-  const handlePlay = (e: React.MouseEvent) => {
+  const handlePlay = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    
+    // Prevent double clicks
+    if (isPlayButtonClicked) return;
+    setIsPlayButtonClicked(true);
+    
     if (onPlay) {
       onPlay();
     } else {
       playBeat(beat);
-      incrementPlayCount(beat.id);
+      await incrementPlayCount(beat.id);
     }
+    
+    // Re-enable after a short delay
+    setTimeout(() => {
+      setIsPlayButtonClicked(false);
+    }, 300);
   };
 
   const incrementPlayCount = async (beatId: string) => {
@@ -152,6 +164,7 @@ export function BeatListItem({
         />
         <button
           onClick={handlePlay}
+          disabled={isPlayButtonClicked}
           className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity"
         >
           {isCurrentlyPlaying ? 

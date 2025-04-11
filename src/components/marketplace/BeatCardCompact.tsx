@@ -10,6 +10,7 @@ import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
 import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
+import { supabase } from '@/integrations/supabase/client';
 
 interface BeatCardCompactProps {
   beat: Beat;
@@ -20,18 +21,43 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
   const [isHovering, setIsHovering] = useState(false);
   const { isDuplicate, addNotification } = useUniqueNotifications();
+  const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
   const isCurrentBeat = currentBeat?.id === beat.id;
   
-  const handlePlay = (e: React.MouseEvent) => {
+  const incrementPlayCount = async (beatId: string) => {
+    try {
+      await supabase.rpc("increment_counter" as any, {
+        p_table_name: "beats",
+        p_column_name: "plays",
+        p_id: beatId
+      });
+      console.log('Incremented play count for beat:', beatId);
+    } catch (error) {
+      console.error('Error incrementing play count:', error);
+    }
+  };
+
+  const handlePlay = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    // Disable the button temporarily to prevent double clicks
+    if (isPlayButtonClicked) return;
+    
+    setIsPlayButtonClicked(true);
     
     if (isCurrentBeat) {
       togglePlayPause();
     } else {
       playBeat(beat);
+      incrementPlayCount(beat.id);
     }
+    
+    // Re-enable the button after a short delay
+    setTimeout(() => {
+      setIsPlayButtonClicked(false);
+    }, 300);
   };
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -73,6 +99,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
             variant="secondary" 
             className="h-10 w-10 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background/95"
             onClick={handlePlay}
+            disabled={isPlayButtonClicked}
           >
             {isCurrentBeat && isPlaying ? (
               <Pause className="h-5 w-5" />

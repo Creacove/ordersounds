@@ -1,8 +1,9 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, ShoppingCart } from "lucide-react";
+import { ShoppingCart } from "lucide-react";
 import { Beat } from "@/types";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
@@ -30,6 +31,7 @@ export function BeatCard({
   const { currency } = useAuth();
   const { toggleCartItem } = useCart();
   const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive' | 'custom'>('basic');
+  const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
   const handleAddToCart = () => {
     toggleCartItem(beat, selectedLicense);
@@ -49,8 +51,17 @@ export function BeatCard({
     }
   };
   
-  const handleBeatClick = () => {
-    incrementPlayCount(beat.id);
+  const handleBeatClick = async () => {
+    // Prevent double-clicks
+    if (isPlayButtonClicked) return;
+    
+    setIsPlayButtonClicked(true);
+    await incrementPlayCount(beat.id);
+    
+    // Re-enable after a short delay
+    setTimeout(() => {
+      setIsPlayButtonClicked(false);
+    }, 300);
   };
 
   const getPriceForLicense = () => {

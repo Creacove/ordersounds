@@ -21,6 +21,7 @@ export function ToggleFavoriteButton({
   const { isFavorite, toggleFavorite } = useBeats();
   const { user } = useAuth();
   const [favorite, setFavorite] = useState(false);
+  const [isButtonClicked, setIsButtonClicked] = useState(false);
 
   useEffect(() => {
     setFavorite(isFavorite(beatId));
@@ -35,12 +36,21 @@ export function ToggleFavoriteButton({
       return;
     }
     
+    // Prevent double clicks
+    if (isButtonClicked) return;
+    setIsButtonClicked(true);
+    
     try {
       const result = await toggleFavorite(beatId);
       setFavorite(result);
     } catch (error) {
       console.error('Error toggling favorite:', error);
       toast.error('Failed to update favorite status');
+    } finally {
+      // Re-enable after a short delay
+      setTimeout(() => {
+        setIsButtonClicked(false);
+      }, 300);
     }
   };
   
@@ -68,6 +78,7 @@ export function ToggleFavoriteButton({
         transition-colors
       `}
       onClick={handleToggleFavorite}
+      disabled={isButtonClicked}
     >
       <Heart className={`${iconSizes[size]} ${favorite ? 'fill-current' : ''}`} />
     </Button>
