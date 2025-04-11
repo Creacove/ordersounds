@@ -134,6 +134,12 @@ export function PersistentPlayer() {
         {/* Time and volume controls (only visible on desktop) */}
         {!isMobile && (
           <div className="hidden md:flex items-center gap-4 w-1/3 justify-end">
+            <TimeProgressBar 
+              currentTime={currentTime} 
+              duration={duration} 
+              seek={seek} 
+              isMobile={isMobile} 
+            />
             <VolumeControl volume={volume} setVolume={setVolume} />
             
             {/* Queue popover */}

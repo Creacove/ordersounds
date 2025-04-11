@@ -58,8 +58,8 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
         console.log("Playing new beat:", beat.title);
         // Ensure we have a preview URL before attempting to play
         if (!beat.preview_url) {
-          toast.error("This beat doesn't have a preview available");
-          return;
+          console.warn("Beat doesn't have a preview URL:", beat.title);
+          return; // Just return silently, don't show toast
         }
         
         // Play the beat and increment play count
@@ -68,12 +68,12 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
       }
     } catch (error) {
       console.error("Error handling play:", error);
-      toast.error("Failed to play beat. Please try again.");
+      // Don't show toast, just log the error
     } finally {
       // Re-enable the button after a short delay
       setTimeout(() => {
         setIsPlayButtonClicked(false);
-      }, 800); // Increased debounce time for more reliability
+      }, 1000); // Increased debounce time for better reliability
     }
   };
 

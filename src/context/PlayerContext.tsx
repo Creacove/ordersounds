@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAudio } from '@/hooks/useAudio';
-import { toast } from 'sonner';
+// Remove toast import as we're not going to show errors anymore
 
 interface PlayerContextType {
   isPlaying: boolean;
@@ -73,10 +73,10 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     error
   } = useAudio(audioUrl);
   
-  // Handle audio errors
+  // Handle audio errors silently
   useEffect(() => {
     if (error && currentBeat) {
-      toast.error(`Failed to play ${currentBeat.title}. Please try again.`);
+      // Just log the error, don't show toast
       console.error("Audio playback error for beat:", currentBeat?.title);
     }
   }, [error, currentBeat]);
@@ -135,11 +135,11 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(beat);
       
       // Force it to play immediately without waiting for state updates
-      setTimeout(() => {
-        console.log("Triggering play after timeout");
+      // Use requestAnimationFrame for better timing
+      requestAnimationFrame(() => {
         togglePlay();
         setIsPlaying(true);
-      }, 50);
+      });
     } else {
       // Same beat, just toggle play/pause
       console.log("Same beat, toggling play/pause");
@@ -188,7 +188,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setProgress(0);
       
       // Force playback of the next track
-      setTimeout(() => togglePlay(), 50);
+      requestAnimationFrame(() => togglePlay());
     }
   };
   
@@ -207,7 +207,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setProgress(0);
       
       // Force playback of the previous track
-      setTimeout(() => togglePlay(), 50);
+      requestAnimationFrame(() => togglePlay());
     }
   };
 

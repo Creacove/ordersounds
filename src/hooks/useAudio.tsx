@@ -60,6 +60,7 @@ export const useAudio = (url: string): UseAudioReturn => {
       console.error("Error playing audio:", audioRef.current?.error, e);
       setError(true);
       setPlaying(false);
+      // Don't show toast here - just set error state
     };
     
     // Set the source and attach event listeners
@@ -96,6 +97,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     console.log("Toggle play called", { url, playing, isReady });
     if (!audioRef.current || !url) {
       console.error("No audio element or URL available");
+      setError(true);
       return;
     }
     
@@ -122,19 +124,7 @@ export const useAudio = (url: string): UseAudioReturn => {
               console.error("Error playing audio:", error);
               setError(true);
               setPlaying(false);
-              // Try one more time after a short delay
-              setTimeout(() => {
-                if (audioRef.current) {
-                  audioRef.current.play()
-                    .then(() => {
-                      console.log("Retry successful");
-                      setPlaying(true);
-                    })
-                    .catch(retryError => {
-                      console.error("Retry failed:", retryError);
-                    });
-                }
-              }, 300);
+              // Silent failure - no toast
             });
           }
         } catch (error) {

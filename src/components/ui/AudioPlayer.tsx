@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 interface AudioPlayerProps {
   src: string;
@@ -44,7 +43,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
       setIsLoading(false);
       setHasError(true);
       setIsPlaying(false);
-      toast.error("Failed to load audio. Please try again later.");
+      // Don't show toast, just set error state
     };
     
     const handleLoadStart = () => {
@@ -96,6 +95,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
           }).catch((error) => {
             console.error("Error playing audio:", error);
             setHasError(true);
+            // Don't show toast notification
           });
         }
       }
@@ -126,7 +126,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
           console.error("Error playing audio:", error);
           setIsLoading(false);
           setHasError(true);
-          toast.error("Failed to play audio. Please try again.");
+          // Don't show toast error
         });
       }
     }
