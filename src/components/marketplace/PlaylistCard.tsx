@@ -36,52 +36,27 @@ export const PlaylistCard = ({ playlist, className }: PlaylistCardProps) => {
       );
     }
     
-    // If we have beats, show up to 4 of them in a grid
-    const beatsToShow = playlist.beats.slice(0, 4);
+    // Default image options based on playlist name
+    const imageOptions = [
+      '/placeholder.svg',
+      'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?auto=format&fit=crop&w=400&h=400',
+      'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=400&h=400',
+      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&h=400',
+      'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=400&h=400',
+      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&h=400'
+    ];
     
-    if (beatsToShow.length === 1) {
-      const firstBeat = beatsToShow[0];
-      const imageUrl = typeof firstBeat === 'string' 
-        ? '/placeholder.svg'
-        : ((firstBeat as any).cover_image_url || '/placeholder.svg');
-      
-      return (
-        <img 
-          src={imageUrl} 
-          alt={playlist.name} 
-          className="h-full w-full object-cover"
-        />
-      );
-    }
+    // Use playlist id as seed to select a consistent image
+    const hash = playlist.id.split('-')[0];
+    const charSum = [...hash].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+    const imageUrl = imageOptions[charSum % imageOptions.length];
     
     return (
-      <div className="grid grid-cols-2 gap-1 h-full w-full">
-        {beatsToShow.map((beat, index) => {
-          const imageUrl = typeof beat === 'string'
-            ? '/placeholder.svg'
-            : ((beat as any).cover_image_url || '/placeholder.svg');
-          
-          const altText = typeof beat === 'string'
-            ? `Track ${index + 1}`
-            : (beat as any).title;
-            
-          return (
-            <div key={index} className="aspect-square overflow-hidden">
-              <img 
-                src={imageUrl}
-                alt={altText}
-                className="h-full w-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/placeholder.svg';
-                }}
-              />
-            </div>
-          );
-        })}
-        {Array.from({ length: 4 - beatsToShow.length }).map((_, index) => (
-          <div key={`empty-${index}`} className="bg-muted aspect-square" />
-        ))}
-      </div>
+      <img 
+        src={imageUrl} 
+        alt={playlist.name} 
+        className="h-full w-full object-cover"
+      />
     );
   };
   
@@ -90,13 +65,13 @@ export const PlaylistCard = ({ playlist, className }: PlaylistCardProps) => {
       <Card 
         className={cn(
           "group relative overflow-hidden transition-all duration-300 hover:shadow-md",
-          "rounded-lg h-full flex flex-col",
+          "rounded-lg h-full flex flex-col bg-card border border-border",
           className
         )}
       >
         <div className="relative aspect-square w-full overflow-hidden bg-muted">
           {generateCoverImages()}
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
             <Button 
               size="icon"
               className="rounded-full h-12 w-12 bg-purple-600 hover:bg-purple-700 text-primary-foreground"
@@ -121,4 +96,4 @@ export const PlaylistCard = ({ playlist, className }: PlaylistCardProps) => {
       </Card>
     </Link>
   );
-};
+}

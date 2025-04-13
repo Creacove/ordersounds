@@ -1,11 +1,10 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -13,12 +12,13 @@ import { toast } from "sonner";
 import { ProfileForm } from "@/components/user/settings/ProfileForm";
 import { AccountForm } from "@/components/user/settings/AccountForm";
 import { PreferencesForm } from "@/components/user/settings/PreferencesForm";
+import { User } from "@/components/ui/user";
+import { Shield, Settings } from "lucide-react";
 
 export default function Settings() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     document.title = "Settings | OrderSOUNDS";
@@ -46,10 +46,18 @@ export default function Settings() {
   // Producer-specific tabs
   const producerTabs = () => (
     <Tabs defaultValue="profile" className="w-full">
-      <TabsList className="grid w-full max-w-md grid-cols-3 mb-6 md:mb-8 rounded-md overflow-hidden">
-        <TabsTrigger value="profile" className="rounded-none border-0">Profile</TabsTrigger>
-        <TabsTrigger value="payment" className="rounded-none border-0">Payment</TabsTrigger>
-        <TabsTrigger value="preferences" className="rounded-none border-0">Preferences</TabsTrigger>
+      <TabsList className="border-b w-full mb-6 md:mb-8 rounded-none p-0 h-auto bg-transparent">
+        <TabsTrigger value="profile" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
+          <User className="mr-2 h-4 w-4" />
+          Profile
+        </TabsTrigger>
+        <TabsTrigger value="payment" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
+          Payment
+        </TabsTrigger>
+        <TabsTrigger value="preferences" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
+          <Settings className="mr-2 h-4 w-4" />
+          Preferences
+        </TabsTrigger>
       </TabsList>
       
       <TabsContent value="profile">
@@ -67,6 +75,7 @@ export default function Settings() {
               initialLocation={user.country || ''}
               avatarUrl={user.avatar_url || null}
               displayName={user.producer_name || user.name || 'User'}
+              initialMusicInterests={user.music_interests || []}
             />
           </CardContent>
         </Card>
@@ -111,10 +120,19 @@ export default function Settings() {
   // Buyer-specific tabs
   const buyerTabs = () => (
     <Tabs defaultValue="profile" className="w-full">
-      <TabsList className="grid w-full max-w-md grid-cols-3 mb-8 rounded-md overflow-hidden">
-        <TabsTrigger value="profile" className="rounded-none border-0">Profile</TabsTrigger>
-        <TabsTrigger value="account" className="rounded-none border-0">Account</TabsTrigger>
-        <TabsTrigger value="preferences" className="rounded-none border-0">Preferences</TabsTrigger>
+      <TabsList className="border-b w-full mb-6 md:mb-8 rounded-none p-0 h-auto bg-transparent">
+        <TabsTrigger value="profile" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
+          <User className="mr-2 h-4 w-4" />
+          Profile
+        </TabsTrigger>
+        <TabsTrigger value="account" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
+          <Shield className="mr-2 h-4 w-4" />
+          Account
+        </TabsTrigger>
+        <TabsTrigger value="preferences" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
+          <Settings className="mr-2 h-4 w-4" />
+          Preferences
+        </TabsTrigger>
       </TabsList>
       
       <TabsContent value="profile">
@@ -128,12 +146,13 @@ export default function Settings() {
           <CardContent className="space-y-4">
             <ProfileForm 
               initialProducerName=""
-              initialBio=""
+              initialBio={user.bio || ""}
               initialLocation={user.country || ''}
               avatarUrl={user.avatar_url || null}
               displayName={user.name || 'User'}
               isBuyer={true}
               initialFullName={user.name || ''}
+              initialMusicInterests={user.music_interests || []}
             />
           </CardContent>
         </Card>

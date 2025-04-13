@@ -3,6 +3,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Loader2, CheckCircle, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +20,7 @@ interface ProfileFormProps {
   displayName: string;
   isBuyer?: boolean;
   initialFullName?: string;
+  initialMusicInterests?: string[];
 }
 
 export function ProfileForm({ 
@@ -28,7 +30,8 @@ export function ProfileForm({
   avatarUrl, 
   displayName,
   isBuyer = false,
-  initialFullName = ''
+  initialFullName = '',
+  initialMusicInterests = []
 }: ProfileFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -36,6 +39,8 @@ export function ProfileForm({
   const [bio, setBio] = useState(initialBio);
   const [location, setLocation] = useState(initialLocation);
   const [fullName, setFullName] = useState(initialFullName);
+  const [musicInterests, setMusicInterests] = useState<string[]>(initialMusicInterests);
+  const [newInterest, setNewInterest] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(avatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -104,6 +109,17 @@ export function ProfileForm({
     }
   };
 
+  const addMusicInterest = () => {
+    if (newInterest.trim() !== '' && !musicInterests.includes(newInterest.trim())) {
+      setMusicInterests([...musicInterests, newInterest.trim()]);
+      setNewInterest('');
+    }
+  };
+
+  const removeMusicInterest = (interest: string) => {
+    setMusicInterests(musicInterests.filter(item => item !== interest));
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
     
@@ -113,12 +129,15 @@ export function ProfileForm({
       const updateData = isBuyer 
         ? {
             full_name: fullName,
-            country: location
+            bio: bio,  // Allow bio for buyers
+            country: location,
+            music_interests: musicInterests
           }
         : {
             stage_name: producerName,
             bio: bio,
-            country: location
+            country: location,
+            music_interests: musicInterests
           };
       
       const { error } = await supabase
@@ -135,13 +154,16 @@ export function ProfileForm({
           ? {
               ...user,
               name: fullName,
-              country: location
+              bio: bio,  // Update bio in user state
+              country: location,
+              music_interests: musicInterests
             }
           : {
               ...user,
               producer_name: producerName,
               bio: bio,
-              country: location
+              country: location,
+              music_interests: musicInterests
             };
             
         await updateProfile(profileData);
@@ -256,18 +278,16 @@ export function ProfileForm({
           </div>
         )}
         
-        {!isBuyer && (
-          <div className="space-y-2">
-            <Label htmlFor="bio">Bio</Label>
-            <textarea 
-              id="bio" 
-              className="w-full min-h-32 p-2 rounded-md border border-input bg-background"
-              placeholder="Tell buyers about yourself"
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-            />
-          </div>
-        )}
+        <div className="space-y-2">
+          <Label htmlFor="bio">Bio</Label>
+          <Textarea 
+            id="bio" 
+            className="min-h-[120px]"
+            placeholder={isBuyer ? "Tell us about yourself" : "Tell buyers about yourself"}
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+          />
+        </div>
         
         <div className="space-y-2">
           <Label htmlFor="location">Location</Label>
@@ -277,6 +297,47 @@ export function ProfileForm({
             value={location}
             onChange={(e) => setLocation(e.target.value)}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="musicInterests">Music Interests</Label>
+          <div className="flex gap-2">
+            <Input 
+              id="musicInterests" 
+              placeholder="Add music interests" 
+              value={newInterest}
+              onChange={(e) => setNewInterest(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addMusicInterest())}
+            />
+            <Button 
+              type="button" 
+              variant="secondary"
+              onClick={addMusicInterest}
+            >
+              Add
+            </Button>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 mt-2">
+            {musicInterests.map((interest, index) => (
+              <div 
+                key={index} 
+                className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center gap-1"
+              >
+                <span>{interest}</span>
+                <button 
+                  type="button" 
+                  className="text-purple-800 hover:text-purple-900"
+                  onClick={() => removeMusicInterest(interest)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            {musicInterests.length === 0 && (
+              <p className="text-sm text-muted-foreground">No music interests added yet</p>
+            )}
+          </div>
         </div>
       </div>
       

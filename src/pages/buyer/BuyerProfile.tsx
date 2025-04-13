@@ -21,7 +21,7 @@ import {
   MessageSquare, 
   BarChart4,
   UserPlus,
-  FileEdit
+  Settings
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -49,7 +49,7 @@ export default function BuyerProfile() {
         // Get buyer details
         const { data, error } = await supabase
           .from('users')
-          .select('id, full_name, bio, profile_picture, country')
+          .select('id, full_name, bio, profile_picture, country, music_interests')
           .eq('id', buyerId)
           .single();
 
@@ -60,7 +60,8 @@ export default function BuyerProfile() {
           name: data.full_name,
           bio: data.bio,
           avatar_url: data.profile_picture,
-          country: data.country
+          country: data.country,
+          music_interests: data.music_interests
         });
 
         // If this is the user's own profile or if we're looking at public playlists,
@@ -138,7 +139,7 @@ export default function BuyerProfile() {
         ) : buyer ? (
           <>
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-purple-500/20 to-background h-40 rounded-xl -z-10"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-purple-600/20 to-background h-40 rounded-xl -z-10"></div>
               <div className="flex flex-col md:flex-row gap-6 pt-6 mb-8">
                 <div className="flex-shrink-0 md:ml-6">
                   <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-xl">
@@ -181,7 +182,7 @@ export default function BuyerProfile() {
                           variant="default" 
                           className="gap-1.5 bg-purple-600 hover:bg-purple-700"
                         >
-                          <FileEdit size={14} />
+                          <Settings size={14} />
                           Edit Profile
                         </Button>
                       ) : (
@@ -207,7 +208,7 @@ export default function BuyerProfile() {
                     <p className="text-sm md:text-base mb-4 max-w-3xl">{buyer.bio}</p>
                   ) : (
                     <p className="text-muted-foreground italic mb-4 text-sm md:text-base">
-                      {isOwnProfile ? "You haven't added a bio yet." : "This user hasn't added a bio yet."}
+                      {isOwnProfile ? "You haven't added a bio yet. Add one in your profile settings." : "This user hasn't added a bio yet."}
                     </p>
                   )}
                 </div>
@@ -294,7 +295,7 @@ export default function BuyerProfile() {
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-xl">
                           <ListMusic size={18} className="text-purple-500" />
-                          Music Interests
+                          Music Interests & Bio
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -305,12 +306,27 @@ export default function BuyerProfile() {
                           </div>
                           
                           <div>
-                            <h3 className="text-sm font-medium mb-2">Interests</h3>
+                            <h3 className="text-sm font-medium mb-2">Music Interests</h3>
                             <div className="flex flex-wrap gap-2">
-                              <Badge variant="secondary" className="px-3 py-1 text-xs bg-purple-100 text-purple-800 hover:bg-purple-200">Music Fan</Badge>
+                              {Array.isArray(buyer.music_interests) && buyer.music_interests.length > 0 ? (
+                                buyer.music_interests.map((interest, index) => (
+                                  <Badge 
+                                    key={index} 
+                                    variant="secondary" 
+                                    className="px-3 py-1 text-xs bg-purple-100 text-purple-800 hover:bg-purple-200"
+                                  >
+                                    {interest}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No music interests added yet</span>
+                              )}
+                              
                               {isOwnProfile && (
                                 <span className="text-xs text-muted-foreground mt-2 block">
-                                  Add your music interests in your profile settings
+                                  {Array.isArray(buyer.music_interests) && buyer.music_interests.length > 0 
+                                    ? "Edit your music interests in your profile settings"
+                                    : "Add your music interests in your profile settings"}
                                 </span>
                               )}
                             </div>
