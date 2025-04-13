@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Link } from "react-router-dom";
 import { 
@@ -6,6 +7,8 @@ import {
   ShoppingCart, 
   MoreHorizontal,
   Music,
+  LayoutDashboard,
+  DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
