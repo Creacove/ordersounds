@@ -15,7 +15,8 @@ import {
   LogOut,
   Search,
   ShoppingCart,
-  KeyRound
+  KeyRound,
+  Users
 } from "lucide-react";
 import { User as UserType } from "@/types";
 
@@ -50,6 +51,7 @@ export const getSidebarSections = (user: UserType | null, handleSignOut: () => v
         { icon: Clock, title: "New", href: "/new" },
         { icon: List, title: "Playlists", href: "/playlists" },
         { icon: Disc, title: "Genres", href: "/genres" },
+        { icon: Users, title: "Producers", href: "/producers" },
         { icon: Search, title: "Search", href: "/search" },
       ]
     });
