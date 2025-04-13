@@ -1,5 +1,6 @@
+
 import { supabase } from '@/integrations/supabase/client';
-import { uploadFile } from './storage';
+import { uploadFile, FileOrUrl } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 
@@ -56,9 +57,9 @@ export const uploadBeat = async (
     custom_license_price_local?: number;
     custom_license_price_diaspora?: number;
   },
-  fullTrackFile: File,
+  fullTrackFile: FileOrUrl,
   previewFile: File | null,
-  coverImageFile: File,
+  coverImageFile: FileOrUrl,
   stemsFile: File | null,
   producerId: string,
   producerName: string,

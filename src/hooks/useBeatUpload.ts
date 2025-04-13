@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile } from "@/lib/storage";
+import { uploadFile, FileOrUrl } from "@/lib/storage";
 
 export type LicenseOption = {
   value: string;
@@ -45,10 +45,10 @@ export const useBeatUpload = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("details");
   const [isPlaying, setIsPlaying] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-  const [previewFile, setPreviewFile] = useState<File | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [stems, setStems] = useState<File | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<FileOrUrl | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileOrUrl | null>(null);
+  const [imageFile, setImageFile] = useState<FileOrUrl | null>(null);
+  const [stems, setStems] = useState<FileOrUrl | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");

@@ -8,12 +8,14 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { uploadBeat } from "@/lib/beatStorage";
+import { FileOrUrl } from "@/lib/storage";
 import { DetailTab } from "@/components/upload/DetailTab";
 import { FilesTab } from "@/components/upload/FilesTab";
 import { LicensingTab } from "@/components/upload/LicensingTab";
 import { PricingTab } from "@/components/upload/PricingTab";
 import { RoyaltiesTab } from "@/components/upload/RoyaltiesTab";
 import { useBeatUpload } from "@/hooks/useBeatUpload";
+import { ScrollToTop } from "@/components/utils/ScrollToTop";
 
 export default function UploadBeat() {
   const tabOrder = ["details", "licensing", "files", "pricing", "royalties"];
@@ -197,11 +199,14 @@ export default function UploadBeat() {
         license_terms: beatDetails.licenseTerms || ''
       };
       
+      const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
+      const coverImageFileOrUrl: FileOrUrl = imageFile;
+      
       const result = await uploadBeat(
         beatData,
-        uploadedFile || { url: uploadedFileUrl },
+        fullTrackFileOrUrl,
         previewFile,
-        imageFile,
+        coverImageFileOrUrl,
         stems,
         user.id,
         user.producer_name || user.name,
@@ -278,11 +283,14 @@ export default function UploadBeat() {
         license_terms: beatDetails.licenseTerms || ''
       };
       
+      const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
+      const coverImageFileOrUrl: FileOrUrl = imageFile;
+      
       const result = await uploadBeat(
         beatData,
-        uploadedFile,
+        fullTrackFileOrUrl,
         previewFile,
-        imageFile,
+        coverImageFileOrUrl,
         stems,
         user.id,
         user.producer_name || user.name,
@@ -353,6 +361,7 @@ export default function UploadBeat() {
 
   return (
     <MainLayout>
+      <ScrollToTop />
       <div className="container py-4 sm:py-8 max-w-full sm:max-w-4xl px-2 sm:px-6">
         <Card className="overflow-hidden">
           <CardHeader className="bg-card p-4 sm:p-6">

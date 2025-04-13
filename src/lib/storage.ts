@@ -1,5 +1,9 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+
+// Create a type to represent a file-like object with a URL
+export type FileOrUrl = File | { url: string };
 
 /**
  * Uploads a file to Supabase storage
@@ -10,7 +14,7 @@ import { v4 as uuidv4 } from 'uuid';
  * @returns The public URL of the uploaded file
  */
 export const uploadFile = async (
-  file: File | {url: string}, 
+  file: FileOrUrl, 
   bucket: 'beats' | 'covers' | 'avatars', 
   path = '',
   progressCallback?: (progress: number) => void
