@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile, FileOrUrl, isFile, validateImageUrl } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -402,12 +401,12 @@ export const deleteBeat = async (beatId: string): Promise<{ success: boolean; er
       // Continue anyway, as this shouldn't block the beat deletion
     }
     
-    // Delete user favorites for this beat using RPC instead of direct table access
+    // Delete user favorites for this beat using direct table access
     try {
       await supabase
-        .rpc('delete_beat_favorites', {
-          beat_id_param: beatId
-        });
+        .from('user_favorites')
+        .delete()
+        .eq('beat_id', beatId);
     } catch (error) {
       console.warn('Error deleting favorites:', error);
       // Continue anyway
