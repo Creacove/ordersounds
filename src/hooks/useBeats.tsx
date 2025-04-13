@@ -135,19 +135,31 @@ export function useBeats() {
 
     try {
       // Check if user_favorites table exists
-      const { data: tablesData } = await supabase
-        .rpc('get_existing_tables');
+      let userFavoritesTableExists = false;
       
-      const userFavoritesTableExists = tablesData && 
-        tablesData.some((table: string) => table === 'user_favorites');
-
-      if (!userFavoritesTableExists) {
-        console.log('user_favorites table does not exist, creating it');
-        // Create the table if it doesn't exist
-        await supabase.rpc('create_user_favorites_table');
+      try {
+        // Try to query the user_favorites table directly
+        const { data: favoriteData, error: favoriteError } = await supabase
+          .from('user_favorites')
+          .select('beat_id')
+          .eq('user_id', user.id)
+          .limit(1);
+          
+        // If this doesn't throw an error, the table exists
+        userFavoritesTableExists = !favoriteError;
+      } catch (e) {
+        console.log('Error checking user_favorites table, assuming it does not exist');
+        userFavoritesTableExists = false;
       }
 
-      // First try to query the user_favorites table directly
+      if (!userFavoritesTableExists) {
+        console.log('user_favorites table does not exist or is not accessible');
+        // We can't create tables here, so we'll just set an empty favorites list
+        setFavoriteBeats([]);
+        return;
+      }
+
+      // If the table exists, fetch user's favorites
       const { data, error } = await supabase
         .from('user_favorites')
         .select('beat_id')
@@ -209,38 +221,72 @@ export function useBeats() {
       
       if (isFav) {
         // Remove from favorites
-        await supabase
-          .from('user_favorites')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('beat_id', beatId);
-        
-        // Try to decrement the favorites counter
         try {
           await supabase
-            .rpc('decrement_favorites_count', { beat_id_param: beatId });
+            .from('user_favorites')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('beat_id', beatId);
+          
+          // Try to decrement the favorites counter
+          try {
+            // Update the beat's favorites_count directly
+            const { data: beatData } = await supabase
+              .from('beats')
+              .select('favorites_count')
+              .eq('id', beatId)
+              .single();
+              
+            if (beatData) {
+              const currentCount = beatData.favorites_count || 0;
+              await supabase
+                .from('beats')
+                .update({ favorites_count: Math.max(0, currentCount - 1) })
+                .eq('id', beatId);
+            }
+          } catch (error) {
+            console.warn('Error decrementing favorites count:', error);
+          }
+          
+          setFavoriteBeats(prev => prev.filter(id => id !== beatId));
+          return false;
         } catch (error) {
-          console.warn('Error decrementing favorites count:', error);
+          console.error('Error removing favorite:', error);
+          return true; // Keep it marked as favorite if removal fails
         }
-        
-        setFavoriteBeats(prev => prev.filter(id => id !== beatId));
-        return false;
       } else {
         // Add to favorites
-        await supabase
-          .from('user_favorites')
-          .insert([{ user_id: user.id, beat_id: beatId }]);
-          
-        // Try to increment the favorites counter
         try {
           await supabase
-            .rpc('increment_favorites_count', { beat_id_param: beatId });
+            .from('user_favorites')
+            .insert([{ user_id: user.id, beat_id: beatId }]);
+            
+          // Try to increment the favorites counter
+          try {
+            // Update the beat's favorites_count directly
+            const { data: beatData } = await supabase
+              .from('beats')
+              .select('favorites_count')
+              .eq('id', beatId)
+              .single();
+              
+            if (beatData) {
+              const currentCount = beatData.favorites_count || 0;
+              await supabase
+                .from('beats')
+                .update({ favorites_count: currentCount + 1 })
+                .eq('id', beatId);
+            }
+          } catch (error) {
+            console.warn('Error incrementing favorites count:', error);
+          }
+          
+          setFavoriteBeats(prev => [...prev, beatId]);
+          return true;
         } catch (error) {
-          console.warn('Error incrementing favorites count:', error);
+          console.error('Error adding favorite:', error);
+          return false; // Don't mark as favorite if addition fails
         }
-        
-        setFavoriteBeats(prev => [...prev, beatId]);
-        return true;
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -349,6 +395,16 @@ export function useBeats() {
     return beats.filter(beat => beat.producer_id === producerId);
   }, [beats]);
 
+  // Fetch trending beats - used in Trending.tsx
+  const fetchTrendingBeats = useCallback(async () => {
+    await fetchBeats();
+  }, [fetchBeats]);
+
+  // Fetch purchased beats - used in Library.tsx and elsewhere
+  const fetchPurchasedBeats = useCallback(async () => {
+    await fetchUserPurchases();
+  }, [fetchUserPurchases]);
+
   // Refetch beats data (used after operations that modify beats)
   const refetchBeats = useCallback(async () => {
     await fetchBeats();
@@ -376,6 +432,8 @@ export function useBeats() {
     getUserPurchasedBeats,
     getProducerBeats,
     deleteBeat: handleDeleteBeat,
-    refetchBeats
+    refetchBeats,
+    fetchTrendingBeats,
+    fetchPurchasedBeats
   };
 }

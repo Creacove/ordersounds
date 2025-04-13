@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 
 export default function Trending() {
-  const { trendingBeats, isLoading, toggleFavorite, isFavorite, isPurchased, fetchTrendingBeats } = useBeats();
+  const { trendingBeats, isLoading, toggleFavorite, isFavorite, isPurchased, refetchBeats } = useBeats();
   const { isInCart } = useCart();
   const [displayCount, setDisplayCount] = useState(30);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -18,8 +18,8 @@ export default function Trending() {
     document.title = "Trending Beats | OrderSOUNDS";
     
     // Ensure we have the most up-to-date trending beats
-    fetchTrendingBeats();
-  }, [fetchTrendingBeats]);
+    refetchBeats();
+  }, [refetchBeats]);
 
   const loadMoreBeats = () => {
     setIsLoadingMore(true);

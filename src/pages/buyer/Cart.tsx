@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
   const { user, currency } = useAuth();
-  const { toggleFavorite, isFavorite, fetchPurchasedBeats } = useBeats();
+  const { toggleFavorite, isFavorite, isPurchased, refetchBeats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,7 +61,6 @@ export default function Cart() {
     }
   };
 
-  // Set up real-time listener for purchase events
   useEffect(() => {
     if (!user) return;
     
@@ -133,7 +132,10 @@ export default function Cart() {
     }
   }, [refreshCart, cartItems.length, navigate, clearCart, redirectingFromPayment]);
 
-  // Cleanup localStorage on component unmount
+  useEffect(() => {
+    refetchBeats();
+  }, [refetchBeats]);
+
   useEffect(() => {
     return () => {
       if (!redirectingFromPayment) {

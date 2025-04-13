@@ -21,7 +21,7 @@ export default function Library() {
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState("purchased");
   const isMobile = useIsMobile();
-  const { fetchPurchasedBeats } = useBeats();
+  const { fetchPurchasedBeats, refetchBeats } = useBeats();
 
   useEffect(() => {
     if (!user) return;
@@ -69,7 +69,8 @@ export default function Library() {
   }, [location.pathname, location.state]);
 
   useEffect(() => {
-    document.title = "Library | OrderSOUNDS";
+    document.title = "Your Library | OrderSOUNDS";
+    refetchBeats();
     
     const fromPurchase = location.state?.fromPurchase;
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
@@ -100,7 +101,7 @@ export default function Library() {
       
       return () => clearTimeout(timer);
     }
-  }, [location, navigate, fetchPurchasedBeats]);
+  }, [location, navigate, fetchPurchasedBeats, refetchBeats]);
 
   useEffect(() => {
     localStorage.removeItem('pendingOrderId');

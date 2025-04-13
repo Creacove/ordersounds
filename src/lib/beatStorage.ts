@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile, FileOrUrl, isFile, validateImageUrl } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -329,6 +328,39 @@ export const getProducerBeats = async (producerId: string): Promise<Beat[]> => {
 /**
  * Deletes a beat and its associated files
  */
+const safeDeleteFile = async (url: string, bucket: 'beats' | 'covers' | 'avatars') => {
+  if (url) {
+    try {
+      // Extract file path from URL
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      // The file path is typically the last part after the bucket name
+      const bucketIndex = pathParts.findIndex(part => part === bucket);
+      let filePath = '';
+      
+      if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
+        // Extract everything after the bucket name
+        filePath = pathParts.slice(bucketIndex + 1).join('/');
+      } else {
+        // Fallback: just take the last part as the filename
+        filePath = pathParts[pathParts.length - 1];
+      }
+      
+      // Delete file from storage
+      const { error } = await supabase.storage
+        .from(bucket)
+        .remove([filePath]);
+      
+      if (error) {
+        console.error(`Error deleting file from ${bucket}/${filePath}:`, error);
+        throw error;
+      }
+    } catch (error) {
+      console.warn(`Failed to delete file (${url}), continuing with beat deletion:`, error);
+    }
+  }
+};
+
 export const deleteBeat = async (beatId: string): Promise<{ success: boolean; error?: string }> => {
   try {
     // First, get the beat data to access file URLs
@@ -342,17 +374,6 @@ export const deleteBeat = async (beatId: string): Promise<{ success: boolean; er
       console.error('Error getting beat data for deletion:', getBeatError);
       return { success: false, error: `Error retrieving beat: ${getBeatError.message}` };
     }
-    
-    // Helper function to safely delete files
-    const safeDeleteFile = async (url: string, bucket: 'beats' | 'covers' | 'avatars') => {
-      if (url) {
-        try {
-          await deleteFile(url, bucket);
-        } catch (error) {
-          console.warn(`Failed to delete file (${url}), continuing with beat deletion:`, error);
-        }
-      }
-    };
     
     // Try to delete each associated file
     if (beat) {
@@ -382,10 +403,26 @@ export const deleteBeat = async (beatId: string): Promise<{ success: boolean; er
     
     // Delete user favorites for this beat
     try {
-      await supabase
-        .from('user_favorites')
-        .delete()
-        .eq('beat_id', beatId);
+      // Check if table exists first
+      let userFavoritesTableExists = false;
+      
+      try {
+        const { data: tableCheck } = await supabase
+          .from('user_favorites')
+          .select('beat_id')
+          .limit(1);
+          
+        userFavoritesTableExists = true;
+      } catch (e) {
+        userFavoritesTableExists = false;
+      }
+      
+      if (userFavoritesTableExists) {
+        await supabase
+          .from('user_favorites')
+          .delete()
+          .eq('beat_id', beatId);
+      }
     } catch (error) {
       console.warn('Error deleting favorites:', error);
       // Continue anyway
