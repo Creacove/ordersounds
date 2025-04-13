@@ -1,9 +1,12 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { FollowButton } from "@/components/buttons/FollowButton";
 import { FollowerCount } from "@/components/producer/profile/FollowerCount";
@@ -14,9 +17,16 @@ import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
-import { useProducers, Producer } from "@/hooks/useProducers";
+
+interface Producer {
+  id: string;
+  stage_name: string | null;
+  full_name: string;
+  bio: string | null;
+  profile_picture: string | null;
+  follower_count: number;
+  beatCount: number;
+}
 
 export default function Producers() {
   const [showingFollowed, setShowingFollowed] = useState(false);
@@ -25,11 +35,59 @@ export default function Producers() {
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
   const isMobile = useIsMobile();
-  const { producers, isLoading, refetch } = useProducers();
   
   useEffect(() => {
     document.title = "Producers | OrderSOUNDS";
   }, []);
+
+  // Get all producers with improved performance
+  const { data: producers, isLoading, refetch } = useQuery({
+    queryKey: ['producers'],
+    queryFn: async () => {
+      try {
+        console.log("Fetching producers data...");
+        // First, get all producers from the users table
+        const { data: producersData, error } = await supabase
+          .from('users')
+          .select('id, stage_name, full_name, bio, profile_picture, follower_count')
+          .eq('role', 'producer')
+          .order('follower_count', { ascending: false });
+
+        if (error) throw error;
+
+        if (!producersData) return []; 
+
+        // For each producer, get their beat count in parallel
+        const producersWithBeats = await Promise.all(
+          producersData.map(async (producer) => {
+            const { count, error: beatError } = await supabase
+              .from('beats')
+              .select('id', { count: 'exact', head: true })
+              .eq('producer_id', producer.id);
+
+            if (beatError) {
+              console.error('Error getting beat count:', beatError);
+              return { ...producer, beatCount: 0 };
+            }
+
+            return { 
+              ...producer, 
+              beatCount: count || 0
+            };
+          })
+        );
+        
+        console.log(`Fetched ${producersWithBeats.length} producers`);
+        return producersWithBeats;
+      } catch (error) {
+        console.error("Error fetching producers:", error);
+        toast.error("Failed to load producers");
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
+    refetchOnMount: false // Don't refetch automatically when component mounts
+  });
 
   // Get only followed producers with improved caching
   const { data: followedProducers, isLoading: followedLoading } = useQuery({
@@ -48,12 +106,6 @@ export default function Producers() {
         
         const followeeIds = follows.map(follow => follow.followee_id);
         
-        // Filter the already loaded producers by followee IDs
-        if (producers && producers.length > 0) {
-          return producers.filter(producer => followeeIds.includes(producer.id));
-        }
-        
-        // If producers aren't loaded yet, fetch them directly
         const { data: producersData, error } = await supabase
           .from('users')
           .select('id, stage_name, full_name, bio, profile_picture, follower_count')
@@ -73,21 +125,12 @@ export default function Producers() {
 
             if (beatError) {
               console.error('Error getting beat count:', beatError);
-              return { 
-                ...producer, 
-                beatCount: 0,
-                name: producer.stage_name || producer.full_name,
-                avatar: producer.profile_picture || `/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png`,
-                verified: true
-              };
+              return { ...producer, beatCount: 0 };
             }
 
             return { 
               ...producer, 
-              beatCount: count || 0,
-              name: producer.stage_name || producer.full_name,
-              avatar: producer.profile_picture || `/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png`,
-              verified: true
+              beatCount: count || 0
             };
           })
         );
@@ -295,16 +338,16 @@ export default function Producers() {
                     <Link to={`/producer/${producer.id}`} className="flex flex-col items-center">
                       <Avatar className="h-16 w-16 mb-3">
                         <AvatarImage 
-                          src={producer.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.name}`}
-                          alt={producer.name} 
+                          src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`}
+                          alt={producer.stage_name || producer.full_name} 
                         />
                         <AvatarFallback>
-                          {(producer.name || 'P').charAt(0)}
+                          {(producer.stage_name || producer.full_name || 'P').charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       
                       <h3 className="text-responsive-base font-semibold mb-1 text-center truncate max-w-full">
-                        {producer.name}
+                        {producer.stage_name || producer.full_name}
                       </h3>
                       
                       <div className="text-muted-foreground text-xs mb-3">
@@ -408,21 +451,21 @@ export default function Producers() {
                   >
                     <Avatar className="h-14 w-14 sm:h-16 sm:w-16 mr-4">
                       <AvatarImage 
-                        src={producer.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.name}`}
-                        alt={producer.name} 
+                        src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`}
+                        alt={producer.stage_name || producer.full_name} 
                       />
                       <AvatarFallback>
-                        {(producer.name || 'P').charAt(0)}
+                        {(producer.stage_name || producer.full_name || 'P').charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center">
                         <h3 className="font-medium text-base sm:text-lg text-white truncate">
-                          {producer.name}
+                          {producer.stage_name || producer.full_name}
                         </h3>
-                        {searchQuery && (producer.name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                        producer.name?.toLowerCase().includes(searchQuery.toLowerCase())) && (
+                        {searchQuery && (producer.stage_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                        producer.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) && (
                           <Badge variant="secondary" className="ml-2 bg-purple-700/30 text-purple-300 text-xs">Match</Badge>
                         )}
                       </div>
