@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { uploadBeat } from "@/lib/beatStorage";
-import { FileOrUrl } from "@/lib/storage";
+import { FileOrUrl, isFile } from "@/lib/storage";
 import { DetailTab } from "@/components/upload/DetailTab";
 import { FilesTab } from "@/components/upload/FilesTab";
 import { LicensingTab } from "@/components/upload/LicensingTab";
@@ -92,10 +92,14 @@ export default function UploadBeat() {
       
       const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
                               selectedLicenseTypes.includes('exclusive');
-      if (requiresWavFormat && uploadedFile && 
-          uploadedFile.type !== "audio/wav" && 
-          !uploadedFile.name.endsWith('.wav')) {
-        newErrors.fullTrack = "Premium and exclusive licenses require WAV format";
+      
+      if (requiresWavFormat && uploadedFile && isFile(uploadedFile)) {
+        const fileType = uploadedFile.type;
+        const fileName = uploadedFile.name;
+        
+        if (fileType !== "audio/wav" && !fileName.endsWith('.wav')) {
+          newErrors.fullTrack = "Premium and exclusive licenses require WAV format";
+        }
       }
     } else if (activeTab === "pricing") {
       selectedLicenseTypes.forEach(license => {
@@ -201,18 +205,19 @@ export default function UploadBeat() {
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
       const coverImageFileOrUrl: FileOrUrl = imageFile;
+      const previewFileOrUrl: FileOrUrl = previewFile || (previewUrl ? { url: previewUrl } : null);
       
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        previewFile,
+        isFile(previewFileOrUrl) ? previewFileOrUrl : null,
         coverImageFileOrUrl,
-        stems,
+        isFile(stems) ? stems : null,
         user.id,
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrl
+        previewUrl || ''
       );
       
       if (result.success) {
@@ -285,18 +290,19 @@ export default function UploadBeat() {
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
       const coverImageFileOrUrl: FileOrUrl = imageFile;
+      const previewFileOrUrl: FileOrUrl = previewFile || (previewUrl ? { url: previewUrl } : null);
       
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        previewFile,
+        isFile(previewFileOrUrl) ? previewFileOrUrl : null,
         coverImageFileOrUrl,
-        stems,
+        isFile(stems) ? stems : null,
         user.id,
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrl
+        previewUrl || ''
       );
       
       if (result.success) {

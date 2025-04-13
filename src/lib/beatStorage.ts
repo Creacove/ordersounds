@@ -78,14 +78,12 @@ export const uploadBeat = async (
     // We assume all files have already been uploaded at this point
     // and we're just storing the references in the database
     
-    // For full track, cover image, and stems URLs, either use the pre-generated URL
-    // or extract from the File object (which should have a .url property if it's already uploaded)
     let finalPreviewUrl = previewUrl || '';
     let fullTrackUrl = '';
     let coverImageUrl = '';
     let stemsUrl = '';
     
-    // Only upload files that haven't been uploaded yet (shouldn't happen in normal flow)
+    // Only upload files that haven't been uploaded yet
     if (!previewUrl && previewFile) {
       console.log('No preview URL provided, uploading preview file...');
       finalPreviewUrl = await uploadFile(previewFile, 'beats', 'previews');
