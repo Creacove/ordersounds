@@ -26,6 +26,7 @@ type FilesTabProps = {
   uploadProgress?: { [key: string]: number };
   regeneratePreview?: () => Promise<void>;
   previewUrl?: string | null;
+  setPreviewUrl?: React.Dispatch<React.SetStateAction<string | null>>;
   handlePreviewUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleStemsUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
@@ -47,6 +48,7 @@ export const FilesTab = ({
   uploadProgress = {},
   regeneratePreview,
   previewUrl,
+  setPreviewUrl,
   handlePreviewUpload,
   handleStemsUpload
 }: FilesTabProps) => {
@@ -208,6 +210,13 @@ export const FilesTab = ({
         </p>
       </div>
     );
+  };
+
+  const handlePreviewClear = () => {
+    setPreviewFile(null);
+    if (setPreviewUrl) {
+      setPreviewUrl(null);
+    }
   };
 
   return (
@@ -374,8 +383,7 @@ export const FilesTab = ({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setPreviewFile(null);
-                        setPreviewUrl(null);
+                        handlePreviewClear();
                       }}
                     >
                       <X size={16} />

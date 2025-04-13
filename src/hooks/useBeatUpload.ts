@@ -59,7 +59,6 @@ export const useBeatUpload = () => {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
-  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
     title: "",
@@ -169,37 +168,6 @@ export const useBeatUpload = () => {
     }
   };
   
-  const checkProcessingStatus = async (jobId: string): Promise<string | null> => {
-    try {
-      // Check for the most recent completed result in the last 5 minutes
-      const fiveMinutesAgo = new Date();
-      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
-      
-      const { data, error } = await supabase
-        .from('audio_processing_results')
-        .select('*')
-        .eq('status', 'completed')
-        .gt('created_at', fiveMinutesAgo.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      if (error) {
-        console.error("Error checking processing status:", error);
-        return null;
-      }
-      
-      if (data && data.length > 0) {
-        console.log("Found completed processing result:", data[0]);
-        return data[0].preview_url;
-      }
-      
-      return null;
-    } catch (err) {
-      console.error("Error in checkProcessingStatus:", err);
-      return null;
-    }
-  };
-  
   const generatePreview = async (fileUrl: string) => {
     try {
       setProcessingFiles(true);
@@ -215,72 +183,25 @@ export const useBeatUpload = () => {
       
       if (error) {
         console.error("Error processing audio:", error);
-        const errorMessage = error.message || "Failed to process audio. Please try again.";
-        toast.error(errorMessage);
+        toast.error(error.message || "Failed to process audio. Please try again.");
         setProcessingFiles(false);
-        throw new Error(errorMessage);
+        return;
       }
-      
-      if (data && data.processing && data.jobId) {
-        console.log("Audio processing started in background with job ID:", data.jobId);
-        setCurrentJobId(data.jobId);
-        
-        let attempts = 0;
-        const maxAttempts = 30;
-        const pollInterval = 5000; // 5 seconds
-        
-        const pollForPreview = async () => {
-          try {
-            attempts++;
-            console.log(`Polling for preview (attempt ${attempts}/${maxAttempts})...`);
-            
-            // Try to find the preview URL for this job
-            const previewUrl = await checkProcessingStatus(data.jobId);
-            
-            if (previewUrl) {
-              console.log("Found preview URL:", previewUrl);
-              setPreviewUrl(previewUrl);
-              toast.success("Audio preview generated successfully");
-              setProcessingFiles(false);
-              return previewUrl;
-            }
-            
-            // If we've reached our maximum attempts, give up
-            if (attempts >= maxAttempts) {
-              console.error("Preview generation timed out after", maxAttempts, "attempts");
-              toast.error("Preview generation timed out. Please try again or upload your own preview.");
-              setProcessingFiles(false);
-              throw new Error("Preview generation timed out");
-            }
-            
-            // Wait for the next polling interval
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-            return pollForPreview();
-          } catch (err) {
-            console.error("Error polling for preview:", err);
-            setProcessingFiles(false);
-            throw err;
-          }
-        };
-        
-        return await pollForPreview();
-      } else if (data && data.publicUrl) {
+
+      if (data && data.publicUrl) {
         console.log("Preview generated successfully:", data.publicUrl);
         setPreviewUrl(data.publicUrl);
-        toast.success("Audio processing complete");
-        setProcessingFiles(false);
-        return data.publicUrl;
+        toast.success("Audio preview generated successfully");
       } else {
-        console.error("No preview URL or job ID returned from processing");
+        console.error("No preview URL returned from processing:", data);
         toast.error("Failed to generate audio preview");
-        setProcessingFiles(false);
-        throw new Error("No preview URL returned from processing");
       }
+      
+      setProcessingFiles(false);
     } catch (error) {
       console.error("Error in audio processing:", error);
       toast.error("Failed to process audio. Please try again.");
       setProcessingFiles(false);
-      throw error;
     }
   };
 

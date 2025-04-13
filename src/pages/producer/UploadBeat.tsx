@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,9 +211,9 @@ export default function UploadBeat() {
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        isFile(previewFileOrUrl) ? previewFileOrUrl : null,
+        previewFileOrUrl,
         coverImageFileOrUrl,
-        isFile(stems) ? stems : null,
+        stems,
         user.id,
         user.producer_name || user.name,
         collaborators,
@@ -295,9 +296,9 @@ export default function UploadBeat() {
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        isFile(previewFileOrUrl) ? previewFileOrUrl : null,
+        previewFileOrUrl,
         coverImageFileOrUrl,
-        isFile(stems) ? stems : null,
+        stems,
         user.id,
         user.producer_name || user.name,
         collaborators,
@@ -317,37 +318,6 @@ export default function UploadBeat() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const uploadFile = async (file: File, bucketName: string, folder: string) => {
-    return new Promise<string | null>(async (resolve, reject) => {
-      try {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const filePath = `${folder}/${Date.now()}_${file.name}`;
-        
-        const { data, error } = await supabase.storage
-          .from(bucketName)
-          .upload(filePath, file, { 
-            cacheControl: '3600',
-            upsert: false
-          });
-        
-        if (error) {
-          console.error(`Error uploading file to ${bucketName}/${filePath}:`, error);
-          reject(error);
-          return;
-        }
-        
-        const { data: publicUrlData } = supabase.storage
-          .from(bucketName)
-          .getPublicUrl(data.path);
-        
-        resolve(publicUrlData.publicUrl);
-      } catch (err) {
-        console.error('Error in uploadFile:', err);
-        reject(err);
-      }
-    });
   };
 
   useEffect(() => {
@@ -453,6 +423,7 @@ export default function UploadBeat() {
                   uploadProgress={uploadProgress}
                   regeneratePreview={regeneratePreview}
                   previewUrl={previewUrl}
+                  setPreviewUrl={setPreviewUrl}
                   handlePreviewUpload={handlePreviewUpload}
                   handleStemsUpload={handleStemsUpload}
                 />
