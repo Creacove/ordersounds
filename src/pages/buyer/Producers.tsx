@@ -12,6 +12,7 @@ import { FollowButton } from "@/components/buttons/FollowButton";
 import { FollowerCount } from "@/components/producer/profile/FollowerCount";
 import { Music, RefreshCw, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 
 interface Producer {
   id: string;
@@ -83,13 +84,29 @@ export default function Producers() {
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="flex flex-col items-center min-h-screen pt-10 px-4 bg-black text-white">
-          <div className="w-full max-w-lg">
-            <h1 className="text-2xl font-bold text-center mb-8">Suggested for you</h1>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-64 w-full rounded-xl bg-gray-800" />
-              ))}
+        <div className="flex flex-col items-center min-h-screen p-4 md:p-8 bg-black text-white">
+          <div className="w-full max-w-7xl mx-auto">
+            <h1 className="text-3xl font-bold mb-8">Discover Producers</h1>
+            
+            <div className="mb-10">
+              <h2 className="text-2xl font-semibold mb-6">Suggested for you</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-64 w-full rounded-xl bg-gray-800" />
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-semibold">All Producers</h2>
+                <Skeleton className="h-10 w-40 rounded-full bg-gray-800" />
+              </div>
+              <div className="space-y-3">
+                {[...Array(6)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl bg-gray-800" />
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -99,99 +116,115 @@ export default function Producers() {
 
   return (
     <MainLayout>
-      <div className="flex flex-col items-center min-h-screen pt-10 px-4 bg-black text-white">
-        <div className="w-full max-w-lg">
-          <h1 className="text-2xl font-bold text-center mb-8">Suggested for you</h1>
+      <div className="flex flex-col min-h-screen p-4 md:p-8 bg-black text-white">
+        <div className="w-full max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold mb-8">Discover Producers</h1>
           
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            {producers && producers.slice(0, 4).map((producer) => (
-              <div 
-                key={producer.id} 
-                className="relative bg-[#121212] rounded-xl p-4 flex flex-col items-center"
-              >
-                <button 
-                  className="absolute top-3 right-3 text-gray-400 hover:text-white" 
-                  aria-label="Dismiss"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    toast("Producer dismissed from suggestions", {
-                      description: "You won't see this producer in suggestions again"
-                    });
-                  }}
-                >
-                  <X size={18} />
-                </button>
-                
-                <Link to={`/producer/${producer.id}`} className="block text-center w-full">
-                  <Avatar className="h-24 w-24 mx-auto mb-4 rounded-full overflow-hidden">
-                    <AvatarImage 
-                      src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`}
-                      alt={producer.stage_name || producer.full_name} 
-                      className="object-cover"
-                    />
-                    <AvatarFallback className="text-lg">
-                      {(producer.stage_name || producer.full_name || 'P').charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex items-center justify-center gap-1 mb-1">
-                    <h3 className="font-bold text-lg truncate">
-                      {producer.stage_name || producer.full_name}
-                    </h3>
-                  </div>
-                </Link>
-                
-                <div className="text-xs text-gray-400 mb-4 text-center">
-                  Followed by <span className="truncate">{/* Followers would go here */}</span>
-                </div>
-                
-                <div onClick={(e) => e.stopPropagation()} className="w-full">
-                  <FollowButton 
-                    producerId={producer.id}
-                    className="w-full bg-[#323232] hover:bg-[#3c3c3c] text-white" 
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <Button 
-            variant="outline" 
-            className="w-full py-6 rounded-xl bg-[#121212] text-white border-none mb-12 hover:bg-[#1a1a1a]"
-            onClick={handleShuffleSuggestions}
-          >
-            <RefreshCw className="mr-2 h-5 w-5" />
-            Shuffle Suggestions
-          </Button>
-          
-          <div className="mb-20">
-            <div className="flex justify-between mb-4">
+          {/* Suggested Producers Section - Desktop */}
+          <div className="mb-12">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">Suggested for you</h2>
               <Button 
-                variant={!showingFollowed ? "default" : "secondary"} 
-                onClick={() => setShowingFollowed(false)}
-                className="flex-1 rounded-l-full rounded-r-none"
+                variant="outline" 
+                className="bg-[#121212] hover:bg-[#1a1a1a] text-white border-none rounded-full px-4"
+                onClick={handleShuffleSuggestions}
               >
-                All Producers
-              </Button>
-              <Button 
-                variant={showingFollowed ? "default" : "secondary"} 
-                onClick={() => setShowingFollowed(true)}
-                className="flex-1 rounded-r-full rounded-l-none"
-              >
-                Following
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Shuffle Suggestions
               </Button>
             </div>
             
-            {/* List of all producers */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-4">
+              {producers && producers.slice(0, 8).map((producer) => (
+                <div 
+                  key={producer.id} 
+                  className="relative bg-[#121212] rounded-xl p-4 transition-all duration-200 hover:bg-[#1a1a1a] group"
+                >
+                  <button 
+                    className="absolute top-3 right-3 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" 
+                    aria-label="Dismiss"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toast("Producer dismissed from suggestions", {
+                        description: "You won't see this producer in suggestions again"
+                      });
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                  
+                  <Link to={`/producer/${producer.id}`} className="block text-center w-full">
+                    <Avatar className="h-20 w-20 mx-auto mb-4 rounded-full overflow-hidden">
+                      <AvatarImage 
+                        src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`}
+                        alt={producer.stage_name || producer.full_name} 
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="text-lg">
+                        {(producer.stage_name || producer.full_name || 'P').charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <h3 className="font-bold text-lg truncate">
+                        {producer.stage_name || producer.full_name}
+                      </h3>
+                    </div>
+                  </Link>
+                  
+                  <div className="text-xs text-gray-400 mb-4 text-center">
+                    <FollowerCount 
+                      count={producer.follower_count || 0} 
+                      className="text-xs text-gray-400"
+                    />
+                  </div>
+                  
+                  <div onClick={(e) => e.stopPropagation()} className="w-full">
+                    <FollowButton 
+                      producerId={producer.id}
+                      className="w-full bg-[#323232] hover:bg-[#3c3c3c] text-white" 
+                      size="sm"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <Separator className="bg-gray-800 my-8" />
+          
+          {/* All Producers Section */}
+          <div className="mb-20">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-semibold">Browse Producers</h2>
+              <div className="flex bg-[#121212] rounded-full overflow-hidden">
+                <Button 
+                  variant={!showingFollowed ? "default" : "ghost"} 
+                  onClick={() => setShowingFollowed(false)}
+                  className="rounded-l-full rounded-r-none"
+                >
+                  All Producers
+                </Button>
+                <Button 
+                  variant={showingFollowed ? "default" : "ghost"} 
+                  onClick={() => setShowingFollowed(true)}
+                  className="rounded-r-full rounded-l-none"
+                >
+                  Following
+                </Button>
+              </div>
+            </div>
+            
+            {/* List of all producers - Desktop friendly */}
             <div className="space-y-3">
               {producers && producers.map((producer) => (
                 <Link 
                   to={`/producer/${producer.id}`}
                   key={producer.id} 
-                  className="flex items-center p-3 bg-[#121212] rounded-xl hover:bg-[#1a1a1a]"
+                  className="flex items-center p-4 bg-[#121212] rounded-xl hover:bg-[#1a1a1a] transition-colors"
                 >
-                  <Avatar className="h-12 w-12 mr-3">
+                  <Avatar className="h-16 w-16 mr-4">
                     <AvatarImage 
                       src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`}
                       alt={producer.stage_name || producer.full_name} 
@@ -203,11 +236,11 @@ export default function Producers() {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center">
-                      <h3 className="font-medium text-white truncate">
+                      <h3 className="font-medium text-lg text-white truncate">
                         {producer.stage_name || producer.full_name}
                       </h3>
                     </div>
-                    <div className="text-xs text-gray-400 flex items-center gap-2">
+                    <div className="text-sm text-gray-400 flex items-center gap-4 mt-1">
                       <span className="flex items-center gap-1">
                         <Music className="h-3 w-3" />
                         {producer.beatCount} {producer.beatCount === 1 ? 'beat' : 'beats'}
@@ -215,15 +248,18 @@ export default function Producers() {
                       <span>•</span>
                       <FollowerCount 
                         count={producer.follower_count || 0} 
-                        className="text-xs text-gray-400"
+                        className="text-sm text-gray-400"
                       />
                     </div>
+                    {producer.bio && (
+                      <p className="text-gray-400 text-sm mt-1 line-clamp-1">{producer.bio}</p>
+                    )}
                   </div>
                   
                   <div onClick={(e) => e.stopPropagation()} className="ml-4">
                     <FollowButton 
                       producerId={producer.id}
-                      size="sm"
+                      size="default"
                       variant="outline"
                     />
                   </div>
