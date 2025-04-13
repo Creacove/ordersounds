@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Music, Grid, List, Table, Trash2 } from "lucide-react";
+import { PlusCircle, Music, Grid, List, Table } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,31 +21,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCart } from "@/context/CartContext";
-import { toast } from "sonner";
-import { deleteBeat } from "@/lib/beatStorage";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
 type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
-  const { beats, isLoading, isPurchased, isFavorite, refetchBeats } = useBeats();
+  const { beats, isLoading, isPurchased, isFavorite } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [beatToDelete, setBeatToDelete] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -67,30 +52,6 @@ export default function ProducerBeats() {
 
   // Filter beats by producer
   const producerBeats = user ? beats.filter(beat => beat.producer_id === user.id) : [];
-
-  const handleDeleteClick = (beatId: string) => {
-    setBeatToDelete(beatId);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!beatToDelete) return;
-    
-    setIsDeleting(true);
-    const result = await deleteBeat(beatToDelete);
-    setIsDeleting(false);
-    
-    if (result.success) {
-      toast.success("Beat deleted successfully");
-      // Refetch beats to update the list
-      refetchBeats();
-    } else {
-      toast.error(result.error || "Failed to delete beat");
-    }
-    
-    setDeleteDialogOpen(false);
-    setBeatToDelete(null);
-  };
 
   // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
@@ -179,26 +140,14 @@ export default function ProducerBeats() {
             {viewMode === "grid" && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
                 {producerBeats.map((beat) => (
-                  <div key={beat.id} className="relative group">
-                    <BeatCard 
-                      beat={beat}
-                      isFavorite={isFavorite(beat.id)}
-                      isInCart={isInCart(beat.id)}
-                      isPurchased={isPurchased(beat.id)}
-                      className="h-full shadow-sm hover:shadow"
-                    />
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteClick(beat.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <BeatCard 
+                    key={beat.id} 
+                    beat={beat}
+                    isFavorite={isFavorite(beat.id)}
+                    isInCart={isInCart(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
+                    className="h-full shadow-sm hover:shadow"
+                  />
                 ))}
               </div>
             )}
@@ -207,15 +156,13 @@ export default function ProducerBeats() {
             {viewMode === "list" && (
               <div className="space-y-3">
                 {producerBeats.map((beat) => (
-                  <div key={beat.id} className="relative group">
-                    <BeatListItem
-                      beat={beat}
-                      isFavorite={isFavorite(beat.id)}
-                      isInCart={isInCart(beat.id)}
-                      isPurchased={isPurchased(beat.id)}
-                      onRemove={() => handleDeleteClick(beat.id)}
-                    />
-                  </div>
+                  <BeatListItem
+                    key={beat.id}
+                    beat={beat}
+                    isFavorite={isFavorite(beat.id)}
+                    isInCart={isInCart(beat.id)}
+                    isPurchased={isPurchased(beat.id)}
+                  />
                 ))}
               </div>
             )}
@@ -237,20 +184,17 @@ export default function ProducerBeats() {
                       <TableHead className="text-right">Plays</TableHead>
                       <TableHead className="text-right">Favorites</TableHead>
                       <TableHead className="text-right">Sales</TableHead>
-                      <TableHead className="w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {producerBeats.map((beat) => (
                       <TableRow 
                         key={beat.id}
-                        className="group"
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/beat/${beat.id}`)}
                       >
                         <TableCell className="p-2">
-                          <div 
-                            className="relative h-10 w-10 rounded-md overflow-hidden cursor-pointer"
-                            onClick={() => navigate(`/beat/${beat.id}`)}
-                          >
+                          <div className="relative h-10 w-10 rounded-md overflow-hidden">
                             <img 
                               src={beat.cover_image_url || '/placeholder.svg'} 
                               alt={beat.title}
@@ -258,12 +202,7 @@ export default function ProducerBeats() {
                             />
                           </div>
                         </TableCell>
-                        <TableCell 
-                          className="font-medium cursor-pointer hover:text-primary"
-                          onClick={() => navigate(`/beat/${beat.id}`)}
-                        >
-                          {beat.title}
-                        </TableCell>
+                        <TableCell className="font-medium">{beat.title}</TableCell>
                         <TableCell>{beat.genre}</TableCell>
                         <TableCell>{beat.bpm} BPM</TableCell>
                         <TableCell>{beat.key || "-"}</TableCell>
@@ -273,16 +212,6 @@ export default function ProducerBeats() {
                         <TableCell className="text-right">{beat.plays || 0}</TableCell>
                         <TableCell className="text-right">{beat.favorites_count}</TableCell>
                         <TableCell className="text-right">{beat.purchase_count}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => handleDeleteClick(beat.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -311,27 +240,6 @@ export default function ProducerBeats() {
           </Card>
         )}
       </div>
-
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Beat</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this beat? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </MainLayout>
   );
 }

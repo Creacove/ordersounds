@@ -5,6 +5,7 @@ import { Heart } from "lucide-react";
 import { useBeats } from "@/hooks/useBeats";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ToggleFavoriteButtonProps {
   beatId: string;
