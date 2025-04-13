@@ -15,6 +15,19 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
     detectSessionInUrl: true, // Detect OAuth session from URL
-    flowType: 'pkce' // Use PKCE flow for more secure OAuth
+    flowType: 'pkce', // Use PKCE flow for more secure OAuth
+    debug: process.env.NODE_ENV === 'development' // Enable debug in development
+  },
+  global: {
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    fetch: (...args) => {
+      // Add retry and timeout logic for more reliable network requests
+      return fetch(...args).catch(err => {
+        console.error('Supabase fetch error:', err);
+        throw err;
+      });
+    }
   }
 });

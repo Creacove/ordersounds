@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +12,7 @@ export default function AuthCallback() {
   const { user, updateUserInfo } = useAuth();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -38,9 +40,19 @@ export default function AuthCallback() {
                 .select('role, status')
                 .eq('id', data.session.user.id)
                 .maybeSingle();
-                
+              
+              // Handle database connection errors with retries
               if (userError) {
                 console.error("User data fetch error:", userError);
+                
+                // Retry logic for temporary connection issues
+                if (retryCount < 3) {
+                  setRetryCount(prev => prev + 1);
+                  console.log(`Retrying user data fetch (${retryCount + 1}/3)...`);
+                  setTimeout(() => handleAuthCallback(), 1500);
+                  return;
+                }
+                
                 throw userError;
               }
               
@@ -91,7 +103,7 @@ export default function AuthCallback() {
               }
               
               toast.success('Successfully signed in!');
-            } catch (error) {
+            } catch (error: any) {
               console.error('Error processing user data:', error);
               // On error, redirect to home page with a notification
               navigate('/');
@@ -99,7 +111,7 @@ export default function AuthCallback() {
             } finally {
               setIsLoading(false);
             }
-          }, 500); // Add small delay to avoid race conditions
+          }, 800); // Increased delay to ensure session is properly registered
         } else {
           console.log("No session found, redirecting to login");
           // No session found, redirect to login
@@ -115,7 +127,7 @@ export default function AuthCallback() {
     };
     
     handleAuthCallback();
-  }, [navigate, updateUserInfo, user]);
+  }, [navigate, updateUserInfo, user, retryCount]);
 
   return (
     <MainLayout hideSidebar>
@@ -128,6 +140,11 @@ export default function AuthCallback() {
           <>
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
             <h2 className="mt-4 text-xl">Completing authentication...</h2>
+            {retryCount > 0 && (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Connecting to server... (Attempt {retryCount + 1}/4)
+              </p>
+            )}
           </>
         )}
         {!isLoading && !showRoleSelection && (

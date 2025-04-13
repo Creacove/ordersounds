@@ -15,6 +15,8 @@ export const useAuthState = () => {
   const [user, setUser] = useState<User | null>(null);
   const [currency, setCurrency] = useState<"NGN" | "USD">("NGN");
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
+  const maxRetries = 3;
 
   const getCurrencyFromLocalStorage = () => {
     try {
@@ -29,6 +31,45 @@ export const useAuthState = () => {
     } catch (error) {
       console.error("Error getting currency from localStorage:", error);
       return "NGN";
+    }
+  };
+
+  // Function to fetch user data with retry logic
+  const fetchUserData = async (userId: string, onSuccess: (userData: any) => void) => {
+    try {
+      // Get additional user data from the users table, including status
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("role, status, full_name, country")
+        .eq("id", userId)
+        .maybeSingle();
+
+      if (userError) {
+        console.error("Error fetching user data:", userError);
+        
+        // Implement retry logic for temporary network issues
+        if (retryCount < maxRetries) {
+          setRetryCount(prev => prev + 1);
+          console.log(`Retrying user data fetch (${retryCount + 1}/${maxRetries})...`);
+          setTimeout(() => fetchUserData(userId, onSuccess), 1000); // Retry after 1 second
+          return;
+        }
+        
+        throw userError;
+      }
+      
+      // Reset retry count on success
+      setRetryCount(0);
+      
+      // Call success handler if data was retrieved
+      if (userData) {
+        onSuccess(userData);
+      }
+    } catch (error) {
+      console.error("Error in fetchUserData:", error);
+      if (retryCount >= maxRetries) {
+        toast.error("Unable to load user data. Please refresh the page.");
+      }
     }
   };
 
@@ -53,62 +94,45 @@ export const useAuthState = () => {
           
           const mappedUser = mapSupabaseUser(data.session.user);
 
+          // Set the basic user immediately to avoid UI flicker
+          setUser(mappedUser);
+          
           // Get user data in a setTimeout to avoid deadlocks with auth state changes
           setTimeout(async () => {
             if (!mounted) return;
             
-            try {
-              // Get additional user data from the users table, including status
-              const { data: userData, error: userError } = await supabase
-                .from("users")
-                .select("role, status, full_name, country")
-                .eq("id", data.session.user.id)
-                .maybeSingle();
-
+            fetchUserData(data.session.user.id, (userData) => {
               if (!mounted) return;
+              
+              // Ensure role is a valid type
+              const validRole: 'buyer' | 'producer' | 'admin' = 
+                (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
+                  ? userData.role 
+                  : 'buyer';
+              
+              // Ensure status is a valid type
+              const validStatus: 'active' | 'inactive' =
+                userData.status === 'active' || userData.status === 'inactive'
+                  ? userData.status
+                  : 'inactive';
 
-              if (userError) {
-                console.error("Error fetching user data:", userError);
-                setUser(mappedUser);
-              } else if (userData) {
-                // Ensure role is a valid type
-                const validRole: 'buyer' | 'producer' | 'admin' = 
-                  (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
-                    ? userData.role 
-                    : 'buyer';
-                
-                // Ensure status is a valid type
-                const validStatus: 'active' | 'inactive' =
-                  userData.status === 'active' || userData.status === 'inactive'
-                    ? userData.status
-                    : 'inactive';
+              // Merge the user data with the auth data
+              const enrichedUser: User = {
+                ...mappedUser,
+                role: validRole,
+                status: validStatus,
+                full_name: userData.full_name,
+                country: userData.country,
+              };
 
-                // Merge the user data with the auth data
-                const enrichedUser: User = {
-                  ...mappedUser,
-                  role: validRole,
-                  status: validStatus,
-                  full_name: userData.full_name,
-                  country: userData.country,
-                };
+              setUser(enrichedUser);
 
-                setUser(enrichedUser);
-
-                const currency = getCurrencyFromLocalStorage();
-                setCurrency(currency);
-              } else {
-                setUser(mappedUser);
-                const defaultCurrency = getCurrencyFromLocalStorage();
-                setCurrency(defaultCurrency);
-              }
-            } catch (error) {
-              console.error("Error processing user data:", error);
-              if (mounted) {
-                setUser(mappedUser);
-              }
-            } finally {
-              if (mounted) setIsLoading(false);
-            }
+              const currency = getCurrencyFromLocalStorage();
+              setCurrency(currency);
+              
+              // Finally set loading to false
+              setIsLoading(false);
+            });
           }, 0);
         } else {
           if (mounted) {
@@ -137,55 +161,41 @@ export const useAuthState = () => {
         // Set the basic user immediately to avoid UI flicker
         setUser(mappedUser);
         
-        // Then fetch additional data
+        // Then fetch additional data after a slight delay to avoid race conditions
         setTimeout(async () => {
           if (!mounted) return;
           
-          try {
-            // Get additional user data from the users table, including status
-            const { data: userData, error: userError } = await supabase
-              .from("users")
-              .select("role, status, full_name, country")
-              .eq("id", session.user.id)
-              .maybeSingle();
-
+          fetchUserData(session.user.id, (userData) => {
             if (!mounted) return;
+            
+            // Ensure role is a valid type
+            const validRole: 'buyer' | 'producer' | 'admin' = 
+              (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
+                ? userData.role 
+                : 'buyer';
+            
+            // Ensure status is a valid type
+            const validStatus: 'active' | 'inactive' =
+              userData.status === 'active' || userData.status === 'inactive'
+                ? userData.status
+                : 'inactive';
 
-            if (userError) {
-              console.error("Error fetching user data:", userError);
-            } else if (userData) {
-              // Ensure role is a valid type
-              const validRole: 'buyer' | 'producer' | 'admin' = 
-                (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
-                  ? userData.role 
-                  : 'buyer';
-              
-              // Ensure status is a valid type
-              const validStatus: 'active' | 'inactive' =
-                userData.status === 'active' || userData.status === 'inactive'
-                  ? userData.status
-                  : 'inactive';
+            // Merge the user data with the auth data
+            const enrichedUser: User = {
+              ...mappedUser,
+              role: validRole,
+              status: validStatus,
+              full_name: userData.full_name,
+              country: userData.country,
+            };
 
-              // Merge the user data with the auth data
-              const enrichedUser: User = {
-                ...mappedUser,
-                role: validRole,
-                status: validStatus,
-                full_name: userData.full_name,
-                country: userData.country,
-              };
-
-              setUser(enrichedUser);
-              
-              const currency = getCurrencyFromLocalStorage();
-              setCurrency(currency);
-            }
-          } catch (error) {
-            console.error("Error in auth state change:", error);
-          } finally {
+            setUser(enrichedUser);
+            
+            const currency = getCurrencyFromLocalStorage();
+            setCurrency(currency);
             setIsLoading(false);
-          }
-        }, 0);
+          });
+        }, 200); // Small delay to avoid race conditions
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setIsLoading(false);
@@ -202,7 +212,7 @@ export const useAuthState = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [retryCount]);
 
   return {
     user,

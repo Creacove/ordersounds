@@ -19,8 +19,11 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       setIsLoading(true);
       console.log("Starting Google authentication flow...");
       
-      // Get the current origin
-      const origin = window.location.origin;
+      // Get the current origin with fallbacks for different environments
+      const origin = typeof window !== 'undefined' ? 
+        (window.location.origin || 'https://ordersounds.com') : 
+        'https://ordersounds.com';
+        
       const redirectUrl = `${origin}/auth/callback`;
       
       console.log(`Setting redirect URL to: ${redirectUrl}`);
@@ -35,7 +38,8 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
             // Explicitly request consent to ensure refresh token is provided
             prompt: 'select_account',
             access_type: 'offline',
-          }
+          },
+          skipBrowserRedirect: false // Ensure browser redirects properly
         },
       });
 
@@ -44,8 +48,9 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
         console.error('Google auth error:', error);
       } else {
         console.log("OAuth auth initiated successfully, redirecting...");
+        // No need to do anything else, the redirect will happen automatically
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Google auth error:', error);
       toast.error('An error occurred during Google authentication');
     } finally {
