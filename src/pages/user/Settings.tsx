@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -9,11 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
+import { ProfileForm } from "@/components/user/settings/ProfileForm";
+import { AccountForm } from "@/components/user/settings/AccountForm";
+import { PreferencesForm } from "@/components/user/settings/PreferencesForm";
 
 export default function Settings() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     document.title = "Settings | OrderSOUNDS";
@@ -56,37 +62,13 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="stageName" size="lg">Stage Name</Label>
-              <Input 
-                id="stageName" 
-                placeholder="Your stage name" 
-                defaultValue={user.producer_name || ''}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="bio" size="lg">Bio</Label>
-              <textarea 
-                id="bio" 
-                className="w-full min-h-32 p-2 rounded-md border border-input bg-background"
-                placeholder="Tell buyers about yourself"
-                defaultValue={user.bio || ''}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="location" size="lg">Location</Label>
-              <Input 
-                id="location" 
-                placeholder="Your location" 
-                defaultValue={user.country || ''}
-              />
-            </div>
-            
-            <Button>
-              Save Changes
-            </Button>
+            <ProfileForm 
+              initialProducerName={user.producer_name || ''}
+              initialBio={user.bio || ''}
+              initialLocation={user.country || ''}
+              avatarUrl={user.avatar_url || null}
+              displayName={user.producer_name || user.name || 'User'}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -113,8 +95,15 @@ export default function Settings() {
               Customize your producer experience
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center py-10">
-            <p className="text-base text-muted-foreground mb-4">Preference settings coming soon</p>
+          <CardContent>
+            <PreferencesForm 
+              initialEmailNotifications={user.settings?.emailNotifications || true}
+              initialPushNotifications={user.settings?.pushNotifications || true}
+              initialSmsNotifications={user.settings?.smsNotifications || false}
+              initialDarkMode={user.settings?.darkMode || false}
+              initialAutoPlayPreviews={user.settings?.autoPlayPreviews || true}
+              initialDefaultCurrency={user.default_currency || 'NGN'}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -133,46 +122,21 @@ export default function Settings() {
       <TabsContent value="profile">
         <Card>
           <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl md:text-2xl">Profile Information</CardTitle>
+            <CardDescription className="text-sm md:text-base">
               Update your personal information
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input 
-                id="fullName" 
-                placeholder="Your full name" 
-                defaultValue={user.name}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input 
-                id="email" 
-                placeholder="Your email" 
-                defaultValue={user.email}
-                disabled
-              />
-              <p className="text-xs text-muted-foreground">
-                Email cannot be changed
-              </p>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="country">Country</Label>
-              <Input 
-                id="country" 
-                placeholder="Your country" 
-                defaultValue={user.country || ''}
-              />
-            </div>
-            
-            <Button className="bg-purple-500 hover:bg-purple-600">
-              Save Changes
-            </Button>
+            <ProfileForm 
+              initialProducerName=""
+              initialBio=""
+              initialLocation={user.country || ''}
+              avatarUrl={user.avatar_url || null}
+              displayName={user.name || 'User'}
+              isBuyer={true}
+              initialFullName={user.name || ''}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -180,42 +144,15 @@ export default function Settings() {
       <TabsContent value="account">
         <Card>
           <CardHeader>
-            <CardTitle>Account Security</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl md:text-2xl">Account Security</CardTitle>
+            <CardDescription className="text-sm md:text-base">
               Manage your account security settings
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currentPassword">Current Password</Label>
-              <Input 
-                id="currentPassword" 
-                type="password"
-                placeholder="Enter current password" 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <Input 
-                id="newPassword" 
-                type="password"
-                placeholder="Enter new password" 
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input 
-                id="confirmPassword" 
-                type="password"
-                placeholder="Confirm new password" 
-              />
-            </div>
-            
-            <Button className="bg-purple-500 hover:bg-purple-600">
-              Update Password
-            </Button>
+          <CardContent>
+            <AccountForm 
+              userEmail={user.email}
+            />
           </CardContent>
         </Card>
       </TabsContent>
@@ -223,27 +160,20 @@ export default function Settings() {
       <TabsContent value="preferences">
         <Card>
           <CardHeader>
-            <CardTitle>Preferences</CardTitle>
-            <CardDescription>
+            <CardTitle className="text-xl md:text-2xl">Preferences</CardTitle>
+            <CardDescription className="text-sm md:text-base">
               Customize your experience
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="currency">Default Currency</Label>
-              <select 
-                id="currency" 
-                className="w-full p-2 rounded-md border border-input bg-background"
-                defaultValue={user.default_currency || 'NGN'}
-              >
-                <option value="NGN">NGN - Nigerian Naira</option>
-                <option value="USD">USD - US Dollar</option>
-              </select>
-            </div>
-            
-            <Button className="bg-purple-500 hover:bg-purple-600">
-              Save Preferences
-            </Button>
+          <CardContent>
+            <PreferencesForm 
+              initialEmailNotifications={user.settings?.emailNotifications || true}
+              initialPushNotifications={user.settings?.pushNotifications || true} 
+              initialSmsNotifications={user.settings?.smsNotifications || false}
+              initialDarkMode={user.settings?.darkMode || false}
+              initialAutoPlayPreviews={user.settings?.autoPlayPreviews || true}
+              initialDefaultCurrency={user.default_currency || 'NGN'}
+            />
           </CardContent>
         </Card>
       </TabsContent>
