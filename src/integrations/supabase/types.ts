@@ -34,6 +34,7 @@ export type Database = {
           producer_id: string
           purchase_count: number | null
           status: string | null
+          stems_url: string | null
           tags: string[] | null
           title: string
           track_type: string | null
@@ -63,6 +64,7 @@ export type Database = {
           producer_id: string
           purchase_count?: number | null
           status?: string | null
+          stems_url?: string | null
           tags?: string[] | null
           title: string
           track_type?: string | null
@@ -92,6 +94,7 @@ export type Database = {
           producer_id?: string
           purchase_count?: number | null
           status?: string | null
+          stems_url?: string | null
           tags?: string[] | null
           title?: string
           track_type?: string | null
