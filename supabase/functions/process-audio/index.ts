@@ -74,10 +74,10 @@ serve(async (req: Request) => {
     const fileExt = filePath.split('.').pop().toLowerCase();
     console.log(`File extension: ${fileExt}`);
 
-    // Set up temporary file
+    // Set up temporary file paths
     const fileName = crypto.randomUUID();
-    const inputPath = `${fileName}.${fileExt}`;
-    const previewPath = `${fileName}_preview.mp3`;
+    const inputPath = `/tmp/${fileName}.${fileExt}`;
+    const previewPath = `/tmp/${fileName}_preview.mp3`;
     const timestamp = Date.now();
     const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
 
@@ -86,7 +86,7 @@ serve(async (req: Request) => {
       await Deno.writeFile(inputPath, new Uint8Array(await fileData.arrayBuffer()));
       console.log("Successfully wrote input file to disk");
 
-      // Extract 30 seconds or 30% of the file (whichever is shorter) for preview
+      // Extract 30% of the file for preview
       try {
         console.log("Extracting preview");
         
@@ -132,7 +132,7 @@ serve(async (req: Request) => {
         console.log("Successfully extracted preview");
       } catch (error) {
         console.error("Error extracting preview:", error);
-        throw new Error("Failed to extract preview");
+        throw new Error(`Failed to extract preview: ${error.message}`);
       }
 
       // Upload the processed preview to Supabase Storage
@@ -148,7 +148,7 @@ serve(async (req: Request) => {
 
       if (uploadError) {
         console.error("Error uploading preview file:", uploadError);
-        throw new Error("Failed to upload processed audio");
+        throw new Error(`Failed to upload processed audio: ${uploadError.message}`);
       }
 
       // Get the public URL of the uploaded preview
@@ -163,16 +163,17 @@ serve(async (req: Request) => {
         await Deno.remove(inputPath);
         await Deno.remove(previewPath);
         console.log("Temporary files cleaned up");
-      } catch (error) {
-        console.error("Error cleaning up temporary files:", error);
+      } catch (cleanupError) {
+        console.error("Error cleaning up temporary files:", cleanupError);
+        // Continue despite cleanup errors
       }
       
       // Return the preview URL directly in the response
       return new Response(
         JSON.stringify({
           success: true,
-          previewUrl: uploadData.path,
-          publicUrl: publicUrlData.publicUrl
+          previewUrl: publicUrlData.publicUrl,
+          path: uploadData.path
         }),
         {
           status: 200,
