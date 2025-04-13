@@ -18,96 +18,40 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     try {
       console.log("Attempting login with:", email);
       
-      // First attempt direct sign in
+      // Direct sign-in attempt
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      // If we get an error about email confirmation
-      if (error && (error.message.includes("Email not confirmed") || error.code === "email_not_confirmed")) {
-        console.log("Login failed due to email confirmation. Updating user and retrying...");
-        
-        // Instead of using RPC, we'll manually toggle email confirmation
-        // This is a workaround since the admin_update_user_confirmed function is not available
-        try {
-          // Try direct login again
-          const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
-            email,
-            password
-          });
-          
-          if (retryError) {
-            // If still failing, let's do a more direct approach
-            console.log("Retry login still failed. Attempting to sign up again to get a new session.");
-            
-            // As a last resort, sign up again but with email_confirmed flag
-            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-              email,
-              password,
-              options: {
-                data: { 
-                  email_confirmed: true
-                }
-              }
-            });
-            
-            if (signUpError && !signUpError.message.includes("already registered")) {
-              throw signUpError;
-            }
-            
-            // Try login one more time
-            const { data: finalData, error: finalError } = await supabase.auth.signInWithPassword({
-              email,
-              password
-            });
-            
-            if (finalError) {
-              throw finalError;
-            }
-            
-            if (finalData?.user) {
-              const mappedUser = mapSupabaseUser(finalData.user);
-              setUser(mappedUser);
-              setCurrency(mappedUser.default_currency || 'NGN');
-              
-              // Redirect to callback for proper role/status based routing
-              navigate('/auth/callback');
-              return;
-            }
-          } else if (retryData?.user) {
-            // Retry worked
-            const mappedUser = mapSupabaseUser(retryData.user);
-            setUser(mappedUser);
-            setCurrency(mappedUser.default_currency || 'NGN');
-            
-            // Redirect to callback for proper role/status based routing
-            navigate('/auth/callback');
-            return;
-          }
-        } catch (innerError) {
-          console.error("Error during email confirmation workaround:", innerError);
-          throw innerError;
-        }
-      } else if (error) {
-        // Handle other errors
+      if (error) {
         console.error("Login error:", error);
+        
+        // Special case for unconfirmed emails
+        if (error.message.includes("Email not confirmed") || error.code === "email_not_confirmed") {
+          toast.error("Email not confirmed. Please check your inbox for a confirmation email or try signing up again.");
+          setIsLoading(false);
+          return;
+        }
+        
         toast.error(error.message || 'Failed to log in');
-        throw error;
+        setIsLoading(false);
+        return;
       }
 
       if (data?.user) {
-        console.log("Login successful:", data.user);
-        const mappedUser = mapSupabaseUser(data.user);
-        setUser(mappedUser);
-        setCurrency(mappedUser.default_currency || 'NGN');
-        
+        console.log("Login successful:", data.user.id);
         // Redirect to callback which will handle role/status routing
         navigate('/auth/callback');
+        return;
       }
+      
+      toast.error("Failed to login. Please try again.");
+      
     } catch (error: any) {
       console.error('Login error:', error);
       toast.error(error.message || 'Failed to log in');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -130,7 +74,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         return;
       }
       
-      // Skip email confirmation by setting email_confirmed to true
+      // Create the auth account
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -139,7 +83,6 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
             full_name: name,
             role: role,
             country: 'Nigeria', // Default, can be updated in profile settings
-            email_confirmed: true, // Bypass email confirmation
           },
         }
       });
@@ -147,7 +90,8 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
       if (error) {
         console.error("Signup auth error:", error);
         toast.error(error.message);
-        throw error;
+        setIsLoading(false);
+        return;
       }
 
       console.log("Auth signup successful:", data);
@@ -164,7 +108,6 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
               role: role,
               // Set status for producers to inactive by default
               status: role === 'producer' ? 'inactive' : 'active',
-              password_hash: 'managed-by-supabase', // Supabase Auth handles the actual hashing
             }
           ]);
 
@@ -173,36 +116,31 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
           toast.error('Could not complete profile setup, but auth account was created');
         } else {
           console.log("User profile created successfully");
-        }
-
-        // Sign in immediately after successful signup
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (signInError) {
-          console.error("Auto sign-in error:", signInError);
-          toast.error("Account created but couldn't log you in automatically.");
-          navigate('/login');
-          return;
-        }
-
-        if (signInData?.user) {
-          const mappedUser = mapSupabaseUser(signInData.user);
-          // Update with the status we just set
-          mappedUser.status = role === 'producer' ? 'inactive' : 'active';
-          setUser(mappedUser);
-          setCurrency(mappedUser.default_currency || 'NGN');
-          toast.success('Account created successfully! You are now logged in.');
+          toast.success('Account created successfully!');
           
-          // If producer and inactive, redirect directly to activation
-          if (role === 'producer') {
-            navigate('/producer-activation');
-          } else {
-            navigate('/');
+          // Try to sign in immediately
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+          
+          if (signInError) {
+            console.log("Couldn't auto-login, redirecting to login page");
+            toast.info("Please check your email to verify your account, then log in");
+            navigate('/login');
+            return;
+          }
+          
+          if (signInData?.user) {
+            console.log("Auto-login successful, redirecting to callback");
+            navigate('/auth/callback');
+            return;
           }
         }
+        
+        // Default fallback - redirect to login
+        toast.info("Account created! Please log in to continue.");
+        navigate('/login');
       }
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -214,6 +152,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
 
   const logout = async () => {
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       
       if (error) {
@@ -226,6 +165,8 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     } catch (error: any) {
       console.error('Logout error:', error);
       toast.error(error.message || 'Failed to logout');
+    } finally {
+      setIsLoading(false);
     }
   };
 

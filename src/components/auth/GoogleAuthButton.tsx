@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { FcGoogle } from 'react-icons/fc';
 
@@ -19,17 +19,21 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       setIsLoading(true);
       console.log("Starting Google authentication flow...");
       
-      // The redirectTo URL must match EXACTLY what's configured in Google Cloud Console
-      // AND in the Supabase Auth settings as an authorized redirect URL
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Get the current origin
+      const origin = window.location.origin;
+      const redirectUrl = `${origin}/auth/callback`;
+      
+      console.log(`Setting redirect URL to: ${redirectUrl}`);
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: 'https://app.ordersounds.com/auth/callback',
+          redirectTo: redirectUrl,
           queryParams: {
             // Force account selection to prevent issues with Google Suite accounts
             // Include access_type offline to get refresh token
             // Explicitly request consent to ensure refresh token is provided
-            prompt: 'consent',
+            prompt: 'select_account',
             access_type: 'offline',
           }
         },
@@ -38,6 +42,8 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       if (error) {
         toast.error(error.message || "Failed to sign in with Google");
         console.error('Google auth error:', error);
+      } else {
+        console.log("OAuth auth initiated successfully, redirecting...");
       }
     } catch (error) {
       console.error('Google auth error:', error);

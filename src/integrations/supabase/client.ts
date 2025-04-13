@@ -13,6 +13,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    storage: typeof window !== 'undefined' ? localStorage : undefined
+    storage: typeof window !== 'undefined' ? localStorage : undefined,
+    detectSessionInUrl: true, // Detect OAuth session from URL
+    flowType: 'pkce' // Use PKCE flow for more secure OAuth
   }
 });
