@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -9,6 +8,52 @@ export type FileOrUrl = File | { url: string };
 export function isFile(file: FileOrUrl): file is File {
   return (file as File).lastModified !== undefined;
 }
+
+/**
+ * Validates that a URL is accessible
+ * @param url The URL to validate
+ * @returns True if the URL is valid and accessible, false otherwise
+ */
+export const validateImageUrl = async (url: string): Promise<boolean> => {
+  if (!url) return false;
+  
+  // Don't try to validate placeholder URLs
+  if (url === '/placeholder.svg') return true;
+  
+  try {
+    // Handle relative URLs
+    let fullUrl = url;
+    if (url.startsWith('/') && !url.startsWith('//')) {
+      fullUrl = `${window.location.origin}${url}`;
+    }
+    
+    // For URLs that might be storage references without full URL
+    if (url.includes('storage/v1/object/public/') && !url.includes('http')) {
+      fullUrl = `${supabase.supabaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+    
+    // Try a HEAD request first - it's faster
+    const response = await fetch(fullUrl, { 
+      method: 'HEAD',
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    
+    if (response.ok) return true;
+    
+    // If HEAD failed, try a regular GET as fallback
+    const getResponse = await fetch(fullUrl, { 
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache' 
+    });
+    
+    return getResponse.ok;
+  } catch (error) {
+    console.warn('Image URL validation failed:', error);
+    return false;
+  }
+};
 
 /**
  * Uploads a file to Supabase storage
@@ -237,22 +282,5 @@ export const deleteFile = async (url: string, bucket: 'beats' | 'covers' | 'avat
   } catch (error) {
     console.error('Error deleting file:', error);
     throw error;
-  }
-};
-
-/**
- * Validates that a URL is accessible
- * @param url The URL to validate
- * @returns True if the URL is valid and accessible, false otherwise
- */
-export const validateImageUrl = async (url: string): Promise<boolean> => {
-  if (!url) return false;
-  
-  try {
-    const response = await fetch(url, { method: 'HEAD' });
-    return response.ok;
-  } catch (error) {
-    console.error('Image URL validation failed:', error);
-    return false;
   }
 };

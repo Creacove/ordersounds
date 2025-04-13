@@ -102,14 +102,38 @@ export function useBeats() {
 
       const checkedBeats = await Promise.all(formattedBeats.map(async (beat) => {
         if (beat.cover_image_url) {
-          const isValid = await validateImageUrl(beat.cover_image_url);
-          if (!isValid) {
-            if (beat.cover_image_url.startsWith('/')) {
-              const baseUrl = window.location.origin;
-              beat.cover_image_url = `${baseUrl}${beat.cover_image_url}`;
-              console.log('Fixed relative cover image URL:', beat.cover_image_url);
+          try {
+            const isValid = await validateImageUrl(beat.cover_image_url);
+            
+            if (!isValid) {
+              console.log('Invalid cover image URL detected:', beat.cover_image_url);
+              
+              if (beat.cover_image_url.startsWith('/')) {
+                const baseUrl = window.location.origin;
+                beat.cover_image_url = `${baseUrl}${beat.cover_image_url}`;
+                console.log('Fixed relative cover image URL:', beat.cover_image_url);
+              }
+              
+              if (beat.cover_image_url.includes('storage/v1/object/public/')) {
+                if (!beat.cover_image_url.includes('supabase.co')) {
+                  const supabaseUrl = new URL(supabase.supabaseUrl);
+                  beat.cover_image_url = `${supabaseUrl.origin}/${beat.cover_image_url}`;
+                  console.log('Fixed Supabase storage URL:', beat.cover_image_url);
+                }
+              }
+              
+              const fixedIsValid = await validateImageUrl(beat.cover_image_url);
+              if (!fixedIsValid) {
+                console.warn('Cover image still invalid after fixes:', beat.cover_image_url);
+                beat.cover_image_url = '/placeholder.svg';
+              }
             }
+          } catch (error) {
+            console.error('Error validating cover image:', error);
+            beat.cover_image_url = '/placeholder.svg';
           }
+        } else {
+          beat.cover_image_url = '/placeholder.svg';
         }
         return beat;
       }));

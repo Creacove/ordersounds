@@ -23,6 +23,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
   const [isHovering, setIsHovering] = useState(false);
   const { isDuplicate, addNotification } = useUniqueNotifications();
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const isCurrentBeat = currentBeat?.id === beat.id;
   const isCurrentlyPlaying = isCurrentBeat && isPlaying;
@@ -38,6 +39,10 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
     } catch (error) {
       console.error('Error incrementing play count:', error);
     }
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   const handlePlay = async (e: React.MouseEvent) => {
@@ -101,13 +106,11 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
       >
         <AspectRatio ratio={1 / 1}>
           <img
-            src={beat.cover_image_url || "/placeholder.svg"}
+            src={imageError ? "/placeholder.svg" : beat.cover_image_url || "/placeholder.svg"}
             alt={beat.title}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = "/placeholder.svg";
-            }}
+            onError={handleImageError}
+            loading="lazy"
           />
         </AspectRatio>
         

@@ -11,7 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { LicenseSelector } from "@/components/marketplace/LicenseSelector";
 import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/integrations/supabase/client';
 
 interface BeatCardProps {
   beat: Beat;
@@ -32,6 +32,7 @@ export function BeatCard({
   const { toggleCartItem } = useCart();
   const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive' | 'custom'>('basic');
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const handleAddToCart = () => {
     toggleCartItem(beat, selectedLicense);
@@ -62,6 +63,10 @@ export function BeatCard({
     setTimeout(() => {
       setIsPlayButtonClicked(false);
     }, 300);
+  };
+
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   const getPriceForLicense = () => {
@@ -103,9 +108,11 @@ export function BeatCard({
           <ToggleFavoriteButton beatId={beat.id} />
           <Link to={`/beat/${beat.id}`} onClick={handleBeatClick}>
             <img
-              src={beat.cover_image_url || "/placeholder.svg"}
+              src={imageError ? "/placeholder.svg" : beat.cover_image_url || "/placeholder.svg"}
               alt={beat.title}
               className="aspect-square w-full object-cover rounded-none group-hover:scale-105 transition-transform duration-200"
+              onError={handleImageError}
+              loading="lazy"
             />
           </Link>
           
