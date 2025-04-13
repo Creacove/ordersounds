@@ -1,4 +1,3 @@
-
 -- Function to check if a table exists
 CREATE OR REPLACE FUNCTION public.check_table_exists(table_name text)
 RETURNS boolean
