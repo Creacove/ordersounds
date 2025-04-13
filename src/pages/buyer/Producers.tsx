@@ -21,7 +21,6 @@ interface Producer {
   profile_picture: string | null;
   follower_count: number;
   beatCount: number;
-  is_verified?: boolean;
 }
 
 export default function Producers() {
@@ -39,11 +38,13 @@ export default function Producers() {
         // First, get all producers from the users table
         const { data: producersData, error } = await supabase
           .from('users')
-          .select('id, stage_name, full_name, bio, profile_picture, follower_count, is_verified')
+          .select('id, stage_name, full_name, bio, profile_picture, follower_count')
           .eq('role', 'producer')
           .order('follower_count', { ascending: false });
 
         if (error) throw error;
+
+        if (!producersData) return []; // Ensure we have producer data before proceeding
 
         // For each producer, get their beat count
         const producersWithBeats = await Promise.all(
@@ -138,11 +139,6 @@ export default function Producers() {
                     <h3 className="font-bold text-lg truncate">
                       {producer.stage_name || producer.full_name}
                     </h3>
-                    {producer.is_verified && (
-                      <Badge variant="secondary" className="bg-blue-500 text-white h-5 py-0">
-                        <span className="text-xs">✓</span>
-                      </Badge>
-                    )}
                   </div>
                 </Link>
                 
@@ -210,11 +206,6 @@ export default function Producers() {
                       <h3 className="font-medium text-white truncate">
                         {producer.stage_name || producer.full_name}
                       </h3>
-                      {producer.is_verified && (
-                        <Badge variant="secondary" className="ml-1 bg-blue-500 text-white h-5 py-0">
-                          <span className="text-xs">✓</span>
-                        </Badge>
-                      )}
                     </div>
                     <div className="text-xs text-gray-400 flex items-center gap-2">
                       <span className="flex items-center gap-1">
