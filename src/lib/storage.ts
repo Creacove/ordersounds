@@ -11,54 +11,6 @@ export function isFile(file: FileOrUrl): file is File {
 }
 
 /**
- * Validates that a URL is accessible
- * @param url The URL to validate
- * @returns True if the URL is valid and accessible, false otherwise
- */
-export const validateImageUrl = async (url: string): Promise<boolean> => {
-  if (!url) return false;
-  
-  // Don't try to validate placeholder URLs
-  if (url === '/placeholder.svg') return true;
-  
-  try {
-    // Handle relative URLs
-    let fullUrl = url;
-    if (url.startsWith('/') && !url.startsWith('//')) {
-      fullUrl = `${window.location.origin}${url}`;
-    }
-    
-    // For URLs that might be storage references without full URL
-    if (url.includes('storage/v1/object/public/') && !url.includes('http')) {
-      // Using string constant rather than accessing protected property
-      const supabaseUrl = 'https://uoezlwkxhbzajdivrlby.supabase.co';
-      fullUrl = `${supabaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
-    }
-    
-    // Try a HEAD request first - it's faster
-    const response = await fetch(fullUrl, { 
-      method: 'HEAD',
-      mode: 'cors',
-      cache: 'no-cache'
-    });
-    
-    if (response.ok) return true;
-    
-    // If HEAD failed, try a regular GET as fallback
-    const getResponse = await fetch(fullUrl, { 
-      method: 'GET',
-      mode: 'cors',
-      cache: 'no-cache' 
-    });
-    
-    return getResponse.ok;
-  } catch (error) {
-    console.warn('Image URL validation failed:', error);
-    return false;
-  }
-};
-
-/**
  * Uploads a file to Supabase storage
  * @param file The file to upload
  * @param bucket The storage bucket to use (e.g., 'beats', 'covers')
@@ -75,14 +27,7 @@ export const uploadFile = async (
   try {
     // If we're passed an object with a URL, just return the URL (it's already uploaded)
     if ('url' in file && typeof file.url === 'string') {
-      // Make sure the URL is valid and accessible
-      try {
-        await fetch(file.url, { method: 'HEAD' });
-        return file.url;
-      } catch (error) {
-        console.warn('URL validation failed, will re-upload:', error);
-        // Continue with upload if URL validation fails
-      }
+      return file.url;
     }
     
     // Otherwise, treat as a real File object
@@ -95,18 +40,6 @@ export const uploadFile = async (
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
     
-    // Ensure the bucket exists
-    try {
-      const { data: buckets } = await supabase.storage.listBuckets();
-      if (!buckets?.find(b => b.name === bucket)) {
-        console.warn(`Bucket ${bucket} does not exist, creating it`);
-        await supabase.storage.createBucket(bucket, { public: true });
-      }
-    } catch (error) {
-      console.error('Error checking/creating bucket:', error);
-      // Continue anyway, the upload might still work
-    }
-
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
       // Create a new XMLHttpRequest to manually track upload progress
@@ -115,7 +48,7 @@ export const uploadFile = async (
           // First, get the upload URL from Supabase
           const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(filePath);
           if (!data || error) {
-            reject(new Error(`Failed to create upload URL: ${error?.message || 'Unknown error'}`));
+            reject(new Error('Failed to create upload URL'));
             return;
           }
           
@@ -148,19 +81,6 @@ export const uploadFile = async (
               const { data: publicUrlData } = supabase.storage
                 .from(bucket)
                 .getPublicUrl(filePath);
-              
-              if (!publicUrlData || !publicUrlData.publicUrl) {
-                reject(new Error('Failed to get public URL for uploaded file'));
-                return;
-              }
-              
-              // Verify the URL is accessible
-              try {
-                await fetch(publicUrlData.publicUrl, { method: 'HEAD' });
-              } catch (error) {
-                console.warn('Uploaded file URL validation failed:', error);
-                // Continue anyway, the URL might still be valid
-              }
               
               // Force a small delay before showing 100% to ensure UI updates are visible
               setTimeout(() => {
@@ -253,25 +173,11 @@ export const uploadFile = async (
  */
 export const deleteFile = async (url: string, bucket: 'beats' | 'covers' | 'avatars'): Promise<void> => {
   try {
-    if (!url) {
-      console.warn('No URL provided to deleteFile, skipping');
-      return;
-    }
-    
     // Extract file path from URL
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/');
-    // The file path is typically the last part after the bucket name
-    const bucketIndex = pathParts.findIndex(part => part === bucket);
-    let filePath = '';
-    
-    if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
-      // Extract everything after the bucket name
-      filePath = pathParts.slice(bucketIndex + 1).join('/');
-    } else {
-      // Fallback: just take the last part as the filename
-      filePath = pathParts[pathParts.length - 1];
-    }
+    // The last part of the path should be the filename
+    const filePath = pathParts[pathParts.length - 1];
     
     // Delete file from storage
     const { error } = await supabase.storage

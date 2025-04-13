@@ -1,126 +1,152 @@
 
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useBeats } from "@/hooks/useBeats";
-import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { getProducerStats } from "@/lib/producerStats";
 
-// Mock BeatTable component until we have the proper one
-const BeatTable = ({ beats }) => (
-  <div className="border rounded-md">
-    <table className="w-full">
-      <thead className="bg-muted">
-        <tr>
-          <th className="p-2 text-left">Title</th>
-          <th className="p-2 text-left">Genre</th>
-          <th className="p-2 text-left">Favorites</th>
-          <th className="p-2 text-left">Purchases</th>
-          <th className="p-2 text-left">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {beats.map(beat => (
-          <tr key={beat.id} className="border-t">
-            <td className="p-2">{beat.title}</td>
-            <td className="p-2">{beat.genre}</td>
-            <td className="p-2">{beat.favorites_count}</td>
-            <td className="p-2">{beat.purchase_count}</td>
-            <td className="p-2">
-              <Button variant="ghost" size="sm">Edit</Button>
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+// Import refactored components
+import { StatsCards } from "@/components/producer/dashboard/StatsCards";
+import { AnalyticsCharts } from "@/components/producer/dashboard/AnalyticsCharts";
+import { GenreDistribution } from "@/components/producer/dashboard/GenreDistribution";
+import { RecentActivity } from "@/components/producer/dashboard/RecentActivity";
+import { TopSellingBeats } from "@/components/producer/dashboard/TopSellingBeats";
+import { BankDetailsCard } from "@/components/producer/dashboard/BankDetailsCard";
 
-export default function Dashboard() {
-  const { user } = useAuth();
+export default function ProducerDashboard() {
+  const { user, currency } = useAuth();
+  const { getProducerBeats } = useBeats();
+  const { notifications } = useNotifications();
   const navigate = useNavigate();
-  const [isRefreshingBeats, setIsRefreshingBeats] = useState(false);
-  const { beats, getProducerBeats, isLoading, refetchBeats } = useBeats();
+  const [showBankDetails, setShowBankDetails] = useState(false);
+  const [producerData, setProducerData] = useState<any>(null);
+  const [isLoadingProducer, setIsLoadingProducer] = useState(true);
+  const [stats, setStats] = useState(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Fetch producer data including bank details and subaccount info
   useEffect(() => {
-    document.title = "Producer Dashboard | OrderSOUNDS";
-    if (!user) {
-      navigate('/sign-in');
-    }
-  }, [user, navigate]);
+    const fetchProducerData = async () => {
+      if (!user) return;
 
-  if (!user) {
-    return null;
-  }
+      try {
+        setIsLoadingProducer(true);
+        const { data, error } = await supabase
+          .from("users")
+          .select(
+            "bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code"
+          )
+          .eq("id", user.id)
+          .single();
 
-  const producerBeats = getProducerBeats(user.id);
+        if (error) {
+          console.error("Error fetching producer data:", error);
+          return;
+        }
 
-  const handleCreateBeat = () => {
-    navigate('/producer/create');
-  };
-  
-  const handleRefreshBeats = async () => {
-    if (!user) return;
-    setIsRefreshingBeats(true);
-    try {
-      await refetchBeats();
-      toast.success('Beats data refreshed');
-    } catch (error) {
-      toast.error('Failed to refresh beats');
-      console.error(error);
-    } finally {
-      setIsRefreshingBeats(false);
-    }
+        setProducerData(data);
+
+        // Show bank details form if not set up yet
+        if (!data.paystack_subaccount_code || !data.paystack_split_code) {
+          setShowBankDetails(true);
+        }
+      } catch (error) {
+        console.error("Error fetching producer data:", error);
+      } finally {
+        setIsLoadingProducer(false);
+      }
+    };
+
+    fetchProducerData();
+  }, [user, refreshTrigger]);
+
+  // Fetch producer analytics data
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!user) return;
+
+      try {
+        setIsLoadingStats(true);
+        const producerStats = await getProducerStats(user.id);
+        setStats(producerStats);
+      } catch (error) {
+        console.error("Error fetching producer stats:", error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    fetchStats();
+  }, [user, refreshTrigger]);
+
+  // Get producer beats and refresh data periodically
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setRefreshTrigger((prev) => prev + 1);
+    }, 60000); // Refresh data every minute
+
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const producerBeats = user ? getProducerBeats(user.id) : [];
+
+  // Sort beats by purchase count in descending order
+  const topSellingBeats = [...producerBeats]
+    .sort((a, b) => (b.purchase_count || 0) - (a.purchase_count || 0))
+    .slice(0, 5);
+
+  // Get recent notifications for this producer
+  const recentNotifications = notifications
+    .filter((notification) => user && notification.recipient_id === user.id)
+    .slice(0, 5);
+
+  const handleBankDetailsSubmitted = () => {
+    setShowBankDetails(false);
+    // Refresh producer data
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   return (
     <MainLayout>
-      <div className="container py-4 md:py-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between space-y-2 md:space-y-0 mb-4">
-          <h1 className="text-2xl font-bold">Your Beats</h1>
-          <div className="space-x-2">
-            <Button onClick={handleCreateBeat}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Beat
-            </Button>
-            <Button 
-              variant="outline" 
-              disabled={isRefreshingBeats || isLoading}
-              onClick={handleRefreshBeats}
-            >
-              {isRefreshingBeats ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh Beats
-                </>
-              )}
-            </Button>
-          </div>
+      <div className="container py-8">
+        <h1 className="text-2xl font-bold mb-6">Producer Dashboard</h1>
+
+        {isLoadingProducer ? (
+          <div className="text-center">Loading bank details...</div>
+        ) : (
+          showBankDetails &&
+          user && (
+            <BankDetailsCard
+              userId={user.id}
+              producerData={producerData}
+              onSuccess={handleBankDetailsSubmitted}
+            />
+          )
+        )}
+
+        <StatsCards
+          stats={stats}
+          isLoadingStats={isLoadingStats}
+          currency={currency}
+        />
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <AnalyticsCharts
+            stats={stats}
+            isLoadingStats={isLoadingStats}
+            currency={currency}
+          />
+          <GenreDistribution stats={stats} isLoadingStats={isLoadingStats} />
         </div>
 
-        {isLoading ? (
-          <div className="space-y-2">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center space-x-4 py-2 border-b border-border">
-                <Skeleton className="h-12 w-12 rounded-md" />
-                <div className="space-y-1">
-                  <Skeleton className="h-5 w-64" />
-                  <Skeleton className="h-4 w-48" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <BeatTable beats={producerBeats} />
-        )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <RecentActivity notifications={recentNotifications} />
+          <TopSellingBeats beats={topSellingBeats} />
+        </div>
       </div>
     </MainLayout>
   );

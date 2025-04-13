@@ -1,6 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { uploadFile, FileOrUrl, isFile, validateImageUrl } from './storage';
+import { uploadFile, FileOrUrl, isFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 
@@ -100,12 +99,6 @@ export const uploadBeat = async (
       } else {
         // It's our custom object with URL already set
         fullTrackUrl = fullTrackFile.url;
-        
-        // Validate the URL is accessible
-        const isValid = await validateImageUrl(fullTrackUrl);
-        if (!isValid) {
-          console.warn('Full track URL is not accessible, will need to be re-uploaded');
-        }
       }
     }
     
@@ -113,28 +106,9 @@ export const uploadBeat = async (
       if (isFile(coverImageFile)) {
         // Real File object
         coverImageUrl = await uploadFile(coverImageFile, 'covers', 'beats');
-        
-        // Validate the image URL
-        const isValid = await validateImageUrl(coverImageUrl);
-        if (!isValid) {
-          console.warn('Cover image URL validation failed after upload, but continuing');
-        }
       } else {
         // Our custom object
         coverImageUrl = coverImageFile.url;
-        
-        // Validate the URL is accessible
-        const isValid = await validateImageUrl(coverImageUrl);
-        if (!isValid) {
-          console.warn('Cover image URL is not accessible, attempting to fix or re-upload');
-          
-          // Check if the URL is a relative path and needs to be converted to an absolute URL
-          if (coverImageUrl.startsWith('/')) {
-            const baseUrl = window.location.origin;
-            coverImageUrl = `${baseUrl}${coverImageUrl}`;
-            console.log('Updated cover image URL to absolute path:', coverImageUrl);
-          }
-        }
       }
     }
     
@@ -194,7 +168,8 @@ export const uploadBeat = async (
       }
     }
 
-    console.log('Beat data ready for insertion, cover image URL:', coverImageUrl);
+    // For debugging - log the data before insert
+    console.log('Beat data ready for insertion');
 
     // Start a transaction for beat + royalty splits insertion
     const { data: beatRecord, error: beatError } = await supabase
@@ -288,23 +263,20 @@ export const getProducerBeats = async (producerId: string): Promise<Beat[]> => {
       const producerName = userData && userData.stage_name ? userData.stage_name : 
                           userData && userData.full_name ? userData.full_name : 'Unknown Producer';
       
-      // Ensure the cover_image URL is valid
-      const coverImageUrl = beat.cover_image || '';
-      
       return {
         id: beat.id,
         title: beat.title,
         producer_id: beat.producer_id,
         producer_name: producerName,
-        cover_image_url: coverImageUrl,
-        preview_url: beat.audio_preview || '',
-        full_track_url: beat.audio_file || '',
-        genre: beat.genre || '',
-        track_type: beat.track_type || '',
-        bpm: beat.bpm || 0,
+        cover_image_url: beat.cover_image,
+        preview_url: beat.audio_preview,
+        full_track_url: beat.audio_file,
+        genre: beat.genre,
+        track_type: beat.track_type,
+        bpm: beat.bpm,
         tags: beat.tags || [],
-        description: beat.description || '',
-        created_at: beat.upload_date || new Date().toISOString(),
+        description: beat.description,
+        created_at: beat.upload_date,
         favorites_count: beat.favorites_count || 0,
         purchase_count: beat.purchase_count || 0,
         status: beat.status as 'draft' | 'published',
@@ -323,114 +295,6 @@ export const getProducerBeats = async (producerId: string): Promise<Beat[]> => {
     console.error('Error fetching producer beats:', error);
     toast.error('Failed to load beats');
     return [];
-  }
-};
-
-/**
- * Deletes a beat and its associated files
- */
-const safeDeleteFile = async (url: string, bucket: 'beats' | 'covers' | 'avatars') => {
-  if (url) {
-    try {
-      // Extract file path from URL
-      const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/');
-      // The file path is typically the last part after the bucket name
-      const bucketIndex = pathParts.findIndex(part => part === bucket);
-      let filePath = '';
-      
-      if (bucketIndex !== -1 && bucketIndex < pathParts.length - 1) {
-        // Extract everything after the bucket name
-        filePath = pathParts.slice(bucketIndex + 1).join('/');
-      } else {
-        // Fallback: just take the last part as the filename
-        filePath = pathParts[pathParts.length - 1];
-      }
-      
-      // Delete file from storage
-      const { error } = await supabase.storage
-        .from(bucket)
-        .remove([filePath]);
-      
-      if (error) {
-        console.error(`Error deleting file from ${bucket}/${filePath}:`, error);
-        throw error;
-      }
-    } catch (error) {
-      console.warn(`Failed to delete file (${url}), continuing with beat deletion:`, error);
-    }
-  }
-};
-
-export const deleteBeat = async (beatId: string): Promise<{ success: boolean; error?: string }> => {
-  try {
-    // First, get the beat data to access file URLs
-    const { data: beat, error: getBeatError } = await supabase
-      .from('beats')
-      .select('cover_image, audio_file, audio_preview, stems_url')
-      .eq('id', beatId)
-      .single();
-    
-    if (getBeatError) {
-      console.error('Error getting beat data for deletion:', getBeatError);
-      return { success: false, error: `Error retrieving beat: ${getBeatError.message}` };
-    }
-    
-    // Try to delete each associated file
-    if (beat) {
-      // Delete cover image
-      await safeDeleteFile(beat.cover_image, 'covers');
-      
-      // Delete audio files
-      await safeDeleteFile(beat.audio_file, 'beats');
-      await safeDeleteFile(beat.audio_preview, 'beats');
-      
-      // Delete stems if available
-      if (beat.stems_url) {
-        await safeDeleteFile(beat.stems_url, 'beats');
-      }
-    }
-    
-    // Delete royalty splits first (foreign key constraint)
-    const { error: royaltyDeleteError } = await supabase
-      .from('royalty_splits')
-      .delete()
-      .eq('beat_id', beatId);
-    
-    if (royaltyDeleteError) {
-      console.warn('Error deleting royalty splits:', royaltyDeleteError);
-      // Continue anyway, as this shouldn't block the beat deletion
-    }
-    
-    // Delete user favorites for this beat using RPC
-    try {
-      await supabase
-        .rpc('delete_beat_favorites', {
-          beat_id_param: beatId
-        });
-    } catch (error) {
-      console.warn('Error deleting favorites:', error);
-      // Continue anyway
-    }
-    
-    // Finally, delete the beat record
-    const { error: beatDeleteError } = await supabase
-      .from('beats')
-      .delete()
-      .eq('id', beatId);
-    
-    if (beatDeleteError) {
-      console.error('Error deleting beat record:', beatDeleteError);
-      return { success: false, error: `Error deleting beat: ${beatDeleteError.message}` };
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting beat:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error during beat deletion' 
-    };
   }
 };
 
