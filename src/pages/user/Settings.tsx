@@ -12,10 +12,10 @@ import { toast } from "sonner";
 import { ProfileForm } from "@/components/user/settings/ProfileForm";
 import { AccountForm } from "@/components/user/settings/AccountForm";
 import { PreferencesForm } from "@/components/user/settings/PreferencesForm";
-import { User } from "@/components/ui/user";
-import { Shield, Settings } from "lucide-react";
+import { User as UserIcon } from "@/components/ui/user";
+import { Shield, Settings as SettingsIcon } from "lucide-react";
 
-export default function Settings() {
+export default function UserSettings() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -48,14 +48,14 @@ export default function Settings() {
     <Tabs defaultValue="profile" className="w-full">
       <TabsList className="border-b w-full mb-6 md:mb-8 rounded-none p-0 h-auto bg-transparent">
         <TabsTrigger value="profile" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
-          <User className="mr-2 h-4 w-4" />
+          <UserIcon className="mr-2 h-4 w-4" />
           Profile
         </TabsTrigger>
         <TabsTrigger value="payment" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
           Payment
         </TabsTrigger>
         <TabsTrigger value="preferences" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
-          <Settings className="mr-2 h-4 w-4" />
+          <SettingsIcon className="mr-2 h-4 w-4" />
           Preferences
         </TabsTrigger>
       </TabsList>
@@ -122,7 +122,7 @@ export default function Settings() {
     <Tabs defaultValue="profile" className="w-full">
       <TabsList className="border-b w-full mb-6 md:mb-8 rounded-none p-0 h-auto bg-transparent">
         <TabsTrigger value="profile" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
-          <User className="mr-2 h-4 w-4" />
+          <UserIcon className="mr-2 h-4 w-4" />
           Profile
         </TabsTrigger>
         <TabsTrigger value="account" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
@@ -130,7 +130,7 @@ export default function Settings() {
           Account
         </TabsTrigger>
         <TabsTrigger value="preferences" className="rounded-none border-0 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 data-[state=active]:shadow-none py-3 px-4">
-          <Settings className="mr-2 h-4 w-4" />
+          <SettingsIcon className="mr-2 h-4 w-4" />
           Preferences
         </TabsTrigger>
       </TabsList>

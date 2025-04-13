@@ -18,6 +18,8 @@ export interface User {
   settings?: {
     emailNotifications?: boolean;
     pushNotifications?: boolean;
+    smsNotifications?: boolean;
+    autoPlayPreviews?: boolean;
     [key: string]: any;
   };
   // Add full_name for consistency with database schema
@@ -26,6 +28,8 @@ export interface User {
   follower_count?: number;
   // Add status field
   status?: 'active' | 'inactive';
+  // Add music_interests field
+  music_interests?: string[];
 }
 
 export interface Beat {

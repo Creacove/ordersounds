@@ -61,7 +61,7 @@ export default function BuyerProfile() {
           bio: data.bio,
           avatar_url: data.profile_picture,
           country: data.country,
-          music_interests: data.music_interests
+          music_interests: data.music_interests || []
         });
 
         // If this is the user's own profile or if we're looking at public playlists,

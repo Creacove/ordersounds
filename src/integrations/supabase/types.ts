@@ -542,6 +542,7 @@ export type Database = {
           full_name: string
           id: string
           is_producer_of_week: boolean | null
+          music_interests: string[] | null
           notifications_opt_in: boolean | null
           password_hash: string
           paystack_id: string | null
@@ -569,6 +570,7 @@ export type Database = {
           full_name: string
           id?: string
           is_producer_of_week?: boolean | null
+          music_interests?: string[] | null
           notifications_opt_in?: boolean | null
           password_hash: string
           paystack_id?: string | null
@@ -596,6 +598,7 @@ export type Database = {
           full_name?: string
           id?: string
           is_producer_of_week?: boolean | null
+          music_interests?: string[] | null
           notifications_opt_in?: boolean | null
           password_hash?: string
           paystack_id?: string | null
@@ -640,6 +643,7 @@ export type Database = {
           full_name: string
           id: string
           is_producer_of_week: boolean | null
+          music_interests: string[] | null
           notifications_opt_in: boolean | null
           password_hash: string
           paystack_id: string | null
