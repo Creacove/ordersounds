@@ -58,17 +58,18 @@ export function FollowButton({
       variant={followState ? 'secondary' : variant}
       disabled={isLoading || isStatusLoading}
       className={className}
+      data-following={followState}
     >
       {isLoading ? (
         'Loading...'
       ) : followState ? (
         <>
-          <UserCheck className="size-4" />
+          <UserCheck className="mr-2 size-4" />
           Following
         </>
       ) : (
         <>
-          <UserPlus className="size-4" />
+          <UserPlus className="mr-2 size-4" />
           Follow
         </>
       )}
