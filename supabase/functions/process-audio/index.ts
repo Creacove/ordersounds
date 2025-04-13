@@ -80,7 +80,7 @@ serve(async (req) => {
       );
     }
 
-    // Get the file extension for naming
+    // Get the file extension for naming and determine content type
     const fileExt = filePath.split('.').pop().toLowerCase();
     console.log(`File extension: ${fileExt}`);
     
@@ -102,7 +102,26 @@ serve(async (req) => {
       console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBytes} bytes`);
       
       // Determine the correct content type based on file extension
-      const contentType = fileExt === 'wav' ? 'audio/wav' : 'audio/mpeg';
+      let contentType;
+      switch (fileExt) {
+        case 'wav':
+          contentType = 'audio/wav';
+          break;
+        case 'mp3':
+          contentType = 'audio/mpeg';
+          break;
+        case 'm4a':
+          contentType = 'audio/m4a';
+          break;
+        case 'aac':
+          contentType = 'audio/aac';
+          break;
+        case 'ogg':
+          contentType = 'audio/ogg';
+          break;
+        default:
+          contentType = 'audio/mpeg';
+      }
       
       // Upload the preview portion to storage
       const { data: uploadData, error: uploadError } = await supabase.storage

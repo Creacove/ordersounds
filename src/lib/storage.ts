@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -45,12 +46,22 @@ export const uploadFile = async (
       return new Promise<string>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         
-        // Create a direct upload URL
-        const uploadUrl = `${supabase.storageUrl}/object/${bucket}/${filePath}`;
+        // Get the configuration info needed for the direct upload
+        const { data: { publicUrl } } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(filePath); // Use this to determine the base URL
+          
+        // Extract the base URL from the publicUrl
+        const baseStorageUrl = publicUrl.split(`/${bucket}/`)[0];
+        const uploadUrl = `${baseStorageUrl}/object/${bucket}/${filePath}`;
         xhr.open('PUT', uploadUrl, true);
         
+        // Get the API key via the storage header to use for auth
+        const storageHeaders = supabase.storage.from(bucket).headers;
+        const apiKey = storageHeaders['apikey'] || '';
+        
         // Set appropriate headers for the file type
-        xhr.setRequestHeader('Authorization', `Bearer ${supabase.supabaseKey}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${apiKey}`);
         xhr.setRequestHeader('x-upsert', 'true');
         xhr.setRequestHeader('Cache-Control', '3600');
         
