@@ -5,6 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 // Create a type to represent a file-like object with a URL
 export type FileOrUrl = File | { url: string };
 
+// Type guard to check if the object is a File
+export function isFile(file: FileOrUrl): file is File {
+  return (file as File).lastModified !== undefined;
+}
+
 /**
  * Uploads a file to Supabase storage
  * @param file The file to upload

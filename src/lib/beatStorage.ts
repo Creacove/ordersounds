@@ -1,6 +1,5 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { uploadFile, FileOrUrl } from './storage';
+import { uploadFile, FileOrUrl, isFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 
@@ -93,36 +92,30 @@ export const uploadBeat = async (
     }
 
     if (fullTrackFile) {
-      if ('lastModified' in fullTrackFile && typeof fullTrackFile.lastModified === 'number') {
+      if (isFile(fullTrackFile)) {
         // It's a real File object that needs uploading
         const fullTrackFolder = selectedLicenseTypes.includes('premium') || 
                          selectedLicenseTypes.includes('exclusive') 
                          ? 'wav-tracks' : 'full-tracks';
         fullTrackUrl = await uploadFile(fullTrackFile, 'beats', fullTrackFolder);
-      } else if ('url' in fullTrackFile) {
+      } else {
         // It's our custom object with URL already set
         fullTrackUrl = fullTrackFile.url;
       }
     }
     
     if (coverImageFile) {
-      if ('lastModified' in coverImageFile && typeof coverImageFile.lastModified === 'number') {
+      if (isFile(coverImageFile)) {
         // Real File object
         coverImageUrl = await uploadFile(coverImageFile, 'covers', 'beats');
-      } else if ('url' in coverImageFile) {
+      } else {
         // Our custom object
         coverImageUrl = coverImageFile.url;
       }
     }
     
     if (stemsFile) {
-      if ('lastModified' in stemsFile && typeof stemsFile.lastModified === 'number') {
-        // Real File object
-        stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
-      } else if ('url' in stemsFile) {
-        // Our custom object
-        stemsUrl = stemsFile.url;
-      }
+      stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
     }
 
     console.log('Building beat data for database insertion...');

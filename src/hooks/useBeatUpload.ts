@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile, FileOrUrl } from "@/lib/storage";
+import { uploadFile, FileOrUrl, isFile } from "@/lib/storage";
 
 export type LicenseOption = {
   value: string;
@@ -189,15 +189,13 @@ export const useBeatUpload = () => {
       if (data && data.processing) {
         console.log("Audio processing started in background");
         
-        // Poll for the preview until it's ready
         let attempts = 0;
-        const maxAttempts = 30; // Try for about 5 minutes (10s * 30)
+        const maxAttempts = 30;
         
         const pollForPreview = async () => {
           try {
             attempts++;
             
-            // Try to find the preview by querying recent uploads
             const { data: listData, error: listError } = await supabase.storage
               .from('beats')
               .list('previews', {
@@ -215,19 +213,16 @@ export const useBeatUpload = () => {
                 throw new Error("Preview generation timed out");
               }
               
-              // Wait and try again
               setTimeout(pollForPreview, 10000);
               return;
             }
             
-            // Look for a preview file created in the last 5 minutes
             const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
             const recentPreview = listData.find(item => 
               new Date(item.created_at).getTime() > fiveMinutesAgo
             );
             
             if (recentPreview) {
-              // Found a preview, get its public URL
               const { data: urlData } = supabase.storage
                 .from('beats')
                 .getPublicUrl(`previews/${recentPreview.name}`);
@@ -245,7 +240,6 @@ export const useBeatUpload = () => {
               throw new Error("Preview generation timed out");
             }
             
-            // Wait and try again
             setTimeout(pollForPreview, 10000);
           } catch (err) {
             console.error("Error polling for preview:", err);
@@ -254,7 +248,6 @@ export const useBeatUpload = () => {
           }
         };
         
-        // Start polling
         return await pollForPreview();
       } else if (data && data.publicUrl) {
         console.log("Preview generated successfully:", data.publicUrl);
@@ -456,10 +449,13 @@ export const useBeatUpload = () => {
     
     if (uploadedFile) {
       const requiresWavFormat = (value === 'premium' || value === 'exclusive') && isChecked;
-      const hasWav = uploadedFile.type === "audio/wav" || uploadedFile.name.endsWith('.wav');
       
-      if (requiresWavFormat && !hasWav) {
-        toast.warning("Premium and exclusive licenses require WAV format. Please upload a WAV file.");
+      if (isFile(uploadedFile)) {
+        const hasWav = uploadedFile.type === "audio/wav" || uploadedFile.name.endsWith('.wav');
+        
+        if (requiresWavFormat && !hasWav) {
+          toast.warning("Premium and exclusive licenses require WAV format. Please upload a WAV file.");
+        }
       }
     }
   };
@@ -502,8 +498,8 @@ export const useBeatUpload = () => {
     
     const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
                               selectedLicenseTypes.includes('exclusive');
-                              
-    if (requiresWavFormat && uploadedFile && 
+    
+    if (requiresWavFormat && uploadedFile && isFile(uploadedFile) &&
         uploadedFile.type !== "audio/wav" && 
         !uploadedFile.name.endsWith('.wav')) {
       toast.error("Premium and exclusive licenses require WAV format");
@@ -511,7 +507,7 @@ export const useBeatUpload = () => {
     }
     
     if (selectedLicenseTypes.includes('exclusive') && 
-        stems && 
+        stems && isFile(stems) && 
         stems.type !== "application/zip" && 
         !stems.name.endsWith('.zip')) {
       toast.error("Stems must be a ZIP file");
