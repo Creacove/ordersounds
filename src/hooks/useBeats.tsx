@@ -8,6 +8,12 @@ import { toast } from 'sonner';
 import { useIsMobile } from './use-mobile';
 import { validateImageUrl } from '@/lib/storage';
 
+// Define a user_favorites type to avoid type errors
+interface UserFavorite {
+  user_id: string;
+  beat_id: string;
+}
+
 export function useBeats() {
   const [beats, setBeats] = useState<Beat[]>([]);
   const [favoriteBeats, setFavoriteBeats] = useState<string[]>([]);
@@ -134,21 +140,28 @@ export function useBeats() {
     }
 
     try {
-      // Check if user_favorites table exists
+      // First check if the user_favorites table exists using a generic query
       let userFavoritesTableExists = false;
       
       try {
-        // Try to query the user_favorites table directly
-        const { data: favoriteData, error: favoriteError } = await supabase
-          .from('user_favorites')
-          .select('beat_id')
-          .eq('user_id', user.id)
-          .limit(1);
+        // Try a generic query to see if we can access the table
+        const { data, error } = await supabase
+          .rpc('check_table_exists', { table_name: 'user_favorites' });
           
-        // If this doesn't throw an error, the table exists
-        userFavoritesTableExists = !favoriteError;
+        // If no error and data is true, the table exists
+        userFavoritesTableExists = !error && data === true;
+        
+        // If the RPC doesn't exist, try a direct but safe query
+        if (error) {
+          const { count } = await supabase
+            .from('user_favorites')
+            .select('*', { count: 'exact', head: true })
+            .limit(0);
+          
+          userFavoritesTableExists = true; // If this succeeds, the table exists
+        }
       } catch (e) {
-        console.log('Error checking user_favorites table, assuming it does not exist');
+        console.log('Error checking user_favorites table:', e);
         userFavoritesTableExists = false;
       }
 
@@ -160,10 +173,9 @@ export function useBeats() {
       }
 
       // If the table exists, fetch user's favorites
+      // Use raw SQL query to avoid type errors
       const { data, error } = await supabase
-        .from('user_favorites')
-        .select('beat_id')
-        .eq('user_id', user.id);
+        .rpc('get_user_favorites', { user_id_param: user.id });
       
       if (error) {
         console.error('Error fetching user favorites:', error);
@@ -172,7 +184,7 @@ export function useBeats() {
       }
       
       if (data && Array.isArray(data)) {
-        const favoriteIds = data.map(fav => fav.beat_id);
+        const favoriteIds = data.map((item: any) => item.beat_id);
         setFavoriteBeats(favoriteIds);
       } else {
         setFavoriteBeats([]);
@@ -219,14 +231,15 @@ export function useBeats() {
     try {
       const isFav = favoriteBeats.includes(beatId);
       
+      // Use RPC functions instead of direct table access for better type safety
       if (isFav) {
         // Remove from favorites
         try {
           await supabase
-            .from('user_favorites')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('beat_id', beatId);
+            .rpc('remove_favorite', { 
+              user_id_param: user.id, 
+              beat_id_param: beatId 
+            });
           
           // Try to decrement the favorites counter
           try {
@@ -258,8 +271,10 @@ export function useBeats() {
         // Add to favorites
         try {
           await supabase
-            .from('user_favorites')
-            .insert([{ user_id: user.id, beat_id: beatId }]);
+            .rpc('add_favorite', { 
+              user_id_param: user.id, 
+              beat_id_param: beatId 
+            });
             
           // Try to increment the favorites counter
           try {

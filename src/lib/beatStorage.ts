@@ -401,28 +401,9 @@ export const deleteBeat = async (beatId: string): Promise<{ success: boolean; er
       // Continue anyway, as this shouldn't block the beat deletion
     }
     
-    // Delete user favorites for this beat
+    // Delete user favorites for this beat - use RPC instead of direct table access
     try {
-      // Check if table exists first
-      let userFavoritesTableExists = false;
-      
-      try {
-        const { data: tableCheck } = await supabase
-          .from('user_favorites')
-          .select('beat_id')
-          .limit(1);
-          
-        userFavoritesTableExists = true;
-      } catch (e) {
-        userFavoritesTableExists = false;
-      }
-      
-      if (userFavoritesTableExists) {
-        await supabase
-          .from('user_favorites')
-          .delete()
-          .eq('beat_id', beatId);
-      }
+      await supabase.rpc('delete_beat_favorites', { beat_id_param: beatId });
     } catch (error) {
       console.warn('Error deleting favorites:', error);
       // Continue anyway

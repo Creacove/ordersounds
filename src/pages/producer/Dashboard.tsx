@@ -1,26 +1,56 @@
+
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
-import { useRouter } from "next/router";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw } from "lucide-react";
-import { BeatTable } from "@/components/producer/BeatTable";
-import { toast } from "sonner";
-import { useBeats } from "@/hooks/useBeats";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useBeats } from "@/hooks/useBeats";
+import { toast } from "sonner";
+
+// Mock BeatTable component until we have the proper one
+const BeatTable = ({ beats }) => (
+  <div className="border rounded-md">
+    <table className="w-full">
+      <thead className="bg-muted">
+        <tr>
+          <th className="p-2 text-left">Title</th>
+          <th className="p-2 text-left">Genre</th>
+          <th className="p-2 text-left">Favorites</th>
+          <th className="p-2 text-left">Purchases</th>
+          <th className="p-2 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {beats.map(beat => (
+          <tr key={beat.id} className="border-t">
+            <td className="p-2">{beat.title}</td>
+            <td className="p-2">{beat.genre}</td>
+            <td className="p-2">{beat.favorites_count}</td>
+            <td className="p-2">{beat.purchase_count}</td>
+            <td className="p-2">
+              <Button variant="ghost" size="sm">Edit</Button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+);
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
   const [isRefreshingBeats, setIsRefreshingBeats] = useState(false);
   const { beats, getProducerBeats, isLoading, refetchBeats } = useBeats();
 
   useEffect(() => {
     document.title = "Producer Dashboard | OrderSOUNDS";
     if (!user) {
-      router.push('/sign-in');
+      navigate('/sign-in');
     }
-  }, [user, router]);
+  }, [user, navigate]);
 
   if (!user) {
     return null;
@@ -29,15 +59,21 @@ export default function Dashboard() {
   const producerBeats = getProducerBeats(user.id);
 
   const handleCreateBeat = () => {
-    router.push('/producer/create');
+    navigate('/producer/create');
   };
   
   const handleRefreshBeats = async () => {
     if (!user) return;
     setIsRefreshingBeats(true);
-    await refetchBeats();
-    toast.success('Beats data refreshed');
-    setIsRefreshingBeats(false);
+    try {
+      await refetchBeats();
+      toast.success('Beats data refreshed');
+    } catch (error) {
+      toast.error('Failed to refresh beats');
+      console.error(error);
+    } finally {
+      setIsRefreshingBeats(false);
+    }
   };
 
   return (
