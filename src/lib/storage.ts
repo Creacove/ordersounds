@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -11,14 +10,22 @@ import { v4 as uuidv4 } from 'uuid';
  * @returns The public URL of the uploaded file
  */
 export const uploadFile = async (
-  file: File, 
+  file: File | {url: string}, 
   bucket: 'beats' | 'covers' | 'avatars', 
   path = '',
   progressCallback?: (progress: number) => void
 ): Promise<string> => {
   try {
+    // If we're passed an object with a URL, just return the URL (it's already uploaded)
+    if ('url' in file && typeof file.url === 'string') {
+      return file.url;
+    }
+    
+    // Otherwise, treat as a real File object
+    const realFile = file as File;
+    
     // Generate a unique filename to prevent collisions
-    const fileExt = file.name.split('.').pop();
+    const fileExt = realFile.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
@@ -83,7 +90,7 @@ export const uploadFile = async (
           };
           
           // Add simulated progress updates for small files on iOS
-          if (file.size < 5000000) { // For files under 5MB
+          if (realFile.size < 5000000) { // For files under 5MB
             let simulatedProgress = 0;
             const progressInterval = setInterval(() => {
               simulatedProgress += 5;
@@ -117,7 +124,7 @@ export const uploadFile = async (
           }
           
           // Start the upload
-          xhr.send(file);
+          xhr.send(realFile);
         } catch (error) {
           reject(error);
         }
@@ -126,7 +133,7 @@ export const uploadFile = async (
       // Standard upload without progress tracking
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(filePath, file, {
+        .upload(filePath, realFile, {
           cacheControl: '3600',
           upsert: false
         });

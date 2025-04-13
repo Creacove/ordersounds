@@ -186,22 +186,93 @@ export const useBeatUpload = () => {
         throw new Error(errorMessage);
       }
       
-      if (data && data.publicUrl) {
+      if (data && data.processing) {
+        console.log("Audio processing started in background");
+        
+        // Poll for the preview until it's ready
+        let attempts = 0;
+        const maxAttempts = 30; // Try for about 5 minutes (10s * 30)
+        
+        const pollForPreview = async () => {
+          try {
+            attempts++;
+            
+            // Try to find the preview by querying recent uploads
+            const { data: listData, error: listError } = await supabase.storage
+              .from('beats')
+              .list('previews', {
+                limit: 20,
+                offset: 0,
+                sortBy: { column: 'created_at', order: 'desc' }
+              });
+              
+            if (listError) {
+              console.error("Error checking for preview:", listError);
+              
+              if (attempts >= maxAttempts) {
+                toast.error("Preview generation timed out. Please try again.");
+                setProcessingFiles(false);
+                throw new Error("Preview generation timed out");
+              }
+              
+              // Wait and try again
+              setTimeout(pollForPreview, 10000);
+              return;
+            }
+            
+            // Look for a preview file created in the last 5 minutes
+            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+            const recentPreview = listData.find(item => 
+              new Date(item.created_at).getTime() > fiveMinutesAgo
+            );
+            
+            if (recentPreview) {
+              // Found a preview, get its public URL
+              const { data: urlData } = supabase.storage
+                .from('beats')
+                .getPublicUrl(`previews/${recentPreview.name}`);
+                
+              console.log("Found preview:", urlData.publicUrl);
+              setPreviewUrl(urlData.publicUrl);
+              toast.success("Audio processing complete");
+              setProcessingFiles(false);
+              return urlData.publicUrl;
+            }
+            
+            if (attempts >= maxAttempts) {
+              toast.error("Preview generation timed out. Please try again.");
+              setProcessingFiles(false);
+              throw new Error("Preview generation timed out");
+            }
+            
+            // Wait and try again
+            setTimeout(pollForPreview, 10000);
+          } catch (err) {
+            console.error("Error polling for preview:", err);
+            setProcessingFiles(false);
+            throw err;
+          }
+        };
+        
+        // Start polling
+        return await pollForPreview();
+      } else if (data && data.publicUrl) {
         console.log("Preview generated successfully:", data.publicUrl);
         setPreviewUrl(data.publicUrl);
         toast.success("Audio processing complete");
+        setProcessingFiles(false);
         return data.publicUrl;
       } else {
         console.error("No preview URL returned from processing");
         toast.error("Failed to generate audio preview");
+        setProcessingFiles(false);
         throw new Error("No preview URL returned from processing");
       }
     } catch (error) {
       console.error("Error in audio processing:", error);
       toast.error("Failed to process audio. Please try again.");
-      throw error;
-    } finally {
       setProcessingFiles(false);
+      throw error;
     }
   };
 

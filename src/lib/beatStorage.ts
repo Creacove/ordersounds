@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile } from './storage';
 import { Beat, RoyaltySplit } from '@/types';
@@ -74,41 +73,58 @@ export const uploadBeat = async (
   previewUrl?: string
 ): Promise<{success: boolean; beatId?: string; error?: string}> => {
   try {
-    console.log('Uploading files to storage...');
+    console.log('Preparing beat data for database insertion...');
     
-    // Upload cover image first
-    const coverImageUrl = await uploadFile(coverImageFile, 'covers', 'beats');
-    console.log('Cover image uploaded:', coverImageUrl);
+    // We assume all files have already been uploaded at this point
+    // and we're just storing the references in the database
     
-    // Upload full track
-    const fullTrackFolder = selectedLicenseTypes.includes('premium') || 
-                           selectedLicenseTypes.includes('exclusive') 
-                           ? 'wav-tracks' : 'full-tracks';
-                           
-    const fullTrackUrl = await uploadFile(fullTrackFile, 'beats', fullTrackFolder);
-    console.log('Full track uploaded:', fullTrackUrl);
-    
-    // Use provided preview URL or upload preview if provided
+    // For full track, cover image, and stems URLs, either use the pre-generated URL
+    // or extract from the File object (which should have a .url property if it's already uploaded)
     let finalPreviewUrl = previewUrl || '';
-    if (previewFile) {
-      finalPreviewUrl = await uploadFile(previewFile, 'beats', 'previews');
-      console.log('Preview track uploaded:', finalPreviewUrl);
-    } else if (!previewUrl) {
-      // No preview file and no preview URL provided - this is an error case
-      console.log('No preview file or URL provided, one should be generated before calling uploadBeat');
-      throw new Error('No preview audio was generated. Please try again.');
-    } else {
-      console.log('Using provided preview URL:', previewUrl);
-    }
-    
-    // Upload stems if provided (only for exclusive licenses)
+    let fullTrackUrl = '';
+    let coverImageUrl = '';
     let stemsUrl = '';
-    if (stemsFile && selectedLicenseTypes.includes('exclusive')) {
-      stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
-      console.log('Stems uploaded:', stemsUrl);
+    
+    // Only upload files that haven't been uploaded yet (shouldn't happen in normal flow)
+    if (!previewUrl && previewFile) {
+      console.log('No preview URL provided, uploading preview file...');
+      finalPreviewUrl = await uploadFile(previewFile, 'beats', 'previews');
     }
 
-    console.log('Inserting beat record into database...');
+    if (fullTrackFile) {
+      if ('lastModified' in fullTrackFile && typeof fullTrackFile.lastModified === 'number') {
+        // It's a real File object that needs uploading
+        const fullTrackFolder = selectedLicenseTypes.includes('premium') || 
+                         selectedLicenseTypes.includes('exclusive') 
+                         ? 'wav-tracks' : 'full-tracks';
+        fullTrackUrl = await uploadFile(fullTrackFile, 'beats', fullTrackFolder);
+      } else if ('url' in fullTrackFile) {
+        // It's our custom object with URL already set
+        fullTrackUrl = fullTrackFile.url;
+      }
+    }
+    
+    if (coverImageFile) {
+      if ('lastModified' in coverImageFile && typeof coverImageFile.lastModified === 'number') {
+        // Real File object
+        coverImageUrl = await uploadFile(coverImageFile, 'covers', 'beats');
+      } else if ('url' in coverImageFile) {
+        // Our custom object
+        coverImageUrl = coverImageFile.url;
+      }
+    }
+    
+    if (stemsFile) {
+      if ('lastModified' in stemsFile && typeof stemsFile.lastModified === 'number') {
+        // Real File object
+        stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
+      } else if ('url' in stemsFile) {
+        // Our custom object
+        stemsUrl = stemsFile.url;
+      }
+    }
+
+    console.log('Building beat data for database insertion...');
     
     const beatData: BeatUploadData = {
       producer_id: producerId,
@@ -161,8 +177,9 @@ export const uploadBeat = async (
     }
 
     // For debugging - log the data before insert
-    console.log('Beat data to be inserted:', beatData);
+    console.log('Beat data ready for insertion');
 
+    // Start a transaction for beat + royalty splits insertion
     const { data: beatRecord, error: beatError } = await supabase
       .from('beats')
       .insert(beatData)

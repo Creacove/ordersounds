@@ -150,24 +150,6 @@ export default function UploadBeat() {
     
     try {
       console.log('Publishing beat with license types:', selectedLicenseTypes);
-      console.log('License prices:', {
-        basic: {
-          local: beatDetails.basicLicensePriceLocal,
-          diaspora: beatDetails.basicLicensePriceDiaspora
-        },
-        premium: {
-          local: beatDetails.premiumLicensePriceLocal,
-          diaspora: beatDetails.premiumLicensePriceDiaspora
-        },
-        exclusive: {
-          local: beatDetails.exclusiveLicensePriceLocal,
-          diaspora: beatDetails.exclusiveLicensePriceDiaspora
-        },
-        custom: {
-          local: beatDetails.customLicensePriceLocal,
-          diaspora: beatDetails.customLicensePriceDiaspora
-        }
-      });
       
       if (!imageFile) {
         toast.error("Cover image is required");
@@ -192,6 +174,8 @@ export default function UploadBeat() {
         collaborators[0].email = user.email || '';
       }
       
+      toast.loading("Publishing your beat...", { id: "publishing-beat" });
+      
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
@@ -212,12 +196,10 @@ export default function UploadBeat() {
         license_type: selectedLicenseTypes.join(','),
         license_terms: beatDetails.licenseTerms || ''
       };
-
-      console.log('Beat data to upload:', beatData);
       
       const result = await uploadBeat(
         beatData,
-        uploadedFile,
+        uploadedFile || { url: uploadedFileUrl },
         previewFile,
         imageFile,
         stems,
@@ -229,14 +211,14 @@ export default function UploadBeat() {
       );
       
       if (result.success) {
-        toast.success("Beat published successfully!");
+        toast.success("Beat published successfully!", { id: "publishing-beat" });
         navigate("/producer/beats");
       } else {
         throw new Error(result.error || "Failed to upload beat");
       }
     } catch (error) {
       console.error("Error publishing beat:", error);
-      toast.error(error instanceof Error ? error.message : "Error publishing beat");
+      toast.error(error instanceof Error ? error.message : "Error publishing beat", { id: "publishing-beat" });
     } finally {
       setIsSubmitting(false);
     }
