@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
@@ -212,17 +211,6 @@ export default function Home() {
             </section>
           )}
 
-          <div className="py-6 px-6 md:px-8">
-            <section className="mb-6">
-              <SectionTitle 
-                title="Producer of the Week" 
-                icon={<Star className="h-5 w-5" />}
-                badge="Featured"
-              />
-              <ProducerOfWeek />
-            </section>
-          </div>
-
           <RecommendedBeats />
 
           <div className="py-4 overflow-hidden bg-black/5 dark:bg-white/5 mx-0 px-0">
@@ -354,8 +342,8 @@ export default function Home() {
               )}
             </section>
 
-            <section className="bg-card/50 p-4 sm:p-6 rounded-lg mb-10 border">
-              <div className="flex justify-between items-center mb-6">
+            <section className="mb-10">
+              <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold">Weekly Picks</h2>
                   <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
