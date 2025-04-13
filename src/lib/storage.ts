@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -29,10 +30,9 @@ export const validateImageUrl = async (url: string): Promise<boolean> => {
     
     // For URLs that might be storage references without full URL
     if (url.includes('storage/v1/object/public/') && !url.includes('http')) {
-      // Fix: Use the URL constructor to get the origin instead of accessing supabaseUrl directly
-      const supabaseUrlStr = supabase.storageUrl ?? 'https://uoezlwkxhbzajdivrlby.supabase.co';
-      const supabaseUrlObj = new URL(supabaseUrlStr);
-      fullUrl = `${supabaseUrlObj.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+      // Using string constant rather than accessing protected property
+      const supabaseUrl = 'https://uoezlwkxhbzajdivrlby.supabase.co';
+      fullUrl = `${supabaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
     }
     
     // Try a HEAD request first - it's faster

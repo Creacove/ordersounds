@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -116,9 +117,9 @@ export function useBeats() {
               
               if (beat.cover_image_url.includes('storage/v1/object/public/')) {
                 if (!beat.cover_image_url.includes('supabase.co')) {
-                  const supabaseUrlStr = supabase.storageUrl ?? 'https://uoezlwkxhbzajdivrlby.supabase.co';
-                  const supabaseUrlObj = new URL(supabaseUrlStr);
-                  beat.cover_image_url = `${supabaseUrlObj.origin}/${beat.cover_image_url}`;
+                  // Using string constant instead of accessing protected property
+                  const supabaseUrl = 'https://uoezlwkxhbzajdivrlby.supabase.co';
+                  beat.cover_image_url = `${supabaseUrl}/${beat.cover_image_url}`;
                   console.log('Fixed Supabase storage URL:', beat.cover_image_url);
                 }
               }
