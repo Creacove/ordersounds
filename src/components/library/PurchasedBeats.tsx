@@ -67,13 +67,13 @@ export function PurchasedBeats() {
         <PurchasedBeatsMobile 
           beats={purchasedBeats} 
           purchaseDetails={purchaseDetails} 
-          onDownload={handleDownload} 
+          onDownload={(beat) => handleDownload(beat.id)} 
         />
       ) : (
         <PurchasedBeatsDesktop 
           beats={purchasedBeats} 
-          purchaseDetails={purchaseDetails} 
-          onDownload={handleDownload} 
+          purchaseDetails={purchaseDetails}
+          onDownload={(beat) => handleDownload(beat.id)}
         />
       )}
     </div>

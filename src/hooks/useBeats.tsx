@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +7,6 @@ import { toast } from 'sonner';
 import { useIsMobile } from './use-mobile';
 import { validateImageUrl } from '@/lib/storage';
 
-// Define a user_favorites type to avoid type errors
 interface UserFavorite {
   user_id: string;
   beat_id: string;
@@ -22,7 +20,6 @@ export function useBeats() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  // Fetch all beats
   const fetchBeats = useCallback(async () => {
     setIsLoading(true);
 
@@ -91,7 +88,7 @@ export function useBeats() {
           favorites_count: beat.favorites_count || 0,
           purchase_count: beat.purchase_count || 0,
           status: (beat.status as 'draft' | 'published') || 'published',
-          is_featured: false, // This is set later for featured beats
+          is_featured: false,
           basic_license_price_local: beat.basic_license_price_local || 0,
           basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
           premium_license_price_local: beat.premium_license_price_local || 0,
@@ -103,12 +100,10 @@ export function useBeats() {
         };
       });
 
-      // Check if cover images are accessible and fix if possible
       const checkedBeats = await Promise.all(formattedBeats.map(async (beat) => {
         if (beat.cover_image_url) {
           const isValid = await validateImageUrl(beat.cover_image_url);
           if (!isValid) {
-            // Try to fix broken image URLs by appending origin if it's a relative path
             if (beat.cover_image_url.startsWith('/')) {
               const baseUrl = window.location.origin;
               beat.cover_image_url = `${baseUrl}${beat.cover_image_url}`;
@@ -121,7 +116,6 @@ export function useBeats() {
 
       setBeats(checkedBeats);
       
-      // Fetch favorites separately
       await fetchUserFavorites();
       await fetchUserPurchases();
 
@@ -132,7 +126,6 @@ export function useBeats() {
     }
   }, [user]);
 
-  // Fetch user favorites
   const fetchUserFavorites = useCallback(async () => {
     if (!user) {
       setFavoriteBeats([]);
@@ -140,26 +133,15 @@ export function useBeats() {
     }
 
     try {
-      // First check if the user_favorites table exists using a generic query
       let userFavoritesTableExists = false;
       
       try {
-        // Try a generic query to see if we can access the table
-        const { data, error } = await supabase
-          .rpc('check_table_exists', { table_name: 'user_favorites' });
+        const { count, error } = await supabase
+          .from('user_favorites')
+          .select('*', { count: 'exact', head: true })
+          .limit(0);
           
-        // If no error and data is true, the table exists
-        userFavoritesTableExists = !error && data === true;
-        
-        // If the RPC doesn't exist, try a direct but safe query
-        if (error) {
-          const { count } = await supabase
-            .from('user_favorites')
-            .select('*', { count: 'exact', head: true })
-            .limit(0);
-          
-          userFavoritesTableExists = true; // If this succeeds, the table exists
-        }
+        userFavoritesTableExists = !error;
       } catch (e) {
         console.log('Error checking user_favorites table:', e);
         userFavoritesTableExists = false;
@@ -167,15 +149,14 @@ export function useBeats() {
 
       if (!userFavoritesTableExists) {
         console.log('user_favorites table does not exist or is not accessible');
-        // We can't create tables here, so we'll just set an empty favorites list
         setFavoriteBeats([]);
         return;
       }
 
-      // If the table exists, fetch user's favorites
-      // Use raw SQL query to avoid type errors
       const { data, error } = await supabase
-        .rpc('get_user_favorites', { user_id_param: user.id });
+        .from('user_favorites')
+        .select('beat_id')
+        .eq('user_id', user.id);
       
       if (error) {
         console.error('Error fetching user favorites:', error);
@@ -184,7 +165,7 @@ export function useBeats() {
       }
       
       if (data && Array.isArray(data)) {
-        const favoriteIds = data.map((item: any) => item.beat_id);
+        const favoriteIds = data.map(item => item.beat_id);
         setFavoriteBeats(favoriteIds);
       } else {
         setFavoriteBeats([]);
@@ -195,7 +176,6 @@ export function useBeats() {
     }
   }, [user]);
 
-  // Fetch user purchases
   const fetchUserPurchases = useCallback(async () => {
     if (!user) {
       setPurchasedBeats([]);
@@ -221,7 +201,6 @@ export function useBeats() {
     }
   }, [user]);
 
-  // Toggle favorite status
   const toggleFavorite = useCallback(async (beatId: string) => {
     if (!user) {
       toast.error('Please log in to add favorites');
@@ -231,19 +210,17 @@ export function useBeats() {
     try {
       const isFav = favoriteBeats.includes(beatId);
       
-      // Use RPC functions instead of direct table access for better type safety
       if (isFav) {
-        // Remove from favorites
         try {
-          await supabase
-            .rpc('remove_favorite', { 
-              user_id_param: user.id, 
-              beat_id_param: beatId 
-            });
+          const { error } = await supabase
+            .from('user_favorites')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('beat_id', beatId);
           
-          // Try to decrement the favorites counter
+          if (error) throw error;
+          
           try {
-            // Update the beat's favorites_count directly
             const { data: beatData } = await supabase
               .from('beats')
               .select('favorites_count')
@@ -265,20 +242,28 @@ export function useBeats() {
           return false;
         } catch (error) {
           console.error('Error removing favorite:', error);
-          return true; // Keep it marked as favorite if removal fails
+          return true;
         }
       } else {
-        // Add to favorites
         try {
-          await supabase
-            .rpc('add_favorite', { 
-              user_id_param: user.id, 
-              beat_id_param: beatId 
-            });
+          await supabase.schema.createTableIfNotExists('user_favorites', table => ({
+            id: table.uuid('id').primaryKey().defaultValue(table.sql`gen_random_uuid()`),
+            user_id: table.uuid('user_id').notNull(),
+            beat_id: table.uuid('beat_id').notNull(),
+            created_at: table.timestamp('created_at', { withTimezone: true }).defaultNow()
+          }));
+
+          const { error } = await supabase
+            .from('user_favorites')
+            .insert({
+              user_id: user.id,
+              beat_id: beatId
+            })
+            .select();
             
-          // Try to increment the favorites counter
+          if (error) throw error;
+            
           try {
-            // Update the beat's favorites_count directly
             const { data: beatData } = await supabase
               .from('beats')
               .select('favorites_count')
@@ -300,7 +285,7 @@ export function useBeats() {
           return true;
         } catch (error) {
           console.error('Error adding favorite:', error);
-          return false; // Don't mark as favorite if addition fails
+          return false;
         }
       }
     } catch (error) {
@@ -310,41 +295,34 @@ export function useBeats() {
     }
   }, [user, favoriteBeats]);
 
-  // Get beat by ID
   const getBeatById = useCallback((beatId: string) => {
     return beats.find(beat => beat.id === beatId) || null;
   }, [beats]);
 
-  // Check if a beat is favorited
   const isFavorite = useCallback((beatId: string) => {
     return favoriteBeats.includes(beatId);
   }, [favoriteBeats]);
 
-  // Check if a beat is purchased
   const isPurchased = useCallback((beatId: string) => {
     return purchasedBeats.includes(beatId);
   }, [purchasedBeats]);
 
-  // Get trending beats
   const getTrendingBeats = useCallback(() => {
     const sorted = [...beats].sort((a, b) => b.favorites_count - a.favorites_count);
     return isMobile ? sorted.slice(0, 4) : sorted.slice(0, 8);
   }, [beats, isMobile]);
 
-  // Get new beats
   const getNewBeats = useCallback(() => {
     const sorted = [...beats].sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return isMobile ? sorted.slice(0, 4) : sorted.slice(0, 8);
   }, [beats, isMobile]);
 
-  // Get random beats for weekly picks
   const getWeeklyPicks = useCallback(() => {
     const shuffled = [...beats].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, isMobile ? 4 : 8);
   }, [beats, isMobile]);
 
-  // Get random featured beat
   const getFeaturedBeat = useCallback(() => {
     if (beats.length === 0) return null;
     
@@ -357,17 +335,14 @@ export function useBeats() {
     return featured;
   }, [beats]);
 
-  // Get all user favorite beats
   const getUserFavoriteBeats = useCallback(() => {
     return beats.filter(beat => favoriteBeats.includes(beat.id));
   }, [beats, favoriteBeats]);
 
-  // Get all user purchased beats
   const getUserPurchasedBeats = useCallback(() => {
     return beats.filter(beat => purchasedBeats.includes(beat.id));
   }, [beats, purchasedBeats]);
 
-  // Delete a beat
   const handleDeleteBeat = useCallback(async (beatId: string) => {
     if (!user) {
       toast.error('You must be logged in to delete beats');
@@ -381,7 +356,6 @@ export function useBeats() {
         return false;
       }
       
-      // Check if user is the producer of this beat
       if (beat.producer_id !== user.id) {
         toast.error('You can only delete your own beats');
         return false;
@@ -390,7 +364,6 @@ export function useBeats() {
       const result = await deleteBeat(beatId);
       
       if (result.success) {
-        // Remove from local state
         setBeats(prev => prev.filter(b => b.id !== beatId));
         toast.success('Beat deleted successfully');
         return true;
@@ -405,27 +378,22 @@ export function useBeats() {
     }
   }, [user, getBeatById]);
 
-  // Get producer beats
   const getProducerBeats = useCallback((producerId: string) => {
     return beats.filter(beat => beat.producer_id === producerId);
   }, [beats]);
 
-  // Fetch trending beats - used in Trending.tsx
   const fetchTrendingBeats = useCallback(async () => {
     await fetchBeats();
   }, [fetchBeats]);
 
-  // Fetch purchased beats - used in Library.tsx and elsewhere
   const fetchPurchasedBeats = useCallback(async () => {
     await fetchUserPurchases();
   }, [fetchUserPurchases]);
 
-  // Refetch beats data (used after operations that modify beats)
   const refetchBeats = useCallback(async () => {
     await fetchBeats();
   }, [fetchBeats]);
 
-  // Fetch beats on initial load
   useEffect(() => {
     fetchBeats();
   }, [fetchBeats]);

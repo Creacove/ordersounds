@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useBeats } from "@/hooks/useBeats";
 
 export default function Cart() {
-  const { cart, removeFromCart, clearCart } = useCart();
+  const { cartItems, removeFromCart, clearCart, totalAmount } = useCart();
   const navigate = useNavigate();
   const { fetchPurchasedBeats } = useBeats();
 
@@ -72,7 +72,7 @@ export default function Cart() {
       <div className="container py-8">
         <h1 className="text-2xl font-bold mb-6">Your Cart</h1>
         
-        {cart.length === 0 ? (
+        {cartItems.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-lg text-muted-foreground mb-4">Your cart is empty</p>
             <button 
@@ -85,7 +85,7 @@ export default function Cart() {
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
             <div className="md:col-span-2 space-y-4">
-              {cart.map((item) => (
+              {cartItems.map((item) => (
                 <div key={item.beat.id} className="flex gap-3 p-3 border rounded-lg">
                   <div className="flex-1">
                     <h3 className="font-medium">{item.beat.title}</h3>
@@ -108,12 +108,12 @@ export default function Cart() {
               <h3 className="font-medium border-b pb-2 mb-4">Order Summary</h3>
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between">
-                  <span>Items ({cart.length}):</span>
-                  <span>${cart.reduce((sum, item) => sum + item.beat.basic_license_price_diaspora, 0).toFixed(2)}</span>
+                  <span>Items ({cartItems.length}):</span>
+                  <span>${totalAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-medium pt-2 border-t">
                   <span>Total:</span>
-                  <span>${cart.reduce((sum, item) => sum + item.beat.basic_license_price_diaspora, 0).toFixed(2)}</span>
+                  <span>${totalAmount.toFixed(2)}</span>
                 </div>
               </div>
               <button 
