@@ -41,51 +41,86 @@ export const uploadFile = async (
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
-      // Create a new XMLHttpRequest to manually track upload progress
-      return new Promise<string>(async (resolve, reject) => {
-        try {
-          // First, get the upload URL from Supabase
-          const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(filePath);
-          if (!data || error) {
-            reject(new Error('Failed to create upload URL'));
-            return;
-          }
-          
-          const xhr = new XMLHttpRequest();
-          xhr.open('PUT', data.signedUrl);
-          
-          // Track upload progress events
-          xhr.upload.addEventListener('progress', (event) => {
-            if (event.lengthComputable) {
-              // Calculate percentage and ensure we're reporting incremental updates
-              const percentComplete = Math.round((event.loaded / event.total) * 100);
-              console.log(`Upload progress: ${percentComplete}%`);
-              
-              // Force progress updates at regular intervals even on iOS
-              // This helps prevent the progress from jumping from 0 to 100
-              if (percentComplete === 0) {
-                progressCallback(1); // Start with 1% to show activity
-              } else if (percentComplete === 100) {
-                progressCallback(99); // Hold at 99% until fully complete
-              } else {
-                progressCallback(percentComplete);
-              }
+      // Use standard upload with progress tracking
+      return new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        // Create a direct upload URL
+        const uploadUrl = `${supabase.storageUrl}/object/${bucket}/${filePath}`;
+        xhr.open('PUT', uploadUrl, true);
+        
+        // Set appropriate headers for the file type
+        xhr.setRequestHeader('Authorization', `Bearer ${supabase.supabaseKey}`);
+        xhr.setRequestHeader('x-upsert', 'true');
+        xhr.setRequestHeader('Cache-Control', '3600');
+        
+        // For images, ensure content type is set correctly
+        if (realFile.type.startsWith('image/')) {
+          xhr.setRequestHeader('Content-Type', realFile.type);
+        }
+        
+        // Track upload progress events
+        xhr.upload.addEventListener('progress', (event) => {
+          if (event.lengthComputable) {
+            // Calculate percentage and ensure we're reporting incremental updates
+            const percentComplete = Math.round((event.loaded / event.total) * 100);
+            console.log(`Upload progress: ${percentComplete}%`);
+            
+            if (percentComplete === 0) {
+              progressCallback(1); // Start with 1% to show activity
+            } else if (percentComplete === 100) {
+              progressCallback(99); // Hold at 99% until fully complete
+            } else {
+              progressCallback(percentComplete);
             }
-          });
+          }
+        });
+        
+        // Handle successful completion
+        xhr.onload = async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            // Get public URL for the file
+            const { data: publicUrlData } = supabase.storage
+              .from(bucket)
+              .getPublicUrl(filePath);
+            
+            // Force a small delay before showing 100% to ensure UI updates are visible
+            setTimeout(() => {
+              progressCallback(100); // Final completion
+            }, 200);
+            
+            console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
+            resolve(publicUrlData.publicUrl);
+          } else {
+            reject(new Error(`Upload failed with status: ${xhr.status}`));
+          }
+        };
+        
+        xhr.onerror = () => {
+          reject(new Error('Network error during upload'));
+        };
+        
+        // Add simulated progress updates for small files on iOS
+        if (realFile.size < 5000000) { // For files under 5MB
+          let simulatedProgress = 0;
+          const progressInterval = setInterval(() => {
+            simulatedProgress += 5;
+            if (simulatedProgress < 90) {
+              progressCallback(simulatedProgress);
+            } else {
+              clearInterval(progressInterval);
+            }
+          }, 200);
           
-          // Handle successful completion
+          // Clear interval if the upload completes or fails
           xhr.onload = async () => {
+            clearInterval(progressInterval);
             if (xhr.status >= 200 && xhr.status < 300) {
-              // Get public URL for the file
               const { data: publicUrlData } = supabase.storage
                 .from(bucket)
                 .getPublicUrl(filePath);
               
-              // Force a small delay before showing 100% to ensure UI updates are visible
-              setTimeout(() => {
-                progressCallback(100); // Final completion
-              }, 200);
-              
+              progressCallback(100);
               console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
               resolve(publicUrlData.publicUrl);
             } else {
@@ -94,48 +129,13 @@ export const uploadFile = async (
           };
           
           xhr.onerror = () => {
+            clearInterval(progressInterval);
             reject(new Error('Network error during upload'));
           };
-          
-          // Add simulated progress updates for small files on iOS
-          if (realFile.size < 5000000) { // For files under 5MB
-            let simulatedProgress = 0;
-            const progressInterval = setInterval(() => {
-              simulatedProgress += 5;
-              if (simulatedProgress < 90) {
-                progressCallback(simulatedProgress);
-              } else {
-                clearInterval(progressInterval);
-              }
-            }, 200);
-            
-            // Clear interval if the upload completes or fails
-            xhr.onload = async () => {
-              clearInterval(progressInterval);
-              if (xhr.status >= 200 && xhr.status < 300) {
-                const { data: publicUrlData } = supabase.storage
-                  .from(bucket)
-                  .getPublicUrl(filePath);
-                
-                progressCallback(100);
-                console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
-                resolve(publicUrlData.publicUrl);
-              } else {
-                reject(new Error(`Upload failed with status: ${xhr.status}`));
-              }
-            };
-            
-            xhr.onerror = () => {
-              clearInterval(progressInterval);
-              reject(new Error('Network error during upload'));
-            };
-          }
-          
-          // Start the upload
-          xhr.send(realFile);
-        } catch (error) {
-          reject(error);
         }
+        
+        // Start the upload with the proper data format
+        xhr.send(realFile);
       });
     } else {
       // Standard upload without progress tracking
@@ -143,7 +143,8 @@ export const uploadFile = async (
         .from(bucket)
         .upload(filePath, realFile, {
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
+          contentType: realFile.type // Ensure content type is set correctly
         });
       
       if (error) {
