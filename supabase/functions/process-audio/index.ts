@@ -82,7 +82,7 @@ serve(async (req: Request) => {
     const previewPath = `${fileName}_preview.mp3`;
     const watermarkedPath = `${fileName}_watermarked.mp3`;
 
-    // Process in background
+    // Process audio in background
     const processingPromise = (async () => {
       try {
         // Write input file to disk
@@ -118,7 +118,7 @@ serve(async (req: Request) => {
                 mp3Path
               ]
             });
-            const { success, stdout, stderr } = await ffmpegCmd.output();
+            const { success } = await ffmpegCmd.output();
             
             if (!success) {
               console.error("WAV to MP3 conversion failed");
@@ -203,7 +203,8 @@ serve(async (req: Request) => {
         // Upload the processed preview to Supabase Storage
         console.log("Uploading processed preview");
         const previewFileBuffer = await Deno.readFile(finalPreviewFile);
-        const uploadPath = `previews/${Date.now()}_${fileName}_preview.mp3`;
+        const timestamp = Date.now();
+        const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
         
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('beats')
@@ -223,6 +224,24 @@ serve(async (req: Request) => {
           .getPublicUrl(uploadData.path);
           
         console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
+        
+        // Create a direct response record for polling
+        const { data: responseRecord, error: responseError } = await supabase
+          .from('audio_processing_results')
+          .insert({
+            original_file: filePath,
+            preview_path: uploadData.path,
+            preview_url: publicUrlData.publicUrl,
+            created_at: new Date().toISOString(),
+            status: 'completed'
+          })
+          .select('id');
+          
+        if (responseError) {
+          console.error("Error creating response record:", responseError);
+        } else {
+          console.log("Response record created with ID:", responseRecord[0].id);
+        }
 
         // Clean up temporary files
         try {
@@ -243,10 +262,26 @@ serve(async (req: Request) => {
         return {
           success: true, 
           previewUrl: uploadData.path,
-          publicUrl: publicUrlData.publicUrl
+          publicUrl: publicUrlData.publicUrl,
+          responseId: responseRecord ? responseRecord[0].id : null
         };
       } catch (error) {
         console.error("Error in background processing:", error);
+        
+        // Even if we have an error, try to create an error record for polling
+        try {
+          await supabase
+            .from('audio_processing_results')
+            .insert({
+              original_file: filePath,
+              status: 'error',
+              created_at: new Date().toISOString(),
+              error_message: error.message || "Unknown error"
+            });
+        } catch (dbError) {
+          console.error("Failed to log error to database:", dbError);
+        }
+        
         return { 
           error: "An error occurred processing the audio file",
           details: error.message 
@@ -255,15 +290,18 @@ serve(async (req: Request) => {
     })();
 
     // Use EdgeRuntime.waitUntil to continue processing in the background
-    // This allows us to respond to the client quickly
     EdgeRuntime.waitUntil(processingPromise);
 
+    // Generate a unique ID for this processing job
+    const jobId = crypto.randomUUID();
+    
     // Return initial response quickly
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Audio processing started",
-        processing: true
+        processing: true,
+        jobId: jobId
       }),
       {
         status: 202, // Accepted
@@ -285,4 +323,3 @@ serve(async (req: Request) => {
     );
   }
 });
-

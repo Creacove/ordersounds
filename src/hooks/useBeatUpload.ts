@@ -1,5 +1,6 @@
+
 import { useState } from "react";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, FileOrUrl, isFile } from "@/lib/storage";
@@ -58,6 +59,7 @@ export const useBeatUpload = () => {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [currentJobId, setCurrentJobId] = useState<string | null>(null);
 
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
     title: "",
@@ -157,12 +159,44 @@ export const useBeatUpload = () => {
         setUploadedFileUrl(url);
         toast.success("Full track uploaded");
 
+        // Automatically generate preview once upload completes
         toast.info("Processing audio and generating preview...");
         await generatePreview(url);
       } catch (error) {
         console.error("Error uploading file:", error);
         toast.error("Failed to upload file. Please try again.");
       }
+    }
+  };
+  
+  const checkProcessingStatus = async (jobId: string): Promise<string | null> => {
+    try {
+      // Check for the most recent completed result in the last 5 minutes
+      const fiveMinutesAgo = new Date();
+      fiveMinutesAgo.setMinutes(fiveMinutesAgo.getMinutes() - 5);
+      
+      const { data, error } = await supabase
+        .from('audio_processing_results')
+        .select('*')
+        .eq('status', 'completed')
+        .gt('created_at', fiveMinutesAgo.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.error("Error checking processing status:", error);
+        return null;
+      }
+      
+      if (data && data.length > 0) {
+        console.log("Found completed processing result:", data[0]);
+        return data[0].preview_url;
+      }
+      
+      return null;
+    } catch (err) {
+      console.error("Error in checkProcessingStatus:", err);
+      return null;
     }
   };
   
@@ -183,64 +217,45 @@ export const useBeatUpload = () => {
         console.error("Error processing audio:", error);
         const errorMessage = error.message || "Failed to process audio. Please try again.";
         toast.error(errorMessage);
+        setProcessingFiles(false);
         throw new Error(errorMessage);
       }
       
-      if (data && data.processing) {
-        console.log("Audio processing started in background");
+      if (data && data.processing && data.jobId) {
+        console.log("Audio processing started in background with job ID:", data.jobId);
+        setCurrentJobId(data.jobId);
         
         let attempts = 0;
         const maxAttempts = 30;
+        const pollInterval = 5000; // 5 seconds
         
         const pollForPreview = async () => {
           try {
             attempts++;
+            console.log(`Polling for preview (attempt ${attempts}/${maxAttempts})...`);
             
-            const { data: listData, error: listError } = await supabase.storage
-              .from('beats')
-              .list('previews', {
-                limit: 20,
-                offset: 0,
-                sortBy: { column: 'created_at', order: 'desc' }
-              });
-              
-            if (listError) {
-              console.error("Error checking for preview:", listError);
-              
-              if (attempts >= maxAttempts) {
-                toast.error("Preview generation timed out. Please try again.");
-                setProcessingFiles(false);
-                throw new Error("Preview generation timed out");
-              }
-              
-              setTimeout(pollForPreview, 10000);
-              return;
-            }
+            // Try to find the preview URL for this job
+            const previewUrl = await checkProcessingStatus(data.jobId);
             
-            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
-            const recentPreview = listData.find(item => 
-              new Date(item.created_at).getTime() > fiveMinutesAgo
-            );
-            
-            if (recentPreview) {
-              const { data: urlData } = supabase.storage
-                .from('beats')
-                .getPublicUrl(`previews/${recentPreview.name}`);
-                
-              console.log("Found preview:", urlData.publicUrl);
-              setPreviewUrl(urlData.publicUrl);
-              toast.success("Audio processing complete");
+            if (previewUrl) {
+              console.log("Found preview URL:", previewUrl);
+              setPreviewUrl(previewUrl);
+              toast.success("Audio preview generated successfully");
               setProcessingFiles(false);
-              return urlData.publicUrl;
+              return previewUrl;
             }
             
+            // If we've reached our maximum attempts, give up
             if (attempts >= maxAttempts) {
-              toast.error("Preview generation timed out. Please try again.");
+              console.error("Preview generation timed out after", maxAttempts, "attempts");
+              toast.error("Preview generation timed out. Please try again or upload your own preview.");
               setProcessingFiles(false);
               throw new Error("Preview generation timed out");
             }
             
-            setTimeout(pollForPreview, 10000);
+            // Wait for the next polling interval
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            return pollForPreview();
           } catch (err) {
             console.error("Error polling for preview:", err);
             setProcessingFiles(false);
@@ -256,7 +271,7 @@ export const useBeatUpload = () => {
         setProcessingFiles(false);
         return data.publicUrl;
       } else {
-        console.error("No preview URL returned from processing");
+        console.error("No preview URL or job ID returned from processing");
         toast.error("Failed to generate audio preview");
         setProcessingFiles(false);
         throw new Error("No preview URL returned from processing");
@@ -535,6 +550,7 @@ export const useBeatUpload = () => {
     }
     
     try {
+      toast.info("Regenerating preview...");
       await generatePreview(uploadedFileUrl);
     } catch (error) {
       console.error("Failed to regenerate preview:", error);

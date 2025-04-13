@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,7 @@ import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw } from "luc
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/hooks/useAudio";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 import { FileOrUrl, isFile } from "@/lib/storage";
 
 type FilesTabProps = {
@@ -111,17 +112,16 @@ export const FilesTab = ({
       const file = e.target.files[0];
       
       if (file.size > 70 * 1024 * 1024) {
-        toast.error("WAV file must be less than 70MB");
+        toast.error("File must be less than 70MB");
         return;
       }
       
-      if (file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
+      if (requiresWavFormat && file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
         setValidationError("WAV format required for premium/exclusive licenses");
         return;
       }
       
-      setUploadedFile(file);
-      setValidationError(null);
+      handleFullTrackUpload(e);
     }
   };
 
@@ -312,7 +312,7 @@ export const FilesTab = ({
                       type="file" 
                       className="hidden" 
                       accept={getAcceptedAudioTypes()}
-                      onChange={handleFullTrackUpload}
+                      onChange={handleFullTrackUploadInternal}
                     />
                   </>
                 )}
@@ -375,8 +375,8 @@ export const FilesTab = ({
                       onClick={(e) => {
                         e.stopPropagation();
                         setPreviewFile(null);
+                        setPreviewUrl(null);
                       }}
-                      disabled={!previewFile}
                     >
                       <X size={16} />
                     </Button>
@@ -389,11 +389,25 @@ export const FilesTab = ({
                         {processingFiles ? "Generating preview..." : "Preview will be auto-generated"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        30-second watermarked MP3 sample
+                        {processingFiles ? (
+                          <span className="flex items-center">
+                            <span className="w-3 h-3 mr-2 rounded-full border-2 border-t-transparent border-primary animate-spin inline-block"></span>
+                            Processing audio...
+                          </span>
+                        ) : (
+                          "30-second watermarked MP3 sample"
+                        )}
                       </p>
                     </div>
                     {processingFiles ? (
-                      <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                      >
+                        <span className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2"></span>
+                        Processing
+                      </Button>
                     ) : (
                       <Button 
                         variant="outline" 
@@ -415,6 +429,11 @@ export const FilesTab = ({
                   </>
                 )}
               </div>
+              {processingFiles && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  Preview generation can take up to 30 seconds. Please be patient.
+                </p>
+              )}
             </div>
 
             {hasExclusiveLicense && (
