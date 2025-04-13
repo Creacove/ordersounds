@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -188,7 +187,11 @@ export const useBeatUpload = () => {
         return;
       }
 
-      if (data && data.publicUrl) {
+      if (data && data.previewUrl) {
+        console.log("Preview generated successfully:", data.previewUrl);
+        setPreviewUrl(data.previewUrl);
+        toast.success("Audio preview generated successfully");
+      } else if (data && data.publicUrl) {
         console.log("Preview generated successfully:", data.publicUrl);
         setPreviewUrl(data.publicUrl);
         toast.success("Audio preview generated successfully");
