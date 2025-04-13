@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { mapSupabaseUser } from '@/lib/supabase';
 
 interface AuthMethodsProps {
@@ -100,16 +100,16 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         // Create user record in the users table
         const { error: profileError } = await supabase
           .from('users')
-          .insert([
-            {
-              id: data.user.id,
-              full_name: name,
-              email: email,
-              role: role,
-              // Set status for producers to inactive by default
-              status: role === 'producer' ? 'inactive' : 'active',
-            }
-          ]);
+          .insert({
+            id: data.user.id,
+            full_name: name,
+            email: email,
+            role: role,
+            // Set status for producers to inactive by default
+            status: role === 'producer' ? 'inactive' : 'active',
+            // Add the required password_hash field
+            password_hash: 'managed-by-supabase'
+          });
 
         if (profileError) {
           console.error('Error creating user profile:', profileError);
