@@ -66,7 +66,7 @@ export function RecommendedBeats() {
 
   return (
     <div className="mb-6 px-6 md:px-8 pb-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-medium">From Producers You Follow</h2>
         <Button 
           variant="link" 
@@ -86,39 +86,34 @@ export function RecommendedBeats() {
         </div>
       ) : (
         <>
-          {/* Desktop view: Table layout */}
+          {/* Desktop view: Modern table layout without column headers */}
           <div className="hidden md:block">
-            <div className="rounded-lg border bg-card overflow-hidden">
-              <div className="grid grid-cols-12 text-xs font-medium text-muted-foreground bg-muted px-4 py-2.5">
-                <div className="col-span-5">TITLE</div>
-                <div className="col-span-3">PRODUCER</div>
-                <div className="col-span-2">GENRE</div>
-                <div className="col-span-1 text-center">BPM</div>
-                <div className="col-span-1 text-right">PRICE</div>
-              </div>
-              
+            <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
               <ScrollArea className="max-h-[320px]">
-                {recommendedBeats?.slice(0, 5).map((beat) => (
+                {recommendedBeats?.slice(0, 5).map((beat, index) => (
                   <div 
                     key={beat.id} 
-                    className="grid grid-cols-12 items-center px-4 py-3 hover:bg-muted/50 border-t border-border cursor-pointer group transition-colors"
+                    className={cn(
+                      "flex items-center px-4 py-3 hover:bg-muted/50 cursor-pointer group transition-colors",
+                      index !== 0 && "border-t border-border"
+                    )}
                     onClick={() => handleBeatClick(beat.id)}
                   >
-                    <div className="col-span-5 flex items-center gap-3">
-                      <div className="relative w-10 h-10 rounded bg-muted flex-shrink-0">
+                    <div className="flex-1 flex items-center gap-3 min-w-0">
+                      <div className="relative w-10 h-10 rounded-md bg-muted flex-shrink-0">
                         {beat.cover_image ? (
                           <img 
                             src={beat.cover_image} 
                             alt={beat.title} 
-                            className="w-full h-full object-cover rounded"
+                            className="w-full h-full object-cover rounded-md"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-primary/10">
+                          <div className="w-full h-full flex items-center justify-center bg-primary/10 rounded-md">
                             <Music className="h-5 w-5 text-primary" />
                           </div>
                         )}
                         <button 
-                          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 rounded transition-opacity"
+                          className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 rounded-md transition-opacity"
                           onClick={(e) => {
                             e.stopPropagation();
                             handlePlayBeat(beat);
@@ -134,16 +129,20 @@ export function RecommendedBeats() {
                         </div>
                       </div>
                     </div>
-                    <div className="col-span-3 truncate text-sm">
+                    
+                    <div className="w-1/4 truncate text-sm px-2">
                       {getProducerName(beat)}
                     </div>
-                    <div className="col-span-2 truncate text-sm capitalize">
+                    
+                    <div className="w-1/6 truncate text-sm capitalize px-2">
                       {beat.genre?.toLowerCase() || 'Various'}
                     </div>
-                    <div className="col-span-1 text-center text-sm">
+                    
+                    <div className="w-[60px] text-center text-sm px-2">
                       {beat.bpm || '-'}
                     </div>
-                    <div className="col-span-1 text-right font-medium text-sm">
+                    
+                    <div className="w-[80px] text-right font-medium text-sm">
                       {formatCurrency(beat.basic_license_price_local || 0, 'NGN')}
                     </div>
                   </div>
