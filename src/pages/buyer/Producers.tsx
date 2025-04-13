@@ -10,9 +10,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { FollowButton } from "@/components/buttons/FollowButton";
 import { FollowerCount } from "@/components/producer/profile/FollowerCount";
-import { Music, RefreshCw, X } from "lucide-react";
+import { Music, RefreshCw, Search, Smartphone, Tablet, Monitor, X } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/AuthContext";
+import { Input } from "@/components/ui/input";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Badge } from "@/components/ui/badge";
 
 interface Producer {
   id: string;
@@ -28,7 +31,9 @@ export default function Producers() {
   const [showingFollowed, setShowingFollowed] = useState(false);
   const [suggestedProducers, setSuggestedProducers] = useState<Producer[]>([]);
   const [dismissedProducerIds, setDismissedProducerIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     document.title = "Producers | OrderSOUNDS";
@@ -179,6 +184,21 @@ export default function Producers() {
     toast.success("Producer removed from suggestions");
   };
 
+  // Filter producers based on search query
+  const filterProducers = (producerList: Producer[] | undefined) => {
+    if (!producerList) return [];
+    if (!searchQuery.trim()) return producerList;
+    
+    return producerList.filter(producer => {
+      const stageName = (producer.stage_name || '').toLowerCase();
+      const fullName = (producer.full_name || '').toLowerCase();
+      const bio = (producer.bio || '').toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+      
+      return stageName.includes(query) || fullName.includes(query) || bio.includes(query);
+    });
+  };
+
   // Show loading state
   if (isLoading) {
     return (
@@ -213,20 +233,60 @@ export default function Producers() {
     );
   }
 
-  // Determine which producers to show based on current view
-  const displayProducers = showingFollowed ? (followedProducers || []) : (producers || []);
+  // Determine which producers to show based on current view and search
+  const filteredProducers = showingFollowed 
+    ? filterProducers(followedProducers || []) 
+    : filterProducers(producers || []);
+  
   const isEmptyState = showingFollowed && (!followedProducers || followedProducers.length === 0);
+  const isEmptySearch = filteredProducers.length === 0 && searchQuery.trim() !== '';
+
+  // Responsive layout indicators
+  const getDeviceIndicator = () => {
+    return (
+      <div className="hidden md:flex items-center gap-2 text-gray-500 text-sm">
+        <Monitor className="h-4 w-4 md:hidden lg:block" />
+        <Tablet className="h-4 w-4 hidden md:block lg:hidden" />
+        <Smartphone className="h-4 w-4 sm:hidden" />
+      </div>
+    );
+  };
 
   return (
     <MainLayout>
       <div className="flex flex-col min-h-screen p-4 md:p-8 bg-black text-white">
         <div className="w-full max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-8">Discover Producers</h1>
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+            <h1 className="text-3xl font-bold">Discover Producers</h1>
+            {getDeviceIndicator()}
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative mb-8">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Input
+                type="text"
+                placeholder="Search producers by name or bio..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-4 py-2 bg-[#121212] border-gray-800 focus:border-purple-600 focus:ring-purple-600 w-full rounded-lg text-white"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
           
-          {/* Suggested Producers Section - Only show if not empty */}
-          {suggestedProducers.length > 0 && (
+          {/* Suggested Producers Section - Only show if not empty and not searching */}
+          {suggestedProducers.length > 0 && !searchQuery && (
             <div className="mb-12">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-6">
                 <h2 className="text-2xl font-semibold">Suggested for you</h2>
                 <Button 
                   variant="outline" 
@@ -238,14 +298,14 @@ export default function Producers() {
                 </Button>
               </div>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
                 {suggestedProducers.map((producer) => (
                   <div 
                     key={producer.id} 
                     className="relative bg-[#121212] rounded-xl p-4 transition-all duration-200 hover:bg-[#1a1a1a] group"
                   >
                     <button 
-                      className="absolute top-3 right-3 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10" 
+                      className="absolute top-3 right-3 bg-black/40 p-1 rounded-full text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10" 
                       aria-label="Dismiss"
                       onClick={(e) => handleDismissProducer(producer.id, e)}
                     >
@@ -295,20 +355,20 @@ export default function Producers() {
           
           {/* All Producers Section */}
           <div className="mb-20">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-4 mb-6">
               <h2 className="text-2xl font-semibold">Browse Producers</h2>
-              <div className="flex bg-[#121212] rounded-full overflow-hidden">
+              <div className="flex bg-[#121212] rounded-full overflow-hidden self-start xs:self-auto">
                 <Button 
                   variant={!showingFollowed ? "default" : "ghost"} 
                   onClick={() => setShowingFollowed(false)}
-                  className={`rounded-l-full rounded-r-none ${!showingFollowed ? "bg-purple-700 hover:bg-purple-800" : ""}`}
+                  className={`rounded-l-full rounded-r-none px-4 py-2 h-auto text-sm ${!showingFollowed ? "bg-purple-700 hover:bg-purple-800" : ""}`}
                 >
                   All Producers
                 </Button>
                 <Button 
                   variant={showingFollowed ? "default" : "ghost"} 
                   onClick={() => setShowingFollowed(true)}
-                  className={`rounded-r-full rounded-l-none ${showingFollowed ? "bg-purple-700 hover:bg-purple-800" : ""}`}
+                  className={`rounded-r-full rounded-l-none px-4 py-2 h-auto text-sm ${showingFollowed ? "bg-purple-700 hover:bg-purple-800" : ""}`}
                   disabled={!user}
                 >
                   Following
@@ -337,15 +397,30 @@ export default function Producers() {
                   </Button>
                 </div>
               </div>
+            ) : isEmptySearch ? (
+              <div className="flex flex-col items-center justify-center py-16 bg-[#121212] rounded-xl">
+                <div className="text-center max-w-md px-4">
+                  <h3 className="text-xl font-semibold mb-2">No producers found</h3>
+                  <p className="text-gray-400 mb-6">
+                    No producers match your search for "{searchQuery}"
+                  </p>
+                  <Button 
+                    onClick={() => setSearchQuery('')} 
+                    className="bg-purple-700 hover:bg-purple-800"
+                  >
+                    Clear Search
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-3">
-                {displayProducers.map((producer) => (
+                {filteredProducers.map((producer) => (
                   <Link 
                     to={`/producer/${producer.id}`}
                     key={producer.id} 
                     className="flex items-center p-4 bg-[#121212] rounded-xl hover:bg-[#1a1a1a] transition-colors"
                   >
-                    <Avatar className="h-16 w-16 mr-4">
+                    <Avatar className="h-14 w-14 sm:h-16 sm:w-16 mr-4">
                       <AvatarImage 
                         src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`}
                         alt={producer.stage_name || producer.full_name} 
@@ -357,31 +432,35 @@ export default function Producers() {
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center">
-                        <h3 className="font-medium text-lg text-white truncate">
+                        <h3 className="font-medium text-base sm:text-lg text-white truncate">
                           {producer.stage_name || producer.full_name}
                         </h3>
+                        {searchQuery && (producer.stage_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                        producer.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) && (
+                          <Badge variant="secondary" className="ml-2 bg-purple-700/30 text-purple-300 text-xs">Match</Badge>
+                        )}
                       </div>
-                      <div className="text-sm text-gray-400 flex items-center gap-4 mt-1">
+                      <div className="text-xs sm:text-sm text-gray-400 flex flex-wrap items-center gap-2 sm:gap-4 mt-1">
                         <span className="flex items-center gap-1">
                           <Music className="h-3 w-3" />
                           {producer.beatCount} {producer.beatCount === 1 ? 'beat' : 'beats'}
                         </span>
-                        <span>•</span>
+                        <span className="hidden xs:inline-block">•</span>
                         <FollowerCount 
                           count={producer.follower_count || 0} 
-                          className="text-sm text-gray-400"
+                          className="text-xs sm:text-sm text-gray-400"
                         />
                       </div>
                       {producer.bio && (
-                        <p className="text-gray-400 text-sm mt-1 line-clamp-1">{producer.bio}</p>
+                        <p className="text-gray-400 text-xs sm:text-sm mt-1 line-clamp-1">{producer.bio}</p>
                       )}
                     </div>
                     
-                    <div onClick={(e) => e.stopPropagation()} className="ml-4">
+                    <div onClick={(e) => e.stopPropagation()} className="ml-2 sm:ml-4">
                       <FollowButton 
                         producerId={producer.id}
-                        size="default"
-                        className="bg-transparent hover:bg-[#323232] data-[following=true]:bg-purple-700 data-[following=true]:hover:bg-purple-800 border-gray-700"
+                        size={isMobile ? "sm" : "default"}
+                        className="bg-transparent hover:bg-[#323232] text-sm data-[following=true]:bg-purple-700 data-[following=true]:hover:bg-purple-800 border-gray-700"
                         variant="outline"
                       />
                     </div>
