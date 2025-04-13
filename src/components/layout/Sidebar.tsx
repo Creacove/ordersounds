@@ -6,7 +6,6 @@ import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { MobileBottomNav } from "./MobileBottomNav";
-import { getSidebarSections } from "./SidebarContentSections";
 import { UnifiedSidebar } from "./UnifiedSidebar";
 
 interface SidebarProps {
@@ -75,10 +74,6 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
     }
   };
 
-  const getSidebarContent = () => {
-    return getSidebarSections(user, handleSignOut);
-  };
-
   return (
     <>
       {/* Show unified sidebar */}
@@ -87,7 +82,6 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
         setIsOpen={setIsOpen}
         user={user}
         handleSignOut={handleSignOut}
-        getSidebarContent={getSidebarContent}
         isCollapsed={isCollapsed}
         toggleCollapsed={toggleCollapsed}
         isMobile={isMobile}
