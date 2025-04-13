@@ -602,17 +602,15 @@ export default function Home() {
             <section className="mb-10">
               <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-semibold">Producer of the Week</h2>
-                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
-                    <Star size={12} className="mr-1" />
-                    <span className="text-[10px]">Featured</span>
+                  <h2 className="text-xl font-bold">Producer of the Week</h2>
+                  <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 shadow-sm">
+                    <Star size={12} className="mr-1" fill="currentColor" />
+                    <span>Featured</span>
                   </Badge>
                 </div>
               </div>
               
-              <div className="mt-3">
-                <ProducerOfWeek />
-              </div>
+              <ProducerOfWeek />
             </section>
           </div>
         </div>
