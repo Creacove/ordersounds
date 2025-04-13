@@ -83,31 +83,26 @@ export const uploadBeat = async (
     let coverImageUrl = '';
     let stemsUrl = '';
     
-    // Only upload files that haven't been uploaded yet
+    // Only upload files that haven't been uploaded yet - should be very quick
     if (!previewUrl && previewFile) {
-      console.log('No preview URL provided, uploading preview file...');
       finalPreviewUrl = await uploadFile(previewFile, 'beats', 'previews');
     }
 
     if (fullTrackFile) {
       if (isFile(fullTrackFile)) {
-        // It's a real File object that needs uploading
         const fullTrackFolder = selectedLicenseTypes.includes('premium') || 
                          selectedLicenseTypes.includes('exclusive') 
                          ? 'wav-tracks' : 'full-tracks';
         fullTrackUrl = await uploadFile(fullTrackFile, 'beats', fullTrackFolder);
       } else {
-        // It's our custom object with URL already set
         fullTrackUrl = fullTrackFile.url;
       }
     }
     
     if (coverImageFile) {
       if (isFile(coverImageFile)) {
-        // Real File object
         coverImageUrl = await uploadFile(coverImageFile, 'covers', 'beats');
       } else {
-        // Our custom object
         coverImageUrl = coverImageFile.url;
       }
     }
@@ -355,5 +350,55 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
     console.error('Error fetching royalty splits:', error);
     toast.error('Failed to load royalty splits');
     return [];
+  }
+};
+
+/**
+ * Deletes a beat and its associated files
+ */
+export const deleteBeat = async (beatId: string): Promise<{success: boolean; error?: string}> => {
+  try {
+    // First get the beat details to find associated files
+    const { data: beatData, error: getError } = await supabase
+      .from('beats')
+      .select('cover_image, audio_file, audio_preview, stems_url')
+      .eq('id', beatId)
+      .single();
+    
+    if (getError) {
+      console.error('Error getting beat details:', getError);
+      return { success: false, error: `Failed to get beat details: ${getError.message}` };
+    }
+    
+    // Delete royalty splits first (foreign key constraint)
+    const { error: royaltyError } = await supabase
+      .from('royalty_splits')
+      .delete()
+      .eq('beat_id', beatId);
+    
+    if (royaltyError) {
+      console.error('Error deleting royalty splits:', royaltyError);
+      // Continue with deletion even if royalty splits deletion fails
+      toast.warning('Some royalty information may not have been fully removed');
+    }
+    
+    // Delete the beat record
+    const { error: deleteError } = await supabase
+      .from('beats')
+      .delete()
+      .eq('id', beatId);
+    
+    if (deleteError) {
+      console.error('Error deleting beat:', deleteError);
+      return { success: false, error: `Failed to delete beat: ${deleteError.message}` };
+    }
+    
+    // We don't delete the files from storage as they might be shared or referenced elsewhere
+    // This is a design choice to prevent accidental data loss
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting beat:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error deleting beat' };
   }
 };

@@ -152,6 +152,11 @@ export function BeatListItem({
       : beat.basic_license_price_local || 0;
   };
 
+  // Fallback image handling
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.src = '/placeholder.svg';
+  };
+
   return (
     <div 
       onClick={handleClick} 
@@ -162,6 +167,7 @@ export function BeatListItem({
           src={beat.cover_image_url || '/placeholder.svg'} 
           alt={beat.title}
           className="h-full w-full object-cover"
+          onError={handleImageError}
         />
         <button
           onClick={handlePlay}
@@ -268,7 +274,7 @@ export function BeatListItem({
           <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
         </Button>
         
-        {isInCart && onRemove && (
+        {onRemove && (
           <Button
             variant="ghost"
             size="icon"
@@ -313,6 +319,12 @@ export function BeatListItem({
               <DropdownMenuItem onClick={downloadBeat} className="cursor-pointer">
                 <Download className="mr-2 h-4 w-4" />
                 <span>Download</span>
+              </DropdownMenuItem>
+            )}
+            {onRemove && (
+              <DropdownMenuItem onClick={handleRemove} className="cursor-pointer text-destructive hover:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                <span>Delete</span>
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
