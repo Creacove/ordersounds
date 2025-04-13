@@ -1,18 +1,24 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Star, Play, Pause, Heart, UserCheck, Music, Headphones } from "lucide-react";
+import { Play, Pause, Heart, UserCheck, Music, Star, ArrowRight, Headphones, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthContext";
 import { usePlayer } from "@/context/PlayerContext";
 import { useBeats } from "@/hooks/useBeats";
 import { useFollows } from "@/hooks/useFollows";
-import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 export function ProducerOfWeek() {
   const navigate = useNavigate();
@@ -243,237 +249,227 @@ export function ProducerOfWeek() {
   const producerImage = producer.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png';
 
   return (
-    <div className="overflow-hidden rounded-xl shadow-md border border-purple-500/20">
-      {/* Hero Banner with Producer Showcase */}
-      <div className="relative bg-gradient-to-br from-purple-900 to-blue-900 h-[320px] md:h-[360px] flex items-center justify-center">
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-[40%] -right-[15%] w-[80%] h-[80%] rounded-full bg-purple-500/20 blur-3xl"></div>
-          <div className="absolute -bottom-[40%] -left-[15%] w-[80%] h-[80%] rounded-full bg-blue-500/20 blur-3xl"></div>
-          <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-        </div>
-        
-        {/* Producer showcase content */}
-        <div className="relative z-10 flex flex-col items-center px-4">
-          {/* Featured Badge */}
-          <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 mb-6 px-3 py-1.5 shadow-glow">
-            <Star size={14} fill="currentColor" className="mr-1" />
-            Producer of the Week
-          </Badge>
-          
-          {/* Large Producer Image */}
-          <div className="relative mb-5">
-            <Avatar className="w-48 h-48 sm:w-56 sm:h-56 border-4 border-white/10 shadow-xl rounded-full overflow-hidden">
-              <AvatarImage 
+    <div className="overflow-hidden rounded-xl border border-purple-500/20 bg-background/95">
+      <div className="grid grid-cols-1 md:grid-cols-12">
+        {/* Left side - Producer Image & Info */}
+        <div className="md:col-span-4 lg:col-span-3 relative bg-gradient-to-br from-purple-950 to-black h-full">
+          {/* Producer Image - Takes the entire left rectangle */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="w-full h-full">
+              <img 
                 src={producerImage} 
-                alt={producerName} 
+                alt={producerName}
                 className="w-full h-full object-cover object-center"
               />
-              <AvatarFallback className="bg-purple-600 text-white text-5xl font-bold">
-                {producerName.substring(0, 2).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            {producer.status === 'active' && (
-              <div className="absolute bottom-2 right-2 bg-blue-600 text-white rounded-full p-2 shadow-md border-2 border-background">
-                <UserCheck size={20} />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent opacity-70" />
+              <div className="absolute inset-0 bg-purple-950/40" />
+            </div>
+          </div>
+
+          {/* Producer Info Overlay */}
+          <div className="relative z-10 flex flex-col h-full p-6 justify-end space-y-5">
+            {/* Featured Badge */}
+            <Badge className="absolute top-4 left-4 bg-amber-500/90 text-white hover:bg-amber-500 border-none shadow-lg w-fit">
+              <Star size={14} fill="currentColor" className="mr-1" />
+              <span>Featured</span>
+            </Badge>
+
+            {/* Producer Name with Verified Badge */}
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                {producerName}
+              </h2>
+              {producer.status === 'active' && (
+                <CheckCircle2 size={20} className="text-blue-400 fill-blue-900" />
+              )}
+            </div>
+
+            {/* Stats - Followers & Beats Count */}
+            <div className="flex items-center gap-5 text-sm text-white/80">
+              <div className="flex items-center gap-1.5">
+                <Headphones size={16} className="text-purple-300" />
+                <span>{formatNumber(producer.follower_count || 0)} followers</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Music size={16} className="text-purple-300" />
+                <span>{formatNumber(producerBeats.length)} beats</span>
+              </div>
+            </div>
+
+            {/* Short Bio */}
+            <p className="text-sm text-white/70 line-clamp-3">
+              {producer.bio || "Award-winning producer specializing in Afrobeat and Amapiano fusion. Worked with top artists across Nigeria and beyond."}
+            </p>
+
+            {/* Follow Button */}
+            <Button
+              onClick={handleToggleFollow}
+              variant={isFollowingProducer ? "secondary" : "default"}
+              className={cn(
+                "w-full shadow-md justify-center",
+                isFollowingProducer 
+                  ? "bg-white/15 hover:bg-white/25 text-white border-white/20" 
+                  : "bg-white hover:bg-white/90 text-purple-900"
+              )}
+            >
+              <UserCheck size={18} className={isFollowingProducer ? "" : "mr-2"} />
+              {isFollowingProducer ? null : <span>Follow Producer</span>}
+            </Button>
+          </div>
+        </div>
+
+        {/* Right side - Top Beats Table */}
+        <div className="md:col-span-8 lg:col-span-9 p-0 h-full">
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-purple-200/10">
+              <h3 className="font-bold text-lg flex items-center">
+                <span>Top Beats by {producerName}</span>
+              </h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-purple-500 hover:text-purple-400 hover:bg-purple-500/10 -mr-2"
+                onClick={navigateToProducerProfile}
+              >
+                View profile <ArrowRight size={16} className="ml-1" />
+              </Button>
+            </div>
+
+            {/* Beats Table */}
+            {isLoadingBeats ? (
+              <div className="p-6 space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-[50px] bg-muted/30 animate-pulse rounded-md"></div>
+                ))}
+              </div>
+            ) : producerBeats.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center p-6">
+                <div className="text-center text-muted-foreground">
+                  <Music size={32} className="mx-auto mb-2 opacity-50" />
+                  <p>No beats available from this producer</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-hidden">
+                <Table className="border-collapse">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent border-none">
+                      <TableHead className="w-[40%] lg:w-1/3 text-muted-foreground font-medium">Title</TableHead>
+                      <TableHead className="hidden sm:table-cell w-[15%] text-muted-foreground font-medium">Genre</TableHead>
+                      <TableHead className="hidden sm:table-cell w-[15%] text-muted-foreground font-medium">BPM</TableHead>
+                      <TableHead className="text-muted-foreground font-medium">Price</TableHead>
+                      <TableHead className="text-right text-muted-foreground font-medium w-[15%]">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {producerBeats.map((beat) => {
+                      const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
+                      const isFav = isFavorite(beat.id);
+                      
+                      return (
+                        <TableRow 
+                          key={beat.id} 
+                          className="group hover:bg-muted/40 cursor-pointer border-t border-t-border/30"
+                          onClick={() => navigateToBeat(beat.id)}
+                        >
+                          {/* Title with Cover Image */}
+                          <TableCell className="font-medium p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-10 h-10 overflow-hidden rounded bg-muted flex-shrink-0">
+                                <img 
+                                  src={beat.cover_image_url || '/placeholder.svg'} 
+                                  alt={beat.title}
+                                  className="w-full h-full object-cover" 
+                                />
+                                {/* Owned Label */}
+                                {isPurchased(beat.id) && (
+                                  <div className="absolute top-0 left-0 bg-green-500 text-[10px] text-white px-1 py-0.5">
+                                    Owned
+                                  </div>
+                                )}
+                              </div>
+                              <span className="line-clamp-1">{beat.title}</span>
+                            </div>
+                          </TableCell>
+
+                          {/* Genre */}
+                          <TableCell className="hidden sm:table-cell p-3">
+                            <Badge variant="outline" className="bg-purple-950/30 text-purple-200 dark:bg-purple-900/40 dark:text-purple-100 border-purple-700/30">
+                              {beat.genre}
+                            </Badge>
+                          </TableCell>
+
+                          {/* BPM */}
+                          <TableCell className="hidden sm:table-cell p-3">
+                            {beat.bpm} BPM
+                          </TableCell>
+
+                          {/* Price */}
+                          <TableCell className="p-3">
+                            ₦{(beat.basic_license_price_local || 0).toLocaleString()}
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell className="text-right p-3">
+                            <div className="flex items-center justify-end space-x-1">
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePlayBeat(beat);
+                                }}
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 rounded-full"
+                              >
+                                {isCurrentlyPlaying ? <Pause size={16} /> : <Play size={16} />}
+                              </Button>
+                              
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleFavorite(beat.id);
+                                }}
+                                size="icon"
+                                variant="ghost"
+                                className={cn(
+                                  "h-8 w-8 rounded-full",
+                                  isFav ? "text-purple-500" : ""
+                                )}
+                              >
+                                <Heart size={16} fill={isFav ? "currentColor" : "none"} />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                {/* Browse All Link */}
+                <div className="p-4 text-center border-t border-t-border/30">
+                  <Button 
+                    variant="link" 
+                    className="text-purple-500 hover:text-purple-400 font-medium"
+                    onClick={navigateToProducerProfile}
+                  >
+                    Browse all beats from this producer <ArrowRight size={16} className="ml-1" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
-          
-          {/* Producer Name */}
-          <h2 className="text-3xl sm:text-4xl font-bold text-white mb-2 text-center">
-            {producerName}
-          </h2>
-          
-          {/* Producer Stats */}
-          <div className="flex items-center gap-6 text-white/80 mb-4">
-            <div className="flex items-center gap-1.5">
-              <Headphones size={18} className="text-purple-300" />
-              <span>{formatNumber(producer.follower_count || 0)} followers</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Music size={18} className="text-purple-300" />
-              <span>{formatNumber(producerBeats.length)} tracks</span>
-            </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex gap-3 mt-2">
-            <Button
-              variant={isFollowingProducer ? "secondary" : "default"}
-              size="lg"
-              className={cn(
-                "shadow-md",
-                isFollowingProducer ? 
-                "bg-white/15 hover:bg-white/25 text-white border-white/20" : 
-                "bg-white hover:bg-white/90 text-purple-900"
-              )}
-              onClick={handleToggleFollow}
-            >
-              {isFollowingProducer ? (
-                <span className="flex items-center gap-2">
-                  <UserCheck size={18} />
-                  Following
-                </span>
-              ) : "Follow Producer"}
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white shadow-md"
-              onClick={navigateToProducerProfile}
-            >
-              View Profile
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Producer Content Section */}
-      <div className="bg-background p-6 sm:p-8">
-        {/* Short Bio */}
-        <div className="max-w-2xl mx-auto text-center mb-8">
-          <p className="text-base text-muted-foreground">
-            {producer.bio || "Award-winning producer specializing in various music genres. Creating exceptional beats for artists worldwide."}
-          </p>
-          
-          <div className="flex flex-wrap justify-center gap-2 mt-4">
-            {["Hip Hop", "Afrobeat", "R&B"].map((tag) => (
-              <Badge key={tag} variant="outline" className="bg-purple-950/30 text-purple-200 dark:bg-purple-900/40 dark:text-purple-100 border-purple-700/30">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        </div>
-        
-        {/* Producer Beats Section */}
-        <div className="mt-8">
-          <h3 className="font-bold text-xl mb-6 flex items-center gap-2">
-            <span className="h-6 w-1 bg-gradient-to-b from-purple-500 to-blue-500 rounded-full"></span>
-            Top Beats from {producerName}
-          </h3>
-
-          {isLoadingBeats ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-card animate-pulse rounded-lg overflow-hidden h-[120px]">
-                  <div className="flex h-full">
-                    <div className="w-[120px] h-full bg-muted"></div>
-                    <div className="flex-1 p-4 space-y-3">
-                      <div className="h-4 bg-muted rounded-md w-3/4"></div>
-                      <div className="h-3 bg-muted rounded-md w-1/2"></div>
-                      <div className="h-3 bg-muted rounded-md w-1/4"></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : producerBeats.length === 0 ? (
-            <div className="bg-card/60 rounded-lg p-6 text-center">
-              <div className="text-sm text-muted-foreground">
-                No beats available from this producer
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {producerBeats.slice(0, 4).map((beat) => (
-                <Card 
-                  key={beat.id} 
-                  className={cn(
-                    "group overflow-hidden hover:shadow-md transition-all duration-300 border-purple-200/50 dark:border-purple-900/50",
-                    isCurrentlyPlaying(beat.id) ? "border-purple-500 shadow-[0_0_0_1px_rgba(168,85,247,0.4)]" : ""
-                  )}
-                  onClick={() => navigateToBeat(beat.id)}
-                >
-                  <div className="flex flex-col h-full">
-                    {/* Album Art */}
-                    <div className="relative w-full aspect-square bg-gradient-to-br from-purple-900/10 to-blue-900/10 overflow-hidden">
-                      <img 
-                        src={beat.cover_image_url || '/placeholder.svg'} 
-                        alt={beat.title}
-                        className="h-full w-full object-cover transition-transform group-hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-12 w-12 rounded-full bg-white/20 text-white hover:bg-white/30 backdrop-blur-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePlayBeat(beat);
-                          }}
-                        >
-                          {isCurrentlyPlaying(beat.id) ? (
-                            <Pause size={20} />
-                          ) : (
-                            <Play size={20} className="ml-1" />
-                          )}
-                        </Button>
-                      </div>
-                      {/* Price tag */}
-                      <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded backdrop-blur-sm">
-                        ₦{(beat.basic_license_price_local || 0).toLocaleString()}
-                      </div>
-                    </div>
-                    
-                    {/* Beat Info */}
-                    <CardContent className="p-3">
-                      <div className="flex justify-between items-start">
-                        <div className="min-w-0 flex-1">
-                          <h4 className="font-medium text-base truncate">{beat.title}</h4>
-                          <div className="flex items-center gap-2 mt-1.5">
-                            <Badge variant="outline" className="text-xs py-0 px-2 h-5 bg-purple-950/30 text-purple-200 dark:bg-purple-900/40 dark:text-purple-100 border-purple-700/30">
-                              {beat.genre || "Genre"}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {beat.bpm} BPM
-                            </span>
-                          </div>
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className={cn(
-                            "h-8 w-8 flex-shrink-0",
-                            isFavorite(beat.id) ? "text-purple-500" : ""
-                          )}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleFavorite(beat.id);
-                          }}
-                        >
-                          <Heart 
-                            size={18}
-                            fill={isFavorite(beat.id) ? "currentColor" : "none"} 
-                          />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-          
-          {/* View All Button */}
-          {producerBeats.length > 0 && (
-            <div className="flex justify-center mt-8">
-              <Button 
-                variant="outline" 
-                className="border-purple-300/30 hover:border-purple-400 dark:border-purple-800/50 dark:hover:border-purple-700"
-                onClick={navigateToProducerProfile}
-              >
-                View All Beats from {producerName}
-              </Button>
-            </div>
-          )}
         </div>
       </div>
     </div>
   );
   
-  function isCurrentlyPlaying(beatId) {
-    return isPlaying && currentBeat?.id === beatId;
+  // Helper function to check if a beat is purchased
+  function isPurchased(beatId) {
+    // This should be implemented based on your app's logic
+    // For now, we'll return false as a placeholder
+    return false;
   }
 }
