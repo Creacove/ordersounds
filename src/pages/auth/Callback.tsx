@@ -13,11 +13,13 @@ export default function AuthCallback() {
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         console.log("Auth callback: Processing authentication response");
         
         // Get the session from the URL (Supabase handles this)
@@ -25,6 +27,7 @@ export default function AuthCallback() {
         
         if (error) {
           console.error("Auth callback error:", error);
+          setError(`Session error: ${error.message}`);
           throw error;
         }
         
@@ -44,6 +47,7 @@ export default function AuthCallback() {
               // Handle database connection errors with retries
               if (userError) {
                 console.error("User data fetch error:", userError);
+                setError(`User data error: ${userError.message}`);
                 
                 // Retry logic for temporary connection issues
                 if (retryCount < 3) {
@@ -105,20 +109,23 @@ export default function AuthCallback() {
               toast.success('Successfully signed in!');
             } catch (error: any) {
               console.error('Error processing user data:', error);
+              setError(`User processing error: ${error.message}`);
               // On error, redirect to home page with a notification
               navigate('/');
               toast.error('Error processing account data. Please try again.');
             } finally {
               setIsLoading(false);
             }
-          }, 800); // Increased delay to ensure session is properly registered
+          }, 1000); // Increased delay to ensure session is properly registered
         } else {
           console.log("No session found, redirecting to login");
+          setError("No session found in response");
           // No session found, redirect to login
           navigate('/login');
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error handling auth callback:', error);
+        setError(`Auth callback error: ${error.message}`);
         toast.error('Authentication failed. Please try again.');
         navigate('/login');
       } finally {
@@ -147,7 +154,21 @@ export default function AuthCallback() {
             )}
           </>
         )}
-        {!isLoading && !showRoleSelection && (
+        {error && !isLoading && (
+          <>
+            <div className="text-destructive mb-4">
+              <p className="text-xl font-semibold">Authentication Error</p>
+              <p className="text-sm">{error}</p>
+            </div>
+            <Button 
+              onClick={() => navigate('/login')}
+              className="mt-4"
+            >
+              Return to Login
+            </Button>
+          </>
+        )}
+        {!isLoading && !showRoleSelection && !error && (
           <>
             <h2 className="text-2xl">Authentication completed</h2>
             <p className="mt-2">You will be redirected shortly...</p>

@@ -22,9 +22,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     headers: {
       'Content-Type': 'application/json'
     },
-    fetch: (...args) => {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => {
       // Add retry and timeout logic for more reliable network requests
-      return fetch(...args).catch(err => {
+      return fetch(input, init).catch(err => {
         console.error('Supabase fetch error:', err);
         throw err;
       });
