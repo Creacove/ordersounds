@@ -28,6 +28,7 @@ import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
+import { useProducers } from "@/hooks/useProducers";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
@@ -36,31 +37,11 @@ export default function Home() {
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { topProducers, isLoading: isLoadingProducers, prefetchProducers } = useProducers();
 
-  const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
-    queryKey: ['topProducers'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, full_name, stage_name, profile_picture')
-        .eq('role', 'producer')
-        .order('featured_beats', { ascending: false })
-        .limit(10);
-      
-      if (error) {
-        console.error('Error fetching producers:', error);
-        return [];
-      }
-      
-      return data.map(producer => ({
-        id: producer.id,
-        name: producer.stage_name || producer.full_name,
-        avatar: producer.profile_picture || '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
-        verified: true
-      }));
-    },
-    enabled: true
-  });
+  useEffect(() => {
+    prefetchProducers();
+  }, [prefetchProducers]);
 
   const { data: featuredPlaylists = [], isLoading: isLoadingPlaylists } = useQuery({
     queryKey: ['featuredPlaylists'],
@@ -480,7 +461,13 @@ export default function Home() {
                     <Award size={12} className="mr-1" /> Trending
                   </Badge>
                 </div>
-                <Button variant="ghost" size="sm" className="gap-1 text-primary" asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="gap-1 text-primary" 
+                  asChild
+                  onMouseEnter={prefetchProducers}
+                >
                   <Link to="/producers">
                     <span>View all</span>
                     <ChevronRight size={16} />
@@ -522,7 +509,7 @@ export default function Home() {
             </section>
 
             <section className="mb-10">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-4">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold">Featured Playlists</h2>
                   <Badge className="bg-purple-500/10 text-purple-500 text-xs px-2 py-0.5 rounded-full font-medium">
