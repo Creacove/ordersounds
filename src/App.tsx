@@ -10,7 +10,7 @@ import { PlayerProvider } from "@/context/PlayerContext";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 // Pages
-import Home from "./pages/buyer/Home";
+import IndexPage from "./pages/Index";  // Use the Index page as the root route
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
@@ -70,7 +70,7 @@ const App = () => (
                 <Sonner position="top-right" expand={true} closeButton={true} />
                 <Routes>
                   {/* Public Routes - accessible to all users */}
-                  <Route path="/" element={<Home />} />
+                  <Route path="/" element={<IndexPage />} />
                   <Route path="/trending" element={<Trending />} />
                   <Route path="/new" element={<New />} />
                   <Route path="/playlists" element={<Playlists />} />
