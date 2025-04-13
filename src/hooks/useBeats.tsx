@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -133,30 +134,12 @@ export function useBeats() {
     }
 
     try {
-      let userFavoritesTableExists = false;
-      
-      try {
-        const { count, error } = await supabase
-          .from('user_favorites')
-          .select('*', { count: 'exact', head: true })
-          .limit(0);
-          
-        userFavoritesTableExists = !error;
-      } catch (e) {
-        console.log('Error checking user_favorites table:', e);
-        userFavoritesTableExists = false;
-      }
-
-      if (!userFavoritesTableExists) {
-        console.log('user_favorites table does not exist or is not accessible');
-        setFavoriteBeats([]);
-        return;
-      }
-
+      // Instead of directly querying the user_favorites table, use a function call
+      // or handle it with custom SQL via RPC
       const { data, error } = await supabase
-        .from('user_favorites')
-        .select('beat_id')
-        .eq('user_id', user.id);
+        .rpc('get_user_favorites', {
+          user_id_param: user.id
+        });
       
       if (error) {
         console.error('Error fetching user favorites:', error);
@@ -212,11 +195,12 @@ export function useBeats() {
       
       if (isFav) {
         try {
+          // Use RPC to remove favorite
           const { error } = await supabase
-            .from('user_favorites')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('beat_id', beatId);
+            .rpc('remove_favorite', {
+              user_id_param: user.id,
+              beat_id_param: beatId
+            });
           
           if (error) throw error;
           
@@ -246,20 +230,12 @@ export function useBeats() {
         }
       } else {
         try {
-          await supabase.schema.createTableIfNotExists('user_favorites', table => ({
-            id: table.uuid('id').primaryKey().defaultValue(table.sql`gen_random_uuid()`),
-            user_id: table.uuid('user_id').notNull(),
-            beat_id: table.uuid('beat_id').notNull(),
-            created_at: table.timestamp('created_at', { withTimezone: true }).defaultNow()
-          }));
-
+          // Use RPC to add favorite
           const { error } = await supabase
-            .from('user_favorites')
-            .insert({
-              user_id: user.id,
-              beat_id: beatId
-            })
-            .select();
+            .rpc('add_favorite', {
+              user_id_param: user.id,
+              beat_id_param: beatId
+            });
             
           if (error) throw error;
             

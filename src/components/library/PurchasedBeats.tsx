@@ -8,6 +8,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { PurchasedBeatsLoading } from './PurchasedBeatsLoading';
 import { PurchasedBeatsMobile } from './PurchasedBeatsMobile';
 import { PurchasedBeatsDesktop } from './PurchasedBeatsDesktop';
+import { Beat } from '@/types';
 
 export function PurchasedBeats() {
   const {
@@ -67,13 +68,13 @@ export function PurchasedBeats() {
         <PurchasedBeatsMobile 
           beats={purchasedBeats} 
           purchaseDetails={purchaseDetails} 
-          onDownload={(beat) => handleDownload(beat.id)} 
+          onDownload={(beat: Beat) => handleDownload(beat.id)} 
         />
       ) : (
         <PurchasedBeatsDesktop 
           beats={purchasedBeats} 
           purchaseDetails={purchaseDetails}
-          onDownload={(beat) => handleDownload(beat.id)}
+          onDownload={(beat: Beat) => handleDownload(beat.id)}
         />
       )}
     </div>
