@@ -5,7 +5,6 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { BeatCard } from "@/components/marketplace/BeatCard";
 import { BeatCardCompact } from "@/components/marketplace/BeatCardCompact";
 import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
-import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
@@ -84,15 +83,6 @@ export default function IndexPage() {
             </div>
           </section>
         )}
-
-        <section className="mb-6 px-0 mx-0">
-          <SectionTitle 
-            title="Producer of the Week" 
-            icon={<Star className="h-5 w-5" />}
-            badge="Featured"
-          />
-          <ProducerOfWeek />
-        </section>
 
         {/* Recommended Beats section */}
         <RecommendedBeats />

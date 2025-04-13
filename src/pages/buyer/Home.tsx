@@ -139,17 +139,6 @@ export default function Home() {
     return isPlayerPlaying && currentBeat?.id === beatId;
   };
 
-  const producerOfWeek = {
-    id: '1', 
-    name: 'JUNE', 
-    avatar: '/lovable-uploads/1e3e62c4-f6ef-463f-a731-1e7c7224d873.png',
-    followers: 12564,
-    beatsSold: 432,
-    bio: "Award-winning producer specializing in Afrobeat and Amapiano fusion. Worked with top artists across Nigeria and beyond.",
-    verified: true,
-    beats: trendingBeats.slice(0, 4)
-  };
-
   return (
     <MainLayoutWithPlayer>
       <div className="mx-0 px-0">
