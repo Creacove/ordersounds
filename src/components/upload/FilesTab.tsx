@@ -98,6 +98,25 @@ export const FilesTab = ({
     }
   }, [uploadedFile, requiresWavFormat]);
 
+  const handleFullTrackUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      if (file.size > 70 * 1024 * 1024) {
+        toast.error("WAV file must be less than 70MB");
+        return;
+      }
+      
+      if (file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
+        setValidationError("WAV format required for premium/exclusive licenses");
+        return;
+      }
+      
+      setUploadedFile(file);
+      setValidationError(null);
+    }
+  };
+
   const handleStemsUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (handleStemsUpload) {
       handleStemsUpload(e);
@@ -107,8 +126,8 @@ export const FilesTab = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      if (file.size > 100 * 1024 * 1024) {
-        setValidationError("Stems file must be less than 100MB");
+      if (file.size > 250 * 1024 * 1024) {
+        setValidationError("Stems file must be less than 250MB");
         return;
       }
       

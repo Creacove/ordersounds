@@ -126,8 +126,8 @@ export const useBeatUpload = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      if (file.size > 50 * 1024 * 1024) {
-        toast.error("File must be less than 50MB");
+      if (file.size > 70 * 1024 * 1024) {
+        toast.error("File must be less than 70MB");
         return;
       }
       
@@ -479,8 +479,8 @@ export const useBeatUpload = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      if (file.size > 100 * 1024 * 1024) {
-        toast.error("Stems file must be less than 100MB");
+      if (file.size > 250 * 1024 * 1024) {
+        toast.error("Stems file must be less than 250MB");
         return;
       }
       
