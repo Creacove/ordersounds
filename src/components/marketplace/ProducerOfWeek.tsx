@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Star, Play, Pause, Heart, Check, ChevronRight, User } from "lucide-react";
@@ -35,25 +34,48 @@ export function ProducerOfWeek() {
       setError(null);
       try {
         console.log("Fetching producer of the week...");
-        const { data, error } = await supabase
+        
+        // First try the RPC method
+        let { data: rpcData, error: rpcError } = await supabase
           .rpc('get_producer_of_week');
 
-        if (error) {
-          console.error('Error fetching producer of the week:', error);
-          setError("Failed to load producer data");
-          return;
-        }
-
-        console.log("Producer of week data:", data);
-        if (data && data.length > 0) {
-          setProducer(data[0]);
+        // Log detailed information about the RPC attempt
+        console.log("RPC attempt result:", { data: rpcData, error: rpcError });
+        
+        // If RPC fails, try direct query as fallback
+        if (rpcError || !rpcData || rpcData.length === 0) {
+          console.log("RPC failed or returned no data, trying direct query...");
+          
+          const { data: queryData, error: queryError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('is_producer_of_week', true)
+            .limit(1);
+            
+          // Log direct query attempt
+          console.log("Direct query attempt result:", { data: queryData, error: queryError });
+          
+          if (queryError) {
+            console.error('Error with direct query:', queryError);
+            setError("Failed to load producer data: " + queryError.message);
+            return;
+          }
+          
+          if (queryData && queryData.length > 0) {
+            console.log("Producer found via direct query:", queryData[0]);
+            setProducer(queryData[0]);
+          } else {
+            console.log("No producer of the week found in database");
+            setError("No producer of the week currently selected");
+          }
         } else {
-          console.log("No producer of the week found in database");
-          setError("No producer of the week currently selected");
+          // RPC was successful
+          console.log("Producer found via RPC:", rpcData[0]);
+          setProducer(rpcData[0]);
         }
-      } catch (error) {
-        console.error('Error:', error);
-        setError("An unexpected error occurred");
+      } catch (error: any) {
+        console.error('Unexpected error fetching producer:', error);
+        setError(`An unexpected error occurred: ${error.message || 'Unknown error'}`);
       } finally {
         setIsLoadingProducer(false);
       }
@@ -69,6 +91,8 @@ export function ProducerOfWeek() {
     const fetchProducerBeats = async () => {
       setIsLoadingBeats(true);
       try {
+        console.log(`Fetching beats for producer: ${producer.id}`);
+        
         const { data, error } = await supabase
           .from('beats')
           .select(`
@@ -104,7 +128,7 @@ export function ProducerOfWeek() {
           return;
         }
 
-        console.log("Producer beats:", data);
+        console.log(`Found ${data.length} beats for producer:`, data);
 
         // Transform the beats data to match our Beat interface
         const transformedBeats = data.map(beat => ({
@@ -135,7 +159,7 @@ export function ProducerOfWeek() {
 
         setProducerBeats(transformedBeats);
       } catch (error) {
-        console.error('Error:', error);
+        console.error('Error fetching beats:', error);
       } finally {
         setIsLoadingBeats(false);
       }
