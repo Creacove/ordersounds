@@ -57,8 +57,7 @@ export const uploadFile = async (
         xhr.open('PUT', uploadUrl, true);
         
         // Use the project URL from the environment/config instead of accessing protected headers
-        // Get the API key from the URL in the client instance
-        const SUPABASE_URL = "https://uoezlwkxhbzajdivrlby.supabase.co";
+        // Get the API key from the constants in the client instance
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
         
         // Set appropriate headers for the file type
@@ -67,9 +66,7 @@ export const uploadFile = async (
         xhr.setRequestHeader('Cache-Control', '3600');
         
         // For images, ensure content type is set correctly
-        if (realFile.type.startsWith('image/')) {
-          xhr.setRequestHeader('Content-Type', realFile.type);
-        }
+        xhr.setRequestHeader('Content-Type', realFile.type);
         
         // Track upload progress events
         xhr.upload.addEventListener('progress', (event) => {
@@ -104,11 +101,13 @@ export const uploadFile = async (
             console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
             resolve(publicUrlData.publicUrl);
           } else {
+            console.error(`Upload failed with status: ${xhr.status}, response:`, xhr.responseText);
             reject(new Error(`Upload failed with status: ${xhr.status}`));
           }
         };
         
         xhr.onerror = () => {
+          console.error('Network error during upload');
           reject(new Error('Network error during upload'));
         };
         
@@ -136,12 +135,14 @@ export const uploadFile = async (
               console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
               resolve(publicUrlData.publicUrl);
             } else {
+              console.error(`Upload failed with status: ${xhr.status}, response:`, xhr.responseText);
               reject(new Error(`Upload failed with status: ${xhr.status}`));
             }
           };
           
           xhr.onerror = () => {
             clearInterval(progressInterval);
+            console.error('Network error during upload');
             reject(new Error('Network error during upload'));
           };
         }
@@ -155,7 +156,7 @@ export const uploadFile = async (
         .from(bucket)
         .upload(filePath, realFile, {
           cacheControl: '3600',
-          upsert: false,
+          upsert: true, // Changed to true to overwrite existing files with same name
           contentType: realFile.type // Ensure content type is set correctly
         });
       

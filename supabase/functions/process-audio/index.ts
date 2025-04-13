@@ -129,7 +129,7 @@ serve(async (req) => {
         .upload(uploadPath, new Uint8Array(previewBuffer), {
           contentType: contentType,
           cacheControl: "3600",
-          upsert: true
+          upsert: true  // Changed to true to overwrite existing files
         });
 
       if (uploadError) {
