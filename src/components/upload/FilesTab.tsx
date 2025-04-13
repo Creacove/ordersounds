@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,9 +80,9 @@ export const FilesTab = ({
   
   const getAudioInstructions = () => {
     if (requiresWavFormat) {
-      return "WAV format required for premium/exclusive licenses (max 50MB)";
+      return "WAV format required for premium/exclusive licenses (max 70MB)";
     }
-    return "MP3, WAV (max 50MB)";
+    return "MP3, WAV (max 70MB)";
   };
   
   useEffect(() => {
@@ -98,7 +99,7 @@ export const FilesTab = ({
     }
   }, [uploadedFile, requiresWavFormat]);
 
-  const handleFullTrackUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFullTrackUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
@@ -426,7 +427,7 @@ export const FilesTab = ({
                       <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                       <div className="flex-1">
                         <p className="text-xs sm:text-sm font-medium">Upload stems</p>
-                        <p className="text-xs text-muted-foreground">ZIP file, max 100MB</p>
+                        <p className="text-xs text-muted-foreground">ZIP file, max 250MB</p>
                       </div>
                       <Button 
                         variant="outline" 
