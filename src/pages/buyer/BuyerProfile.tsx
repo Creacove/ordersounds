@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Playlist } from "@/types";
 import { useAuth } from "@/context/AuthContext";
-import { PlaylistCard } from "@/components/library/PlaylistCard";
+import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { getUserPlaylists } from "@/lib/playlistService"; 
 import { EmptyState } from "@/components/library/EmptyState";
 import { 
@@ -24,6 +24,7 @@ import {
   FileEdit
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export default function BuyerProfile() {
   const { buyerId } = useParams<{ buyerId: string }>();
@@ -33,9 +34,10 @@ export default function BuyerProfile() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [isLoadingPlaylists, setIsLoadingPlaylists] = useState(false);
   const isOwnProfile = currentUser?.id === buyerId;
+  const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = buyer?.name ? `${buyer.name} | Creacove` : "User Profile | Creacove";
+    document.title = buyer?.name ? `${buyer.name} | OrderSOUNDS` : "User Profile | OrderSOUNDS";
   }, [buyer]);
 
   useEffect(() => {
@@ -103,19 +105,31 @@ export default function BuyerProfile() {
     }
   };
 
-  const handlePlaylistClick = (id: string) => {
-    window.location.href = `/playlists?id=${id}`;
+  const handleShareProfile = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `${buyer?.name}'s profile on OrderSOUNDS`,
+        url: window.location.href
+      }).catch(err => {
+        console.error('Error sharing:', err);
+      });
+    } else {
+      // Fallback for browsers that don't support the Web Share API
+      navigator.clipboard.writeText(window.location.href)
+        .then(() => toast.success('Profile link copied to clipboard!'))
+        .catch(err => console.error('Error copying to clipboard:', err));
+    }
   };
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container py-8">
+      <div className="container py-6 md:py-8">
         {isLoading ? (
           <div className="space-y-6">
             <div className="flex items-start gap-6">
-              <Skeleton className="h-32 w-32 rounded-full" />
+              <Skeleton className="h-24 w-24 md:h-32 md:w-32 rounded-full" />
               <div className="space-y-2 flex-1">
-                <Skeleton className="h-10 w-1/3" />
+                <Skeleton className="h-8 w-1/3" />
                 <Skeleton className="h-5 w-1/4" />
                 <Skeleton className="h-20 w-full" />
               </div>
@@ -124,12 +138,12 @@ export default function BuyerProfile() {
         ) : buyer ? (
           <>
             <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-blue-500/20 to-background h-40 rounded-xl -z-10"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-purple-500/20 to-background h-40 rounded-xl -z-10"></div>
               <div className="flex flex-col md:flex-row gap-6 pt-6 mb-8">
-                <div className="flex-shrink-0 md:ml-8">
-                  <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
+                <div className="flex-shrink-0 md:ml-6">
+                  <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-background shadow-xl">
                     <AvatarImage src={buyer.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${buyer.name}`} />
-                    <AvatarFallback className="bg-blue-500 text-2xl">
+                    <AvatarFallback className="bg-purple-600 text-2xl">
                       {(buyer.name || 'U').charAt(0)}
                     </AvatarFallback>
                   </Avatar>
@@ -138,7 +152,7 @@ export default function BuyerProfile() {
                 <div className="flex-1 md:mt-6">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div>
-                      <h1 className="text-3xl font-bold mb-1">
+                      <h1 className="text-2xl md:text-3xl font-bold mb-1">
                         {buyer.name}
                       </h1>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-muted-foreground mb-4">
@@ -161,23 +175,26 @@ export default function BuyerProfile() {
                     
                     <div className="flex flex-wrap gap-2">
                       {isOwnProfile ? (
-                        <Button asChild size="sm" variant="default" className="gap-1.5">
-                          <a href="/settings">
-                            <FileEdit size={14} />
-                            Edit Profile
-                          </a>
+                        <Button 
+                          onClick={() => navigate("/settings")} 
+                          size="sm" 
+                          variant="default" 
+                          className="gap-1.5 bg-purple-600 hover:bg-purple-700"
+                        >
+                          <FileEdit size={14} />
+                          Edit Profile
                         </Button>
                       ) : (
                         <>
-                          <Button size="sm" variant="secondary" className="gap-1.5">
+                          <Button size="sm" variant="default" className="gap-1.5 bg-purple-600 hover:bg-purple-700">
                             <UserPlus size={14} />
                             Follow
                           </Button>
-                          <Button size="sm" variant="secondary" className="gap-1.5">
+                          <Button size="sm" variant="outline" className="gap-1.5" onClick={handleShareProfile}>
                             <Share2 size={14} />
                             Share
                           </Button>
-                          <Button size="sm" variant="secondary" className="gap-1.5">
+                          <Button size="sm" variant="outline" className="gap-1.5">
                             <MessageSquare size={14} />
                             Message
                           </Button>
@@ -197,33 +214,34 @@ export default function BuyerProfile() {
               </div>
             </div>
             
-            <div className="mt-8">
+            <div className="mt-6">
               <Tabs defaultValue="playlists" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="playlists" className="gap-2">
-                    <ListMusic size={16} />
-                    Playlists
-                  </TabsTrigger>
-                  <TabsTrigger value="about" className="gap-2">
-                    <BarChart4 size={16} />
-                    About
-                  </TabsTrigger>
-                </TabsList>
+                <div className="border-b mb-6">
+                  <TabsList className="bg-transparent">
+                    <TabsTrigger value="playlists" className="gap-2 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
+                      <ListMusic size={16} />
+                      Playlists
+                    </TabsTrigger>
+                    <TabsTrigger value="about" className="gap-2 data-[state=active]:border-b-2 data-[state=active]:border-purple-600 rounded-none">
+                      <BarChart4 size={16} />
+                      About
+                    </TabsTrigger>
+                  </TabsList>
+                </div>
                 
                 <TabsContent value="playlists" className="py-4">
                   {isLoadingPlaylists ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                       {[1, 2, 3, 4].map(i => (
                         <Skeleton key={i} className="h-64 w-full" />
                       ))}
                     </div>
                   ) : playlists.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                       {playlists.map(playlist => (
                         <PlaylistCard 
                           key={playlist.id} 
-                          playlist={playlist} 
-                          onClick={handlePlaylistClick}
+                          playlist={playlist}
                         />
                       ))}
                     </div>
@@ -236,7 +254,7 @@ export default function BuyerProfile() {
                         : "This user hasn't created any public playlists yet"
                       }
                       actionLabel={isOwnProfile ? "Create Playlist" : undefined}
-                      actionHref={isOwnProfile ? "/playlists" : undefined}
+                      actionHref={isOwnProfile ? "/library" : undefined}
                     />
                   )}
                 </TabsContent>
@@ -246,7 +264,7 @@ export default function BuyerProfile() {
                     <Card className="bg-card/60">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-xl">
-                          <BarChart4 size={18} className="text-blue-500" />
+                          <BarChart4 size={18} className="text-purple-500" />
                           User Info
                         </CardTitle>
                       </CardHeader>
@@ -275,7 +293,7 @@ export default function BuyerProfile() {
                     <Card className="bg-card/60">
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-xl">
-                          <ListMusic size={18} className="text-blue-500" />
+                          <ListMusic size={18} className="text-purple-500" />
                           Music Interests
                         </CardTitle>
                       </CardHeader>
@@ -289,9 +307,9 @@ export default function BuyerProfile() {
                           <div>
                             <h3 className="text-sm font-medium mb-2">Interests</h3>
                             <div className="flex flex-wrap gap-2">
-                              <Badge variant="secondary" className="px-3 py-1 text-xs">Music Fan</Badge>
+                              <Badge variant="secondary" className="px-3 py-1 text-xs bg-purple-100 text-purple-800 hover:bg-purple-200">Music Fan</Badge>
                               {isOwnProfile && (
-                                <span className="text-xs text-muted-foreground mt-2">
+                                <span className="text-xs text-muted-foreground mt-2 block">
                                   Add your music interests in your profile settings
                                 </span>
                               )}
@@ -309,7 +327,7 @@ export default function BuyerProfile() {
           <div className="text-center py-12">
             <h1 className="text-2xl font-bold mb-2">User Not Found</h1>
             <p className="text-muted-foreground mb-4">The user you're looking for doesn't exist or has been removed.</p>
-            <Button asChild>
+            <Button asChild className="bg-purple-600 hover:bg-purple-700">
               <a href="/">Back to Home</a>
             </Button>
           </div>
