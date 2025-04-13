@@ -32,7 +32,7 @@ serve(async (req) => {
 
   try {
     // Parse the request body
-    const { fullTrackUrl, requiresWav } = await req.json();
+    const { fullTrackUrl } = await req.json();
 
     if (!fullTrackUrl) {
       return new Response(
@@ -87,7 +87,7 @@ serve(async (req) => {
     // Create a unique file name for the preview
     const fileName = crypto.randomUUID();
     const timestamp = Date.now();
-    const previewExt = fileExt === 'wav' ? 'wav' : 'mp3';
+    const previewExt = fileExt; // Maintain original file extension
     const uploadPath = `previews/${timestamp}_${fileName}_preview.${previewExt}`;
     
     try {
@@ -102,7 +102,7 @@ serve(async (req) => {
       console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBytes} bytes`);
       
       // Determine the correct content type based on file extension
-      const contentType = previewExt === 'wav' ? 'audio/wav' : 'audio/mpeg';
+      const contentType = fileExt === 'wav' ? 'audio/wav' : 'audio/mpeg';
       
       // Upload the preview portion to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -123,7 +123,7 @@ serve(async (req) => {
         .from('beats')
         .getPublicUrl(uploadPath);
           
-      console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
+      console.log("Preview generated successfully:", publicUrlData.publicUrl);
       
       // Return the preview URL directly in the response
       return new Response(
