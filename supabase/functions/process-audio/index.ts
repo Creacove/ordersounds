@@ -1,7 +1,7 @@
 
 // @ts-nocheck
 // Audio processing edge function for OrderSOUNDS
-// Converts WAV files to MP3, extracts previews, and adds watermarks
+// Simply extracts first 30% of audio file for preview
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -27,7 +27,7 @@ serve(async (req: Request) => {
 
   try {
     // Parse the request body
-    const { fullTrackUrl, requiresWav = false } = await req.json();
+    const { fullTrackUrl } = await req.json();
 
     if (!fullTrackUrl) {
       return new Response(
@@ -40,8 +40,7 @@ serve(async (req: Request) => {
     }
 
     console.log(`Processing audio file: ${fullTrackUrl}`);
-    console.log(`Requires WAV: ${requiresWav}`);
-
+    
     // Extract file path from URL
     const urlObj = new URL(fullTrackUrl);
     const pathParts = urlObj.pathname.split('/');
@@ -75,134 +74,70 @@ serve(async (req: Request) => {
     const fileExt = filePath.split('.').pop().toLowerCase();
     console.log(`File extension: ${fileExt}`);
 
-    // Set up file handlers and temporary storage
+    // Set up temporary file
     const fileName = crypto.randomUUID();
     const inputPath = `${fileName}.${fileExt}`;
-    const mp3Path = `${fileName}.mp3`;
     const previewPath = `${fileName}_preview.mp3`;
-    const watermarkedPath = `${fileName}_watermarked.mp3`;
+    const timestamp = Date.now();
+    const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
 
     try {
       // Write input file to disk
       await Deno.writeFile(inputPath, new Uint8Array(await fileData.arrayBuffer()));
       console.log("Successfully wrote input file to disk");
 
-      // Validate the input file using ffprobe
-      const validateCmd = new Deno.Command("ffprobe", {
-        args: [
-          "-v", "error",
-          "-show_entries", "format=duration",
-          "-of", "default=noprint_wrappers=1:nokey=1",
-          inputPath
-        ]
-      });
-      
-      const validateResult = await validateCmd.output();
-      if (!validateResult.success) {
-        console.error("File validation failed");
-        throw new Error("Invalid audio file. Please upload a valid audio file.");
-      }
-      
-      console.log("File validation successful");
-
-      // Convert WAV to MP3 if needed
-      if (fileExt === 'wav') {
-        try {
-          console.log("Converting WAV to MP3");
-          const ffmpegCmd = new Deno.Command("ffmpeg", {
-            args: [
-              "-i", inputPath,
-              "-vn", "-ar", "44100", "-ac", "2", "-b:a", "192k",
-              mp3Path
-            ]
-          });
-          const { success } = await ffmpegCmd.output();
-          
-          if (!success) {
-            console.error("WAV to MP3 conversion failed");
-            throw new Error("Failed to convert WAV to MP3");
-          }
-          console.log("Successfully converted WAV to MP3");
-        } catch (error) {
-          console.error("Error converting WAV to MP3:", error);
-          throw new Error("Failed to process audio file - conversion error");
-        }
-      } else {
-        // Just rename the file if it's already an MP3
-        await Deno.copyFile(inputPath, mp3Path);
-        console.log("Using existing MP3 file");
-      }
-
-      // Extract 30-second preview
+      // Extract 30 seconds or 30% of the file (whichever is shorter) for preview
       try {
-        console.log("Extracting 30-second preview");
+        console.log("Extracting preview");
+        
+        // First get the duration of the file
+        const durationCmd = new Deno.Command("ffprobe", {
+          args: [
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            inputPath
+          ]
+        });
+        
+        const durationResult = await durationCmd.output();
+        if (!durationResult.success) {
+          throw new Error("Failed to get file duration");
+        }
+        
+        const durationOutput = new TextDecoder().decode(durationResult.stdout).trim();
+        const totalDuration = parseFloat(durationOutput);
+        console.log(`Total duration: ${totalDuration} seconds`);
+        
+        // Calculate preview duration (30% of total, max 30 seconds)
+        const previewDuration = Math.min(totalDuration * 0.3, 30);
+        console.log(`Preview duration: ${previewDuration} seconds`);
+        
+        // Extract the preview
         const previewCmd = new Deno.Command("ffmpeg", {
           args: [
-            "-i", mp3Path,
-            "-ss", "0", "-t", "30",
+            "-i", inputPath,
+            "-t", previewDuration.toString(),
+            "-acodec", "libmp3lame",
+            "-q:a", "2",
             previewPath
           ]
         });
-        const { success } = await previewCmd.output();
         
-        if (!success) {
-          console.error("Preview extraction failed");
+        const previewResult = await previewCmd.output();
+        if (!previewResult.success) {
           throw new Error("Failed to extract preview");
         }
-        console.log("Successfully extracted 30-second preview");
+        
+        console.log("Successfully extracted preview");
       } catch (error) {
         console.error("Error extracting preview:", error);
-        throw new Error("Failed to process audio file - preview extraction error");
-      }
-
-      // Add watermark (if watermark file exists)
-      let finalPreviewFile;
-      try {
-        console.log("Checking for watermark file");
-        const { data: watermarkData, error: watermarkError } = await supabase.storage
-          .from('audio')
-          .download('watermark.mp3');
-
-        if (watermarkError) {
-          console.warn("No watermark file found, using preview without watermark");
-          finalPreviewFile = previewPath;
-        } else {
-          // Write watermark file to disk
-          await Deno.writeFile("watermark.mp3", new Uint8Array(await watermarkData.arrayBuffer()));
-          console.log("Watermark file downloaded");
-          
-          // Add watermark to the preview
-          console.log("Adding watermark to preview");
-          const watermarkCmd = new Deno.Command("ffmpeg", {
-            args: [
-              "-i", previewPath,
-              "-i", "watermark.mp3",
-              "-filter_complex", "[0:0][1:0]concat=n=2:v=0:a=1[out]",
-              "-map", "[out]",
-              watermarkedPath
-            ]
-          });
-          const { success } = await watermarkCmd.output();
-          
-          if (!success) {
-            console.error("Watermark application failed");
-            throw new Error("Failed to add watermark");
-          }
-          
-          finalPreviewFile = watermarkedPath;
-          console.log("Successfully added watermark");
-        }
-      } catch (error) {
-        console.error("Error adding watermark:", error);
-        finalPreviewFile = previewPath;
-        console.log("Using preview without watermark due to error:", error.message);
+        throw new Error("Failed to extract preview");
       }
 
       // Upload the processed preview to Supabase Storage
       console.log("Uploading processed preview");
-      const previewFileBuffer = await Deno.readFile(finalPreviewFile);
-      const timestamp = Date.now();
-      const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
+      const previewFileBuffer = await Deno.readFile(previewPath);
       
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('beats')
@@ -226,14 +161,7 @@ serve(async (req: Request) => {
       // Clean up temporary files
       try {
         await Deno.remove(inputPath);
-        await Deno.remove(mp3Path);
         await Deno.remove(previewPath);
-        if (finalPreviewFile === watermarkedPath) {
-          await Deno.remove(watermarkedPath);
-        }
-        if (await Deno.stat("watermark.mp3").catch(() => null)) {
-          await Deno.remove("watermark.mp3");
-        }
         console.log("Temporary files cleaned up");
       } catch (error) {
         console.error("Error cleaning up temporary files:", error);
