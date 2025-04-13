@@ -41,8 +41,6 @@ export default function IndexPage() {
   };
 
   useEffect(() => {
-    console.log("IndexPage mounted - should show ProducerOfWeek");
-    
     if (playlists.length > 0) {
       setFeaturedPlaylists(playlists.filter(p => p.is_public).slice(0, 4));
     }
@@ -86,8 +84,7 @@ export default function IndexPage() {
           </section>
         )}
 
-        <section className="mb-6 px-0 mx-0 relative">
-          <div className="absolute inset-0 border-2 border-red-500 pointer-events-none opacity-30 z-10"></div>
+        <section className="mb-6 px-0 mx-0">
           <SectionTitle 
             title="Producer of the Week" 
             icon={<Star className="h-5 w-5" />}
@@ -98,6 +95,7 @@ export default function IndexPage() {
           </div>
         </section>
 
+        {/* Recommended Beats section */}
         <RecommendedBeats />
 
         <section className="mb-6 px-0 mx-0">
