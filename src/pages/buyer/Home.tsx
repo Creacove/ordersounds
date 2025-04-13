@@ -13,7 +13,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { 
   Table,
   TableBody,
@@ -28,7 +27,6 @@ import { getUserPlaylists } from "@/lib/playlistService";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
-import { SectionTitle } from "@/components/ui/SectionTitle";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
@@ -342,8 +340,8 @@ export default function Home() {
               )}
             </section>
 
-            <section className="mb-10">
-              <div className="flex justify-between items-center mb-4">
+            <section className="bg-card/50 p-4 sm:p-6 rounded-lg mb-10 border">
+              <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold">Weekly Picks</h2>
                   <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">

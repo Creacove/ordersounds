@@ -10,7 +10,7 @@ import { PlayerProvider } from "@/context/PlayerContext";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 // Pages
-import Home from "./pages/buyer/Home";  // Change back to Home page as root route
+import Home from "./pages/buyer/Home";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
