@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +7,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { CartProvider } from "@/context/CartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { ScrollToTop } from "@/components/utils/ScrollToTop";
 
 // Pages
 import Home from "./pages/buyer/Home";
@@ -66,6 +66,7 @@ const App = () => (
           <CartProvider>
             <PlayerProvider>
               <SidebarProvider>
+                <ScrollToTop />
                 <Toaster />
                 <Sonner position="top-right" expand={true} closeButton={true} />
                 <Routes>

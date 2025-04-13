@@ -5,6 +5,7 @@ import { ChevronLeft, Headphones, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
 import { useProducers } from "@/hooks/useProducers";
+import { useState } from "react";
 
 interface UnifiedSidebarProps {
   isOpen: boolean;
@@ -28,11 +29,21 @@ export function UnifiedSidebar({
   isMobile
 }: UnifiedSidebarProps) {
   const { prefetchProducers } = useProducers();
+  const [prefetchedSections, setPrefetchedSections] = useState<Set<string>>(new Set());
   
-  // Function to prefetch producer data when hovering menu items
+  // Function to prefetch data when hovering menu items
   const handleMenuHover = (title: string) => {
-    if (title.toLowerCase() === "producers") {
-      prefetchProducers();
+    const sectionKey = title.toLowerCase();
+    
+    // Only prefetch if we haven't already for this section
+    if (!prefetchedSections.has(sectionKey)) {
+      console.log(`Prefetching data for ${title} section`);
+      
+      if (sectionKey === "producers") {
+        prefetchProducers();
+        // Add to the set of prefetched sections
+        setPrefetchedSections(prev => new Set([...prev, sectionKey]));
+      }
     }
   };
 
