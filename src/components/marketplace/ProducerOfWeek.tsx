@@ -19,7 +19,7 @@ export function ProducerOfWeek() {
   const { user } = useAuth();
   const { playBeat, isPlaying, currentBeat } = usePlayer();
   const { toggleFavorite, isFavorite } = useBeats();
-  const { followProducer, unfollowProducer, isFollowing, refetchFollowStatus } = useFollows();
+  const { followProducer, unfollowProducer, useFollowStatus } = useFollows();
   
   const [producer, setProducer] = useState<any>(null);
   const [producerBeats, setProducerBeats] = useState<any[]>([]);
@@ -139,15 +139,17 @@ export function ProducerOfWeek() {
 
     const checkFollowStatus = async () => {
       try {
-        const isCurrentlyFollowing = await isFollowing(producer.id);
-        setIsFollowingProducer(isCurrentlyFollowing);
+        // Use the hook correctly - check if the user is currently following the producer
+        const { data: isFollowing } = useFollowStatus(producer.id);
+        
+        setIsFollowingProducer(!!isFollowing);
       } catch (error) {
         console.error('Error checking follow status:', error);
       }
     };
 
     checkFollowStatus();
-  }, [user, producer, isFollowing]);
+  }, [user, producer, useFollowStatus]);
 
   const handleToggleFollow = async () => {
     if (!user) {
@@ -169,8 +171,9 @@ export function ProducerOfWeek() {
         toast.success(`Now following ${producer.stage_name || producer.full_name}`);
       }
       
-      // Refetch follow status to ensure UI is in sync
-      await refetchFollowStatus(producer.id);
+      // After toggling follow status, refetch data to ensure UI is in sync
+      // Note: We're not using refetchFollowStatus because it doesn't exist
+      // Instead, we can set the state directly as we know what action we just performed
     } catch (error) {
       console.error('Error toggling follow status:', error);
       toast.error("Failed to update follow status");
