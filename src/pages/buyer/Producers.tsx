@@ -1,12 +1,9 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { FollowButton } from "@/components/buttons/FollowButton";
 import { FollowerCount } from "@/components/producer/profile/FollowerCount";
@@ -17,6 +14,9 @@ import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { useProducers } from "@/hooks/useProducers";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/lib/supabase";
 
 interface Producer {
   id: string;
@@ -30,64 +30,18 @@ interface Producer {
 
 export default function Producers() {
   const [showingFollowed, setShowingFollowed] = useState(false);
-  const [suggestedProducers, setSuggestedProducers] = useState<Producer[]>([]);
-  const [dismissedProducerIds, setDismissedProducerIds] = useState<Set<string>>(new Set());
+  const [suggestedProducers, setSuggestedProducers] = useState([]);
+  const [dismissedProducerIds, setDismissedProducerIds] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const { user } = useAuth();
   const isMobile = useIsMobile();
+
+  // Use our centralized producer data hook
+  const { producers, isLoading } = useProducers();
   
   useEffect(() => {
     document.title = "Producers | OrderSOUNDS";
   }, []);
-
-  // Get all producers with improved performance
-  const { data: producers, isLoading, refetch } = useQuery({
-    queryKey: ['producers'],
-    queryFn: async () => {
-      try {
-        console.log("Fetching producers data...");
-        // First, get all producers from the users table
-        const { data: producersData, error } = await supabase
-          .from('users')
-          .select('id, stage_name, full_name, bio, profile_picture, follower_count')
-          .eq('role', 'producer')
-          .order('follower_count', { ascending: false });
-
-        if (error) throw error;
-
-        if (!producersData) return []; 
-
-        // For each producer, get their beat count in parallel
-        const producersWithBeats = await Promise.all(
-          producersData.map(async (producer) => {
-            const { count, error: beatError } = await supabase
-              .from('beats')
-              .select('id', { count: 'exact', head: true })
-              .eq('producer_id', producer.id);
-
-            if (beatError) {
-              console.error('Error getting beat count:', beatError);
-              return { ...producer, beatCount: 0 };
-            }
-
-            return { 
-              ...producer, 
-              beatCount: count || 0
-            };
-          })
-        );
-        
-        console.log(`Fetched ${producersWithBeats.length} producers`);
-        return producersWithBeats;
-      } catch (error) {
-        console.error("Error fetching producers:", error);
-        toast.error("Failed to load producers");
-        return [];
-      }
-    },
-    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
-    refetchOnMount: false // Don't refetch automatically when component mounts
-  });
 
   // Get only followed producers with improved caching
   const { data: followedProducers, isLoading: followedLoading } = useQuery({

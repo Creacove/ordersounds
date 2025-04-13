@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Headphones, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
+import { useProducers } from "@/hooks/useProducers";
 
 interface UnifiedSidebarProps {
   isOpen: boolean;
@@ -26,6 +27,15 @@ export function UnifiedSidebar({
   toggleCollapsed,
   isMobile
 }: UnifiedSidebarProps) {
+  const { prefetchProducers } = useProducers();
+  
+  // Function to prefetch producer data when hovering menu items
+  const handleMenuHover = (title: string) => {
+    if (title.toLowerCase() === "producers") {
+      prefetchProducers();
+    }
+  };
+
   return (
     <>
       {/* Only show overlay on mobile and only when sidebar is open */}
@@ -111,6 +121,7 @@ export function UnifiedSidebar({
                       onClick={() => {
                         if (isMobile) setIsOpen(false);
                       }}
+                      onMouseEnter={() => handleMenuHover(item.title)}
                       className={({ isActive }) =>
                         cn(
                           "flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-200",

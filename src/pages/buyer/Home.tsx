@@ -8,6 +8,7 @@ import { BeatListItem } from "@/components/ui/BeatListItem";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
 import { useAuth } from "@/context/AuthContext";
+import { useProducers } from "@/hooks/useProducers";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +36,12 @@ export default function Home() {
   const [showFilters, setShowFilters] = useState(false);
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
+  const { prefetchProducers } = useProducers();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    prefetchProducers();
+  }, []);
 
   const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
     queryKey: ['topProducers'],

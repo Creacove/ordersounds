@@ -11,6 +11,7 @@ import { useAuth } from "@/context/AuthContext";
 import { usePlayer } from "@/context/PlayerContext";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlaylists } from "@/hooks/usePlaylists";
+import { useProducers } from "@/hooks/useProducers";
 import { Link, useNavigate } from "react-router-dom";
 import {
   TrendingUp,
@@ -30,9 +31,16 @@ export default function IndexPage() {
   const { user } = useAuth();
   const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat } = useBeats();
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
+  const { prefetchProducers } = useProducers(); // Add the producers hook
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+
+  // Preload producers data when the page loads
+  useEffect(() => {
+    // This will trigger the producers data fetch in the background
+    prefetchProducers();
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
