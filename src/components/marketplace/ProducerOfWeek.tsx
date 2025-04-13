@@ -9,6 +9,7 @@ import { BeatCardCompact } from "@/components/marketplace/BeatCardCompact";
 import { useFollows } from '@/hooks/useFollows';
 import { useAuth } from '@/context/AuthContext';
 import { FollowButton } from '@/components/buttons/FollowButton';
+import { mapSupabaseBeats } from '@/lib/supabase';
 
 export function ProducerOfWeek() {
   const [producerOfWeek, setProducerOfWeek] = useState<User | null>(null);
@@ -63,7 +64,8 @@ export function ProducerOfWeek() {
             if (beatsError) {
               console.error('Error fetching producer beats:', beatsError);
             } else if (beatsData) {
-              setProducerBeats(beatsData);
+              // Map the Supabase data to Beat objects
+              setProducerBeats(mapSupabaseBeats(beatsData));
             }
           }
         }
