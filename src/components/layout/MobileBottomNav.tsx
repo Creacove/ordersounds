@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Music,
   DollarSign,
+  Users,  // Added Users icon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -41,8 +42,8 @@ export function MobileBottomNav({
   } else {
     mobileMenuItems = [
       { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
-      { icon: <BookOpen size={20} />, label: "Library", to: "/library", id: "library" },
-      { icon: <PlaySquare size={20} />, label: "Playlists", to: "/playlists", id: "playlists" },
+      { icon: <Users size={20} />, label: "Producers", to: "/producers", id: "producers" },
+      { icon: <Music size={20} />, label: "Playlists", to: "/playlists", id: "playlists" },
       { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
       { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
     ];
