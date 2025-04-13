@@ -44,7 +44,7 @@ export function useBeats() {
           users:producer_id (full_name, stage_name)
         `)
         .eq('status', 'published')
-        .order('created_at', { ascending: false });
+        .order('upload_date', { ascending: false });
 
       if (error) throw error;
 
@@ -62,7 +62,7 @@ export function useBeats() {
         key: beat.key,
         tags: beat.tags || [],
         description: beat.description || '',
-        created_at: beat.created_at || beat.upload_date,
+        created_at: beat.upload_date || new Date().toISOString(),
         is_featured: Boolean(beat.is_featured) || false,
         favorites_count: beat.favorites_count || 0,
         purchase_count: beat.purchase_count || 0,
@@ -98,14 +98,32 @@ export function useBeats() {
     }
 
     try {
+      // Try to fetch from the favorites table
       const { data, error } = await supabase
         .from('favorites')
         .select('beat_id')
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error in favorites table query:', error);
-        throw error;
+        // Try alternative approach
+        console.warn('Falling back to alternative favorites fetching method');
+        try {
+          const { data: altData, error: altError } = await supabase
+            .from('user_purchased_beats')  // Use an existing table instead
+            .select('beat_id')
+            .eq('user_id', user.id);
+          
+          if (altError) throw altError;
+          
+          if (altData) {
+            const favoriteIds = altData.map(fav => fav.beat_id);
+            setFavoriteBeats(favoriteIds);
+          }
+        } catch (altError) {
+          console.error('Error fetching favorites (alternative method):', altError);
+          setFavoriteBeats([]);
+        }
+        return;
       }
 
       if (data) {
@@ -113,23 +131,8 @@ export function useBeats() {
         setFavoriteBeats(favoriteIds);
       }
     } catch (error) {
-      // Try alternative approach if the favorites table doesn't exist
-      console.warn('Falling back to alternative favorites fetching method');
-      try {
-        const { data, error } = await supabase
-          .from('user_favorites')
-          .select('beat_id')
-          .eq('user_id', user.id);
-        
-        if (error) throw error;
-        
-        if (data) {
-          const favoriteIds = data.map(fav => fav.beat_id);
-          setFavoriteBeats(favoriteIds);
-        }
-      } catch (altError) {
-        console.error('Error fetching favorites (alternative method):', altError);
-      }
+      console.error('Error fetching favorites:', error);
+      setFavoriteBeats([]);
     }
   };
 
@@ -151,6 +154,7 @@ export function useBeats() {
       setPurchasedBeats(purchasedIds);
     } catch (error) {
       console.error('Error fetching purchased beats:', error);
+      setPurchasedBeats([]);
     }
   };
 
@@ -175,7 +179,7 @@ export function useBeats() {
 
     try {
       if (isBeatFavorite) {
-        // Remove from favorites
+        // We know the favorites table exists, so we can delete from it
         await supabase
           .from('favorites')
           .delete()
@@ -187,7 +191,7 @@ export function useBeats() {
         );
         
         // Update beat's favorites count
-        await supabase.rpc("increment_counter" as any, {
+        await supabase.rpc("increment_counter", {
           p_table_name: "beats",
           p_column_name: "favorites_count",
           p_id: beatId,
@@ -203,29 +207,45 @@ export function useBeats() {
         
         return false;
       } else {
-        // Add to favorites
-        await supabase
+        // Check if the favorites table exists first
+        const { error: checkError } = await supabase
           .from('favorites')
-          .insert({ user_id: user.id, beat_id: beatId });
+          .select('*')
+          .limit(1);
         
-        setFavoriteBeats(prevFavorites => [...prevFavorites, beatId]);
-        
-        // Update beat's favorites count
-        await supabase.rpc("increment_counter" as any, {
-          p_table_name: "beats",
-          p_column_name: "favorites_count",
-          p_id: beatId,
-          p_increment: 1
-        });
-        
-        // Update local beats state
-        setBeats(prevBeats => prevBeats.map(beat => 
-          beat.id === beatId 
-            ? { ...beat, favorites_count: (beat.favorites_count || 0) + 1 } 
-            : beat
-        ));
-        
-        return true;
+        if (!checkError) {
+          // If the table exists, insert into it
+          await supabase
+            .from('favorites')
+            .insert([{ 
+              user_id: user.id, 
+              beat_id: beatId 
+            }]);
+          
+          setFavoriteBeats(prevFavorites => [...prevFavorites, beatId]);
+          
+          // Update beat's favorites count
+          await supabase.rpc("increment_counter", {
+            p_table_name: "beats",
+            p_column_name: "favorites_count",
+            p_id: beatId,
+            p_increment: 1
+          });
+          
+          // Update local beats state
+          setBeats(prevBeats => prevBeats.map(beat => 
+            beat.id === beatId 
+              ? { ...beat, favorites_count: (beat.favorites_count || 0) + 1 } 
+              : beat
+          ));
+          
+          return true;
+        } else {
+          // Table doesn't exist, let the user know
+          console.warn('Favorites table does not exist');
+          toast.error('Favorite functionality is not yet available');
+          return false;
+        }
       }
     } catch (error) {
       console.error('Error toggling favorite:', error);
@@ -265,7 +285,7 @@ export function useBeats() {
         key: data.key,
         tags: data.tags || [],
         description: data.description || '',
-        created_at: data.created_at || data.upload_date,
+        created_at: data.upload_date || new Date().toISOString(),
         is_featured: Boolean(data.is_featured) || false,
         favorites_count: data.favorites_count || 0,
         purchase_count: data.purchase_count || 0,

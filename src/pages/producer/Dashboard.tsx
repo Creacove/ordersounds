@@ -1,151 +1,239 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useBeats } from "@/hooks/useBeats";
+import { BeatCard } from "@/components/marketplace/BeatCard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
-import { useNotifications } from "@/hooks/useNotifications";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { getProducerStats } from "@/lib/producerStats";
+import { useBeats } from "@/hooks/useBeats";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  FilePlus2,
+  ArrowRight,
+  Search,
+  Music,
+  Upload,
+  SlidersHorizontal,
+  Heart,
+  ShoppingCart,
+  Loader2
+} from "lucide-react";
+import { Beat } from "@/types";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useToast } from "@/components/ui/use-toast"
 
-// Import refactored components
-import { StatsCards } from "@/components/producer/dashboard/StatsCards";
-import { AnalyticsCharts } from "@/components/producer/dashboard/AnalyticsCharts";
-import { GenreDistribution } from "@/components/producer/dashboard/GenreDistribution";
-import { RecentActivity } from "@/components/producer/dashboard/RecentActivity";
-import { TopSellingBeats } from "@/components/producer/dashboard/TopSellingBeats";
-import { BankDetailsCard } from "@/components/producer/dashboard/BankDetailsCard";
-
-export default function ProducerDashboard() {
-  const { user, currency } = useAuth();
-  const { getProducerBeats } = useBeats();
-  const { notifications } = useNotifications();
+export default function Dashboard() {
+  const { user } = useAuth();
+  const { beats: allBeats, getProducerBeats, refetchBeats, isLoading, toggleFavorite } = useBeats();
+  const [beats, setBeats] = useState<Beat[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
-  const [showBankDetails, setShowBankDetails] = useState(false);
-  const [producerData, setProducerData] = useState<any>(null);
-  const [isLoadingProducer, setIsLoadingProducer] = useState(true);
-  const [stats, setStats] = useState(null);
-  const [isLoadingStats, setIsLoadingStats] = useState(true);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [showPublished, setShowPublished] = useState(true);
+  const [showDrafts, setShowDrafts] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
+  const { toast } = useToast()
 
-  // Fetch producer data including bank details and subaccount info
   useEffect(() => {
-    const fetchProducerData = async () => {
-      if (!user) return;
+    if (user) {
+      const producerBeats = getProducerBeats();
+      setBeats(producerBeats);
+    }
+  }, [user, allBeats]);
 
-      try {
-        setIsLoadingProducer(true);
-        const { data, error } = await supabase
-          .from("users")
-          .select(
-            "bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code"
-          )
-          .eq("id", user.id)
-          .single();
-
-        if (error) {
-          console.error("Error fetching producer data:", error);
-          return;
-        }
-
-        setProducerData(data);
-
-        // Show bank details form if not set up yet
-        if (!data.paystack_subaccount_code || !data.paystack_split_code) {
-          setShowBankDetails(true);
-        }
-      } catch (error) {
-        console.error("Error fetching producer data:", error);
-      } finally {
-        setIsLoadingProducer(false);
-      }
-    };
-
-    fetchProducerData();
-  }, [user, refreshTrigger]);
-
-  // Fetch producer analytics data
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!user) return;
+    const filteredBeats = getProducerBeats().filter(beat => {
+      const matchesSearch = beat.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const isPublished = showPublished && beat.status === 'published';
+      const isDraft = showDrafts && beat.status === 'draft';
+      return matchesSearch && (isPublished || isDraft);
+    });
+    setBeats(filteredBeats);
+  }, [searchQuery, showPublished, showDrafts, allBeats, user]);
 
-      try {
-        setIsLoadingStats(true);
-        const producerStats = await getProducerStats(user.id);
-        setStats(producerStats);
-      } catch (error) {
-        console.error("Error fetching producer stats:", error);
-      } finally {
-        setIsLoadingStats(false);
-      }
-    };
-
-    fetchStats();
-  }, [user, refreshTrigger]);
-
-  // Get producer beats and refresh data periodically
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setRefreshTrigger((prev) => prev + 1);
-    }, 60000); // Refresh data every minute
-
-    return () => clearInterval(intervalId);
-  }, []);
-
-  const producerBeats = user ? getProducerBeats(user.id) : [];
-
-  // Sort beats by purchase count in descending order
-  const topSellingBeats = [...producerBeats]
-    .sort((a, b) => (b.purchase_count || 0) - (a.purchase_count || 0))
-    .slice(0, 5);
-
-  // Get recent notifications for this producer
-  const recentNotifications = notifications
-    .filter((notification) => user && notification.recipient_id === user.id)
-    .slice(0, 5);
-
-  const handleBankDetailsSubmitted = () => {
-    setShowBankDetails(false);
-    // Refresh producer data
-    setRefreshTrigger((prev) => prev + 1);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      setSearchQuery(searchQuery.trim());
+    }
   };
+
+  const handleToggleFavorite = async (beatId: string) => {
+    try {
+      await toggleFavorite(beatId);
+      // Optimistically update the UI
+      setBeats(prevBeats => {
+        return prevBeats.map(beat => {
+          if (beat.id === beatId) {
+            return {
+              ...beat,
+              favorites_count: (beat.favorites_count || 0) + (allBeats.find(b => b.id === beatId)?.favorites_count || 0)
+            };
+          }
+          return beat;
+        });
+      });
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast({
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem toggling the favorite status.",
+        variant: "destructive",
+      })
+    }
+  };
+
+  const handleRefetch = async () => {
+    setIsRefetching(true);
+    try {
+      refetchBeats(); // Remove any arguments that were being passed
+      toast({
+        title: "Success!",
+        description: "Beats have been refetched.",
+      })
+    } catch (error) {
+      console.error("Error refetching beats:", error);
+      toast({
+        title: "Uh oh! Something went wrong.",
+        description: "There was a problem refetching the beats.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRefetching(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <MainLayout>
+        <div className="flex flex-col items-center justify-center h-full">
+          <h1 className="text-2xl font-bold">Please log in to view your dashboard</h1>
+          <p className="text-muted-foreground">You must be logged in to access this page.</p>
+          <Button asChild>
+            <Link to="/login">Log In</Link>
+          </Button>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
-      <div className="container py-8">
-        <h1 className="text-2xl font-bold mb-6">Producer Dashboard</h1>
-
-        {isLoadingProducer ? (
-          <div className="text-center">Loading bank details...</div>
-        ) : (
-          showBankDetails &&
-          user && (
-            <BankDetailsCard
-              userId={user.id}
-              producerData={producerData}
-              onSuccess={handleBankDetailsSubmitted}
-            />
-          )
-        )}
-
-        <StatsCards
-          stats={stats}
-          isLoadingStats={isLoadingStats}
-          currency={currency}
-        />
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <AnalyticsCharts
-            stats={stats}
-            isLoadingStats={isLoadingStats}
-            currency={currency}
-          />
-          <GenreDistribution stats={stats} isLoadingStats={isLoadingStats} />
+      <div className="container mx-auto py-10">
+        <div className="mb-8 flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Producer Dashboard</h1>
+          <Button asChild>
+            <Link to="/producer/upload">
+              <FilePlus2 className="mr-2 h-4 w-4" />
+              Upload New Beat
+            </Link>
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <RecentActivity notifications={recentNotifications} />
-          <TopSellingBeats beats={topSellingBeats} />
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Filter and Search</CardTitle>
+            <CardDescription>Customize your beat listings.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <div className="col-span-1">
+              <form onSubmit={handleSearch} className="relative">
+                <div className="flex items-center">
+                  <Input
+                    type="text"
+                    placeholder="Search beats..."
+                    className="pr-10"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <Button type="submit" className="absolute right-1 top-1 rounded-md">
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+              </form>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="published">Published</Label>
+              <Switch
+                id="published"
+                checked={showPublished}
+                onCheckedChange={(checked) => setShowPublished(checked)}
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="drafts">Drafts</Label>
+              <Switch
+                id="drafts"
+                checked={showDrafts}
+                onCheckedChange={(checked) => setShowDrafts(checked)}
+              />
+            </div>
+
+            <Button
+              variant="outline"
+              onClick={handleRefetch}
+              disabled={isRefetching || isLoading}
+              className="w-full mt-4"
+            >
+              {isRefetching || isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  Apply Filters
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {isLoading ? (
+            <>
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-3">
+                  <Skeleton className="h-40 w-full rounded-md" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-4 w-1/4" />
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : beats.length > 0 ? (
+            beats.map((beat) => (
+              <BeatCard
+                key={beat.id}
+                beat={beat}
+                onToggleFavorite={handleToggleFavorite}
+                isDashboardView={true}
+              />
+            ))
+          ) : (
+            <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 text-center py-10">
+              <h2 className="text-xl font-semibold">No beats found</h2>
+              <p className="text-muted-foreground">
+                Upload your first beat or adjust your search filters.
+              </p>
+              <Button asChild className="mt-4">
+                <Link to="/producer/upload">
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload Beat
+                </Link>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </MainLayout>
