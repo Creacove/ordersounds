@@ -208,11 +208,16 @@ export default function UploadBeat() {
       const coverImageFileOrUrl: FileOrUrl = imageFile;
       const previewFileOrUrl: FileOrUrl = previewFile || (previewUrl ? { url: previewUrl } : null);
       
+      // Fix: Only pass previewFile to uploadBeat if it's a File, otherwise use the URL
+      const finalPreviewFile = previewFile || null;
+      // Fix: Only pass imageFile to uploadBeat if it's a File, otherwise use the URL
+      const finalImageFile = isFile(imageFile) ? imageFile : null;
+      
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        previewFileOrUrl,
-        coverImageFileOrUrl,
+        finalPreviewFile || { url: previewUrl || '' },
+        finalImageFile || { url: typeof imageFile === 'object' && 'url' in imageFile ? imageFile.url : '' },
         stems,
         user.id,
         user.producer_name || user.name,
@@ -293,11 +298,16 @@ export default function UploadBeat() {
       const coverImageFileOrUrl: FileOrUrl = imageFile;
       const previewFileOrUrl: FileOrUrl = previewFile || (previewUrl ? { url: previewUrl } : null);
       
+      // Fix: Only pass previewFile to uploadBeat if it's a File, otherwise use the URL
+      const finalPreviewFile = previewFile || null;
+      // Fix: Only pass imageFile to uploadBeat if it's a File, otherwise use the URL
+      const finalImageFile = isFile(imageFile) ? imageFile : null;
+      
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        previewFileOrUrl,
-        coverImageFileOrUrl,
+        finalPreviewFile || { url: previewUrl || '' },
+        finalImageFile || { url: typeof imageFile === 'object' && 'url' in imageFile ? imageFile.url : '' },
         stems,
         user.id,
         user.producer_name || user.name,
