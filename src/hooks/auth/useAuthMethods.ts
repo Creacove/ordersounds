@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { mapSupabaseUser } from '@/lib/supabase';
+import { uniqueToast } from '@/lib/toast';
 
 interface AuthMethodsProps {
   setUser: (user: User | null) => void;
@@ -29,12 +30,12 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         
         // Special case for unconfirmed emails
         if (error.message.includes("Email not confirmed") || error.code === "email_not_confirmed") {
-          toast.error("Email not confirmed. Please check your inbox for a confirmation email or try signing up again.");
+          uniqueToast.error("Email not confirmed. Please check your inbox for a confirmation email or try signing up again.");
           setIsLoading(false);
           return;
         }
         
-        toast.error(error.message || 'Failed to log in');
+        uniqueToast.error(error.message || 'Failed to log in');
         setIsLoading(false);
         return;
       }
@@ -46,11 +47,11 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
         return;
       }
       
-      toast.error("Failed to login. Please try again.");
+      uniqueToast.error("Failed to login. Please try again.");
       
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Failed to log in');
+      uniqueToast.error(error.message || 'Failed to log in');
     } finally {
       setIsLoading(false);
     }

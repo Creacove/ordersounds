@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { RoleSelectionDialog } from '@/components/auth/RoleSelectionDialog';
 import { Button } from '@/components/ui/button';
+import { uniqueToast } from '@/lib/toast';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -95,24 +95,21 @@ export default function AuthCallback() {
               if (validRole === 'producer' && validStatus === 'inactive') {
                 console.log("Inactive producer, redirecting to activation page");
                 navigate('/producer-activation');
-                toast.info('Please complete your activation to access the producer features');
                 return;
               }
               
-              // Otherwise, redirect based on role
+              // Otherwise, redirect based on role without notification
               if (validRole === 'producer') {
                 navigate('/producer/dashboard');
               } else {
                 navigate('/');
               }
-              
-              toast.success('Successfully signed in!');
             } catch (error: any) {
               console.error('Error processing user data:', error);
               setError(`User processing error: ${error.message}`);
               // On error, redirect to home page with a notification
               navigate('/');
-              toast.error('Error processing account data. Please try again.');
+              uniqueToast.error('Error processing account data');
             } finally {
               setIsLoading(false);
             }
@@ -126,7 +123,7 @@ export default function AuthCallback() {
       } catch (error: any) {
         console.error('Error handling auth callback:', error);
         setError(`Auth callback error: ${error.message}`);
-        toast.error('Authentication failed. Please try again.');
+        uniqueToast.error('Authentication failed');
         navigate('/login');
       } finally {
         setIsLoading(false);
@@ -146,7 +143,7 @@ export default function AuthCallback() {
         {isLoading && (
           <>
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-            <h2 className="mt-4 text-xl">Completing authentication...</h2>
+            <h2 className="mt-4 text-xl">Signing you in...</h2>
             {retryCount > 0 && (
               <p className="mt-2 text-sm text-muted-foreground">
                 Connecting to server... (Attempt {retryCount + 1}/4)
@@ -169,10 +166,7 @@ export default function AuthCallback() {
           </>
         )}
         {!isLoading && !showRoleSelection && !error && (
-          <>
-            <h2 className="text-2xl">Authentication completed</h2>
-            <p className="mt-2">You will be redirected shortly...</p>
-          </>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
         )}
       </div>
     </MainLayout>

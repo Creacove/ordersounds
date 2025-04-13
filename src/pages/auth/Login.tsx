@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
+import { uniqueToast } from "@/lib/toast";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -72,11 +71,7 @@ export default function Login() {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetEmail.trim() || !/\S+@\S+\.\S+/.test(resetEmail)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address",
-        variant: "destructive"
-      });
+      uniqueToast.error("Please enter a valid email address");
       return;
     }
 
@@ -87,26 +82,15 @@ export default function Login() {
       });
 
       if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive"
-        });
+        uniqueToast.error(error.message);
         return;
       }
 
       setResetEmailSent(true);
-      toast({
-        title: "Password Reset Email Sent",
-        description: "Please check your inbox (and spam/junk folder) for instructions",
-      });
+      uniqueToast.success("Password reset email sent");
     } catch (error) {
       console.error("Password reset error:", error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-        variant: "destructive"
-      });
+      uniqueToast.error("An unexpected error occurred. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

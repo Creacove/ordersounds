@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { User } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { mapSupabaseUser } from "@/lib/supabase";
-import { toast } from "sonner";
+import { uniqueToast } from "@/lib/toast";
 
 export interface AuthState {
   user: User | null;
@@ -56,9 +56,9 @@ export const useAuthState = () => {
           return;
         }
         
-        // Only show the error toast once
+        // Only show the error toast once per session
         if (!hasShownError) {
-          toast.error("Unable to load user data. Please refresh the page.");
+          uniqueToast.error("Unable to load user data. Please refresh the page.");
           setHasShownError(true);
         }
         
@@ -78,7 +78,7 @@ export const useAuthState = () => {
       
       // Only show the error toast once per session
       if (retryCount >= maxRetries && !hasShownError) {
-        toast.error("Unable to load user data. Please refresh the page.");
+        uniqueToast.error("Unable to load user data. Please refresh the page.");
         setHasShownError(true);
       }
     }
@@ -144,7 +144,7 @@ export const useAuthState = () => {
               // Finally set loading to false
               setIsLoading(false);
             });
-          }, 500); // Increased delay to avoid race conditions
+          }, 1000); // Increased delay to avoid race conditions
         } else {
           if (mounted) {
             setIsLoading(false);
@@ -214,7 +214,7 @@ export const useAuthState = () => {
             setCurrency(currency);
             setIsLoading(false);
           });
-        }, 500); // Increased delay to avoid race conditions
+        }, 1000); // Increased delay to avoid race conditions
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setIsLoading(false);

@@ -1,5 +1,6 @@
 
 import { toast as sonnerToast, type ToastT as SonnerToast } from 'sonner';
+import { uniqueToast } from '@/lib/toast';
 
 type ToastOptions = {
   id?: string;
@@ -17,7 +18,7 @@ export { useToast } from "@/hooks/use-toast";
 
 // Simple wrapper around Sonner toast
 export const toast = (options: ToastOptions) => {
-  return sonnerToast(options.title || '', {
+  return uniqueToast.info(options.title || '', {
     description: options.description,
     action: options.action,
     cancel: options.cancel,
@@ -29,7 +30,7 @@ export const toast = (options: ToastOptions) => {
 
 // Add variants for easier usage
 toast.success = (message: string, options?: Omit<ToastOptions, 'title'>) => {
-  return sonnerToast.success(message, {
+  return uniqueToast.success(message, {
     duration: 3000,
     ...options
   });
@@ -37,21 +38,21 @@ toast.success = (message: string, options?: Omit<ToastOptions, 'title'>) => {
 
 toast.error = (message: string, options?: Omit<ToastOptions, 'title'>) => {
   console.error("Toast error:", message); // Log errors for debugging
-  return sonnerToast.error(message, {
+  return uniqueToast.error(message, {
     duration: 5000, // Show errors a bit longer
     ...options
   });
 };
 
 toast.info = (message: string, options?: Omit<ToastOptions, 'title'>) => {
-  return sonnerToast.info(message, {
+  return uniqueToast.info(message, {
     duration: 3000,
     ...options
   });
 };
 
 toast.warning = (message: string, options?: Omit<ToastOptions, 'title'>) => {
-  return sonnerToast.warning(message, {
+  return uniqueToast.warning(message, {
     duration: 4000, // Show warnings a bit longer too
     ...options
   });

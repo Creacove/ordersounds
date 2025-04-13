@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import { uniqueToast } from '@/lib/toast';
 import { FcGoogle } from 'react-icons/fc';
 
 interface GoogleAuthButtonProps {
@@ -44,7 +44,7 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       });
 
       if (error) {
-        toast.error(error.message || "Failed to sign in with Google");
+        uniqueToast.error(error.message || "Failed to sign in with Google");
         console.error('Google auth error:', error);
       } else {
         console.log("OAuth auth initiated successfully, redirecting...");
@@ -52,7 +52,7 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       }
     } catch (error: any) {
       console.error('Google auth error:', error);
-      toast.error('An error occurred during Google authentication');
+      uniqueToast.error('An error occurred during Google authentication');
     } finally {
       setIsLoading(false);
     }
