@@ -1,15 +1,11 @@
-
+import React from "react";
 import { Link } from "react-router-dom";
 import { 
   Home, 
-  BookOpen, 
-  PlaySquare, 
+  Users, 
   ShoppingCart, 
   MoreHorizontal,
-  LayoutDashboard,
   Music,
-  DollarSign,
-  Users,  // Added Users icon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +39,7 @@ export function MobileBottomNav({
     mobileMenuItems = [
       { icon: <Home size={20} />, label: "Home", to: "/", id: "home" },
       { icon: <Users size={20} />, label: "Producers", to: "/producers", id: "producers" },
-      { icon: <Music size={20} />, label: "Playlists", to: "/playlists", id: "playlists" },
+      { icon: <Music size={20} />, label: "Library", to: "/library", id: "library" },
       { icon: <ShoppingCart size={20} />, label: "Cart", to: "/cart", id: "cart", badge: itemCount > 0 ? itemCount : null },
       { icon: <MoreHorizontal size={20} />, label: "More", to: "#", id: "more", action: () => setIsOpen(true) },
     ];
