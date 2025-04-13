@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -134,8 +133,6 @@ export function useBeats() {
     }
 
     try {
-      // Instead of directly querying the user_favorites table, use a function call
-      // or handle it with custom SQL via RPC
       const { data, error } = await supabase
         .rpc('get_user_favorites', {
           user_id_param: user.id
@@ -195,7 +192,6 @@ export function useBeats() {
       
       if (isFav) {
         try {
-          // Use RPC to remove favorite
           const { error } = await supabase
             .rpc('remove_favorite', {
               user_id_param: user.id,
@@ -230,7 +226,6 @@ export function useBeats() {
         }
       } else {
         try {
-          // Use RPC to add favorite
           const { error } = await supabase
             .rpc('add_favorite', {
               user_id_param: user.id,
