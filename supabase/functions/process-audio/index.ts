@@ -32,7 +32,7 @@ serve(async (req) => {
 
   try {
     // Parse the request body
-    const { fullTrackUrl } = await req.json();
+    const { fullTrackUrl, requiresWav } = await req.json();
 
     if (!fullTrackUrl) {
       return new Response(
@@ -80,14 +80,14 @@ serve(async (req) => {
       );
     }
 
-    // Get the file extension for naming and determine content type
+    // Get the file extension for naming
     const fileExt = filePath.split('.').pop().toLowerCase();
     console.log(`File extension: ${fileExt}`);
     
     // Create a unique file name for the preview
     const fileName = crypto.randomUUID();
     const timestamp = Date.now();
-    const previewExt = fileExt; // Maintain original file extension
+    const previewExt = fileExt === 'wav' ? 'wav' : 'mp3';
     const uploadPath = `previews/${timestamp}_${fileName}_preview.${previewExt}`;
     
     try {
@@ -102,26 +102,7 @@ serve(async (req) => {
       console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBytes} bytes`);
       
       // Determine the correct content type based on file extension
-      let contentType;
-      switch (fileExt) {
-        case 'wav':
-          contentType = 'audio/wav';
-          break;
-        case 'mp3':
-          contentType = 'audio/mpeg';
-          break;
-        case 'm4a':
-          contentType = 'audio/m4a';
-          break;
-        case 'aac':
-          contentType = 'audio/aac';
-          break;
-        case 'ogg':
-          contentType = 'audio/ogg';
-          break;
-        default:
-          contentType = 'audio/mpeg';
-      }
+      const contentType = previewExt === 'wav' ? 'audio/wav' : 'audio/mpeg';
       
       // Upload the preview portion to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -129,7 +110,7 @@ serve(async (req) => {
         .upload(uploadPath, new Uint8Array(previewBuffer), {
           contentType: contentType,
           cacheControl: "3600",
-          upsert: true  // Changed to true to overwrite existing files
+          upsert: true
         });
 
       if (uploadError) {
@@ -142,7 +123,7 @@ serve(async (req) => {
         .from('beats')
         .getPublicUrl(uploadPath);
           
-      console.log("Preview generated successfully:", publicUrlData.publicUrl);
+      console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
       
       // Return the preview URL directly in the response
       return new Response(
