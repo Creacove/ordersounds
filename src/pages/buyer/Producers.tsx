@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -286,7 +287,7 @@ export default function Producers() {
           {/* Suggested Producers Section */}
           {suggestedProducers.length > 0 && !searchQuery && (
             <div className="mb-12">
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
                 <h2 className="heading-responsive-md">Suggested for you</h2>
                 <Button 
                   variant="outline" 
@@ -295,7 +296,7 @@ export default function Producers() {
                   className="text-muted-foreground hover:text-foreground"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Shuffle Suggestions
+                  <span className="whitespace-nowrap">Shuffle Suggestions</span>
                 </Button>
               </div>
               
@@ -339,6 +340,7 @@ export default function Producers() {
                         producerId={producer.id}
                         className="w-full"
                         size="sm"
+                        variant="outline"
                       />
                     </Link>
                   </div>
@@ -351,7 +353,7 @@ export default function Producers() {
           
           {/* All Producers Section */}
           <div className="mb-20">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 flex-wrap gap-2">
               <h2 className="heading-responsive-md">Browse Producers</h2>
               
               <div className="flex bg-secondary rounded-full p-1">
@@ -459,8 +461,8 @@ export default function Producers() {
                       <FollowButton 
                         producerId={producer.id}
                         size={isMobile ? "sm" : "default"}
-                        className="bg-transparent hover:bg-[#323232] text-sm data-[following=true]:bg-purple-700 data-[following=true]:hover:bg-purple-800 border-gray-700"
                         variant="outline"
+                        className="bg-transparent hover:bg-[#323232] text-sm data-[following=true]:bg-purple-700 data-[following=true]:hover:bg-purple-800 border-gray-700"
                       />
                     </div>
                   </Link>
