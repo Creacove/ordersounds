@@ -61,7 +61,7 @@ serve(async (req) => {
     
     console.log(`Extracted file path: ${filePath}`);
     
-    // Check if file exists in storage
+    // Download the full file data
     const { data: fileData, error: fileError } = await supabase.storage
       .from('beats')
       .download(filePath);
@@ -80,78 +80,30 @@ serve(async (req) => {
       );
     }
 
-    // Get file extension
+    // Get the file extension for naming
     const fileExt = filePath.split('.').pop().toLowerCase();
     console.log(`File extension: ${fileExt}`);
-
-    // Set up temporary file paths with /tmp prefix for Deno Deploy
+    
+    // Create a unique file name for the preview
     const fileName = crypto.randomUUID();
-    const inputPath = `/tmp/${fileName}.${fileExt}`;
-    const previewPath = `/tmp/${fileName}_preview.mp3`;
     const timestamp = Date.now();
     const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
-
+    
     try {
-      // Write input file to disk
-      await Deno.writeFile(inputPath, new Uint8Array(await fileData.arrayBuffer()));
-      console.log("Successfully wrote input file to disk");
-
-      // Extract 30% of the file for preview (max 30 seconds)
-      try {
-        console.log("Extracting preview");
-        
-        // First get the duration of the file
-        const durationCmd = new Deno.Command("ffprobe", {
-          args: [
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=noprint_wrappers=1:nokey=1",
-            inputPath
-          ]
-        });
-        
-        const durationResult = await durationCmd.output();
-        if (!durationResult.success) {
-          throw new Error("Failed to get file duration");
-        }
-        
-        const durationOutput = new TextDecoder().decode(durationResult.stdout).trim();
-        const totalDuration = parseFloat(durationOutput);
-        console.log(`Total duration: ${totalDuration} seconds`);
-        
-        // Calculate preview duration (30% of total, max 30 seconds)
-        const previewDuration = Math.min(totalDuration * 0.3, 30);
-        console.log(`Preview duration: ${previewDuration} seconds`);
-        
-        // Extract the preview
-        const previewCmd = new Deno.Command("ffmpeg", {
-          args: [
-            "-i", inputPath,
-            "-t", previewDuration.toString(),
-            "-acodec", "libmp3lame",
-            "-q:a", "2",
-            previewPath
-          ]
-        });
-        
-        const previewResult = await previewCmd.output();
-        if (!previewResult.success) {
-          throw new Error("Failed to extract preview");
-        }
-        
-        console.log("Successfully extracted preview");
-      } catch (error) {
-        console.error("Error extracting preview:", error);
-        throw new Error(`Failed to extract preview: ${error.message}`);
-      }
-
-      // Upload the processed preview to Supabase Storage
-      console.log("Uploading processed preview");
-      const previewFileBuffer = await Deno.readFile(previewPath);
+      // Convert file to array buffer
+      const arrayBuffer = await fileData.arrayBuffer();
+      const totalBytes = arrayBuffer.byteLength;
       
+      // Take only the first 30% of the file for the preview
+      const previewBytes = Math.floor(totalBytes * 0.3);
+      const previewBuffer = arrayBuffer.slice(0, previewBytes);
+      
+      console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBytes} bytes`);
+      
+      // Upload the preview portion to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('beats')
-        .upload(uploadPath, previewFileBuffer, {
+        .upload(uploadPath, new Uint8Array(previewBuffer), {
           contentType: "audio/mpeg",
           cacheControl: "3600",
           upsert: true
@@ -168,16 +120,6 @@ serve(async (req) => {
         .getPublicUrl(uploadPath);
           
       console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
-      
-      // Clean up temporary files
-      try {
-        await Deno.remove(inputPath);
-        await Deno.remove(previewPath);
-        console.log("Temporary files cleaned up");
-      } catch (cleanupError) {
-        console.error("Error cleaning up temporary files:", cleanupError);
-        // Continue despite cleanup errors
-      }
       
       // Return the preview URL directly in the response
       return new Response(
