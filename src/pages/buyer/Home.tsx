@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
@@ -13,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { 
   Table,
   TableBody,
@@ -27,6 +29,7 @@ import { getUserPlaylists } from "@/lib/playlistService";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
+import { SectionTitle } from "@/components/ui/SectionTitle";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
@@ -208,6 +211,17 @@ export default function Home() {
               </div>
             </section>
           )}
+
+          <div className="py-6 px-6 md:px-8">
+            <section className="mb-6">
+              <SectionTitle 
+                title="Producer of the Week" 
+                icon={<Star className="h-5 w-5" />}
+                badge="Featured"
+              />
+              <ProducerOfWeek />
+            </section>
+          </div>
 
           <RecommendedBeats />
 
