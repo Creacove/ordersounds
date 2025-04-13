@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,7 +33,6 @@ import Contact from "./pages/Contact";
 import BuyerProfile from "./pages/buyer/BuyerProfile";
 import ProducerProfile from "./pages/producer/ProducerProfile";
 import BeatDetail from "./pages/buyer/BeatDetail";
-import IndexPage from "./pages/Index";
 
 // Producer pages
 import ProducerDashboard from "./pages/producer/Dashboard";
@@ -70,7 +70,7 @@ const App = () => (
                 <Sonner position="top-right" expand={true} closeButton={true} />
                 <Routes>
                   {/* Public Routes - accessible to all users */}
-                  <Route path="/" element={<IndexPage />} />
+                  <Route path="/" element={<Home />} />
                   <Route path="/trending" element={<Trending />} />
                   <Route path="/new" element={<New />} />
                   <Route path="/playlists" element={<Playlists />} />
