@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,6 +15,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
+import { SectionTitle } from "@/components/ui/SectionTitle";
 
 interface Producer {
   id: string;
@@ -254,28 +254,28 @@ export default function Producers() {
 
   return (
     <MainLayout>
-      <div className="flex flex-col min-h-screen p-4 md:p-8 bg-black text-white">
+      <div className="page-container bg-background text-foreground">
         <div className="w-full max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-            <h1 className="text-3xl font-bold">Discover Producers</h1>
-            {getDeviceIndicator()}
-          </div>
+          <SectionTitle 
+            title="Discover Producers" 
+            className="header-spacing"
+          />
 
           {/* Search Bar */}
           <div className="relative mb-8">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
               <Input
                 type="text"
                 placeholder="Search producers by name or bio..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-[#121212] border-gray-800 focus:border-purple-600 focus:ring-purple-600 w-full rounded-lg text-white"
+                className="pl-10 pr-10 py-2 bg-secondary text-foreground border-border focus:ring-2 focus:ring-ring w-full rounded-md"
               />
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -283,92 +283,91 @@ export default function Producers() {
             </div>
           </div>
           
-          {/* Suggested Producers Section - Only show if not empty and not searching */}
+          {/* Suggested Producers Section */}
           {suggestedProducers.length > 0 && !searchQuery && (
             <div className="mb-12">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0 mb-6">
-                <h2 className="text-2xl font-semibold">Suggested for you</h2>
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="heading-responsive-md">Suggested for you</h2>
                 <Button 
                   variant="outline" 
-                  className="bg-[#121212] hover:bg-[#1a1a1a] text-white border-none rounded-full px-4"
+                  size="sm"
                   onClick={handleShuffleSuggestions}
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Shuffle Suggestions
                 </Button>
               </div>
               
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {suggestedProducers.map((producer) => (
                   <div 
                     key={producer.id} 
-                    className="relative bg-[#121212] rounded-xl p-4 transition-all duration-200 hover:bg-[#1a1a1a] group"
+                    className="bg-secondary rounded-lg p-4 relative group"
                   >
                     <button 
-                      className="absolute top-3 right-3 bg-black/40 p-1 rounded-full text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity z-10" 
+                      className="absolute top-2 right-2 bg-background/50 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" 
                       aria-label="Dismiss"
                       onClick={(e) => handleDismissProducer(producer.id, e)}
                     >
-                      <X size={18} />
+                      <X size={16} />
                     </button>
                     
-                    <Link to={`/producer/${producer.id}`} className="block text-center w-full">
-                      <Avatar className="h-20 w-20 mx-auto mb-4 rounded-full overflow-hidden">
+                    <Link to={`/producer/${producer.id}`} className="flex flex-col items-center">
+                      <Avatar className="h-16 w-16 mb-3">
                         <AvatarImage 
                           src={producer.profile_picture || `https://api.dicebear.com/7.x/initials/svg?seed=${producer.full_name}`}
                           alt={producer.stage_name || producer.full_name} 
-                          className="object-cover"
                         />
-                        <AvatarFallback className="text-lg">
+                        <AvatarFallback>
                           {(producer.stage_name || producer.full_name || 'P').charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <h3 className="font-bold text-lg truncate">
-                          {producer.stage_name || producer.full_name}
-                        </h3>
+                      <h3 className="text-responsive-base font-semibold mb-1 text-center truncate max-w-full">
+                        {producer.stage_name || producer.full_name}
+                      </h3>
+                      
+                      <div className="text-muted-foreground text-xs mb-3">
+                        <FollowerCount 
+                          count={producer.follower_count || 0} 
+                          className="text-xs text-muted-foreground"
+                        />
                       </div>
-                    </Link>
-                    
-                    <div className="text-xs text-gray-400 mb-4 text-center">
-                      <FollowerCount 
-                        count={producer.follower_count || 0} 
-                        className="text-xs text-gray-400"
-                      />
-                    </div>
-                    
-                    <div onClick={(e) => e.stopPropagation()} className="w-full">
+                      
                       <FollowButton 
                         producerId={producer.id}
-                        className="w-full bg-[#323232] hover:bg-[#3c3c3c] text-white active:bg-purple-800 data-[following=true]:bg-purple-700 data-[following=true]:hover:bg-purple-800" 
+                        className="w-full"
                         size="sm"
                       />
-                    </div>
+                    </Link>
                   </div>
                 ))}
               </div>
             </div>
           )}
           
-          <Separator className="bg-gray-800 my-8" />
+          <Separator className="my-8" />
           
           {/* All Producers Section */}
           <div className="mb-20">
-            <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-4 mb-6">
-              <h2 className="text-2xl font-semibold">Browse Producers</h2>
-              <div className="flex bg-[#121212] rounded-full overflow-hidden self-start xs:self-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="heading-responsive-md">Browse Producers</h2>
+              
+              <div className="flex bg-secondary rounded-full p-1">
                 <Button 
                   variant={!showingFollowed ? "default" : "ghost"} 
                   onClick={() => setShowingFollowed(false)}
-                  className={`rounded-l-full rounded-r-none px-4 py-2 h-auto text-sm ${!showingFollowed ? "bg-purple-700 hover:bg-purple-800" : ""}`}
+                  size="sm"
+                  className="rounded-l-full rounded-r-none"
                 >
                   All Producers
                 </Button>
                 <Button 
                   variant={showingFollowed ? "default" : "ghost"} 
                   onClick={() => setShowingFollowed(true)}
-                  className={`rounded-r-full rounded-l-none px-4 py-2 h-auto text-sm ${showingFollowed ? "bg-purple-700 hover:bg-purple-800" : ""}`}
+                  size="sm"
+                  className="rounded-r-full rounded-l-none"
                   disabled={!user}
                 >
                   Following
