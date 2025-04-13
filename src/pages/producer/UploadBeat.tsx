@@ -205,25 +205,41 @@ export default function UploadBeat() {
       };
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
-      const coverImageFileOrUrl: FileOrUrl = imageFile;
-      const previewFileOrUrl: FileOrUrl = previewFile || (previewUrl ? { url: previewUrl } : null);
       
-      // Fix: Only pass previewFile to uploadBeat if it's a File, otherwise use the URL
-      const finalPreviewFile = previewFile || null;
-      // Fix: Only pass imageFile to uploadBeat if it's a File, otherwise use the URL
-      const finalImageFile = isFile(imageFile) ? imageFile : null;
+      // Convert stems to null if it's not a File (fixing TypeScript error)
+      const stemsFile = isFile(stems) ? stems : null;
+      
+      // Handle the previewFile correctly based on type
+      let finalPreviewFile: File | null = null;
+      if (previewFile && isFile(previewFile)) {
+        finalPreviewFile = previewFile;
+      }
+      
+      // Handle the imageFile correctly based on type
+      let finalImageFile: File | null = null;
+      if (imageFile && isFile(imageFile)) {
+        finalImageFile = imageFile;
+      }
+      
+      // Prepare the preview URL for non-File case
+      const previewUrlForUpload = previewUrl || 
+        (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
+      
+      // Prepare the image URL for non-File case
+      const imageUrlForUpload = !finalImageFile && imageFile && 
+        !isFile(imageFile) && 'url' in imageFile ? imageFile.url : '';
       
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        finalPreviewFile || { url: previewUrl || '' },
-        finalImageFile || { url: typeof imageFile === 'object' && 'url' in imageFile ? imageFile.url : '' },
-        stems,
+        finalPreviewFile,
+        finalImageFile,
+        stemsFile,
         user.id,
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrl || ''
+        previewUrlForUpload
       );
       
       if (result.success) {
@@ -295,25 +311,41 @@ export default function UploadBeat() {
       };
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
-      const coverImageFileOrUrl: FileOrUrl = imageFile;
-      const previewFileOrUrl: FileOrUrl = previewFile || (previewUrl ? { url: previewUrl } : null);
       
-      // Fix: Only pass previewFile to uploadBeat if it's a File, otherwise use the URL
-      const finalPreviewFile = previewFile || null;
-      // Fix: Only pass imageFile to uploadBeat if it's a File, otherwise use the URL
-      const finalImageFile = isFile(imageFile) ? imageFile : null;
+      // Convert stems to null if it's not a File (fixing TypeScript error)
+      const stemsFile = isFile(stems) ? stems : null;
+      
+      // Handle the previewFile correctly based on type
+      let finalPreviewFile: File | null = null;
+      if (previewFile && isFile(previewFile)) {
+        finalPreviewFile = previewFile;
+      }
+      
+      // Handle the imageFile correctly based on type
+      let finalImageFile: File | null = null;
+      if (imageFile && isFile(imageFile)) {
+        finalImageFile = imageFile;
+      }
+      
+      // Prepare the preview URL for non-File case
+      const previewUrlForUpload = previewUrl || 
+        (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
+      
+      // Prepare the image URL for non-File case
+      const imageUrlForUpload = !finalImageFile && imageFile && 
+        !isFile(imageFile) && 'url' in imageFile ? imageFile.url : '';
       
       const result = await uploadBeat(
         beatData,
         fullTrackFileOrUrl,
-        finalPreviewFile || { url: previewUrl || '' },
-        finalImageFile || { url: typeof imageFile === 'object' && 'url' in imageFile ? imageFile.url : '' },
-        stems,
+        finalPreviewFile,
+        finalImageFile,
+        stemsFile,
         user.id,
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrl || ''
+        previewUrlForUpload
       );
       
       if (result.success) {
