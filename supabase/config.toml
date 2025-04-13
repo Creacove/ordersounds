@@ -1,7 +1,32 @@
 
 project_id = "uoezlwkxhbzajdivrlby"
 
-[functions.process-audio]
-verify_jwt = false
-import_map = "./import_map.json"
-timeout_seconds = 60
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+port = 54325
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+
+[functions]
+[functions.set-producer-of-week]
+verify_jwt = true

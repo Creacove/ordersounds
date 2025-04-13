@@ -24,6 +24,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { User, Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
+import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 
 export default function IndexPage() {
   const { user } = useAuth();
@@ -83,6 +84,17 @@ export default function IndexPage() {
             </div>
           </section>
         )}
+
+        <section className="mb-6 px-0 mx-0">
+          <SectionTitle 
+            title="Producer of the Week" 
+            icon={<Star className="h-5 w-5" />}
+            badge="Featured"
+          />
+          <div className="mt-3">
+            <ProducerOfWeek />
+          </div>
+        </section>
 
         {/* Recommended Beats section */}
         <RecommendedBeats />
