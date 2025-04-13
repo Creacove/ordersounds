@@ -16,6 +16,7 @@ export const useAuthState = () => {
   const [currency, setCurrency] = useState<"NGN" | "USD">("NGN");
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
+  const [hasShownError, setHasShownError] = useState(false);
   const maxRetries = 3;
 
   const getCurrencyFromLocalStorage = () => {
@@ -51,15 +52,22 @@ export const useAuthState = () => {
         if (retryCount < maxRetries) {
           setRetryCount(prev => prev + 1);
           console.log(`Retrying user data fetch (${retryCount + 1}/${maxRetries})...`);
-          setTimeout(() => fetchUserData(userId, onSuccess), 1000); // Retry after 1 second
+          setTimeout(() => fetchUserData(userId, onSuccess), 2000 * (retryCount + 1)); // Increasing backoff
           return;
+        }
+        
+        // Only show the error toast once
+        if (!hasShownError) {
+          toast.error("Unable to load user data. Please refresh the page.");
+          setHasShownError(true);
         }
         
         throw userError;
       }
       
-      // Reset retry count on success
+      // Reset retry count and error flag on success
       setRetryCount(0);
+      setHasShownError(false);
       
       // Call success handler if data was retrieved
       if (userData) {
@@ -67,8 +75,11 @@ export const useAuthState = () => {
       }
     } catch (error) {
       console.error("Error in fetchUserData:", error);
-      if (retryCount >= maxRetries) {
+      
+      // Only show the error toast once per session
+      if (retryCount >= maxRetries && !hasShownError) {
         toast.error("Unable to load user data. Please refresh the page.");
+        setHasShownError(true);
       }
     }
   };
@@ -106,13 +117,13 @@ export const useAuthState = () => {
               
               // Ensure role is a valid type
               const validRole: 'buyer' | 'producer' | 'admin' = 
-                (userData.role === 'buyer' || userData.role === 'producer' || userData.role === 'admin') 
+                (userData?.role === 'buyer' || userData?.role === 'producer' || userData?.role === 'admin') 
                   ? userData.role 
                   : 'buyer';
               
               // Ensure status is a valid type
               const validStatus: 'active' | 'inactive' =
-                userData.status === 'active' || userData.status === 'inactive'
+                userData?.status === 'active' || userData?.status === 'inactive'
                   ? userData.status
                   : 'inactive';
 
@@ -121,8 +132,8 @@ export const useAuthState = () => {
                 ...mappedUser,
                 role: validRole,
                 status: validStatus,
-                full_name: userData.full_name,
-                country: userData.country,
+                full_name: userData?.full_name || '',
+                country: userData?.country || '',
               };
 
               setUser(enrichedUser);
@@ -133,7 +144,7 @@ export const useAuthState = () => {
               // Finally set loading to false
               setIsLoading(false);
             });
-          }, 0);
+          }, 500); // Increased delay to avoid race conditions
         } else {
           if (mounted) {
             setIsLoading(false);
@@ -160,6 +171,7 @@ export const useAuthState = () => {
         
         // Set the basic user immediately to avoid UI flicker
         setUser(mappedUser);
+        setHasShownError(false); // Reset error flag on new auth state
         
         // Then fetch additional data after a slight delay to avoid race conditions
         setTimeout(async () => {
@@ -167,6 +179,13 @@ export const useAuthState = () => {
           
           fetchUserData(session.user.id, (userData) => {
             if (!mounted) return;
+            
+            // Handle potentially missing data
+            if (!userData) {
+              console.log("No user data found for ID:", session.user.id);
+              setIsLoading(false);
+              return;
+            }
             
             // Ensure role is a valid type
             const validRole: 'buyer' | 'producer' | 'admin' = 
@@ -185,8 +204,8 @@ export const useAuthState = () => {
               ...mappedUser,
               role: validRole,
               status: validStatus,
-              full_name: userData.full_name,
-              country: userData.country,
+              full_name: userData.full_name || '',
+              country: userData.country || '',
             };
 
             setUser(enrichedUser);
@@ -195,10 +214,11 @@ export const useAuthState = () => {
             setCurrency(currency);
             setIsLoading(false);
           });
-        }, 200); // Small delay to avoid race conditions
+        }, 500); // Increased delay to avoid race conditions
       } else if (event === "SIGNED_OUT") {
         setUser(null);
         setIsLoading(false);
+        setHasShownError(false); // Reset error flag on sign out
         
         // Reset currency based on location for logged out users or saved preference
         const currency = getCurrencyFromLocalStorage();
@@ -212,7 +232,7 @@ export const useAuthState = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [retryCount]);
+  }, [retryCount, hasShownError]);
 
   return {
     user,
