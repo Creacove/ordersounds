@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { RoleSelectionDialog } from '@/components/auth/RoleSelectionDialog';
+import { Button } from '@/components/ui/button';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
