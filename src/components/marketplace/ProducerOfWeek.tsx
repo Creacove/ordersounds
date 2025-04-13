@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Star, Play, Pause, Heart, Check, ChevronRight, User } from "lucide-react";
+import { Star, Play, Pause, Heart, Check, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,34 +26,25 @@ export function ProducerOfWeek() {
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
   const [isLoadingBeats, setIsLoadingBeats] = useState(true);
   const [isFollowingProducer, setIsFollowingProducer] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Fetch the producer of the week
   useEffect(() => {
     const fetchProducerOfWeek = async () => {
       setIsLoadingProducer(true);
-      setError(null);
       try {
-        console.log("Fetching producer of the week...");
         const { data, error } = await supabase
           .rpc('get_producer_of_week');
 
         if (error) {
           console.error('Error fetching producer of the week:', error);
-          setError("Failed to load producer data");
           return;
         }
 
-        console.log("Producer of week data:", data);
         if (data && data.length > 0) {
           setProducer(data[0]);
-        } else {
-          console.log("No producer of the week found in database");
-          setError("No producer of the week currently selected");
         }
       } catch (error) {
         console.error('Error:', error);
-        setError("An unexpected error occurred");
       } finally {
         setIsLoadingProducer(false);
       }
@@ -103,8 +94,6 @@ export function ProducerOfWeek() {
           console.error('Error fetching producer beats:', error);
           return;
         }
-
-        console.log("Producer beats:", data);
 
         // Transform the beats data to match our Beat interface
         const transformedBeats = data.map(beat => ({
@@ -238,23 +227,10 @@ export function ProducerOfWeek() {
     );
   }
 
-  if (error || !producer) {
+  if (!producer) {
     return (
-      <div className="bg-card/60 border rounded-lg p-6 flex flex-col items-center justify-center h-[250px] text-center">
-        <User size={32} className="text-muted-foreground mb-3" />
-        <div className="text-sm text-muted-foreground mb-2">
-          {error || "No producer of the week selected"}
-        </div>
-        {user?.role === 'admin' && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="mt-3"
-            onClick={() => navigate('/admin')}
-          >
-            Set Producer of the Week
-          </Button>
-        )}
+      <div className="bg-card/60 border rounded-lg p-6">
+        <div className="text-sm text-muted-foreground">No producer of the week selected</div>
       </div>
     );
   }

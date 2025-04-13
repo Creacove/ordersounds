@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -160,39 +161,6 @@ export default function IndexPage() {
               <PlaylistCard key={playlist.id} playlist={playlist} />
             ))}
           </div>
-        </section>
-
-        <section className="mb-10 bg-primary/5 rounded-lg py-8 px-6">
-          {user ? (
-            <>
-              <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
-                Discover More Music
-              </h2>
-              <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-                Explore our vast library of beats from top producers or check out your personal recommendations.
-              </p>
-              <div className="flex flex-wrap gap-4 justify-center">
-                <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
-                  <Link to="/trending">Explore Trending</Link>
-                </Button>
-                <Button variant="outline" size="lg" className="border-primary/20 hover:bg-primary/5" asChild>
-                  <Link to="/favorites">Your Favorites</Link>
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <h2 className="text-2xl md:text-3xl font-bold mb-3 text-center bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
-                Unlock Premium Music
-              </h2>
-              <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto">
-                Join today to access exclusive beats, save favorites, and connect with top producers.
-              </p>
-              <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
-                <Link to="/signup">Create Account</Link>
-              </Button>
-            </>
-          )}
         </section>
       </div>
     </MainLayoutWithPlayer>
