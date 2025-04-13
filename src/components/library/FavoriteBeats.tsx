@@ -30,7 +30,7 @@ export function FavoriteBeats() {
     }
   };
 
-  const handleRemoveFavorite = async (beatId) => {
+  const handleRemoveFavorite = async (beatId: string) => {
     await toggleFavorite(beatId);
   };
 

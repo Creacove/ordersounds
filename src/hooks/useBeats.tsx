@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Beat } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,6 +11,27 @@ export function useBeats() {
   const [favoriteBeats, setFavoriteBeats] = useState<string[]>([]);
   const [purchasedBeats, setPurchasedBeats] = useState<string[]>([]);
   const { user } = useAuth();
+
+  // Derived beat collections
+  const trendingBeats = useMemo(() => {
+    return [...beats].sort((a, b) => (b.plays || 0) - (a.plays || 0));
+  }, [beats]);
+
+  const newBeats = useMemo(() => {
+    return [...beats].sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }, [beats]);
+
+  const weeklyPicks = useMemo(() => {
+    // Randomly select some beats for weekly picks
+    const shuffled = [...beats].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, 10);
+  }, [beats]);
+
+  const featuredBeat = useMemo(() => {
+    return beats.find(beat => beat.is_featured) || (beats.length > 0 ? beats[0] : null);
+  }, [beats]);
 
   const fetchBeats = async () => {
     setIsLoading(true);
@@ -41,8 +62,8 @@ export function useBeats() {
         key: beat.key,
         tags: beat.tags || [],
         description: beat.description || '',
-        created_at: beat.created_at,
-        is_featured: beat.is_featured || false,
+        created_at: beat.created_at || beat.upload_date,
+        is_featured: Boolean(beat.is_featured) || false,
         favorites_count: beat.favorites_count || 0,
         purchase_count: beat.purchase_count || 0,
         plays: beat.plays || 0,
@@ -54,10 +75,10 @@ export function useBeats() {
         exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
         custom_license_price_local: beat.custom_license_price_local || 0,
         custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
-        status: beat.status
+        status: beat.status as "draft" | "published"
       }));
       
-      setBeats(beatsWithProducerNames);
+      setBeats(beatsWithProducerNames as Beat[]);
     } catch (error) {
       console.error('Error fetching beats:', error);
       toast.error('Failed to load beats');
@@ -82,12 +103,33 @@ export function useBeats() {
         .select('beat_id')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error in favorites table query:', error);
+        throw error;
+      }
 
-      const favoriteIds = data.map(fav => fav.beat_id);
-      setFavoriteBeats(favoriteIds);
+      if (data) {
+        const favoriteIds = data.map(fav => fav.beat_id);
+        setFavoriteBeats(favoriteIds);
+      }
     } catch (error) {
-      console.error('Error fetching favorites:', error);
+      // Try alternative approach if the favorites table doesn't exist
+      console.warn('Falling back to alternative favorites fetching method');
+      try {
+        const { data, error } = await supabase
+          .from('user_favorites')
+          .select('beat_id')
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+        
+        if (data) {
+          const favoriteIds = data.map(fav => fav.beat_id);
+          setFavoriteBeats(favoriteIds);
+        }
+      } catch (altError) {
+        console.error('Error fetching favorites (alternative method):', altError);
+      }
     }
   };
 
@@ -99,9 +141,9 @@ export function useBeats() {
 
     try {
       const { data, error } = await supabase
-        .from('purchases')
+        .from('user_purchased_beats')
         .select('beat_id')
-        .eq('buyer_id', user.id);
+        .eq('user_id', user.id);
 
       if (error) throw error;
 
@@ -122,6 +164,146 @@ export function useBeats() {
   const isFavorite = (beatId: string) => favoriteBeats.includes(beatId);
   const isPurchased = (beatId: string) => purchasedBeats.includes(beatId);
 
+  // Toggle favorite function
+  const toggleFavorite = async (beatId: string) => {
+    if (!user) {
+      toast.error('Please log in to add favorites');
+      return false;
+    }
+
+    const isBeatFavorite = isFavorite(beatId);
+
+    try {
+      if (isBeatFavorite) {
+        // Remove from favorites
+        await supabase
+          .from('favorites')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('beat_id', beatId);
+        
+        setFavoriteBeats(prevFavorites => 
+          prevFavorites.filter(id => id !== beatId)
+        );
+        
+        // Update beat's favorites count
+        await supabase.rpc("increment_counter" as any, {
+          p_table_name: "beats",
+          p_column_name: "favorites_count",
+          p_id: beatId,
+          p_increment: -1
+        });
+        
+        // Update local beats state
+        setBeats(prevBeats => prevBeats.map(beat => 
+          beat.id === beatId 
+            ? { ...beat, favorites_count: Math.max(0, (beat.favorites_count || 1) - 1) } 
+            : beat
+        ));
+        
+        return false;
+      } else {
+        // Add to favorites
+        await supabase
+          .from('favorites')
+          .insert({ user_id: user.id, beat_id: beatId });
+        
+        setFavoriteBeats(prevFavorites => [...prevFavorites, beatId]);
+        
+        // Update beat's favorites count
+        await supabase.rpc("increment_counter" as any, {
+          p_table_name: "beats",
+          p_column_name: "favorites_count",
+          p_id: beatId,
+          p_increment: 1
+        });
+        
+        // Update local beats state
+        setBeats(prevBeats => prevBeats.map(beat => 
+          beat.id === beatId 
+            ? { ...beat, favorites_count: (beat.favorites_count || 0) + 1 } 
+            : beat
+        ));
+        
+        return true;
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      toast.error('Failed to update favorite status');
+      return isBeatFavorite;
+    }
+  };
+
+  // Get beat by ID helper function
+  const getBeatById = async (id: string) => {
+    const cachedBeat = beats.find(beat => beat.id === id);
+    if (cachedBeat) return cachedBeat;
+
+    try {
+      const { data, error } = await supabase
+        .from('beats')
+        .select(`
+          *,
+          users:producer_id (full_name, stage_name)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      const beat = {
+        id: data.id,
+        title: data.title,
+        producer_id: data.producer_id,
+        producer_name: data.users?.stage_name || data.users?.full_name || 'Unknown Producer',
+        cover_image_url: data.cover_image,
+        preview_url: data.audio_preview,
+        full_track_url: data.audio_file,
+        genre: data.genre,
+        track_type: data.track_type,
+        bpm: data.bpm,
+        key: data.key,
+        tags: data.tags || [],
+        description: data.description || '',
+        created_at: data.created_at || data.upload_date,
+        is_featured: Boolean(data.is_featured) || false,
+        favorites_count: data.favorites_count || 0,
+        purchase_count: data.purchase_count || 0,
+        plays: data.plays || 0,
+        basic_license_price_local: data.basic_license_price_local || 0,
+        basic_license_price_diaspora: data.basic_license_price_diaspora || 0,
+        premium_license_price_local: data.premium_license_price_local || 0,
+        premium_license_price_diaspora: data.premium_license_price_diaspora || 0,
+        exclusive_license_price_local: data.exclusive_license_price_local || 0,
+        exclusive_license_price_diaspora: data.exclusive_license_price_diaspora || 0,
+        custom_license_price_local: data.custom_license_price_local || 0,
+        custom_license_price_diaspora: data.custom_license_price_diaspora || 0,
+        status: data.status as "draft" | "published"
+      };
+
+      return beat as Beat;
+    } catch (error) {
+      console.error('Error fetching beat by id:', error);
+      return null;
+    }
+  };
+
+  // Helper function for producer's beats
+  const getProducerBeats = () => {
+    if (!user) return [];
+    return beats.filter(beat => beat.producer_id === user.id);
+  };
+
+  // Helper function for getting user's favorite beats
+  const getUserFavoriteBeats = () => {
+    return beats.filter(beat => favoriteBeats.includes(beat.id));
+  };
+
+  // Helper function for getting user's purchased beats
+  const getUserPurchasedBeats = () => {
+    return beats.filter(beat => purchasedBeats.includes(beat.id));
+  };
+
   return {
     beats,
     isLoading,
@@ -129,6 +311,17 @@ export function useBeats() {
     purchasedBeats,
     isFavorite,
     isPurchased,
-    refetchBeats
+    refetchBeats,
+    toggleFavorite,
+    getBeatById,
+    trendingBeats,
+    newBeats,
+    weeklyPicks,
+    featuredBeat,
+    fetchPurchasedBeats,
+    getUserFavoriteBeats,
+    getUserPurchasedBeats,
+    getProducerBeats,
+    fetchTrendingBeats: refetchBeats // Alias for backward compatibility
   };
 }
