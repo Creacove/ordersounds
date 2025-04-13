@@ -12,14 +12,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Supabase client setup
-const supabaseUrl = Deno.env.get("SUPABASE_URL") as string;
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") as string;
-const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") as string;
+// Validate environment variables
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+if (!supabaseUrl || !supabaseServiceRole || !supabaseAnonKey) {
+  console.error("Missing required environment variables");
+}
+
+// Use service role key for admin access to storage
 const supabase = createClient(supabaseUrl, supabaseServiceRole);
 
-serve(async (req: Request) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -44,6 +49,8 @@ serve(async (req: Request) => {
     // Extract file path from URL
     const urlObj = new URL(fullTrackUrl);
     const pathParts = urlObj.pathname.split('/');
+    
+    // Determine the file path based on URL structure
     let filePath = pathParts[pathParts.length - 1];
     
     // If the URL contains the bucket name followed by the path, extract just the path
@@ -59,10 +66,13 @@ serve(async (req: Request) => {
       .from('beats')
       .download(filePath);
 
-    if (fileError) {
+    if (fileError || !fileData) {
       console.error("Error downloading file:", fileError);
       return new Response(
-        JSON.stringify({ error: "Failed to download audio file", details: fileError.message }),
+        JSON.stringify({ 
+          error: "Failed to download audio file", 
+          details: fileError?.message || "File not found or inaccessible" 
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -74,7 +84,7 @@ serve(async (req: Request) => {
     const fileExt = filePath.split('.').pop().toLowerCase();
     console.log(`File extension: ${fileExt}`);
 
-    // Set up temporary file paths
+    // Set up temporary file paths with /tmp prefix for Deno Deploy
     const fileName = crypto.randomUUID();
     const inputPath = `/tmp/${fileName}.${fileExt}`;
     const previewPath = `/tmp/${fileName}_preview.mp3`;
@@ -86,7 +96,7 @@ serve(async (req: Request) => {
       await Deno.writeFile(inputPath, new Uint8Array(await fileData.arrayBuffer()));
       console.log("Successfully wrote input file to disk");
 
-      // Extract 30% of the file for preview
+      // Extract 30% of the file for preview (max 30 seconds)
       try {
         console.log("Extracting preview");
         
@@ -143,7 +153,8 @@ serve(async (req: Request) => {
         .from('beats')
         .upload(uploadPath, previewFileBuffer, {
           contentType: "audio/mpeg",
-          cacheControl: "3600"
+          cacheControl: "3600",
+          upsert: true
         });
 
       if (uploadError) {
@@ -154,7 +165,7 @@ serve(async (req: Request) => {
       // Get the public URL of the uploaded preview
       const { data: publicUrlData } = supabase.storage
         .from('beats')
-        .getPublicUrl(uploadData.path);
+        .getPublicUrl(uploadPath);
           
       console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
       
@@ -173,7 +184,7 @@ serve(async (req: Request) => {
         JSON.stringify({
           success: true,
           previewUrl: publicUrlData.publicUrl,
-          path: uploadData.path
+          path: uploadPath
         }),
         {
           status: 200,
