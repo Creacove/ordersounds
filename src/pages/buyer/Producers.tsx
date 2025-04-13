@@ -40,11 +40,12 @@ export default function Producers() {
     document.title = "Producers | OrderSOUNDS";
   }, []);
 
-  // Get all producers
+  // Get all producers with improved performance
   const { data: producers, isLoading, refetch } = useQuery({
     queryKey: ['producers'],
     queryFn: async () => {
       try {
+        console.log("Fetching producers data...");
         // First, get all producers from the users table
         const { data: producersData, error } = await supabase
           .from('users')
@@ -56,7 +57,7 @@ export default function Producers() {
 
         if (!producersData) return []; 
 
-        // For each producer, get their beat count
+        // For each producer, get their beat count in parallel
         const producersWithBeats = await Promise.all(
           producersData.map(async (producer) => {
             const { count, error: beatError } = await supabase
@@ -76,18 +77,21 @@ export default function Producers() {
           })
         );
         
+        console.log(`Fetched ${producersWithBeats.length} producers`);
         return producersWithBeats;
       } catch (error) {
         console.error("Error fetching producers:", error);
         toast.error("Failed to load producers");
         return [];
       }
-    }
+    },
+    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
+    refetchOnMount: false // Don't refetch automatically when component mounts
   });
 
-  // Get only followed producers
+  // Get only followed producers with improved caching
   const { data: followedProducers, isLoading: followedLoading } = useQuery({
-    queryKey: ['followedProducers'],
+    queryKey: ['followedProducers', user?.id],
     queryFn: async () => {
       if (!user) return [];
       
@@ -111,7 +115,7 @@ export default function Producers() {
         if (error) throw error;
         if (!producersData) return [];
         
-        // Get beat counts
+        // Get beat counts in parallel
         const producersWithBeats = await Promise.all(
           producersData.map(async (producer) => {
             const { count, error: beatError } = await supabase
@@ -137,7 +141,8 @@ export default function Producers() {
         return [];
       }
     },
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000 // Keep data fresh for 5 minutes
   });
 
   // Generate suggested producers
@@ -200,31 +205,47 @@ export default function Producers() {
     });
   };
 
-  // Show loading state
+  // Show improved loading state
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="flex flex-col items-center min-h-screen p-4 md:p-8 bg-black text-white">
+        <div className="page-container bg-background text-foreground">
           <div className="w-full max-w-7xl mx-auto">
-            <h1 className="text-3xl font-bold mb-8">Discover Producers</h1>
+            <SectionTitle title="Discover Producers" className="header-spacing" />
+            
+            <div className="w-full flex items-center justify-center mb-6">
+              <div className="relative w-full max-w-md">
+                <Skeleton className="h-10 w-full rounded-md" />
+              </div>
+            </div>
             
             <div className="mb-10">
-              <h2 className="text-2xl font-semibold mb-6">Suggested for you</h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[...Array(4)].map((_, i) => (
-                  <Skeleton key={i} className="h-64 w-full rounded-xl bg-gray-800" />
+              <div className="flex justify-between items-center mb-6">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-8 w-40" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="bg-secondary rounded-lg p-4 flex flex-col items-center">
+                    <Skeleton className="h-16 w-16 rounded-full mb-3" />
+                    <Skeleton className="h-5 w-24 mb-1" />
+                    <Skeleton className="h-4 w-16 mb-3" />
+                    <Skeleton className="h-8 w-full rounded-md" />
+                  </div>
                 ))}
               </div>
             </div>
-
-            <div className="mb-6">
+            
+            <Skeleton className="h-1 w-full mb-8" />
+            
+            <div>
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-semibold">All Producers</h2>
-                <Skeleton className="h-10 w-40 rounded-full bg-gray-800" />
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-10 w-40 rounded-full" />
               </div>
-              <div className="space-y-3">
-                {[...Array(6)].map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-xl bg-gray-800" />
+              <div className="space-y-2">
+                {[...Array(5)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 w-full rounded-xl" />
                 ))}
               </div>
             </div>
@@ -412,6 +433,13 @@ export default function Producers() {
                     Clear Search
                   </Button>
                 </div>
+              </div>
+            ) : followedLoading && showingFollowed ? (
+              // Loading state specifically for followed producers
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-24 w-full rounded-xl" />
+                ))}
               </div>
             ) : (
               <div className="space-y-3">

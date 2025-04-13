@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePlayer } from "@/context/PlayerContext";
 import { useCart } from "@/context/CartContext";
@@ -19,6 +19,7 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
   const { user, logout } = useAuth();
   const { itemCount } = useCart();
   const location = useLocation();
+  const navigate = useNavigate();
   const { isPlaying, currentBeat } = usePlayer();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(false);
@@ -51,6 +52,7 @@ function Sidebar({ activeTab, currentPath, onCollapsedChange }: SidebarProps) {
       else if (path === "/trending") setActiveBottomTab("trending");
       else if (path === "/playlists") setActiveBottomTab("playlists");
       else if (path === "/cart") setActiveBottomTab("cart");
+      else if (path === "/producers") setActiveBottomTab("producers");
       else if (path === "/producer/dashboard") setActiveBottomTab("producer");
       else if (path === "/producer/beats") setActiveBottomTab("beats");
       else if (path === "/producer/royalties") setActiveBottomTab("royalties");

@@ -1,6 +1,6 @@
 
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { 
   Home, 
   Users, 
@@ -29,6 +29,7 @@ export function MobileBottomNav({
   setIsOpen, 
   setActiveBottomTab 
 }: MobileBottomNavProps) {
+  const location = useLocation();
   let mobileMenuItems = [];
 
   if (user?.role === "producer") {
@@ -52,12 +53,12 @@ export function MobileBottomNav({
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#0e0e0e] border-t border-[#272727] py-1 safe-area-bottom">
       <div className="flex justify-around">
         {mobileMenuItems.map((item, idx) => {
-          const isActive = activeBottomTab === item.id;
-          const isLibraryRoute =
-            item.id === "library" &&
-            (location.pathname === "/library" ||
-              location.pathname === "/purchased" ||
-              location.pathname === "/my-playlists");
+          const isActive = activeBottomTab === item.id || 
+                          (item.id === "producers" && location.pathname === "/producers") || 
+                          (item.id === "library" && 
+                            (location.pathname === "/library" ||
+                            location.pathname === "/purchased" ||
+                            location.pathname === "/my-playlists"));
 
           if (item.action) {
             return (
@@ -95,14 +96,14 @@ export function MobileBottomNav({
               to={item.to}
               className={cn(
                 "flex flex-col items-center justify-center py-1 px-2 relative",
-                (isActive || isLibraryRoute) ? "text-purple-500" : "text-gray-400"
+                isActive ? "text-purple-500" : "text-gray-400"
               )}
               onClick={() => setActiveBottomTab(item.id)}
             >
               <div
                 className={cn(
                   "relative p-1.5 rounded-full transition-colors",
-                  (isActive || isLibraryRoute) ? "bg-purple-500/20" : ""
+                  isActive ? "bg-purple-500/20" : ""
                 )}
               >
                 {item.icon}
@@ -118,7 +119,7 @@ export function MobileBottomNav({
               <span
                 className={cn(
                   "text-xs mt-0.5",
-                  (isActive || isLibraryRoute) ? "text-purple-500 font-medium" : ""
+                  isActive ? "text-purple-500 font-medium" : ""
                 )}
               >
                 {item.label}
