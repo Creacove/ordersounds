@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +11,6 @@ interface PreferencesFormProps {
   initialEmailNotifications: boolean;
   initialPushNotifications: boolean;
   initialSmsNotifications: boolean;
-  initialDarkMode: boolean;
   initialAutoPlayPreviews: boolean;
 }
 
@@ -19,7 +18,6 @@ export function PreferencesForm({
   initialEmailNotifications,
   initialPushNotifications,
   initialSmsNotifications,
-  initialDarkMode,
   initialAutoPlayPreviews
 }: PreferencesFormProps) {
   const [isLoading, setIsLoading] = useState(false);
@@ -27,10 +25,8 @@ export function PreferencesForm({
   const [emailNotifications, setEmailNotifications] = useState(initialEmailNotifications);
   const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
   const [smsNotifications, setSmsNotifications] = useState(initialSmsNotifications);
-  const [darkMode, setDarkMode] = useState(initialDarkMode);
   const [autoPlayPreviews, setAutoPlayPreviews] = useState(initialAutoPlayPreviews);
   const { user, updateProfile } = useAuth();
-  const { toast } = useToast();
 
   const handleSavePreferences = async () => {
     if (!user) return;
@@ -42,7 +38,6 @@ export function PreferencesForm({
         emailNotifications,
         pushNotifications,
         smsNotifications,
-        darkMode,
         autoPlayPreviews
       };
       
@@ -63,10 +58,7 @@ export function PreferencesForm({
           settings
         });
         
-        toast({
-          title: "Success",
-          description: "Preferences updated successfully",
-        });
+        toast.success("Preferences updated successfully");
         setSaveSuccess(true);
         
         // Reset success state after 3 seconds
@@ -76,11 +68,7 @@ export function PreferencesForm({
       }
     } catch (error) {
       console.error('Error updating preferences:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update preferences. Please try again.",
-        variant: "destructive"
-      });
+      toast.error("Failed to update preferences. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -136,19 +124,6 @@ export function PreferencesForm({
         
         <div className="flex items-center justify-between py-2">
           <div>
-            <h4 className="text-base font-medium">Dark Mode</h4>
-            <p className="text-sm text-muted-foreground">
-              Use dark theme for the dashboard
-            </p>
-          </div>
-          <Switch 
-            checked={darkMode} 
-            onCheckedChange={setDarkMode}
-          />
-        </div>
-        
-        <div className="flex items-center justify-between py-2">
-          <div>
             <h4 className="text-base font-medium">Auto-Play Previews</h4>
             <p className="text-sm text-muted-foreground">
               Automatically play beat previews when viewed
@@ -163,7 +138,7 @@ export function PreferencesForm({
       
       <div className="flex items-center gap-2">
         <Button 
-          className="w-full md:w-auto"
+          className="w-full md:w-auto bg-purple-600 hover:bg-purple-700"
           onClick={handleSavePreferences}
           disabled={isLoading}
           variant={saveSuccess ? "outline" : "default"}

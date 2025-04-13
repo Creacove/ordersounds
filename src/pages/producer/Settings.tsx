@@ -38,13 +38,11 @@ export default function ProducerSettings() {
     emailNotifications: boolean;
     pushNotifications: boolean;
     smsNotifications: boolean;
-    darkMode: boolean;
     autoPlayPreviews: boolean;
   }>({
     emailNotifications: true,
     pushNotifications: true,
     smsNotifications: false,
-    darkMode: false,
     autoPlayPreviews: true,
   });
   const [producerData, setProducerData] = useState<any>(null);
@@ -75,7 +73,6 @@ export default function ProducerSettings() {
           emailNotifications: settings.emailNotifications !== false,
           pushNotifications: settings.pushNotifications !== false,
           smsNotifications: settings.smsNotifications === true,
-          darkMode: settings.darkMode === true,
           autoPlayPreviews: settings.autoPlayPreviews !== false,
         });
       } catch (e) {
@@ -341,7 +338,6 @@ export default function ProducerSettings() {
                   }
                   initialPushNotifications={producerSettings.pushNotifications}
                   initialSmsNotifications={producerSettings.smsNotifications}
-                  initialDarkMode={producerSettings.darkMode}
                   initialAutoPlayPreviews={producerSettings.autoPlayPreviews}
                 />
               </CardContent>

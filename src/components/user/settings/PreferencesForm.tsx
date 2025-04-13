@@ -13,7 +13,6 @@ interface PreferencesFormProps {
   initialEmailNotifications: boolean;
   initialPushNotifications: boolean;
   initialSmsNotifications: boolean;
-  initialDarkMode: boolean;
   initialAutoPlayPreviews: boolean;
   initialDefaultCurrency: 'NGN' | 'USD';
 }
@@ -22,7 +21,6 @@ export function PreferencesForm({
   initialEmailNotifications,
   initialPushNotifications,
   initialSmsNotifications,
-  initialDarkMode,
   initialAutoPlayPreviews,
   initialDefaultCurrency
 }: PreferencesFormProps) {
@@ -31,7 +29,6 @@ export function PreferencesForm({
   const [emailNotifications, setEmailNotifications] = useState(initialEmailNotifications);
   const [pushNotifications, setPushNotifications] = useState(initialPushNotifications);
   const [smsNotifications, setSmsNotifications] = useState(initialSmsNotifications);
-  const [darkMode, setDarkMode] = useState(initialDarkMode);
   const [autoPlayPreviews, setAutoPlayPreviews] = useState(initialAutoPlayPreviews);
   const [defaultCurrency, setDefaultCurrency] = useState<'NGN' | 'USD'>(initialDefaultCurrency);
   const { user, updateProfile, setCurrency } = useAuth();
@@ -46,7 +43,6 @@ export function PreferencesForm({
         emailNotifications,
         pushNotifications,
         smsNotifications,
-        darkMode,
         autoPlayPreviews
       };
       
@@ -70,7 +66,9 @@ export function PreferencesForm({
         });
         
         // Update currency in context if it changed
-        setCurrency(defaultCurrency);
+        if (setCurrency) {
+          setCurrency(defaultCurrency);
+        }
 
         // Store in localStorage
         try {
@@ -142,19 +140,6 @@ export function PreferencesForm({
       
       <div className="border-t pt-4 space-y-4">
         <h3 className="text-lg font-medium">Display Settings</h3>
-        
-        <div className="flex items-center justify-between py-2">
-          <div>
-            <h4 className="text-base font-medium">Dark Mode</h4>
-            <p className="text-sm text-muted-foreground">
-              Use dark theme for the application
-            </p>
-          </div>
-          <Switch 
-            checked={darkMode} 
-            onCheckedChange={setDarkMode}
-          />
-        </div>
         
         <div className="flex items-center justify-between py-2">
           <div>

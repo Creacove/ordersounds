@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -100,7 +99,6 @@ export default function Settings() {
               initialEmailNotifications={user.settings?.emailNotifications || true}
               initialPushNotifications={user.settings?.pushNotifications || true}
               initialSmsNotifications={user.settings?.smsNotifications || false}
-              initialDarkMode={user.settings?.darkMode || false}
               initialAutoPlayPreviews={user.settings?.autoPlayPreviews || true}
               initialDefaultCurrency={user.default_currency || 'NGN'}
             />
@@ -170,7 +168,6 @@ export default function Settings() {
               initialEmailNotifications={user.settings?.emailNotifications || true}
               initialPushNotifications={user.settings?.pushNotifications || true} 
               initialSmsNotifications={user.settings?.smsNotifications || false}
-              initialDarkMode={user.settings?.darkMode || false}
               initialAutoPlayPreviews={user.settings?.autoPlayPreviews || true}
               initialDefaultCurrency={user.default_currency || 'NGN'}
             />
