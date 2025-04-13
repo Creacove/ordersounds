@@ -27,6 +27,7 @@ import { getUserPlaylists } from "@/lib/playlistService";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
+import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
@@ -596,6 +597,22 @@ export default function Home() {
                   </Button>
                 </>
               )}
+            </section>
+
+            <section className="mb-10">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold">Producer of the Week</h2>
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20">
+                    <Star size={12} className="mr-1" />
+                    <span className="text-[10px]">Featured</span>
+                  </Badge>
+                </div>
+              </div>
+              
+              <div className="mt-3">
+                <ProducerOfWeek />
+              </div>
             </section>
           </div>
         </div>
