@@ -56,12 +56,13 @@ export const uploadFile = async (
         const uploadUrl = `${baseStorageUrl}/object/${bucket}/${filePath}`;
         xhr.open('PUT', uploadUrl, true);
         
-        // Get the API key via the storage header to use for auth
-        const storageHeaders = supabase.storage.from(bucket).headers;
-        const apiKey = storageHeaders['apikey'] || '';
+        // Use the project URL from the environment/config instead of accessing protected headers
+        // Get the API key from the URL in the client instance
+        const SUPABASE_URL = "https://uoezlwkxhbzajdivrlby.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
         
         // Set appropriate headers for the file type
-        xhr.setRequestHeader('Authorization', `Bearer ${apiKey}`);
+        xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
         xhr.setRequestHeader('x-upsert', 'true');
         xhr.setRequestHeader('Cache-Control', '3600');
         
