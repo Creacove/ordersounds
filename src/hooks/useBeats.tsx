@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -134,11 +133,10 @@ export function useBeats() {
     }
 
     try {
-      // Use the from method with table name instead of rpc
       const { data, error } = await supabase
-        .from('user_favorites')
-        .select('beat_id')
-        .eq('user_id', user.id);
+        .rpc('get_user_favorites', {
+          user_id_param: user.id
+        });
       
       if (error) {
         console.error('Error fetching user favorites:', error);
@@ -194,12 +192,11 @@ export function useBeats() {
       
       if (isFav) {
         try {
-          // Delete directly from the table instead of using rpc
           const { error } = await supabase
-            .from('user_favorites')
-            .delete()
-            .eq('user_id', user.id)
-            .eq('beat_id', beatId);
+            .rpc('remove_favorite', {
+              user_id_param: user.id,
+              beat_id_param: beatId
+            });
           
           if (error) throw error;
           
@@ -229,12 +226,10 @@ export function useBeats() {
         }
       } else {
         try {
-          // Insert directly to the table instead of using rpc
           const { error } = await supabase
-            .from('user_favorites')
-            .insert({
-              user_id: user.id,
-              beat_id: beatId
+            .rpc('add_favorite', {
+              user_id_param: user.id,
+              beat_id_param: beatId
             });
             
           if (error) throw error;

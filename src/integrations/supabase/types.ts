@@ -623,9 +623,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_favorite: {
+        Args: { user_id_param: string; beat_id_param: string }
+        Returns: undefined
+      }
       check_follow_status: {
         Args: { p_follower_id: string; p_followee_id: string }
         Returns: boolean
+      }
+      check_table_exists: {
+        Args: { table_name: string }
+        Returns: boolean
+      }
+      delete_beat_favorites: {
+        Args: { beat_id_param: string }
+        Returns: undefined
       }
       follow_producer: {
         Args: { p_follower_id: string; p_followee_id: string }
@@ -661,6 +673,16 @@ export type Database = {
           stripe_id: string | null
           verified_account_name: string | null
         }[]
+      }
+      get_user_favorites: {
+        Args: { user_id_param: string }
+        Returns: {
+          beat_id: string
+        }[]
+      }
+      remove_favorite: {
+        Args: { user_id_param: string; beat_id_param: string }
+        Returns: undefined
       }
       unfollow_producer: {
         Args: { p_follower_id: string; p_followee_id: string }
