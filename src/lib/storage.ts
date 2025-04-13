@@ -29,7 +29,10 @@ export const validateImageUrl = async (url: string): Promise<boolean> => {
     
     // For URLs that might be storage references without full URL
     if (url.includes('storage/v1/object/public/') && !url.includes('http')) {
-      fullUrl = `${supabase.supabaseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+      // Fix: Use the URL constructor to get the origin instead of accessing supabaseUrl directly
+      const supabaseUrlStr = supabase.storageUrl ?? 'https://uoezlwkxhbzajdivrlby.supabase.co';
+      const supabaseUrlObj = new URL(supabaseUrlStr);
+      fullUrl = `${supabaseUrlObj.origin}${url.startsWith('/') ? '' : '/'}${url}`;
     }
     
     // Try a HEAD request first - it's faster

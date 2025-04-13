@@ -116,8 +116,9 @@ export function useBeats() {
               
               if (beat.cover_image_url.includes('storage/v1/object/public/')) {
                 if (!beat.cover_image_url.includes('supabase.co')) {
-                  const supabaseUrl = new URL(supabase.supabaseUrl);
-                  beat.cover_image_url = `${supabaseUrl.origin}/${beat.cover_image_url}`;
+                  const supabaseUrlStr = supabase.storageUrl ?? 'https://uoezlwkxhbzajdivrlby.supabase.co';
+                  const supabaseUrlObj = new URL(supabaseUrlStr);
+                  beat.cover_image_url = `${supabaseUrlObj.origin}/${beat.cover_image_url}`;
                   console.log('Fixed Supabase storage URL:', beat.cover_image_url);
                 }
               }
