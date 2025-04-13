@@ -32,7 +32,7 @@ serve(async (req) => {
 
   try {
     // Parse the request body
-    const { fullTrackUrl, requiresWav } = await req.json();
+    const { fullTrackUrl } = await req.json();
 
     if (!fullTrackUrl) {
       return new Response(
@@ -87,8 +87,7 @@ serve(async (req) => {
     // Create a unique file name for the preview
     const fileName = crypto.randomUUID();
     const timestamp = Date.now();
-    const previewExt = fileExt === 'wav' ? 'wav' : 'mp3';
-    const uploadPath = `previews/${timestamp}_${fileName}_preview.${previewExt}`;
+    const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
     
     try {
       // Convert file to array buffer
@@ -101,14 +100,11 @@ serve(async (req) => {
       
       console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBytes} bytes`);
       
-      // Determine the correct content type based on file extension
-      const contentType = previewExt === 'wav' ? 'audio/wav' : 'audio/mpeg';
-      
       // Upload the preview portion to storage
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('beats')
         .upload(uploadPath, new Uint8Array(previewBuffer), {
-          contentType: contentType,
+          contentType: "audio/mpeg",
           cacheControl: "3600",
           upsert: true
         });
@@ -129,7 +125,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          publicUrl: publicUrlData.publicUrl,
+          previewUrl: publicUrlData.publicUrl,
           path: uploadPath
         }),
         {
