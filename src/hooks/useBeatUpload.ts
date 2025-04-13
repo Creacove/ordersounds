@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -159,7 +158,7 @@ export const useBeatUpload = () => {
         toast.success("Full track uploaded");
 
         // Automatically generate preview once upload completes
-        toast.info("Processing audio and generating preview...");
+        toast.info("Generating preview...");
         await generatePreview(url);
       } catch (error) {
         console.error("Error uploading file:", error);
@@ -183,7 +182,7 @@ export const useBeatUpload = () => {
       
       if (error) {
         console.error("Error processing audio:", error);
-        toast.error(error.message || "Failed to process audio. Please try again.");
+        toast.error(error.message || "Failed to generate preview. Please try again.");
         setProcessingFiles(false);
         return;
       }
@@ -200,7 +199,7 @@ export const useBeatUpload = () => {
       setProcessingFiles(false);
     } catch (error) {
       console.error("Error in audio processing:", error);
-      toast.error("Failed to process audio. Please try again.");
+      toast.error("Failed to generate preview. Please try again.");
       setProcessingFiles(false);
     }
   };

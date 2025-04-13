@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -346,7 +345,7 @@ export const FilesTab = ({
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
-                        {previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
+                        {previewFile && isFile(previewFile) ? previewFile.name : "Preview"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {previewFile && isFile(previewFile) ? 
@@ -403,7 +402,7 @@ export const FilesTab = ({
                             Processing audio...
                           </span>
                         ) : (
-                          "30-second watermarked MP3 sample"
+                          "30-second sample from the start of the track"
                         )}
                       </p>
                     </div>
@@ -439,7 +438,7 @@ export const FilesTab = ({
               </div>
               {processingFiles && (
                 <p className="text-xs text-muted-foreground mt-2 italic">
-                  Preview generation can take up to 30 seconds. Please be patient.
+                  Preview generation can take a few seconds. Please be patient.
                 </p>
               )}
             </div>
