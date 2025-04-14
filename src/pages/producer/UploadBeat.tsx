@@ -213,11 +213,17 @@ export default function UploadBeat() {
       }
       
       let finalImageFile: File | null = null;
-      if (imageFile && isFile(imageFile)) {
-        finalImageFile = imageFile;
-      } else if (imageFile && 'url' in imageFile && typeof imageFile.url === 'string') {
-        // We already have a valid URL, no need for finalImageFile
-      } else {
+      let imageUrl: string | null = null;
+      
+      if (imageFile) {
+        if (isFile(imageFile)) {
+          finalImageFile = imageFile;
+        } else if ('url' in imageFile && typeof imageFile.url === 'string') {
+          imageUrl = imageFile.url;
+        }
+      }
+      
+      if (!finalImageFile && !imageUrl) {
         toast.error("Image file is not valid");
         setIsSubmitting(false);
         return;
@@ -236,7 +242,8 @@ export default function UploadBeat() {
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrlForUpload
+        previewUrlForUpload,
+        imageUrl
       );
       
       if (result.success) {
@@ -317,11 +324,17 @@ export default function UploadBeat() {
       }
       
       let finalImageFile: File | null = null;
-      if (imageFile && isFile(imageFile)) {
-        finalImageFile = imageFile;
-      } else if (imageFile && 'url' in imageFile && typeof imageFile.url === 'string') {
-        // We already have a valid URL, no need for finalImageFile
-      } else {
+      let imageUrl: string | null = null;
+      
+      if (imageFile) {
+        if (isFile(imageFile)) {
+          finalImageFile = imageFile;
+        } else if ('url' in imageFile && typeof imageFile.url === 'string') {
+          imageUrl = imageFile.url;
+        }
+      }
+      
+      if (!finalImageFile && !imageUrl) {
         toast.error("Image file is not valid");
         setIsSubmitting(false);
         return;
@@ -340,7 +353,8 @@ export default function UploadBeat() {
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrlForUpload
+        previewUrlForUpload,
+        imageUrl
       );
       
       if (result.success) {
