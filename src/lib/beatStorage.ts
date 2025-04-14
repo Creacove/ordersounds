@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile, FileOrUrl, isFile } from './storage';
 import { uploadImage } from './imageStorage';
@@ -112,23 +113,23 @@ export const uploadBeat = async (
     const beatId = beatInsertData.id;
     console.log('Beat created with ID:', beatId);
     
-    // Insert collaborators
+    // Insert collaborators as royalty_splits
     if (collaborators.length > 0) {
-      const collaboratorInserts = collaborators.map(c => ({
+      const royaltySplitsInserts = collaborators.map(c => ({
         beat_id: beatId,
-        name: c.name,
-        email: c.email,
-        role: c.role,
+        party_name: c.name,
+        party_email: c.email,
+        party_role: c.role,
         percentage: c.percentage
       }));
       
-      const { error: collaboratorInsertError } = await supabase
-        .from('collaborators')
-        .insert(collaboratorInserts);
+      const { error: royaltySplitsError } = await supabase
+        .from('royalty_splits')
+        .insert(royaltySplitsInserts);
         
-      if (collaboratorInsertError) {
-        console.error('Error inserting collaborators:', collaboratorInsertError);
-        // Continue despite collaborator insert error
+      if (royaltySplitsError) {
+        console.error('Error inserting royalty splits:', royaltySplitsError);
+        // Continue despite royalty splits insert error
       }
     }
     
@@ -142,5 +143,54 @@ export const uploadBeat = async (
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
     };
+  }
+};
+
+/**
+ * Gets all royalty splits for a producer
+ * @param producerId The ID of the producer
+ * @returns Array of royalty splits with beat information
+ */
+export const getProducerRoyaltySplits = async (producerId: string) => {
+  try {
+    // Get all beats by this producer
+    const { data: producerBeats, error: beatsError } = await supabase
+      .from('beats')
+      .select('id, title, cover_image')
+      .eq('producer_id', producerId);
+
+    if (beatsError) throw beatsError;
+
+    if (!producerBeats || producerBeats.length === 0) {
+      return [];
+    }
+
+    // Get all royalty splits for these beats
+    const beatIds = producerBeats.map(beat => beat.id);
+    const { data: royaltySplits, error: splitsError } = await supabase
+      .from('royalty_splits')
+      .select('*')
+      .in('beat_id', beatIds);
+
+    if (splitsError) throw splitsError;
+
+    // Map the royalty splits with beat information
+    return royaltySplits.map(split => {
+      const beat = producerBeats.find(b => b.id === split.beat_id);
+      return {
+        id: split.id,
+        beat_id: split.beat_id,
+        beat_title: beat?.title || 'Unknown Beat',
+        beat_cover_image: beat?.cover_image || null,
+        collaborator_name: split.party_name || 'Unknown',
+        collaborator_email: split.party_email || '',
+        collaborator_role: split.party_role || 'Collaborator',
+        percentage: split.percentage,
+        created_at: split.created_date
+      };
+    });
+  } catch (error) {
+    console.error('Error fetching royalty splits:', error);
+    throw error;
   }
 };
