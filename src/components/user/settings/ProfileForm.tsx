@@ -1,3 +1,4 @@
+
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getInitials } from "@/utils/formatters";
-import { uploadFile } from "@/lib/storage";
 
 interface ProfileFormProps {
   initialProducerName: string;
@@ -70,29 +70,37 @@ export function ProfileForm({
     try {
       setIsLoading(true);
       
-      const imageUrl = await uploadFile(file, 'avatars', 'profiles');
-      setPreviewUrl(imageUrl);
-
-      if (!user) {
-        throw new Error("User not authenticated");
-      }
-      
-      const { error } = await supabase
-        .from('users')
-        .update({ profile_picture: imageUrl })
-        .eq('id', user.id);
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        if (!event.target || !event.target.result || !user) return;
+        
+        const base64String = event.target.result.toString();
+        setPreviewUrl(base64String);
+        
+        try {
+          const { error } = await supabase
+            .from('users')
+            .update({ profile_picture: base64String })
+            .eq('id', user.id);
+            
+          if (error) throw error;
           
-      if (error) throw error;
+          if (updateProfile) {
+            await updateProfile({
+              ...user,
+              avatar_url: base64String
+            });
+          }
+          
+          toast.success("Profile picture updated successfully");
+          setIsDialogOpen(false);
+        } catch (error) {
+          console.error('Error updating profile picture:', error);
+          toast.error("Failed to update profile picture");
+        }
+      };
       
-      if (updateProfile) {
-        await updateProfile({
-          ...user,
-          avatar_url: imageUrl
-        });
-      }
-      
-      toast.success("Profile picture updated successfully");
-      setIsDialogOpen(false);
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error handling avatar change:', error);
       toast.error("Failed to process the image");
@@ -208,6 +216,7 @@ export function ProfileForm({
                     <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                   </Avatar>
                   
+                  {/* Hidden file input */}
                   <input 
                     ref={fileInputRef}
                     id="avatar-upload" 

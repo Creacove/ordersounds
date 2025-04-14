@@ -1,97 +1,163 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
-import { corsHeaders } from '../_shared/cors.ts';
+// @ts-nocheck
+// Audio processing edge function for OrderSOUNDS
+// Simply extracts first 30% of audio file for preview
 
-console.log("Process Audio Function: Started");
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// CORS headers for browser requests
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+// Validate environment variables
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+if (!supabaseUrl || !supabaseServiceRole || !supabaseAnonKey) {
+  console.error("Missing required environment variables");
+}
+
+// Use service role key for admin access to storage
+const supabase = createClient(supabaseUrl, supabaseServiceRole);
+
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
-    const { fullTrackUrl } = body;
+    // Parse the request body
+    const { fullTrackUrl } = await req.json();
 
     if (!fullTrackUrl) {
-      console.error("Missing fullTrackUrl in request");
-      return new Response(JSON.stringify({ error: 'Missing fullTrackUrl', status: 'error' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      return new Response(
+        JSON.stringify({ error: "Missing full track URL" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
-
-    if (!supabaseUrl || !supabaseKey) {
-      return new Response(JSON.stringify({ error: 'Missing Supabase environment variables', status: 'error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    console.log(`Processing audio file: ${fullTrackUrl}`);
+    
+    // Extract file path from URL
+    const urlObj = new URL(fullTrackUrl);
+    const pathParts = urlObj.pathname.split('/');
+    
+    // Determine the file path based on URL structure
+    let filePath = pathParts[pathParts.length - 1];
+    
+    // If the URL contains the bucket name followed by the path, extract just the path
+    if (pathParts.includes("beats")) {
+      const beatsIndex = pathParts.indexOf("beats");
+      filePath = pathParts.slice(beatsIndex + 1).join('/');
     }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const url = new URL(fullTrackUrl);
-    const pathParts = url.pathname.split('/');
-    const fileName = pathParts[pathParts.length - 1];
-    const fileBase = fileName.split('.')[0];
-    const fileExt = fileName.split('.').pop() || 'mp3';
-    const outputFileName = `preview_${fileBase}.${fileExt}`;
-
-    console.log(`Downloading: ${fullTrackUrl}`);
-    const audioResponse = await fetch(fullTrackUrl);
-    if (!audioResponse.ok) {
-      throw new Error(`Download failed: ${audioResponse.statusText}`);
-    }
-
-    const fileArrayBuffer = await audioResponse.arrayBuffer();
-    const totalSize = fileArrayBuffer.byteLength;
-    const previewSize = Math.floor(totalSize * 0.3);
-
-    console.log(`File size: ${totalSize}, preview size: ${previewSize}`);
-
-    const previewBuffer = fileArrayBuffer.slice(0, previewSize);
-    const previewBlob = new Blob([previewBuffer], { type: getMimeType(fileExt) });
-
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    
+    console.log(`Extracted file path: ${filePath}`);
+    
+    // Download the full file data
+    const { data: fileData, error: fileError } = await supabase.storage
       .from('beats')
-      .upload(`previews/${outputFileName}`, previewBlob, {
-        contentType: getMimeType(fileExt),
-        cacheControl: '3600',
-        upsert: true
-      });
+      .download(filePath);
 
-    if (uploadError) {
-      console.error("Upload error:", uploadError);
-      throw new Error(uploadError.message);
+    if (fileError || !fileData) {
+      console.error("Error downloading file:", fileError);
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to download audio file", 
+          details: fileError?.message || "File not found or inaccessible" 
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    const { data: publicUrlData } = supabase.storage.from('beats').getPublicUrl(`previews/${outputFileName}`);
-    console.log(`Preview uploaded to: ${publicUrlData.publicUrl}`);
+    // Get the file extension for naming
+    const fileExt = filePath.split('.').pop().toLowerCase();
+    console.log(`File extension: ${fileExt}`);
+    
+    // Create a unique file name for the preview
+    const fileName = crypto.randomUUID();
+    const timestamp = Date.now();
+    const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
+    
+    try {
+      // Convert file to array buffer
+      const arrayBuffer = await fileData.arrayBuffer();
+      const totalBytes = arrayBuffer.byteLength;
+      
+      // Take only the first 30% of the file for the preview
+      const previewBytes = Math.floor(totalBytes * 0.3);
+      const previewBuffer = arrayBuffer.slice(0, previewBytes);
+      
+      console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBytes} bytes`);
+      
+      // Upload the preview portion to storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('beats')
+        .upload(uploadPath, new Uint8Array(previewBuffer), {
+          contentType: "audio/mpeg",
+          cacheControl: "3600",
+          upsert: true
+        });
 
-    return new Response(JSON.stringify({ status: 'success', previewUrl: publicUrlData.publicUrl }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200 // Explicitly set a 200 status code
-    });
+      if (uploadError) {
+        console.error("Error uploading preview file:", uploadError);
+        throw new Error(`Failed to upload processed audio: ${uploadError.message}`);
+      }
 
+      // Get the public URL of the uploaded preview
+      const { data: publicUrlData } = supabase.storage
+        .from('beats')
+        .getPublicUrl(uploadPath);
+          
+      console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
+      
+      // Return the preview URL directly in the response
+      return new Response(
+        JSON.stringify({
+          success: true,
+          previewUrl: publicUrlData.publicUrl,
+          path: uploadPath
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+      
+    } catch (error) {
+      console.error("Error processing audio:", error);
+      return new Response(
+        JSON.stringify({ 
+          error: "An error occurred processing the audio file",
+          details: error.message 
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message || 'Unknown error', status: 'error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    console.error("Error processing audio:", error);
+    return new Response(
+      JSON.stringify({ 
+        error: "An error occurred processing the audio file",
+        details: error.message 
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
-
-function getMimeType(ext) {
-  const map = {
-    mp3: 'audio/mpeg',
-    wav: 'audio/wav',
-    m4a: 'audio/mp4',
-    aac: 'audio/aac',
-    ogg: 'audio/ogg'
-  };
-  return map[ext.toLowerCase()] || 'application/octet-stream';
-}

@@ -34,76 +34,107 @@ export const uploadFile = async (
     const realFile = file as File;
     
     // Generate a unique filename to prevent collisions
-    const fileExt = realFile.name.split('.').pop()?.toLowerCase();
+    const fileExt = realFile.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
-    console.log(`File type: ${realFile.type}`);
-    
-    // Determine the proper content type
-    let contentType = realFile.type;
-    
-    // Ensure content types are properly set based on file extension
-    if (!contentType || contentType === 'application/octet-stream') {
-      // Set content type based on file extension
-      if (fileExt === 'jpg' || fileExt === 'jpeg') {
-        contentType = 'image/jpeg';
-      } else if (fileExt === 'png') {
-        contentType = 'image/png';
-      } else if (fileExt === 'gif') {
-        contentType = 'image/gif';
-      } else if (fileExt === 'webp') {
-        contentType = 'image/webp';
-      } else if (fileExt === 'mp3') {
-        contentType = 'audio/mpeg';
-      } else if (fileExt === 'wav') {
-        contentType = 'audio/wav';
-      } else if (fileExt === 'zip') {
-        contentType = 'application/zip';
-      }
-    }
-    
-    console.log(`Using content type: ${contentType}`);
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
-      // Upload with progress tracking
+      // Create a new XMLHttpRequest to manually track upload progress
       return new Promise<string>(async (resolve, reject) => {
         try {
-          // Start with some initial progress
-          progressCallback(10);
-          
-          // Upload the file
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(filePath, realFile, {
-              cacheControl: '3600',
-              upsert: true, // Allow overwriting existing files
-              contentType: contentType // Explicitly set content type
-            });
-          
-          if (error) {
-            console.error(`Error uploading to ${bucket}/${filePath}:`, error);
-            reject(error);
+          // First, get the upload URL from Supabase
+          const { data, error } = await supabase.storage.from(bucket).createSignedUploadUrl(filePath);
+          if (!data || error) {
+            reject(new Error('Failed to create upload URL'));
             return;
           }
-
-          // Update progress
-          progressCallback(60);
           
-          // Get public URL for the file
-          const { data: publicUrlData } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(data.path);
+          const xhr = new XMLHttpRequest();
+          xhr.open('PUT', data.signedUrl);
           
-          // Complete progress
-          progressCallback(100);
+          // Track upload progress events
+          xhr.upload.addEventListener('progress', (event) => {
+            if (event.lengthComputable) {
+              // Calculate percentage and ensure we're reporting incremental updates
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              console.log(`Upload progress: ${percentComplete}%`);
+              
+              // Force progress updates at regular intervals even on iOS
+              // This helps prevent the progress from jumping from 0 to 100
+              if (percentComplete === 0) {
+                progressCallback(1); // Start with 1% to show activity
+              } else if (percentComplete === 100) {
+                progressCallback(99); // Hold at 99% until fully complete
+              } else {
+                progressCallback(percentComplete);
+              }
+            }
+          });
           
-          console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
-          resolve(publicUrlData.publicUrl);
+          // Handle successful completion
+          xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              // Get public URL for the file
+              const { data: publicUrlData } = supabase.storage
+                .from(bucket)
+                .getPublicUrl(filePath);
+              
+              // Force a small delay before showing 100% to ensure UI updates are visible
+              setTimeout(() => {
+                progressCallback(100); // Final completion
+              }, 200);
+              
+              console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
+              resolve(publicUrlData.publicUrl);
+            } else {
+              reject(new Error(`Upload failed with status: ${xhr.status}`));
+            }
+          };
+          
+          xhr.onerror = () => {
+            reject(new Error('Network error during upload'));
+          };
+          
+          // Add simulated progress updates for small files on iOS
+          if (realFile.size < 5000000) { // For files under 5MB
+            let simulatedProgress = 0;
+            const progressInterval = setInterval(() => {
+              simulatedProgress += 5;
+              if (simulatedProgress < 90) {
+                progressCallback(simulatedProgress);
+              } else {
+                clearInterval(progressInterval);
+              }
+            }, 200);
+            
+            // Clear interval if the upload completes or fails
+            xhr.onload = async () => {
+              clearInterval(progressInterval);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                const { data: publicUrlData } = supabase.storage
+                  .from(bucket)
+                  .getPublicUrl(filePath);
+                
+                progressCallback(100);
+                console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
+                resolve(publicUrlData.publicUrl);
+              } else {
+                reject(new Error(`Upload failed with status: ${xhr.status}`));
+              }
+            };
+            
+            xhr.onerror = () => {
+              clearInterval(progressInterval);
+              reject(new Error('Network error during upload'));
+            };
+          }
+          
+          // Start the upload
+          xhr.send(realFile);
         } catch (error) {
-          console.error('Error in file upload promise:', error);
           reject(error);
         }
       });
@@ -113,8 +144,7 @@ export const uploadFile = async (
         .from(bucket)
         .upload(filePath, realFile, {
           cacheControl: '3600',
-          upsert: true, // Always allow overwriting existing files
-          contentType: contentType // Explicitly set content type
+          upsert: false
         });
       
       if (error) {

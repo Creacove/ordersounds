@@ -30,6 +30,3 @@ enabled = true
 [functions]
 [functions.set-producer-of-week]
 verify_jwt = true
-
-[functions.process-audio]
-verify_jwt = true
