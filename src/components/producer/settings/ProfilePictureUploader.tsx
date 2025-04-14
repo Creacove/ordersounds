@@ -8,7 +8,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getInitials } from "@/utils/formatters";
-import { uploadImage } from "@/lib/imageStorage";
 
 interface ProfilePictureUploaderProps {
   avatarUrl: string | null;
@@ -55,42 +54,35 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
     try {
       setIsLoading(true);
       
-      // First create a local preview
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (!event.target || !event.target.result) return;
-        setPreviewUrl(event.target.result.toString());
-      };
-      reader.readAsDataURL(file);
-      
-      // Upload the image to Supabase storage
-      const uploadedImageUrl = await uploadImage(file, 'avatars');
-      console.log("Uploaded image URL:", uploadedImageUrl);
-      
-      if (!user) throw new Error("User not authenticated");
-      
-      // Update the user's profile in the database
-      const { error } = await supabase
-        .from('users')
-        .update({ profile_picture: uploadedImageUrl })
-        .eq('id', user.id);
+      reader.onload = async (event) => {
+        if (!event.target || !event.target.result || !user) return;
         
-      if (error) throw error;
-      
-      // Update the local user context
-      if (updateProfile) {
-        await updateProfile({
-          ...user,
-          profile_picture: uploadedImageUrl
+        const base64String = event.target.result.toString();
+        setPreviewUrl(base64String);
+        
+        const { error } = await supabase
+          .from('users')
+          .update({ profile_picture: base64String })
+          .eq('id', user.id);
+          
+        if (error) throw error;
+        
+        if (updateProfile) {
+          await updateProfile({
+            ...user,
+            avatar_url: base64String
+          });
+        }
+        
+        toast({
+          title: "Success",
+          description: "Profile picture updated successfully"
         });
-      }
+        setIsDialogOpen(false);
+      };
       
-      toast({
-        title: "Success",
-        description: "Profile picture updated successfully"
-      });
-      setIsDialogOpen(false);
-      
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error updating profile picture:', error);
       toast({

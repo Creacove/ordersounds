@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, Beat } from '@/types';
 
@@ -8,22 +9,20 @@ import { supabase as integrationClient } from '@/integrations/supabase/client';
 export const supabase = integrationClient;
 
 export const mapSupabaseUser = (user: any): User => {
-  // Extract the profile image from Google auth or direct upload
+  // Extract the profile image from Google auth if available
   const avatarUrl = 
-    user.user_metadata?.avatar_url || 
     user.user_metadata?.profile_picture || 
-    user.profile_picture ||
+    user.user_metadata?.avatar_url || 
     '';
 
   // Map full name from Google auth if available
   const fullName = 
     user.user_metadata?.full_name || 
     user.user_metadata?.name || // Google provides 'name' 
-    user.full_name ||
     '';
 
   // Get the role from metadata or default to 'buyer'
-  const role = user.user_metadata?.role || user.role || 'buyer';
+  const role = user.user_metadata?.role || 'buyer';
 
   // Make sure all required fields exist with default values if needed
   return {
@@ -32,12 +31,11 @@ export const mapSupabaseUser = (user: any): User => {
     role: role,
     name: fullName,
     avatar_url: avatarUrl,
-    profile_picture: user.profile_picture || user.user_metadata?.profile_picture || '',
-    bio: user.user_metadata?.bio || user.bio || '',
+    bio: user.user_metadata?.bio || '',
     created_at: user.created_at,
     updated_at: user.updated_at,
-    country: user.user_metadata?.country || user.country || '',
-    producer_name: user.user_metadata?.stage_name || user.stage_name || '',
+    country: user.user_metadata?.country || '',
+    producer_name: user.user_metadata?.stage_name || '',
     default_currency: user.user_metadata?.default_currency || (user.user_metadata?.country === 'Nigeria' ? 'NGN' : 'USD'),
   };
 };
