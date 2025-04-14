@@ -1,13 +1,13 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, Upload, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getInitials } from "@/utils/formatters";
+import { uploadFile } from "@/lib/storage";
 
 interface ProfilePictureUploaderProps {
   avatarUrl: string | null;
@@ -20,7 +20,6 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
   const [previewUrl, setPreviewUrl] = useState<string | null>(avatarUrl);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user, updateProfile } = useAuth();
-  const { toast } = useToast();
 
   const handleChooseFileClick = () => {
     if (fileInputRef.current) {
@@ -34,62 +33,44 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
     const file = e.target.files[0];
     
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Error",
-        description: "Please upload an image file",
-        variant: "destructive"
-      });
+      toast.error("Please upload an image file");
       return;
     }
     
     if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "Image size should be less than 2MB",
-        variant: "destructive"
-      });
+      toast.error("Image size should be less than 2MB");
       return;
     }
     
     try {
       setIsLoading(true);
       
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        if (!event.target || !event.target.result || !user) return;
-        
-        const base64String = event.target.result.toString();
-        setPreviewUrl(base64String);
-        
-        const { error } = await supabase
-          .from('users')
-          .update({ profile_picture: base64String })
-          .eq('id', user.id);
-          
-        if (error) throw error;
-        
-        if (updateProfile) {
-          await updateProfile({
-            ...user,
-            avatar_url: base64String
-          });
-        }
-        
-        toast({
-          title: "Success",
-          description: "Profile picture updated successfully"
-        });
-        setIsDialogOpen(false);
-      };
+      const imageUrl = await uploadFile(file, 'avatars', 'profiles');
+      setPreviewUrl(imageUrl);
+
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
       
-      reader.readAsDataURL(file);
+      const { error } = await supabase
+        .from('users')
+        .update({ profile_picture: imageUrl })
+        .eq('id', user.id);
+          
+      if (error) throw error;
+      
+      if (updateProfile) {
+        await updateProfile({
+          ...user,
+          avatar_url: imageUrl
+        });
+      }
+      
+      toast.success("Profile picture updated successfully");
+      setIsDialogOpen(false);
     } catch (error) {
       console.error('Error updating profile picture:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile picture. Please try again.",
-        variant: "destructive"
-      });
+      toast.error("Failed to update profile picture");
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +107,6 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
                   <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                 </Avatar>
                 
-                {/* Hidden file input */}
                 <input 
                   ref={fileInputRef}
                   id="avatar-upload" 

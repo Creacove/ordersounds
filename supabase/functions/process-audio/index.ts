@@ -1,162 +1,111 @@
 
-// @ts-nocheck
-// Audio processing edge function for OrderSOUNDS
-// Simply extracts first 30% of audio file for preview
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+import { corsHeaders } from '../_shared/cors.ts';
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+console.log("Process Audio Function: Started");
 
-// CORS headers for browser requests
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// Validate environment variables
-const supabaseUrl = Deno.env.get("SUPABASE_URL");
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
-const supabaseServiceRole = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-if (!supabaseUrl || !supabaseServiceRole || !supabaseAnonKey) {
-  console.error("Missing required environment variables");
-}
-
-// Use service role key for admin access to storage
-const supabase = createClient(supabaseUrl, supabaseServiceRole);
-
-serve(async (req) => {
+Deno.serve(async (req) => {
   // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
     // Parse the request body
-    const { fullTrackUrl } = await req.json();
-
+    const body = await req.json();
+    const { fullTrackUrl, requiresWav } = body;
+    
     if (!fullTrackUrl) {
-      return new Response(
-        JSON.stringify({ error: "Missing full track URL" }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      throw new Error('Full track URL is required');
     }
 
-    console.log(`Processing audio file: ${fullTrackUrl}`);
+    console.log(`Processing audio from URL: ${fullTrackUrl}`);
+    console.log(`WAV format required: ${requiresWav}`);
+
+    // Create a Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
     
-    // Extract file path from URL
-    const urlObj = new URL(fullTrackUrl);
-    const pathParts = urlObj.pathname.split('/');
-    
-    // Determine the file path based on URL structure
-    let filePath = pathParts[pathParts.length - 1];
-    
-    // If the URL contains the bucket name followed by the path, extract just the path
-    if (pathParts.includes("beats")) {
-      const beatsIndex = pathParts.indexOf("beats");
-      filePath = pathParts.slice(beatsIndex + 1).join('/');
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase environment variables');
     }
     
-    console.log(`Extracted file path: ${filePath}`);
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Extract the file name and path from the URL
+    const urlParts = new URL(fullTrackUrl);
+    const pathParts = urlParts.pathname.split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    const fileBase = fileName.split('.')[0];
     
-    // Download the full file data
-    const { data: fileData, error: fileError } = await supabase.storage
+    const outputFileName = `preview_${fileBase}.mp3`;
+    
+    // Download the file
+    console.log(`Downloading original file: ${fileName}`);
+    const response = await fetch(fullTrackUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+    
+    // Generate a 30-second preview from the audio file
+    // This is a simplified example - in a real implementation, you would:
+    // 1. Use an audio processing library to trim the file
+    // 2. Add a watermark
+    // 3. Convert to MP3 if it's not already
+    
+    // For this example, we'll simulate processing by just uploading the first part
+    const fileArrayBuffer = await response.arrayBuffer();
+    
+    // In a real implementation, you would process the audio here
+    // For now, we'll create a smaller version of the file as a mock preview
+    // (Take the first 1/4 of the file as a simple simulation)
+    const previewSize = Math.floor(fileArrayBuffer.byteLength / 4);
+    const previewArrayBuffer = fileArrayBuffer.slice(0, previewSize);
+    
+    // Upload the preview file
+    console.log(`Uploading preview file: ${outputFileName}`);
+    const { data: uploadData, error: uploadError } = await supabase.storage
       .from('beats')
-      .download(filePath);
-
-    if (fileError || !fileData) {
-      console.error("Error downloading file:", fileError);
-      return new Response(
-        JSON.stringify({ 
-          error: "Failed to download audio file", 
-          details: fileError?.message || "File not found or inaccessible" 
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Get the file extension for naming
-    const fileExt = filePath.split('.').pop().toLowerCase();
-    console.log(`File extension: ${fileExt}`);
+      .upload(`previews/${outputFileName}`, previewArrayBuffer, {
+        contentType: 'audio/mpeg',
+        cacheControl: '3600',
+        upsert: true // Allow overwriting existing files
+      });
     
-    // Create a unique file name for the preview
-    const fileName = crypto.randomUUID();
-    const timestamp = Date.now();
-    const uploadPath = `previews/${timestamp}_${fileName}_preview.mp3`;
-    
-    try {
-      // Convert file to array buffer
-      const arrayBuffer = await fileData.arrayBuffer();
-      const totalBytes = arrayBuffer.byteLength;
-      
-      // Take only the first 30% of the file for the preview
-      const previewBytes = Math.floor(totalBytes * 0.3);
-      const previewBuffer = arrayBuffer.slice(0, previewBytes);
-      
-      console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBytes} bytes`);
-      
-      // Upload the preview portion to storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('beats')
-        .upload(uploadPath, new Uint8Array(previewBuffer), {
-          contentType: "audio/mpeg",
-          cacheControl: "3600",
-          upsert: true
-        });
-
-      if (uploadError) {
-        console.error("Error uploading preview file:", uploadError);
-        throw new Error(`Failed to upload processed audio: ${uploadError.message}`);
-      }
-
-      // Get the public URL of the uploaded preview
-      const { data: publicUrlData } = supabase.storage
-        .from('beats')
-        .getPublicUrl(uploadPath);
-          
-      console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
-      
-      // Return the preview URL directly in the response
-      return new Response(
-        JSON.stringify({
-          success: true,
-          previewUrl: publicUrlData.publicUrl,
-          path: uploadPath
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-      
-    } catch (error) {
-      console.error("Error processing audio:", error);
-      return new Response(
-        JSON.stringify({ 
-          error: "An error occurred processing the audio file",
-          details: error.message 
-        }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+    if (uploadError) {
+      console.error('Error uploading preview file:', uploadError);
+      throw new Error(`Failed to upload preview: ${uploadError.message}`);
     }
-  } catch (error) {
-    console.error("Error processing audio:", error);
+    
+    // Get the public URL for the file
+    const { data: publicUrlData } = supabase.storage
+      .from('beats')
+      .getPublicUrl(`previews/${outputFileName}`);
+    
+    console.log(`Preview file generated and uploaded: ${publicUrlData.publicUrl}`);
+    
+    // Return the URL to the preview file
     return new Response(
       JSON.stringify({ 
-        error: "An error occurred processing the audio file",
-        details: error.message 
+        previewUrl: publicUrlData.publicUrl,
+        status: 'success' 
       }),
-      {
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+    
+  } catch (error) {
+    console.error('Error processing audio:', error);
+    
+    return new Response(
+      JSON.stringify({ 
+        error: error.message,
+        status: 'error' 
+      }),
+      { 
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
   }
