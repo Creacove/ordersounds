@@ -262,41 +262,19 @@ export const useBeatUpload = () => {
       }
       
       setImageFile(file);
-      setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
+      // Create a preview immediately using FileReader
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
+      reader.onload = (event) => {
+        if (event.target && event.target.result) {
+          const base64String = event.target.result.toString();
+          setImagePreview(base64String);
+        }
       };
       reader.readAsDataURL(file);
       
-      uploadImageFile(file);
-    }
-  };
-  
-  const uploadImageFile = async (file: File) => {
-    try {
-      if (!file.type.startsWith('image/')) {
-        throw new Error("File is not a valid image");
-      }
-      
-      toast.info("Uploading cover image...");
-      
-      const url = await uploadImage(file, 'covers', 'beats', (progress) => {
-        console.log(`Image upload progress: ${progress}%`);
-        setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
-      });
-      
-      if (!url || typeof url !== 'string') {
-        throw new Error("Failed to get valid image URL");
-      }
-      
-      toast.success("Cover image uploaded");
-      return url;
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Failed to upload cover image. Please try again.");
-      throw error;
+      // No need to upload the image immediately - will be done when the beat is saved
+      toast.success("Cover image selected", { id: "image-upload" });
     }
   };
 

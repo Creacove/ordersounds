@@ -16,6 +16,7 @@ import { PricingTab } from "@/components/upload/PricingTab";
 import { RoyaltiesTab } from "@/components/upload/RoyaltiesTab";
 import { useBeatUpload } from "@/hooks/useBeatUpload";
 import { ScrollToTop } from "@/components/utils/ScrollToTop";
+import { uploadImage } from "@/lib/imageStorage";
 
 export default function UploadBeat() {
   const tabOrder = ["details", "licensing", "files", "pricing", "royalties"];
@@ -182,6 +183,19 @@ export default function UploadBeat() {
       
       toast.loading("Publishing your beat...", { id: "publishing-beat" });
       
+      let coverImageUrl = '';
+      if (imageFile && isFile(imageFile)) {
+        try {
+          coverImageUrl = await uploadImage(imageFile, 'covers', 'beats');
+          console.log("Uploaded cover image URL:", coverImageUrl);
+        } catch (imageError) {
+          console.error("Error uploading cover image:", imageError);
+          toast.error("Failed to upload cover image", { id: "publishing-beat" });
+          setIsSubmitting(false);
+          return;
+        }
+      }
+      
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
@@ -200,7 +214,8 @@ export default function UploadBeat() {
         custom_license_price_diaspora: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceDiaspora : undefined,
         status: "published" as const,
         license_type: selectedLicenseTypes.join(','),
-        license_terms: beatDetails.licenseTerms || ''
+        license_terms: beatDetails.licenseTerms || '',
+        cover_image: coverImageUrl,
       };
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
@@ -212,17 +227,6 @@ export default function UploadBeat() {
         finalPreviewFile = previewFile;
       }
       
-      let finalImageFile: File | null = null;
-      if (imageFile && isFile(imageFile)) {
-        finalImageFile = imageFile;
-      } else if (imageFile && 'url' in imageFile && typeof imageFile.url === 'string') {
-        // We already have a valid URL, no need for finalImageFile
-      } else {
-        toast.error("Image file is not valid");
-        setIsSubmitting(false);
-        return;
-      }
-      
       const previewUrlForUpload = previewUrl || 
         (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
       
@@ -230,7 +234,7 @@ export default function UploadBeat() {
         beatData,
         fullTrackFileOrUrl,
         finalPreviewFile,
-        finalImageFile,
+        null,
         stemsFile,
         user.id,
         user.producer_name || user.name,
@@ -269,21 +273,17 @@ export default function UploadBeat() {
         return;
       }
       
-      if (!uploadedFile && !uploadedFileUrl) {
-        toast.error("Full track file is required");
-        setActiveTab("files");
-        return;
-      }
-      
-      if (!previewFile && !previewUrl) {
-        toast.error("Preview track is required");
-        setActiveTab("files");
-        return;
-      }
-
-      if (collaborators[0].id === 1) {
-        collaborators[0].name = user.name || 'Producer';
-        collaborators[0].email = user.email || '';
+      let coverImageUrl = '';
+      if (imageFile && isFile(imageFile)) {
+        try {
+          coverImageUrl = await uploadImage(imageFile, 'covers', 'beats');
+          console.log("Uploaded cover image URL for draft:", coverImageUrl);
+        } catch (imageError) {
+          console.error("Error uploading cover image for draft:", imageError);
+          toast.error("Failed to upload cover image");
+          setIsSubmitting(false);
+          return;
+        }
       }
       
       const beatData = {
@@ -304,7 +304,8 @@ export default function UploadBeat() {
         custom_license_price_diaspora: selectedLicenseTypes.includes('custom') ? beatDetails.customLicensePriceDiaspora : undefined,
         status: "draft" as const,
         license_type: selectedLicenseTypes.join(','),
-        license_terms: beatDetails.licenseTerms || ''
+        license_terms: beatDetails.licenseTerms || '',
+        cover_image: coverImageUrl,
       };
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
@@ -316,17 +317,6 @@ export default function UploadBeat() {
         finalPreviewFile = previewFile;
       }
       
-      let finalImageFile: File | null = null;
-      if (imageFile && isFile(imageFile)) {
-        finalImageFile = imageFile;
-      } else if (imageFile && 'url' in imageFile && typeof imageFile.url === 'string') {
-        // We already have a valid URL, no need for finalImageFile
-      } else {
-        toast.error("Image file is not valid");
-        setIsSubmitting(false);
-        return;
-      }
-      
       const previewUrlForUpload = previewUrl || 
         (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
       
@@ -334,7 +324,7 @@ export default function UploadBeat() {
         beatData,
         fullTrackFileOrUrl,
         finalPreviewFile,
-        finalImageFile,
+        null,
         stemsFile,
         user.id,
         user.producer_name || user.name,
