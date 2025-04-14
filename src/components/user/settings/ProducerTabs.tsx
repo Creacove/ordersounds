@@ -12,6 +12,10 @@ interface ProducerTabsProps {
 }
 
 export function ProducerTabs({ user }: ProducerTabsProps) {
+  // Determine the avatar URL from either avatar_url or profile_picture
+  const avatarUrl = user.avatar_url || user.profile_picture || null;
+  const displayName = user.producer_name || user.name || 'User';
+
   return (
     <>
       <TabsList className="border-b w-full mb-6 md:mb-8 rounded-none p-0 h-auto bg-transparent">
@@ -41,8 +45,8 @@ export function ProducerTabs({ user }: ProducerTabsProps) {
               initialProducerName={user.producer_name || ''}
               initialBio={user.bio || ''}
               initialLocation={user.country || ''}
-              avatarUrl={user.avatar_url || null}
-              displayName={user.producer_name || user.name || 'User'}
+              avatarUrl={avatarUrl}
+              displayName={displayName}
               initialMusicInterests={user.music_interests || []}
             />
           </CardContent>

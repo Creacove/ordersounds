@@ -53,22 +53,20 @@ export const uploadImage = async (
         try {
           // Since onUploadProgress isn't supported in FileOptions, we'll use XMLHttpRequest instead
           const xhr = new XMLHttpRequest();
-          const uploadOptions = {
-            contentType: imageFile.type || getMimeType(fileExt || ''),
-            cacheControl: '3600',
-            upsert: false
-          };
+          const contentType = imageFile.type || getMimeType(fileExt || '');
           
           // Get pre-signed URL for upload
-          const { data: { signedUrl, path: uploadPath }, error: urlError } = await supabase.storage
+          const { data, error: urlError } = await supabase.storage
             .from(bucket)
             .createSignedUploadUrl(filePath);
             
-          if (urlError) {
+          if (urlError || !data) {
             console.error(`Error getting signed URL for ${bucket}/${filePath}:`, urlError);
-            reject(urlError);
+            reject(urlError || new Error('Failed to get signed URL'));
             return;
           }
+          
+          const { signedUrl, path: uploadPath } = data;
           
           // Track upload progress with XMLHttpRequest
           xhr.upload.onprogress = (event) => {
@@ -108,8 +106,8 @@ export const uploadImage = async (
           };
           
           xhr.open('PUT', signedUrl);
-          xhr.setRequestHeader('Content-Type', uploadOptions.contentType);
-          xhr.setRequestHeader('Cache-Control', uploadOptions.cacheControl);
+          xhr.setRequestHeader('Content-Type', contentType);
+          xhr.setRequestHeader('Cache-Control', '3600');
           xhr.send(imageFile);
         } catch (error) {
           reject(error);
@@ -117,10 +115,13 @@ export const uploadImage = async (
       });
     } else {
       // Standard upload without progress tracking
+      const contentType = imageFile.type || getMimeType(fileExt || '');
+      console.log(`Using content type: ${contentType} for file ${imageFile.name}`);
+      
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(filePath, imageFile, {
-          contentType: imageFile.type || getMimeType(fileExt || ''),
+          contentType: contentType,
           cacheControl: '3600',
           upsert: false
         });
@@ -163,6 +164,7 @@ function getMimeType(ext: string): string {
     gif: 'image/gif',
     webp: 'image/webp',
     svg: 'image/svg+xml',
+    bmp: 'image/bmp',
   };
   
   return map[ext.toLowerCase()] || 'image/jpeg'; // Default to JPEG instead of octet-stream

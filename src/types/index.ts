@@ -30,6 +30,8 @@ export interface User {
   status?: 'active' | 'inactive';
   // Add music_interests field
   music_interests?: string[];
+  // Add profile_picture field for direct storage access
+  profile_picture?: string;
 }
 
 export interface Beat {
