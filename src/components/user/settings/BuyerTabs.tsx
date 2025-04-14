@@ -13,6 +13,19 @@ interface BuyerTabsProps {
 }
 
 export function BuyerTabs({ user }: BuyerTabsProps) {
+  // Function to safely get notification settings
+  const getSettings = (user: User) => {
+    const settings = user.settings || {};
+    return {
+      emailNotifications: settings.emailNotifications || settings.notifications_email || true,
+      pushNotifications: settings.pushNotifications || settings.notifications_push || true,
+      smsNotifications: settings.smsNotifications || settings.notifications_sms || false,
+      autoPlayPreviews: settings.autoPlayPreviews || true
+    };
+  };
+
+  const userSettings = getSettings(user);
+
   return (
     <>
       <TabsList className="border-b w-full mb-6 md:mb-8 rounded-none p-0 h-auto bg-transparent">
@@ -79,11 +92,11 @@ export function BuyerTabs({ user }: BuyerTabsProps) {
           </CardHeader>
           <CardContent>
             <PreferencesForm 
-              initialEmailNotifications={user.settings?.emailNotifications || true}
-              initialPushNotifications={user.settings?.pushNotifications || true} 
-              initialSmsNotifications={user.settings?.smsNotifications || false}
-              initialAutoPlayPreviews={user.settings?.autoPlayPreviews || true}
-              initialDefaultCurrency={user.default_currency || 'NGN'}
+              initialEmailNotifications={userSettings.emailNotifications}
+              initialPushNotifications={userSettings.pushNotifications}
+              initialSmsNotifications={userSettings.smsNotifications}
+              initialAutoPlayPreviews={userSettings.autoPlayPreviews}
+              initialDefaultCurrency={(user.default_currency as 'NGN' | 'USD') || 'NGN'}
             />
           </CardContent>
         </Card>

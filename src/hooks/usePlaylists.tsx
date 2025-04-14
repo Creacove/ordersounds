@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Playlist } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -38,8 +37,8 @@ export function usePlaylists() {
           cover_image: item.cover_image,
           is_public: item.is_public,
           beats: item.beats || [],
-          created_at: item.created_date, // Map created_date to created_at
-          updated_at: item.created_date // Use created_date for updated_at since it doesn't exist in the database
+          created_at: item.created_date, // Map created_date to created_at 
+          created_date: item.created_date // Keep the original created_date for database consistency
         }));
         
         setPlaylists(transformedPlaylists);
@@ -65,13 +64,15 @@ export function usePlaylists() {
     }
 
     try {
+      const now = new Date().toISOString();
       const newPlaylist: Playlist = {
         id: uuidv4(),
         name,
         owner_id: user.id,
         is_public: false,
         beats: [],
-        created_at: new Date().toISOString(),
+        created_at: now,
+        created_date: now
       };
 
       const { error } = await supabase
@@ -82,7 +83,7 @@ export function usePlaylists() {
           owner_id: newPlaylist.owner_id,
           is_public: newPlaylist.is_public,
           beats: newPlaylist.beats,
-          created_date: newPlaylist.created_at // Use created_date for the database
+          created_date: newPlaylist.created_date
         });
 
       if (error) {

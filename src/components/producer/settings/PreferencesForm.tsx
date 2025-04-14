@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -35,6 +34,9 @@ export function PreferencesForm({
       setIsLoading(true);
       
       const settings = {
+        notifications_email: emailNotifications,
+        notifications_push: pushNotifications,
+        notifications_sms: smsNotifications,
         emailNotifications,
         pushNotifications,
         smsNotifications,

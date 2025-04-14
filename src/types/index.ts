@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   email: string;
@@ -19,6 +18,10 @@ export type User = {
     notifications_push?: boolean;
     notifications_sms?: boolean;
     currency?: "NGN" | "USD";
+    emailNotifications?: boolean;
+    pushNotifications?: boolean;
+    smsNotifications?: boolean;
+    autoPlayPreviews?: boolean;
   };
 };
 
@@ -143,6 +146,7 @@ export type Playlist = {
   cover_image?: string;
   beats: string[];
   is_public: boolean;
+  created_at: string;
   created_date: string;
   owner_name?: string;
   beat_count?: number;

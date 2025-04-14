@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/library/EmptyState';
 import { usePlayer } from '@/context/PlayerContext';
 import { toast } from 'sonner';
 import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
+import { Beat } from '@/types';
 
 export function RecommendedBeats() {
   const { user } = useAuth();
@@ -184,31 +185,49 @@ export function RecommendedBeats() {
 
       {/* Mobile view: Grid of BeatCardCompact */}
       <div className="grid grid-cols-2 gap-2 md:hidden mt-3">
-        {beatsToShow.map((beat) => (
-          <BeatCardCompact 
-            key={beat.id} 
-            beat={{
-              id: beat.id,
-              title: beat.title,
-              producer_id: beat.producer_id,
-              producer_name: getProducerName(beat),
-              cover_image_url: beat.cover_image,
-              basic_license_price_local: beat.basic_license_price_local || 0,
-              basic_license_price_diaspora: beat.basic_license_price_diaspora || beat.basic_license_price_local || 0,
-              genre: beat.genre || '',
-              created_at: beat.upload_date || '',
-              favorites_count: beat.favorites_count || 0,
-              purchase_count: beat.purchase_count || 0,
-              plays: beat.plays || 0,
-              preview_url: beat.audio_preview || '',
-              full_track_url: beat.audio_file || '',
-              bpm: beat.bpm || 0,
-              track_type: beat.track_type || '',
-              tags: beat.tags || [],
-              status: (beat.status as 'draft' | 'published') || 'published',
-            }} 
-          />
-        ))}
+        {beatsToShow.map((beat) => {
+          // Create a complete Beat object that satisfies the Beat type
+          const completeBeat: Beat = {
+            id: beat.id,
+            title: beat.title,
+            producer_id: beat.producer_id,
+            producer_name: getProducerName(beat),
+            cover_image_url: beat.cover_image || '',
+            preview_url: beat.audio_preview || '',
+            full_track_url: beat.audio_file || '',
+            genre: beat.genre || '',
+            track_type: beat.track_type || '',
+            bpm: beat.bpm || 0,
+            tags: beat.tags || [],
+            description: beat.description || '',
+            created_at: beat.upload_date || new Date().toISOString(),
+            updated_at: beat.updated_at || new Date().toISOString(),
+            favorites_count: beat.favorites_count || 0,
+            purchase_count: beat.purchase_count || 0,
+            status: beat.status || 'published',
+            is_featured: beat.is_featured || false,
+            license_type: beat.license_type || 'basic',
+            license_terms: beat.license_terms || '',
+            basic_license_price_local: beat.basic_license_price_local || 0,
+            basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+            premium_license_price_local: beat.premium_license_price_local || 0,
+            premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
+            exclusive_license_price_local: beat.exclusive_license_price_local || 0,
+            exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
+            plays: beat.plays || 0,
+            key: beat.key || '',
+            duration: beat.duration || '0:00',
+            custom_license_price_local: beat.custom_license_price_local,
+            custom_license_price_diaspora: beat.custom_license_price_diaspora
+          };
+          
+          return (
+            <BeatCardCompact 
+              key={beat.id} 
+              beat={completeBeat}
+            />
+          );
+        })}
       </div>
       
       {recommendedBeats.length > 5 && viewAll && (
