@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadFile, FileOrUrl, isFile } from "@/lib/storage";
+import { uploadFile, uploadImageFile, FileOrUrl, isFile } from "@/lib/storage";
 
 export type LicenseOption = {
   value: string;
@@ -277,7 +277,7 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading cover image...");
       
-      const url = await uploadFile(file, 'covers', 'beats', (progress) => {
+      const url = await uploadImageFile(file, 'covers', 'beats', (progress) => {
         console.log(`Image upload progress: ${progress}%`);
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });

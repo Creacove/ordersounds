@@ -1,52 +1,40 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
-import { uploadImage, deleteImage as deleteImageFile } from './imageStorage';
 
-// Create a type to represent a file-like object with a URL
-export type FileOrUrl = File | { url: string };
-
-// Re-export the isFile function from imageStorage
-export { isFile } from './imageStorage';
-
-// Re-export uploadImage and deleteImage functions
-export const uploadImageFile = uploadImage;
-export const deleteImage = deleteImageFile;
+// Type guard to check if the object is a File
+export function isFile(file: File | { url: string }): file is File {
+  return (file as File).lastModified !== undefined;
+}
 
 /**
- * Uploads a file to Supabase storage
- * @param file The file to upload
- * @param bucket The storage bucket to use (e.g., 'beats', 'covers')
+ * Uploads an image to Supabase storage
+ * @param file The image file to upload
+ * @param bucket The storage bucket to use (typically 'covers' or 'avatars')
  * @param path Optional path within the bucket
  * @param progressCallback Optional callback function to track upload progress
- * @returns The public URL of the uploaded file
+ * @returns The public URL of the uploaded image
  */
-export const uploadFile = async (
-  file: FileOrUrl, 
-  bucket: 'beats' | 'covers' | 'avatars', 
+export const uploadImage = async (
+  file: File | { url: string }, 
+  bucket: 'covers' | 'avatars', 
   path = '',
   progressCallback?: (progress: number) => void
 ): Promise<string> => {
   try {
-    // If this is an image upload (covers or avatars), use the dedicated image upload function
-    if (bucket === 'covers' || bucket === 'avatars') {
-      return uploadImage(file, bucket, path, progressCallback);
-    }
-    
     // If we're passed an object with a URL, just return the URL (it's already uploaded)
     if ('url' in file && typeof file.url === 'string') {
       return file.url;
     }
     
     // Otherwise, treat as a real File object
-    const realFile = file as File;
+    const imageFile = file as File;
     
     // Generate a unique filename to prevent collisions
-    const fileExt = realFile.name.split('.').pop();
+    const fileExt = imageFile.name.split('.').pop();
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
-    console.log(`Uploading file ${realFile.name} (${realFile.type}) to ${bucket}/${filePath}`);
+    console.log(`Uploading image ${imageFile.name} (${imageFile.type}) to ${bucket}/${filePath}`);
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
@@ -56,7 +44,7 @@ export const uploadFile = async (
           // Since onUploadProgress isn't supported in FileOptions, we'll use XMLHttpRequest instead
           const xhr = new XMLHttpRequest();
           const uploadOptions = {
-            contentType: realFile.type || getMimeType(fileExt || ''),
+            contentType: imageFile.type || getMimeType(fileExt || ''),
             cacheControl: '3600',
             upsert: false
           };
@@ -92,7 +80,7 @@ export const uploadFile = async (
                 progressCallback(100);
               }, 200);
               
-              console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
+              console.log(`Image uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
               resolve(publicUrlData.publicUrl);
             } else {
               reject(new Error(`Upload failed with status ${xhr.status}`));
@@ -106,18 +94,17 @@ export const uploadFile = async (
           xhr.open('PUT', signedUrl);
           xhr.setRequestHeader('Content-Type', uploadOptions.contentType);
           xhr.setRequestHeader('Cache-Control', uploadOptions.cacheControl);
-          xhr.send(realFile);
+          xhr.send(imageFile);
         } catch (error) {
           reject(error);
         }
       });
     } else {
       // Standard upload without progress tracking
-      // Ensure we're passing the file directly, with proper content type
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(filePath, realFile, {
-          contentType: realFile.type || getMimeType(fileExt || ''),
+        .upload(filePath, imageFile, {
+          contentType: imageFile.type || getMimeType(fileExt || ''),
           cacheControl: '3600',
           upsert: false
         });
@@ -132,11 +119,11 @@ export const uploadFile = async (
         .from(bucket)
         .getPublicUrl(data.path);
       
-      console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
+      console.log(`Image uploaded successfully: ${publicUrlData.publicUrl}`);
       return publicUrlData.publicUrl;
     }
   } catch (error) {
-    console.error('Error uploading file:', error);
+    console.error('Error uploading image:', error);
     throw error;
   }
 };
@@ -155,38 +142,18 @@ function getMimeType(ext: string): string {
     gif: 'image/gif',
     webp: 'image/webp',
     svg: 'image/svg+xml',
-    
-    // Audio
-    mp3: 'audio/mpeg',
-    wav: 'audio/wav',
-    m4a: 'audio/mp4',
-    aac: 'audio/aac',
-    ogg: 'audio/ogg',
-    
-    // Archives
-    zip: 'application/zip',
-    
-    // Documents
-    pdf: 'application/pdf',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   };
   
   return map[ext.toLowerCase()] || 'application/octet-stream';
 }
 
 /**
- * Deletes a file from Supabase storage
- * @param url The public URL of the file to delete
- * @param bucket The storage bucket where the file is stored
+ * Deletes an image from Supabase storage
+ * @param url The public URL of the image to delete
+ * @param bucket The storage bucket where the image is stored
  */
-export const deleteFile = async (url: string, bucket: 'beats' | 'covers' | 'avatars'): Promise<void> => {
+export const deleteImage = async (url: string, bucket: 'covers' | 'avatars'): Promise<void> => {
   try {
-    // If this is an image file, use the dedicated image delete function
-    if (bucket === 'covers' || bucket === 'avatars') {
-      return deleteImageFile(url, bucket);
-    }
-    
     // Extract file path from URL
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/');
@@ -199,11 +166,11 @@ export const deleteFile = async (url: string, bucket: 'beats' | 'covers' | 'avat
       .remove([filePath]);
     
     if (error) {
-      console.error(`Error deleting file from ${bucket}/${filePath}:`, error);
+      console.error(`Error deleting image from ${bucket}/${filePath}:`, error);
       throw error;
     }
   } catch (error) {
-    console.error('Error deleting file:', error);
+    console.error('Error deleting image:', error);
     throw error;
   }
 };
