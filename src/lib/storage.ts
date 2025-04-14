@@ -38,7 +38,7 @@ export const uploadFile = async (
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
-    console.log(`Uploading file to ${bucket}/${filePath}`);
+    console.log(`Uploading file ${realFile.name} (${realFile.type}) to ${bucket}/${filePath}`);
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
@@ -54,6 +54,9 @@ export const uploadFile = async (
           
           const xhr = new XMLHttpRequest();
           xhr.open('PUT', data.signedUrl);
+          
+          // Set proper content type based on the file
+          xhr.setRequestHeader('Content-Type', realFile.type || getMimeType(fileExt || ''));
           
           // Track upload progress events
           xhr.upload.addEventListener('progress', (event) => {
@@ -132,7 +135,7 @@ export const uploadFile = async (
             };
           }
           
-          // Start the upload
+          // Send the raw file, not a converted array
           xhr.send(realFile);
         } catch (error) {
           reject(error);
@@ -140,9 +143,11 @@ export const uploadFile = async (
       });
     } else {
       // Standard upload without progress tracking
+      // Ensure we're passing the file directly, with proper content type
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(filePath, realFile, {
+          contentType: realFile.type || getMimeType(fileExt || ''),
           cacheControl: '3600',
           upsert: false
         });
@@ -165,6 +170,40 @@ export const uploadFile = async (
     throw error;
   }
 };
+
+/**
+ * Get MIME type from file extension
+ * @param ext File extension
+ * @returns MIME type string
+ */
+function getMimeType(ext: string): string {
+  const map: {[key: string]: string} = {
+    // Images
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    
+    // Audio
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    m4a: 'audio/mp4',
+    aac: 'audio/aac',
+    ogg: 'audio/ogg',
+    
+    // Archives
+    zip: 'application/zip',
+    
+    // Documents
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  };
+  
+  return map[ext.toLowerCase()] || 'application/octet-stream';
+}
 
 /**
  * Deletes a file from Supabase storage
