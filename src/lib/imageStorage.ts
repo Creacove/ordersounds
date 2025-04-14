@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -60,7 +59,7 @@ export const uploadImage = async (
           };
           
           // Get pre-signed URL for upload
-          const { data: { signedUrl, path: uploadPath }, error: urlError } = await supabase.storage
+          const { data: { signedURL, path: uploadPath }, error: urlError } = await supabase.storage
             .from(bucket)
             .createSignedUploadUrl(filePath);
             
@@ -107,7 +106,7 @@ export const uploadImage = async (
             reject(new Error('Upload failed due to network error'));
           };
           
-          xhr.open('PUT', signedUrl);
+          xhr.open('PUT', signedURL);
           xhr.setRequestHeader('Content-Type', uploadOptions.contentType);
           xhr.setRequestHeader('Cache-Control', uploadOptions.cacheControl);
           xhr.send(imageFile);
