@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { FileOrUrl, isFile, uploadFile } from './storage';
 import { uploadImage } from './imageStorage';
-import { Beat } from '@/types';
+import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 import { Collaborator } from '@/hooks/useBeatUpload';
 
@@ -32,6 +32,32 @@ type UploadBeatData = {
   license_type: string;
   license_terms?: string;
   cover_image?: string; // Added to accept direct cover image URL or base64
+};
+
+/**
+ * Retrieves all royalty splits for a specific producer
+ * @param producerId The ID of the producer
+ * @returns Array of royalty splits
+ */
+export const getProducerRoyaltySplits = async (producerId: string): Promise<RoyaltySplit[]> => {
+  try {
+    console.log('Fetching royalty splits for producer:', producerId);
+    
+    const { data, error } = await supabase
+      .from('royalty_splits')
+      .select('*')
+      .eq('collaborator_id', producerId);
+    
+    if (error) {
+      console.error('Error fetching royalty splits:', error);
+      throw error;
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in getProducerRoyaltySplits:', error);
+    throw error;
+  }
 };
 
 export const uploadBeat = async (
