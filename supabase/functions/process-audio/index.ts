@@ -145,7 +145,8 @@ Deno.serve(async (req) => {
         status: 'success' 
       }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 // Explicitly set a 200 status code
       }
     );
     
