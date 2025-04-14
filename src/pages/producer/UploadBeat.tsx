@@ -184,15 +184,10 @@ export default function UploadBeat() {
       toast.loading("Publishing your beat...", { id: "publishing-beat" });
       
       let coverImageUrl = '';
-      if (imageFile && isFile(imageFile)) {
-        try {
-          coverImageUrl = await uploadImage(imageFile, 'covers', 'beats');
-          console.log("Uploaded cover image URL:", coverImageUrl);
-        } catch (imageError) {
-          console.error("Error uploading cover image:", imageError);
-          toast.error("Failed to upload cover image", { id: "publishing-beat" });
-          setIsSubmitting(false);
-          return;
+      if (imageFile) {
+        if (!isFile(imageFile) && 'url' in imageFile) {
+          coverImageUrl = imageFile.url;
+          console.log("Using directly provided image URL:", coverImageUrl);
         }
       }
       
@@ -274,15 +269,10 @@ export default function UploadBeat() {
       }
       
       let coverImageUrl = '';
-      if (imageFile && isFile(imageFile)) {
-        try {
-          coverImageUrl = await uploadImage(imageFile, 'covers', 'beats');
-          console.log("Uploaded cover image URL for draft:", coverImageUrl);
-        } catch (imageError) {
-          console.error("Error uploading cover image for draft:", imageError);
-          toast.error("Failed to upload cover image");
-          setIsSubmitting(false);
-          return;
+      if (imageFile) {
+        if (!isFile(imageFile) && 'url' in imageFile) {
+          coverImageUrl = imageFile.url;
+          console.log("Using directly provided image URL for draft:", coverImageUrl);
         }
       }
       

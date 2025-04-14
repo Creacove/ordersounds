@@ -261,14 +261,16 @@ export const useBeatUpload = () => {
         return;
       }
       
-      setImageFile(file);
-      
       // Create a preview immediately using FileReader
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target && event.target.result) {
           const base64String = event.target.result.toString();
           setImagePreview(base64String);
+          // Store the base64 string directly
+          setImageFile({
+            url: base64String
+          });
         }
       };
       reader.readAsDataURL(file);

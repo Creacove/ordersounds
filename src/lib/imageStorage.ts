@@ -26,8 +26,14 @@ export const uploadImage = async (
       throw new Error("No file provided for upload");
     }
     
+    // If it's already a URL string, just return it
     if ('url' in file && typeof file.url === 'string') {
       return file.url;
+    }
+    
+    // If it's a data URL (base64), just return it directly
+    if (isFile(file) && file.name === 'base64-image.jpg') {
+      return file as unknown as string;
     }
     
     // Otherwise, treat as a real File object
@@ -50,100 +56,57 @@ export const uploadImage = async (
       // Create a new XMLHttpRequest to manually track upload progress
       return new Promise<string>(async (resolve, reject) => {
         try {
-          // Since onUploadProgress isn't supported in FileOptions, we'll use XMLHttpRequest instead
-          const xhr = new XMLHttpRequest();
-          const uploadOptions = {
-            contentType: imageFile.type || getMimeType(fileExt || ''),
-            cacheControl: '3600',
-            upsert: false
-          };
+          progressCallback(10); // Initial progress
           
-          // Get pre-signed URL for upload
-          const { data: { signedUrl, path: uploadPath }, error: urlError } = await supabase.storage
-            .from(bucket)
-            .createSignedUploadUrl(filePath);
-            
-          if (urlError) {
-            console.error(`Error getting signed URL for ${bucket}/${filePath}:`, urlError);
-            reject(urlError);
-            return;
-          }
-          
-          // Track upload progress with XMLHttpRequest
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const percentComplete = Math.round((event.loaded / event.total) * 100);
-              progressCallback(percentComplete < 100 ? percentComplete : 99);
-            }
-          };
-          
-          xhr.onload = async () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              // Get public URL for the file
-              const { data: publicUrlData } = supabase.storage
-                .from(bucket)
-                .getPublicUrl(uploadPath);
-              
-              // Final completion
-              setTimeout(() => {
-                progressCallback(100);
-              }, 200);
-              
-              // Ensure the URL is a string and valid
-              if (!publicUrlData?.publicUrl) {
-                reject(new Error('Failed to get public URL for uploaded image'));
-                return;
-              }
-              
-              console.log(`Image uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
-              resolve(publicUrlData.publicUrl);
+          // Read file as base64 data URL instead of uploading to storage
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target && event.target.result) {
+              const base64String = event.target.result.toString();
+              progressCallback(100); // Complete progress
+              console.log("Image converted to base64 successfully");
+              resolve(base64String);
             } else {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
+              reject(new Error('Failed to read image file'));
             }
           };
           
-          xhr.onerror = () => {
-            reject(new Error('Upload failed due to network error'));
+          reader.onerror = () => {
+            reject(new Error('Failed to read image file'));
           };
           
-          xhr.open('PUT', signedUrl);
-          xhr.setRequestHeader('Content-Type', uploadOptions.contentType);
-          xhr.setRequestHeader('Cache-Control', uploadOptions.cacheControl);
-          xhr.send(imageFile);
+          reader.readAsDataURL(imageFile);
         } catch (error) {
           reject(error);
         }
       });
     } else {
-      // Standard upload without progress tracking
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, imageFile, {
-          contentType: imageFile.type || getMimeType(fileExt || ''),
-          cacheControl: '3600',
-          upsert: false
-        });
-      
-      if (error) {
-        console.error(`Error uploading to ${bucket}/${filePath}:`, error);
-        throw error;
-      }
-      
-      // Get public URL for the file
-      const { data: publicUrlData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(data.path);
-      
-      // Ensure the URL is a string and valid
-      if (!publicUrlData?.publicUrl) {
-        throw new Error('Failed to get public URL for uploaded image');
-      }
-      
-      console.log(`Image uploaded successfully: ${publicUrlData.publicUrl}`);
-      return publicUrlData.publicUrl;
+      // Standard upload without progress tracking - still use base64 approach
+      return new Promise<string>((resolve, reject) => {
+        try {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            if (event.target && event.target.result) {
+              const base64String = event.target.result.toString();
+              console.log("Image converted to base64 successfully");
+              resolve(base64String);
+            } else {
+              reject(new Error('Failed to read image file'));
+            }
+          };
+          
+          reader.onerror = () => {
+            reject(new Error('Failed to read image file'));
+          };
+          
+          reader.readAsDataURL(imageFile);
+        } catch (error) {
+          reject(error);
+        }
+      });
     }
   } catch (error) {
-    console.error('Error uploading image:', error);
+    console.error('Error in uploadImage:', error);
     throw error;
   }
 };
@@ -174,6 +137,12 @@ function getMimeType(ext: string): string {
  */
 export const deleteImage = async (url: string, bucket: 'covers' | 'avatars'): Promise<void> => {
   try {
+    // Skip deletion for data URLs (base64)
+    if (url.startsWith('data:')) {
+      console.log('Skipping deletion for base64 image');
+      return;
+    }
+    
     // Extract file path from URL
     const urlObj = new URL(url);
     const pathParts = urlObj.pathname.split('/');

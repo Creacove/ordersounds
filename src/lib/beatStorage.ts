@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { FileOrUrl, isFile, uploadFile } from './storage';
 import { uploadImage } from './imageStorage';
@@ -30,14 +31,14 @@ type UploadBeatData = {
   status: 'draft' | 'published';
   license_type: string;
   license_terms?: string;
-  cover_image?: string; // Added to accept direct cover image URL
+  cover_image?: string; // Added to accept direct cover image URL or base64
 };
 
 export const uploadBeat = async (
   beatData: UploadBeatData,
   fullTrackFileOrUrl: FileOrUrl,
   previewTrackFile: File | null,
-  coverImageFile: File | null, // Optional now since we might already have a URL
+  coverImageFile: File | null, // Optional now since we might already have a URL or base64
   stemsFile: File | null,
   producerId: string,
   producerName: string,
@@ -64,12 +65,8 @@ export const uploadBeat = async (
       previewTrackUrl = await uploadFile(previewTrackFile, 'beats', 'previews');
     }
     
-    // Upload cover image if provided (and we don't already have a URL)
+    // Use the provided cover image (could be URL, base64, or null)
     let coverImageUrl: string = beatData.cover_image || '';
-    if (coverImageFile) {
-      console.log('Uploading cover image file');
-      coverImageUrl = await uploadImage(coverImageFile, 'covers', 'beats');
-    }
     
     // Upload stems if provided
     let stemsUrl: string | null = null;
