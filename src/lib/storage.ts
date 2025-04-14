@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -34,33 +33,31 @@ export const uploadFile = async (
     const realFile = file as File;
     
     // Generate a unique filename to prevent collisions
-    const fileExt = realFile.name.split('.').pop();
+    const fileExt = realFile.name.split('.').pop()?.toLowerCase();
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
-    console.log(`File type: ${realFile.type}`);
     
     // Determine the proper content type
     let contentType = realFile.type;
     
-    // Ensure image content types are properly set
-    if (contentType.startsWith('image/')) {
-      // For images, make sure we use the correct image content type
-      contentType = realFile.type;
-    } else if (bucket === 'covers' || bucket === 'avatars') {
-      // If uploading to covers or avatars, but content type isn't set, use a default
-      if (!contentType || contentType === 'application/octet-stream') {
-        const imageExt = fileExt?.toLowerCase();
-        if (imageExt === 'jpg' || imageExt === 'jpeg') {
-          contentType = 'image/jpeg';
-        } else if (imageExt === 'png') {
-          contentType = 'image/png';
-        } else if (imageExt === 'gif') {
-          contentType = 'image/gif';
-        } else if (imageExt === 'webp') {
-          contentType = 'image/webp';
-        }
+    // Set proper content type based on file extension if not already set
+    if (!contentType || contentType === 'application/octet-stream') {
+      if (fileExt === 'jpg' || fileExt === 'jpeg') {
+        contentType = 'image/jpeg';
+      } else if (fileExt === 'png') {
+        contentType = 'image/png';
+      } else if (fileExt === 'gif') {
+        contentType = 'image/gif';
+      } else if (fileExt === 'webp') {
+        contentType = 'image/webp';
+      } else if (fileExt === 'mp3') {
+        contentType = 'audio/mpeg';
+      } else if (fileExt === 'wav') {
+        contentType = 'audio/wav';
+      } else if (fileExt === 'zip') {
+        contentType = 'application/zip';
       }
     }
     

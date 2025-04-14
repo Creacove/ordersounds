@@ -46,23 +46,17 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to download file: ${response.statusText}`);
     }
     
-    // Get the content type of the original file
-    const contentType = response.headers.get('content-type') || 'audio/mpeg';
-    console.log(`Original file content type: ${contentType}`);
-    
-    // Get the file as ArrayBuffer
+    // Get the original file as ArrayBuffer
     const fileArrayBuffer = await response.arrayBuffer();
     
-    // Create a preview by taking approximately 30% of the file
-    // This is a simplified approach - it's not analyzing the audio, just taking a portion
+    // Simple approach: take first 30% of the file
     const totalSize = fileArrayBuffer.byteLength;
     const previewSize = Math.floor(totalSize * 0.3); // 30% of the original file
-    const startOffset = Math.floor(totalSize * 0.1); // Start at 10% to avoid intros
     
-    console.log(`Original file size: ${totalSize}, Preview size: ${previewSize}, Start offset: ${startOffset}`);
+    console.log(`Original file size: ${totalSize}, Preview size: ${previewSize}`);
     
     // Create the preview from a portion of the original file
-    const previewArrayBuffer = fileArrayBuffer.slice(startOffset, startOffset + previewSize);
+    const previewArrayBuffer = fileArrayBuffer.slice(0, previewSize);
     
     // Upload the preview file
     console.log(`Uploading preview file: ${outputFileName}`);
