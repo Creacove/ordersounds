@@ -37,9 +37,6 @@ export const mapSupabaseUser = (user: any): User => {
     country: user.user_metadata?.country || '',
     producer_name: user.user_metadata?.stage_name || '',
     default_currency: user.user_metadata?.default_currency || (user.user_metadata?.country === 'Nigeria' ? 'NGN' : 'USD'),
-    status: user.user_metadata?.status || undefined,
-    music_interests: user.user_metadata?.music_interests || [],
-    settings: user.user_metadata?.settings || {}
   };
 };
 
@@ -63,7 +60,7 @@ export const mapSupabaseBeat = (beat: any): Beat => {
     tags: beat.tags || [],
     description: beat.description || '',
     created_at: beat.upload_date || beat.created_at || new Date().toISOString(),
-    updated_at: beat.updated_at || new Date().toISOString(),
+    updated_at: beat.updated_at || '',
     favorites_count: beat.favorites_count || 0,
     purchase_count: beat.purchase_count || 0,
     status: (beat.status === 'draft' || beat.status === 'published') 
@@ -78,11 +75,9 @@ export const mapSupabaseBeat = (beat: any): Beat => {
     premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
     exclusive_license_price_local: beat.exclusive_license_price_local || 0,
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-    custom_license_price_local: beat.custom_license_price_local || undefined,
-    custom_license_price_diaspora: beat.custom_license_price_diaspora || undefined,
     plays: beat.plays || 0,
     key: beat.key || '',
-    duration: beat.duration || '0:00',
+    duration: beat.duration || '',
     // Preserve the original producer object for context
     producer: beat.producer || beat.users,
     users: beat.users

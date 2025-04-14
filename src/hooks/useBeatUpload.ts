@@ -276,33 +276,22 @@ export const useBeatUpload = () => {
   
   const uploadImageFile = async (file: File) => {
     try {
-      // Ensure file exists and is an image
-      if (!file || !file.type) {
-        throw new Error("Invalid file provided");
-      }
-      
       if (!file.type.startsWith('image/')) {
         throw new Error("File is not a valid image");
       }
       
       toast.info("Uploading cover image...");
       
-      // Upload the image with proper progression tracking
       const url = await uploadImage(file, 'covers', 'beats', (progress) => {
         console.log(`Image upload progress: ${progress}%`);
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });
       
-      // Verify that we got back a valid URL string
       if (!url || typeof url !== 'string') {
         throw new Error("Failed to get valid image URL");
       }
       
-      // Set the image file to the URL so it can be immediately used
-      setImageFile({ url });
-      setImagePreview(url);
-      
-      toast.success("Cover image uploaded successfully");
+      toast.success("Cover image uploaded");
       return url;
     } catch (error) {
       console.error("Error uploading image:", error);

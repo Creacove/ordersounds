@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Type guard to check if the object is a File
 export function isFile(file: File | { url: string }): file is File {
-  return file !== null && file !== undefined && (file as File)?.lastModified !== undefined;
+  return (file as File)?.lastModified !== undefined;
 }
 
 /**
@@ -40,14 +40,11 @@ export const uploadImage = async (
     }
     
     // Generate a unique filename to prevent collisions
-    const fileExt = imageFile.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const fileExt = imageFile.name.split('.').pop()?.toLowerCase();
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     console.log(`Uploading image ${imageFile.name} (${imageFile.type}) to ${bucket}/${filePath}`);
-    
-    // Force the content type to be an image format
-    const contentType = imageFile.type || getMimeType(fileExt);
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
@@ -57,9 +54,9 @@ export const uploadImage = async (
           // Since onUploadProgress isn't supported in FileOptions, we'll use XMLHttpRequest instead
           const xhr = new XMLHttpRequest();
           const uploadOptions = {
-            contentType: contentType,
+            contentType: imageFile.type || getMimeType(fileExt || ''),
             cacheControl: '3600',
-            upsert: true // Changed to true to overwrite files with the same name
+            upsert: false
           };
           
           // Get pre-signed URL for upload
@@ -123,9 +120,9 @@ export const uploadImage = async (
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(filePath, imageFile, {
-          contentType: contentType,
+          contentType: imageFile.type || getMimeType(fileExt || ''),
           cacheControl: '3600',
-          upsert: true // Changed to true to overwrite files with the same name
+          upsert: false
         });
       
       if (error) {

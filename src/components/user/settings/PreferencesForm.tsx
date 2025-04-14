@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -39,14 +40,10 @@ export function PreferencesForm({
       setIsLoading(true);
       
       const settings = {
-        notifications_email: emailNotifications,
-        notifications_push: pushNotifications,
-        notifications_sms: smsNotifications,
         emailNotifications,
         pushNotifications,
         smsNotifications,
-        autoPlayPreviews,
-        currency: defaultCurrency
+        autoPlayPreviews
       };
       
       const { error } = await supabase
@@ -68,10 +65,12 @@ export function PreferencesForm({
           default_currency: defaultCurrency
         });
         
+        // Update currency in context if it changed
         if (setCurrency) {
           setCurrency(defaultCurrency);
         }
 
+        // Store in localStorage
         try {
           localStorage.setItem('preferred_currency', defaultCurrency);
         } catch (err) {
@@ -81,6 +80,7 @@ export function PreferencesForm({
         toast.success("Preferences updated successfully");
         setSaveSuccess(true);
         
+        // Reset success state after 3 seconds
         setTimeout(() => {
           setSaveSuccess(false);
         }, 3000);
