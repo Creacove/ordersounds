@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,39 +45,60 @@ export const uploadFile = async (
       // Create a new XMLHttpRequest to manually track upload progress
       return new Promise<string>(async (resolve, reject) => {
         try {
-          // We'll use the standard Supabase upload method instead of XMLHttpRequest
-          // to ensure the file is stored properly
-          const { data: uploadData, error: uploadError } = await supabase.storage
+          // Since onUploadProgress isn't supported in FileOptions, we'll use XMLHttpRequest instead
+          const xhr = new XMLHttpRequest();
+          const uploadOptions = {
+            contentType: realFile.type || getMimeType(fileExt || ''),
+            cacheControl: '3600',
+            upsert: false
+          };
+          
+          // Get pre-signed URL for upload
+          const { data: { url, path: uploadPath }, error: urlError } = await supabase.storage
             .from(bucket)
-            .upload(filePath, realFile, {
-              contentType: realFile.type || getMimeType(fileExt || ''),
-              cacheControl: '3600',
-              upsert: false,
-              // This simulates progress since we're not using XMLHttpRequest anymore
-              onUploadProgress: (progress) => {
-                const percentComplete = Math.round((progress.loaded / progress.totalBytes) * 100);
-                progressCallback(percentComplete < 100 ? percentComplete : 99);
-              }
-            });
+            .createSignedUploadUrl(filePath);
             
-          if (uploadError) {
-            console.error(`Error uploading to ${bucket}/${filePath}:`, uploadError);
-            reject(uploadError);
+          if (urlError) {
+            console.error(`Error getting signed URL for ${bucket}/${filePath}:`, urlError);
+            reject(urlError);
             return;
           }
           
-          // Get public URL for the file
-          const { data: publicUrlData } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(uploadData.path);
+          // Track upload progress with XMLHttpRequest
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const percentComplete = Math.round((event.loaded / event.total) * 100);
+              progressCallback(percentComplete < 100 ? percentComplete : 99);
+            }
+          };
           
-          // Final completion
-          setTimeout(() => {
-            progressCallback(100);
-          }, 200);
+          xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              // Get public URL for the file
+              const { data: publicUrlData } = supabase.storage
+                .from(bucket)
+                .getPublicUrl(uploadPath);
+              
+              // Final completion
+              setTimeout(() => {
+                progressCallback(100);
+              }, 200);
+              
+              console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
+              resolve(publicUrlData.publicUrl);
+            } else {
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          };
           
-          console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
-          resolve(publicUrlData.publicUrl);
+          xhr.onerror = () => {
+            reject(new Error('Upload failed due to network error'));
+          };
+          
+          xhr.open('PUT', url);
+          xhr.setRequestHeader('Content-Type', uploadOptions.contentType);
+          xhr.setRequestHeader('Cache-Control', uploadOptions.cacheControl);
+          xhr.send(realFile);
         } catch (error) {
           reject(error);
         }
