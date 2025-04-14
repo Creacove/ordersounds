@@ -46,14 +46,28 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
     const { data, error } = await supabase
       .from('royalty_splits')
       .select('*')
-      .eq('collaborator_id', producerId);
+      .eq('party_id', producerId);
     
     if (error) {
       console.error('Error fetching royalty splits:', error);
       throw error;
     }
     
-    return data || [];
+    if (!data) return [];
+    
+    // Map database fields to RoyaltySplit interface
+    return data.map(item => ({
+      id: item.id,
+      beat_id: item.beat_id,
+      beat_title: item.party_name || '',
+      beat_cover_image: null,
+      collaborator_id: item.party_id,
+      collaborator_name: item.party_name || '',
+      collaborator_email: item.party_email || '',
+      collaborator_role: item.party_role || '',
+      percentage: item.percentage,
+      created_at: item.created_date
+    }));
   } catch (error) {
     console.error('Error in getProducerRoyaltySplits:', error);
     throw error;
@@ -64,7 +78,7 @@ export const uploadBeat = async (
   beatData: UploadBeatData,
   fullTrackFileOrUrl: FileOrUrl,
   previewTrackFile: File | null,
-  coverImageFile: File | null, // Optional now since we might already have a URL or base64
+  coverImageFile: File | null,
   stemsFile: File | null,
   producerId: string,
   producerName: string,
@@ -110,7 +124,7 @@ export const uploadBeat = async (
       bpm: beatData.bpm,
       key: beatData.key || 'C Major',
       producer_id: producerId,
-      producer_name: producerName,
+      // Removed producer_name as it doesn't exist in database schema
       audio_file: fullTrackUrl,
       audio_preview: previewTrackUrl,
       cover_image: coverImageUrl,
@@ -127,7 +141,7 @@ export const uploadBeat = async (
       exclusive_license_price_diaspora: beatData.exclusive_license_price_diaspora || 0,
       custom_license_price_local: beatData.custom_license_price_local || 0,
       custom_license_price_diaspora: beatData.custom_license_price_diaspora || 0,
-      stems: stemsUrl,
+      stems_url: stemsUrl, // Use stems_url instead of stems to match DB schema
     };
     
     console.log('Inserting beat into database');
@@ -155,12 +169,10 @@ export const uploadBeat = async (
       
       const collaboratorInserts = collaborators.map(c => ({
         beat_id: beatId,
-        beat_title: beatData.title,
-        beat_cover_image: coverImageUrl,
-        collaborator_id: c.id.toString().includes('-') ? c.id.toString() : producerId,
-        collaborator_name: c.name || producerName,
-        collaborator_email: c.email || '',
-        collaborator_role: c.role || 'Producer',
+        party_id: c.id.toString().includes('-') ? c.id.toString() : producerId,
+        party_name: c.name || producerName,
+        party_email: c.email || '',
+        party_role: c.role || 'Producer',
         percentage: c.percentage
       }));
       
