@@ -8,12 +8,12 @@ import { BeatListItem } from "@/components/ui/BeatListItem";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlayer } from "@/context/PlayerContext";
 import { useAuth } from "@/context/AuthContext";
+import { useProducers } from "@/hooks/useProducers";
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { 
   Table,
   TableBody,
@@ -28,7 +28,7 @@ import { getUserPlaylists } from "@/lib/playlistService";
 import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
-import { SectionTitle } from "@/components/ui/SectionTitle";
+import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 
 export default function Home() {
   const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
@@ -36,7 +36,12 @@ export default function Home() {
   const [showFilters, setShowFilters] = useState(false);
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
+  const { prefetchProducers } = useProducers();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    prefetchProducers();
+  }, []);
 
   const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
     queryKey: ['topProducers'],
@@ -46,7 +51,7 @@ export default function Home() {
         .select('id, full_name, stage_name, profile_picture')
         .eq('role', 'producer')
         .order('featured_beats', { ascending: false })
-        .limit(5);
+        .limit(10);
       
       if (error) {
         console.error('Error fetching producers:', error);
@@ -342,8 +347,8 @@ export default function Home() {
               )}
             </section>
 
-            <section className="mb-10">
-              <div className="flex justify-between items-center mb-4">
+            <section className="bg-card/50 p-4 sm:p-6 rounded-lg mb-10 border">
+              <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold">Weekly Picks</h2>
                   <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
@@ -489,23 +494,25 @@ export default function Home() {
                 </Button>
               </div>
               
-              <div className="flex overflow-x-auto pb-4 gap-5 hide-scrollbar px-0 md:pl-0">
+              <div className="flex overflow-x-auto pb-4 gap-4 hide-scrollbar px-0 md:pl-0">
                 {isLoadingProducers ? (
-                  [...Array(5)].map((_, i) => (
-                    <div key={i} className="flex flex-col items-center gap-2 min-w-[90px]">
+                  [...Array(10)].map((_, i) => (
+                    <div key={i} className="flex flex-col items-center gap-2 min-w-[80px]">
                       <div className="relative">
-                        <div className="h-[90px] w-[90px] rounded-full bg-muted animate-pulse" />
+                        <div className="h-[80px] w-[80px] rounded-full bg-muted animate-pulse" />
                       </div>
                       <div className="h-4 w-16 bg-muted animate-pulse rounded" />
                     </div>
                   ))
                 ) : (
                   topProducers.map((producer) => (
-                    <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[90px]">
+                    <Link key={producer.id} to={`/producer/${producer.id}`} className="flex flex-col items-center gap-2 min-w-[80px]">
                       <div className="relative">
-                        <Avatar className="h-[90px] w-[90px] border-2 border-background shadow-md">
+                        <Avatar className="h-[80px] w-[80px] border-2 border-background shadow-md bg-gradient-to-br from-purple-500/20 to-blue-500/20">
                           <AvatarImage src={producer.avatar} alt={producer.name} />
-                          <AvatarFallback>{producer.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+                          <AvatarFallback className="bg-gradient-to-br from-purple-600/20 to-blue-600/30 text-white font-bold">
+                            {producer.name.substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
                         </Avatar>
                         {producer.verified && (
                           <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground rounded-full p-1">
@@ -513,7 +520,7 @@ export default function Home() {
                           </div>
                         )}
                       </div>
-                      <span className="text-sm font-medium text-center truncate max-w-[90px]">{producer.name}</span>
+                      <span className="text-sm font-medium text-center truncate max-w-[80px]">{producer.name}</span>
                     </Link>
                   ))
                 )}
@@ -598,6 +605,20 @@ export default function Home() {
                   </Button>
                 </>
               )}
+            </section>
+
+            <section className="mb-10">
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl font-bold">Producer of the Week</h2>
+                  <Badge className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 shadow-sm">
+                    <Star size={12} className="mr-1" fill="currentColor" />
+                    <span>Featured</span>
+                  </Badge>
+                </div>
+              </div>
+              
+              <ProducerOfWeek />
             </section>
           </div>
         </div>

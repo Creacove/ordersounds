@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,12 +9,14 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { uploadBeat } from "@/lib/beatStorage";
+import { FileOrUrl, isFile } from "@/lib/storage";
 import { DetailTab } from "@/components/upload/DetailTab";
 import { FilesTab } from "@/components/upload/FilesTab";
 import { LicensingTab } from "@/components/upload/LicensingTab";
 import { PricingTab } from "@/components/upload/PricingTab";
 import { RoyaltiesTab } from "@/components/upload/RoyaltiesTab";
 import { useBeatUpload } from "@/hooks/useBeatUpload";
+import { ScrollToTop } from "@/components/utils/ScrollToTop";
 
 export default function UploadBeat() {
   const tabOrder = ["details", "licensing", "files", "pricing", "royalties"];
@@ -90,10 +93,14 @@ export default function UploadBeat() {
       
       const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
                               selectedLicenseTypes.includes('exclusive');
-      if (requiresWavFormat && uploadedFile && 
-          uploadedFile.type !== "audio/wav" && 
-          !uploadedFile.name.endsWith('.wav')) {
-        newErrors.fullTrack = "Premium and exclusive licenses require WAV format";
+      
+      if (requiresWavFormat && uploadedFile && isFile(uploadedFile)) {
+        const fileType = uploadedFile.type;
+        const fileName = uploadedFile.name;
+        
+        if (fileType !== "audio/wav" && !fileName.endsWith('.wav')) {
+          newErrors.fullTrack = "Premium and exclusive licenses require WAV format";
+        }
       }
     } else if (activeTab === "pricing") {
       selectedLicenseTypes.forEach(license => {
@@ -150,24 +157,6 @@ export default function UploadBeat() {
     
     try {
       console.log('Publishing beat with license types:', selectedLicenseTypes);
-      console.log('License prices:', {
-        basic: {
-          local: beatDetails.basicLicensePriceLocal,
-          diaspora: beatDetails.basicLicensePriceDiaspora
-        },
-        premium: {
-          local: beatDetails.premiumLicensePriceLocal,
-          diaspora: beatDetails.premiumLicensePriceDiaspora
-        },
-        exclusive: {
-          local: beatDetails.exclusiveLicensePriceLocal,
-          diaspora: beatDetails.exclusiveLicensePriceDiaspora
-        },
-        custom: {
-          local: beatDetails.customLicensePriceLocal,
-          diaspora: beatDetails.customLicensePriceDiaspora
-        }
-      });
       
       if (!imageFile) {
         toast.error("Cover image is required");
@@ -192,6 +181,8 @@ export default function UploadBeat() {
         collaborators[0].email = user.email || '';
       }
       
+      toast.loading("Publishing your beat...", { id: "publishing-beat" });
+      
       const beatData = {
         title: beatDetails.title,
         description: beatDetails.description || "",
@@ -212,31 +203,54 @@ export default function UploadBeat() {
         license_type: selectedLicenseTypes.join(','),
         license_terms: beatDetails.licenseTerms || ''
       };
-
-      console.log('Beat data to upload:', beatData);
+      
+      const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
+      
+      // Convert stems to null if it's not a File (fixing TypeScript error)
+      const stemsFile = isFile(stems) ? stems : null;
+      
+      // Handle the previewFile correctly based on type
+      let finalPreviewFile: File | null = null;
+      if (previewFile && isFile(previewFile)) {
+        finalPreviewFile = previewFile;
+      }
+      
+      // Handle the imageFile correctly based on type
+      let finalImageFile: File | null = null;
+      if (imageFile && isFile(imageFile)) {
+        finalImageFile = imageFile;
+      }
+      
+      // Prepare the preview URL for non-File case
+      const previewUrlForUpload = previewUrl || 
+        (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
+      
+      // Prepare the image URL for non-File case
+      const imageUrlForUpload = !finalImageFile && imageFile && 
+        !isFile(imageFile) && 'url' in imageFile ? imageFile.url : '';
       
       const result = await uploadBeat(
         beatData,
-        uploadedFile,
-        previewFile,
-        imageFile,
-        stems,
+        fullTrackFileOrUrl,
+        finalPreviewFile,
+        finalImageFile,
+        stemsFile,
         user.id,
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrl
+        previewUrlForUpload
       );
       
       if (result.success) {
-        toast.success("Beat published successfully!");
+        toast.success("Beat published successfully!", { id: "publishing-beat" });
         navigate("/producer/beats");
       } else {
         throw new Error(result.error || "Failed to upload beat");
       }
     } catch (error) {
       console.error("Error publishing beat:", error);
-      toast.error(error instanceof Error ? error.message : "Error publishing beat");
+      toast.error(error instanceof Error ? error.message : "Error publishing beat", { id: "publishing-beat" });
     } finally {
       setIsSubmitting(false);
     }
@@ -296,17 +310,42 @@ export default function UploadBeat() {
         license_terms: beatDetails.licenseTerms || ''
       };
       
+      const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
+      
+      // Convert stems to null if it's not a File (fixing TypeScript error)
+      const stemsFile = isFile(stems) ? stems : null;
+      
+      // Handle the previewFile correctly based on type
+      let finalPreviewFile: File | null = null;
+      if (previewFile && isFile(previewFile)) {
+        finalPreviewFile = previewFile;
+      }
+      
+      // Handle the imageFile correctly based on type
+      let finalImageFile: File | null = null;
+      if (imageFile && isFile(imageFile)) {
+        finalImageFile = imageFile;
+      }
+      
+      // Prepare the preview URL for non-File case
+      const previewUrlForUpload = previewUrl || 
+        (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
+      
+      // Prepare the image URL for non-File case
+      const imageUrlForUpload = !finalImageFile && imageFile && 
+        !isFile(imageFile) && 'url' in imageFile ? imageFile.url : '';
+      
       const result = await uploadBeat(
         beatData,
-        uploadedFile,
-        previewFile,
-        imageFile,
-        stems,
+        fullTrackFileOrUrl,
+        finalPreviewFile,
+        finalImageFile,
+        stemsFile,
         user.id,
         user.producer_name || user.name,
         collaborators,
         selectedLicenseTypes,
-        previewUrl
+        previewUrlForUpload
       );
       
       if (result.success) {
@@ -321,37 +360,6 @@ export default function UploadBeat() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const uploadFile = async (file: File, bucketName: string, folder: string) => {
-    return new Promise<string | null>(async (resolve, reject) => {
-      try {
-        const { supabase } = await import('@/integrations/supabase/client');
-        const filePath = `${folder}/${Date.now()}_${file.name}`;
-        
-        const { data, error } = await supabase.storage
-          .from(bucketName)
-          .upload(filePath, file, { 
-            cacheControl: '3600',
-            upsert: false
-          });
-        
-        if (error) {
-          console.error(`Error uploading file to ${bucketName}/${filePath}:`, error);
-          reject(error);
-          return;
-        }
-        
-        const { data: publicUrlData } = supabase.storage
-          .from(bucketName)
-          .getPublicUrl(data.path);
-        
-        resolve(publicUrlData.publicUrl);
-      } catch (err) {
-        console.error('Error in uploadFile:', err);
-        reject(err);
-      }
-    });
   };
 
   useEffect(() => {
@@ -371,6 +379,7 @@ export default function UploadBeat() {
 
   return (
     <MainLayout>
+      <ScrollToTop />
       <div className="container py-4 sm:py-8 max-w-full sm:max-w-4xl px-2 sm:px-6">
         <Card className="overflow-hidden">
           <CardHeader className="bg-card p-4 sm:p-6">
@@ -456,6 +465,7 @@ export default function UploadBeat() {
                   uploadProgress={uploadProgress}
                   regeneratePreview={regeneratePreview}
                   previewUrl={previewUrl}
+                  setPreviewUrl={setPreviewUrl}
                   handlePreviewUpload={handlePreviewUpload}
                   handleStemsUpload={handleStemsUpload}
                 />

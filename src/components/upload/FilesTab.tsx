@@ -6,25 +6,27 @@ import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw } from "luc
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/hooks/useAudio";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
+import { FileOrUrl, isFile } from "@/lib/storage";
 
 type FilesTabProps = {
   imagePreview: string | null;
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  uploadedFile: File | null;
-  setUploadedFile: React.Dispatch<React.SetStateAction<File | null>>;
+  uploadedFile: FileOrUrl | null;
+  setUploadedFile: React.Dispatch<React.SetStateAction<FileOrUrl | null>>;
   handleFullTrackUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  previewFile: File | null;
-  setPreviewFile: React.Dispatch<React.SetStateAction<File | null>>;
+  previewFile: FileOrUrl | null;
+  setPreviewFile: React.Dispatch<React.SetStateAction<FileOrUrl | null>>;
   isPlaying: boolean;
   setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
   selectedLicenseTypes: string[];
-  stems: File | null;
-  setStems: React.Dispatch<React.SetStateAction<File | null>>;
+  stems: FileOrUrl | null;
+  setStems: React.Dispatch<React.SetStateAction<FileOrUrl | null>>;
   processingFiles: boolean;
   uploadProgress?: { [key: string]: number };
   regeneratePreview?: () => Promise<void>;
   previewUrl?: string | null;
+  setPreviewUrl?: React.Dispatch<React.SetStateAction<string | null>>;
   handlePreviewUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleStemsUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 };
@@ -46,6 +48,7 @@ export const FilesTab = ({
   uploadProgress = {},
   regeneratePreview,
   previewUrl,
+  setPreviewUrl,
   handlePreviewUpload,
   handleStemsUpload
 }: FilesTabProps) => {
@@ -54,7 +57,12 @@ export const FilesTab = ({
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
   
-  const audioPreviewUrl = previewUrl || (previewFile ? URL.createObjectURL(previewFile) : '');
+  const previewObjectUrl = previewFile && isFile(previewFile) 
+    ? URL.createObjectURL(previewFile) 
+    : '';
+    
+  const audioPreviewUrl = previewUrl || previewObjectUrl || '';
+  
   const { 
     playing: isAudioPlaying, 
     togglePlay: toggleAudioPlay,
@@ -66,7 +74,7 @@ export const FilesTab = ({
   }, [isAudioPlaying, setIsPlaying]);
 
   useEffect(() => {
-    if (uploadedFile && uploadProgress[uploadedFile.name] !== undefined) {
+    if (uploadedFile && isFile(uploadedFile) && uploadProgress[uploadedFile.name] !== undefined) {
       console.log(`Progress update for ${uploadedFile.name}: ${uploadProgress[uploadedFile.name]}%`);
     }
   }, [uploadedFile, uploadProgress]);
@@ -88,10 +96,12 @@ export const FilesTab = ({
   useEffect(() => {
     if (!requiresWavFormat && 
         uploadedFile && 
+        isFile(uploadedFile) &&
         uploadedFile.type === "audio/wav") {
       setValidationError("You've selected a basic license but uploaded a WAV file. For basic licenses, MP3 is recommended.");
     } else if (requiresWavFormat && 
               uploadedFile && 
+              isFile(uploadedFile) &&
               uploadedFile.type === "audio/mpeg") {
       setValidationError("Premium and exclusive licenses require WAV format. Please upload a WAV file.");
     } else {
@@ -104,17 +114,16 @@ export const FilesTab = ({
       const file = e.target.files[0];
       
       if (file.size > 70 * 1024 * 1024) {
-        toast.error("WAV file must be less than 70MB");
+        toast.error("File must be less than 70MB");
         return;
       }
       
-      if (file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
+      if (requiresWavFormat && file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
         setValidationError("WAV format required for premium/exclusive licenses");
         return;
       }
       
-      setUploadedFile(file);
-      setValidationError(null);
+      handleFullTrackUpload(e);
     }
   };
 
@@ -153,6 +162,18 @@ export const FilesTab = ({
     }
   };
 
+  const getFileNameFromFileOrUrl = (file: FileOrUrl | null): string => {
+    if (!file) return '';
+    if (isFile(file)) return file.name;
+    return 'Uploaded file';
+  };
+
+  const getFileSizeFromFileOrUrl = (file: FileOrUrl | null): string => {
+    if (!file) return '';
+    if (isFile(file)) return `${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+    return '';
+  };
+
   const renderProgressBar = (file: File | null, progressValue: number | undefined) => {
     if (!file || progressValue === undefined) return null;
     
@@ -189,6 +210,13 @@ export const FilesTab = ({
         </p>
       </div>
     );
+  };
+
+  const handlePreviewClear = () => {
+    setPreviewFile(null);
+    if (setPreviewUrl) {
+      setPreviewUrl(null);
+    }
   };
 
   return (
@@ -245,15 +273,19 @@ export const FilesTab = ({
                   <>
                     <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                     <div className="flex-1 overflow-hidden">
-                      <p className="text-xs sm:text-sm font-medium truncate">{uploadedFile.name}</p>
+                      <p className="text-xs sm:text-sm font-medium truncate">
+                        {getFileNameFromFileOrUrl(uploadedFile)}
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {(uploadedFile.size / (1024 * 1024)).toFixed(2)} MB
-                        {requiresWavFormat && uploadedFile.type !== "audio/wav" && !uploadedFile.name.endsWith('.wav') && (
+                        {getFileSizeFromFileOrUrl(uploadedFile)}
+                        {requiresWavFormat && uploadedFile && isFile(uploadedFile) && 
+                         uploadedFile.type !== "audio/wav" && !uploadedFile.name.endsWith('.wav') && (
                           <span className="text-destructive ml-2">WAV format required</span>
                         )}
                       </p>
                       
-                      {uploadedFile && uploadProgress[uploadedFile.name] !== undefined && (
+                      {uploadedFile && isFile(uploadedFile) && 
+                       uploadProgress[uploadedFile.name] !== undefined && (
                         renderProgressBar(uploadedFile, uploadProgress[uploadedFile.name])
                       )}
                     </div>
@@ -289,7 +321,7 @@ export const FilesTab = ({
                       type="file" 
                       className="hidden" 
                       accept={getAcceptedAudioTypes()}
-                      onChange={handleFullTrackUpload}
+                      onChange={handleFullTrackUploadInternal}
                     />
                   </>
                 )}
@@ -314,13 +346,17 @@ export const FilesTab = ({
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
-                        {previewFile ? previewFile.name : "Preview.mp3"}
+                        {previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {previewFile ? `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : audioPreviewUrl ? `Preview ready (${Math.round(audioDuration)}s)` : "Loading preview..."}
+                        {previewFile && isFile(previewFile) ? 
+                          `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
+                          audioPreviewUrl ? `Preview ready (${Math.round(audioDuration)}s)` : 
+                          "Loading preview..."}
                       </p>
                       
-                      {previewFile && uploadProgress[previewFile.name] !== undefined && (
+                      {previewFile && isFile(previewFile) && 
+                       uploadProgress[previewFile.name] !== undefined && (
                         renderProgressBar(previewFile, uploadProgress[previewFile.name])
                       )}
                     </div>
@@ -347,9 +383,8 @@ export const FilesTab = ({
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setPreviewFile(null);
+                        handlePreviewClear();
                       }}
-                      disabled={!previewFile}
                     >
                       <X size={16} />
                     </Button>
@@ -362,11 +397,25 @@ export const FilesTab = ({
                         {processingFiles ? "Generating preview..." : "Preview will be auto-generated"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        30-second watermarked MP3 sample
+                        {processingFiles ? (
+                          <span className="flex items-center">
+                            <span className="w-3 h-3 mr-2 rounded-full border-2 border-t-transparent border-primary animate-spin inline-block"></span>
+                            Processing audio...
+                          </span>
+                        ) : (
+                          "30-second watermarked MP3 sample"
+                        )}
                       </p>
                     </div>
                     {processingFiles ? (
-                      <div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                      >
+                        <span className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full mr-2"></span>
+                        Processing
+                      </Button>
                     ) : (
                       <Button 
                         variant="outline" 
@@ -388,6 +437,11 @@ export const FilesTab = ({
                   </>
                 )}
               </div>
+              {processingFiles && (
+                <p className="text-xs text-muted-foreground mt-2 italic">
+                  Preview generation can take up to 30 seconds. Please be patient.
+                </p>
+              )}
             </div>
 
             {hasExclusiveLicense && (
@@ -402,12 +456,14 @@ export const FilesTab = ({
                     <>
                       <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                       <div className="flex-1 overflow-hidden">
-                        <p className="text-xs sm:text-sm font-medium truncate">{stems.name}</p>
+                        <p className="text-xs sm:text-sm font-medium truncate">
+                          {isFile(stems) ? stems.name : "Stems.zip"}
+                        </p>
                         <p className="text-xs text-muted-foreground">
-                          {(stems.size / (1024 * 1024)).toFixed(2)} MB
+                          {isFile(stems) ? `${(stems.size / (1024 * 1024)).toFixed(2)} MB` : ""}
                         </p>
                         
-                        {uploadProgress[stems.name] !== undefined && (
+                        {isFile(stems) && uploadProgress[stems.name] !== undefined && (
                           renderProgressBar(stems, uploadProgress[stems.name])
                         )}
                       </div>
