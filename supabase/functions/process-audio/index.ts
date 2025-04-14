@@ -12,11 +12,38 @@ Deno.serve(async (req) => {
 
   try {
     // Parse the request body
-    const body = await req.json();
+    let body;
+    try {
+      body = await req.json();
+      console.log("Request body parsed successfully");
+    } catch (error) {
+      console.error("Error parsing JSON:", error);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid JSON request',
+          status: 'error' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     const { fullTrackUrl } = body;
     
     if (!fullTrackUrl) {
-      throw new Error('Full track URL is required');
+      console.error("Missing fullTrackUrl in request");
+      return new Response(
+        JSON.stringify({ 
+          error: 'Full track URL is required',
+          status: 'error' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
     console.log(`Processing audio from URL: ${fullTrackUrl}`);
@@ -26,9 +53,20 @@ Deno.serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
     
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Missing Supabase environment variables');
+      console.error("Missing Supabase environment variables");
+      return new Response(
+        JSON.stringify({ 
+          error: 'Missing Supabase environment variables',
+          status: 'error' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
     
+    console.log("Supabase environment variables found");
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Extract the file name and path from the URL
@@ -43,13 +81,24 @@ Deno.serve(async (req) => {
     console.log(`Downloading original file: ${fileName}`);
     const response = await fetch(fullTrackUrl);
     if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.statusText}`);
+      console.error(`Failed to download file: ${response.statusText}`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Failed to download file: ${response.statusText}`,
+          status: 'error' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
     
     // Get the original file as ArrayBuffer
+    console.log("File downloaded, processing...");
     const fileArrayBuffer = await response.arrayBuffer();
     
-    // Simple approach: take first 30% of the file
+    // Take first 30% of the file
     const totalSize = fileArrayBuffer.byteLength;
     const previewSize = Math.floor(totalSize * 0.3); // 30% of the original file
     
@@ -70,7 +119,16 @@ Deno.serve(async (req) => {
     
     if (uploadError) {
       console.error('Error uploading preview file:', uploadError);
-      throw new Error(`Failed to upload preview: ${uploadError.message}`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Failed to upload preview: ${uploadError.message}`,
+          status: 'error' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
     
     // Get the public URL for the file
@@ -96,7 +154,7 @@ Deno.serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error.message || 'Unknown error occurred',
         status: 'error' 
       }),
       { 

@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -38,12 +39,14 @@ export const uploadFile = async (
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
+    console.log(`File type: ${realFile.type}`);
     
     // Determine the proper content type
     let contentType = realFile.type;
     
-    // Set proper content type based on file extension if not already set
+    // Ensure content types are properly set based on file extension
     if (!contentType || contentType === 'application/octet-stream') {
+      // Set content type based on file extension
       if (fileExt === 'jpg' || fileExt === 'jpeg') {
         contentType = 'image/jpeg';
       } else if (fileExt === 'png') {
