@@ -215,6 +215,8 @@ export default function UploadBeat() {
       let finalImageFile: File | null = null;
       if (imageFile && isFile(imageFile)) {
         finalImageFile = imageFile;
+      } else if (imageFile && 'url' in imageFile && typeof imageFile.url === 'string') {
+        // We already have a valid URL, no need for finalImageFile
       } else {
         toast.error("Image file is not valid");
         setIsSubmitting(false);
@@ -317,6 +319,8 @@ export default function UploadBeat() {
       let finalImageFile: File | null = null;
       if (imageFile && isFile(imageFile)) {
         finalImageFile = imageFile;
+      } else if (imageFile && 'url' in imageFile && typeof imageFile.url === 'string') {
+        // We already have a valid URL, no need for finalImageFile
       } else {
         toast.error("Image file is not valid");
         setIsSubmitting(false);

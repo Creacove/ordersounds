@@ -276,12 +276,20 @@ export const useBeatUpload = () => {
   
   const uploadImageFile = async (file: File) => {
     try {
+      if (!file.type.startsWith('image/')) {
+        throw new Error("File is not a valid image");
+      }
+      
       toast.info("Uploading cover image...");
       
       const url = await uploadImage(file, 'covers', 'beats', (progress) => {
         console.log(`Image upload progress: ${progress}%`);
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });
+      
+      if (!url || typeof url !== 'string') {
+        throw new Error("Failed to get valid image URL");
+      }
       
       toast.success("Cover image uploaded");
       return url;

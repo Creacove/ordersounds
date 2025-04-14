@@ -1,9 +1,10 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
 // Type guard to check if the object is a File
 export function isFile(file: File | { url: string }): file is File {
-  return (file as File).lastModified !== undefined;
+  return (file as File)?.lastModified !== undefined;
 }
 
 /**
@@ -22,6 +23,10 @@ export const uploadImage = async (
 ): Promise<string> => {
   try {
     // If we're passed an object with a URL, just return the URL (it's already uploaded)
+    if (!file) {
+      throw new Error("No file provided for upload");
+    }
+    
     if ('url' in file && typeof file.url === 'string') {
       return file.url;
     }
@@ -29,8 +34,13 @@ export const uploadImage = async (
     // Otherwise, treat as a real File object
     const imageFile = file as File;
     
+    // Validate the file is an actual image
+    if (!imageFile.type.startsWith('image/')) {
+      throw new Error(`File is not a valid image: ${imageFile.type}`);
+    }
+    
     // Generate a unique filename to prevent collisions
-    const fileExt = imageFile.name.split('.').pop();
+    const fileExt = imageFile.name.split('.').pop()?.toLowerCase();
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
@@ -80,6 +90,12 @@ export const uploadImage = async (
                 progressCallback(100);
               }, 200);
               
+              // Ensure the URL is a string and valid
+              if (!publicUrlData?.publicUrl) {
+                reject(new Error('Failed to get public URL for uploaded image'));
+                return;
+              }
+              
               console.log(`Image uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
               resolve(publicUrlData.publicUrl);
             } else {
@@ -119,6 +135,11 @@ export const uploadImage = async (
         .from(bucket)
         .getPublicUrl(data.path);
       
+      // Ensure the URL is a string and valid
+      if (!publicUrlData?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded image');
+      }
+      
       console.log(`Image uploaded successfully: ${publicUrlData.publicUrl}`);
       return publicUrlData.publicUrl;
     }
@@ -144,7 +165,7 @@ function getMimeType(ext: string): string {
     svg: 'image/svg+xml',
   };
   
-  return map[ext.toLowerCase()] || 'application/octet-stream';
+  return map[ext.toLowerCase()] || 'image/jpeg'; // Default to JPEG instead of octet-stream
 }
 
 /**
