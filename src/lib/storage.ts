@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -38,19 +39,48 @@ export const uploadFile = async (
     const filePath = path ? `${path}/${fileName}` : fileName;
     
     console.log(`Uploading file to ${bucket}/${filePath}`);
+    console.log(`File type: ${realFile.type}`);
+    
+    // Determine the proper content type
+    let contentType = realFile.type;
+    
+    // Ensure image content types are properly set
+    if (contentType.startsWith('image/')) {
+      // For images, make sure we use the correct image content type
+      contentType = realFile.type;
+    } else if (bucket === 'covers' || bucket === 'avatars') {
+      // If uploading to covers or avatars, but content type isn't set, use a default
+      if (!contentType || contentType === 'application/octet-stream') {
+        const imageExt = fileExt?.toLowerCase();
+        if (imageExt === 'jpg' || imageExt === 'jpeg') {
+          contentType = 'image/jpeg';
+        } else if (imageExt === 'png') {
+          contentType = 'image/png';
+        } else if (imageExt === 'gif') {
+          contentType = 'image/gif';
+        } else if (imageExt === 'webp') {
+          contentType = 'image/webp';
+        }
+      }
+    }
+    
+    console.log(`Using content type: ${contentType}`);
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
-      // Create a new XMLHttpRequest to manually track upload progress
+      // Upload with progress tracking
       return new Promise<string>(async (resolve, reject) => {
         try {
-          // Upload the file directly using the standard method first
+          // Start with some initial progress
+          progressCallback(10);
+          
+          // Upload the file
           const { data, error } = await supabase.storage
             .from(bucket)
             .upload(filePath, realFile, {
               cacheControl: '3600',
               upsert: true, // Allow overwriting existing files
-              contentType: realFile.type // Explicitly set content type
+              contentType: contentType // Explicitly set content type
             });
           
           if (error) {
@@ -59,15 +89,16 @@ export const uploadFile = async (
             return;
           }
 
+          // Update progress
+          progressCallback(60);
+          
           // Get public URL for the file
           const { data: publicUrlData } = supabase.storage
             .from(bucket)
             .getPublicUrl(data.path);
           
-          // Simulate progress for UI feedback
-          progressCallback(30);
-          setTimeout(() => progressCallback(60), 100);
-          setTimeout(() => progressCallback(100), 300);
+          // Complete progress
+          progressCallback(100);
           
           console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
           resolve(publicUrlData.publicUrl);
@@ -82,8 +113,8 @@ export const uploadFile = async (
         .from(bucket)
         .upload(filePath, realFile, {
           cacheControl: '3600',
-          upsert: true, // Allow overwriting existing files
-          contentType: realFile.type // Explicitly set content type
+          upsert: true, // Always allow overwriting existing files
+          contentType: contentType // Explicitly set content type
         });
       
       if (error) {

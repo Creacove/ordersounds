@@ -13,14 +13,13 @@ Deno.serve(async (req) => {
   try {
     // Parse the request body
     const body = await req.json();
-    const { fullTrackUrl, requiresWav } = body;
+    const { fullTrackUrl } = body;
     
     if (!fullTrackUrl) {
       throw new Error('Full track URL is required');
     }
 
     console.log(`Processing audio from URL: ${fullTrackUrl}`);
-    console.log(`WAV format required: ${requiresWav}`);
 
     // Create a Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -47,27 +46,30 @@ Deno.serve(async (req) => {
       throw new Error(`Failed to download file: ${response.statusText}`);
     }
     
-    // Generate a 30-second preview from the audio file
-    // This is a simplified example - in a real implementation, you would:
-    // 1. Use an audio processing library to trim the file
-    // 2. Add a watermark
-    // 3. Convert to MP3 if it's not already
+    // Get the content type of the original file
+    const contentType = response.headers.get('content-type') || 'audio/mpeg';
+    console.log(`Original file content type: ${contentType}`);
     
-    // For this example, we'll simulate processing by just uploading the first part
+    // Get the file as ArrayBuffer
     const fileArrayBuffer = await response.arrayBuffer();
     
-    // In a real implementation, you would process the audio here
-    // For now, we'll create a smaller version of the file as a mock preview
-    // (Take the first 1/4 of the file as a simple simulation)
-    const previewSize = Math.floor(fileArrayBuffer.byteLength / 4);
-    const previewArrayBuffer = fileArrayBuffer.slice(0, previewSize);
+    // Create a preview by taking approximately 30% of the file
+    // This is a simplified approach - it's not analyzing the audio, just taking a portion
+    const totalSize = fileArrayBuffer.byteLength;
+    const previewSize = Math.floor(totalSize * 0.3); // 30% of the original file
+    const startOffset = Math.floor(totalSize * 0.1); // Start at 10% to avoid intros
+    
+    console.log(`Original file size: ${totalSize}, Preview size: ${previewSize}, Start offset: ${startOffset}`);
+    
+    // Create the preview from a portion of the original file
+    const previewArrayBuffer = fileArrayBuffer.slice(startOffset, startOffset + previewSize);
     
     // Upload the preview file
     console.log(`Uploading preview file: ${outputFileName}`);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('beats')
       .upload(`previews/${outputFileName}`, previewArrayBuffer, {
-        contentType: 'audio/mpeg',
+        contentType: 'audio/mpeg', // Always set the content type for audio
         cacheControl: '3600',
         upsert: true // Allow overwriting existing files
       });
