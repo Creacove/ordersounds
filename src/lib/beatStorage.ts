@@ -2,6 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { uploadFile, FileOrUrl, isFile } from './storage';
 import { uploadImage } from './imageStorage';
+import { RoyaltySplit } from '@/types';
 
 /**
  * Uploads a beat to the database
@@ -151,7 +152,7 @@ export const uploadBeat = async (
  * @param producerId The ID of the producer
  * @returns Array of royalty splits with beat information
  */
-export const getProducerRoyaltySplits = async (producerId: string) => {
+export const getProducerRoyaltySplits = async (producerId: string): Promise<RoyaltySplit[]> => {
   try {
     // Get all beats by this producer
     const { data: producerBeats, error: beatsError } = await supabase

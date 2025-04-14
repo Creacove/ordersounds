@@ -74,7 +74,7 @@ export function BeatCard({
         case 'exclusive':
           return beat.exclusive_license_price_local;
         case 'custom':
-          return beat.custom_license_price_local;
+          return beat.custom_license_price_local || beat.basic_license_price_local;
         default:
           return beat.basic_license_price_local;
       }
@@ -87,7 +87,7 @@ export function BeatCard({
         case 'exclusive':
           return beat.exclusive_license_price_diaspora;
         case 'custom':
-          return beat.custom_license_price_diaspora;
+          return beat.custom_license_price_diaspora || beat.basic_license_price_diaspora;
         default:
           return beat.basic_license_price_diaspora;
       }

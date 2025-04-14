@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   email: string;
@@ -10,6 +11,15 @@ export type User = {
   country: string;
   producer_name: string;
   default_currency: string;
+  status?: string;
+  music_interests?: string[];
+  settings?: {
+    theme?: string;
+    notifications_email?: boolean;
+    notifications_push?: boolean;
+    notifications_sms?: boolean;
+    currency?: "NGN" | "USD";
+  };
 };
 
 export type Beat = {
@@ -42,6 +52,8 @@ export type Beat = {
   plays: number;
   key: string;
   duration: string;
+  custom_license_price_local?: number;
+  custom_license_price_diaspora?: number;
   producer?: any;
   users?: any;
 };
@@ -122,4 +134,16 @@ export type RoyaltySplit = {
   collaborator_role: string;
   percentage: number;
   created_at?: string;
+};
+
+export type Playlist = {
+  id: string;
+  name: string;
+  owner_id: string;
+  cover_image?: string;
+  beats: string[];
+  is_public: boolean;
+  created_date: string;
+  owner_name?: string;
+  beat_count?: number;
 };
