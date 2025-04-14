@@ -8,7 +8,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getInitials } from "@/utils/formatters";
-import { uploadImage } from "@/lib/imageStorage";
 
 interface ProfilePictureUploaderProps {
   avatarUrl: string | null;
@@ -30,7 +29,7 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
   };
   
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0] || !user) return;
+    if (!e.target.files || !e.target.files[0]) return;
     
     const file = e.target.files[0];
     
@@ -55,23 +54,16 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
     try {
       setIsLoading(true);
       
-      // Create a local preview immediately
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setPreviewUrl(event.target.result.toString());
-        }
-      };
-      reader.readAsDataURL(file);
-      
-      // Upload to storage using our uploadImage helper
-      const imageUrl = await uploadImage(file, 'avatars', user.id);
-      
-      // Update the user profile with the new avatar URL
-      if (imageUrl) {
+      reader.onload = async (event) => {
+        if (!event.target || !event.target.result || !user) return;
+        
+        const base64String = event.target.result.toString();
+        setPreviewUrl(base64String);
+        
         const { error } = await supabase
           .from('users')
-          .update({ avatar_url: imageUrl })
+          .update({ profile_picture: base64String })
           .eq('id', user.id);
           
         if (error) throw error;
@@ -79,7 +71,7 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
         if (updateProfile) {
           await updateProfile({
             ...user,
-            avatar_url: imageUrl
+            avatar_url: base64String
           });
         }
         
@@ -88,7 +80,9 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
           description: "Profile picture updated successfully"
         });
         setIsDialogOpen(false);
-      }
+      };
+      
+      reader.readAsDataURL(file);
     } catch (error) {
       console.error('Error updating profile picture:', error);
       toast({

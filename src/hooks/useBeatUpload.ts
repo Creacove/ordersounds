@@ -291,8 +291,6 @@ export const useBeatUpload = () => {
         throw new Error("Failed to get valid image URL");
       }
       
-      console.log("Successfully uploaded image URL:", url);
-      
       toast.success("Cover image uploaded");
       return url;
     } catch (error) {

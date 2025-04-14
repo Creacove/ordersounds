@@ -37,8 +37,6 @@ export const mapSupabaseUser = (user: any): User => {
     country: user.user_metadata?.country || '',
     producer_name: user.user_metadata?.stage_name || '',
     default_currency: user.user_metadata?.default_currency || (user.user_metadata?.country === 'Nigeria' ? 'NGN' : 'USD'),
-    full_name: fullName,
-    stage_name: user.user_metadata?.stage_name || ''
   };
 };
 
@@ -77,8 +75,6 @@ export const mapSupabaseBeat = (beat: any): Beat => {
     premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
     exclusive_license_price_local: beat.exclusive_license_price_local || 0,
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-    custom_license_price_local: beat.custom_license_price_local || 0,
-    custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
     plays: beat.plays || 0,
     key: beat.key || '',
     duration: beat.duration || '',

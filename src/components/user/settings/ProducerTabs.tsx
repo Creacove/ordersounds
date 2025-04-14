@@ -4,7 +4,7 @@ import { TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProfileForm } from "@/components/user/settings/ProfileForm";
 import { PreferencesForm } from "@/components/user/settings/PreferencesForm";
-import { User as UserIcon } from "lucide-react";
+import { User as UserIcon } from "@/components/ui/user";
 import { Settings as SettingsIcon } from "lucide-react";
 
 interface ProducerTabsProps {
@@ -73,10 +73,10 @@ export function ProducerTabs({ user }: ProducerTabsProps) {
           </CardHeader>
           <CardContent>
             <PreferencesForm 
-              initialEmailNotifications={user.settings?.emailNotifications !== false}
-              initialPushNotifications={user.settings?.pushNotifications !== false}
-              initialSmsNotifications={user.settings?.smsNotifications === true}
-              initialAutoPlayPreviews={user.settings?.autoPlayPreviews !== false}
+              initialEmailNotifications={user.settings?.emailNotifications || true}
+              initialPushNotifications={user.settings?.pushNotifications || true}
+              initialSmsNotifications={user.settings?.smsNotifications || false}
+              initialAutoPlayPreviews={user.settings?.autoPlayPreviews || true}
               initialDefaultCurrency={user.default_currency || 'NGN'}
             />
           </CardContent>
