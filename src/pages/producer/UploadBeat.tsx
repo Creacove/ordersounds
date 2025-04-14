@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -165,7 +164,7 @@ export default function UploadBeat() {
       }
       
       if (!uploadedFile && !uploadedFileUrl) {
-        toast.error("Full track is required");
+        toast.error("Full track file is required");
         setActiveTab("files");
         return;
       }
@@ -206,28 +205,24 @@ export default function UploadBeat() {
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
       
-      // Convert stems to null if it's not a File (fixing TypeScript error)
-      const stemsFile = isFile(stems) ? stems : null;
+      const stemsFile = stems && isFile(stems) ? stems : null;
       
-      // Handle the previewFile correctly based on type
       let finalPreviewFile: File | null = null;
       if (previewFile && isFile(previewFile)) {
         finalPreviewFile = previewFile;
       }
       
-      // Handle the imageFile correctly based on type
       let finalImageFile: File | null = null;
       if (imageFile && isFile(imageFile)) {
         finalImageFile = imageFile;
+      } else {
+        toast.error("Image file is not valid");
+        setIsSubmitting(false);
+        return;
       }
       
-      // Prepare the preview URL for non-File case
       const previewUrlForUpload = previewUrl || 
         (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
-      
-      // Prepare the image URL for non-File case
-      const imageUrlForUpload = !finalImageFile && imageFile && 
-        !isFile(imageFile) && 'url' in imageFile ? imageFile.url : '';
       
       const result = await uploadBeat(
         beatData,
@@ -273,7 +268,7 @@ export default function UploadBeat() {
       }
       
       if (!uploadedFile && !uploadedFileUrl) {
-        toast.error("Full track is required");
+        toast.error("Full track file is required");
         setActiveTab("files");
         return;
       }
@@ -312,28 +307,24 @@ export default function UploadBeat() {
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
       
-      // Convert stems to null if it's not a File (fixing TypeScript error)
-      const stemsFile = isFile(stems) ? stems : null;
+      const stemsFile = stems && isFile(stems) ? stems : null;
       
-      // Handle the previewFile correctly based on type
       let finalPreviewFile: File | null = null;
       if (previewFile && isFile(previewFile)) {
         finalPreviewFile = previewFile;
       }
       
-      // Handle the imageFile correctly based on type
       let finalImageFile: File | null = null;
       if (imageFile && isFile(imageFile)) {
         finalImageFile = imageFile;
+      } else {
+        toast.error("Image file is not valid");
+        setIsSubmitting(false);
+        return;
       }
       
-      // Prepare the preview URL for non-File case
       const previewUrlForUpload = previewUrl || 
         (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
-      
-      // Prepare the image URL for non-File case
-      const imageUrlForUpload = !finalImageFile && imageFile && 
-        !isFile(imageFile) && 'url' in imageFile ? imageFile.url : '';
       
       const result = await uploadBeat(
         beatData,
