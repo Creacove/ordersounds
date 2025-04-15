@@ -14,7 +14,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
-    detectSessionInUrl: true, // Detect OAuth session from URL
+    detectSessionInUrl: true, // Ensure OAuth redirect handling works
     flowType: 'pkce', // Use PKCE flow for more secure OAuth
     debug: process.env.NODE_ENV === 'development' // Enable debug in development
   },

@@ -21,7 +21,7 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       
       // Get the current origin with fallbacks for different environments
       const origin = typeof window !== 'undefined' ? 
-        (window.location.origin || 'https://ordersounds.com') : 
+        window.location.origin : 
         'https://ordersounds.com';
         
       const redirectUrl = `${origin}/auth/callback`;
@@ -33,13 +33,9 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
         options: {
           redirectTo: redirectUrl,
           queryParams: {
-            // Force account selection to prevent issues with Google Suite accounts
-            // Include access_type offline to get refresh token
-            // Explicitly request consent to ensure refresh token is provided
-            prompt: 'select_account',
             access_type: 'offline',
+            prompt: 'consent',
           },
-          skipBrowserRedirect: false // Ensure browser redirects properly
         },
       });
 
