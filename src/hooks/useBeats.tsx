@@ -847,4 +847,90 @@ export function useBeats() {
     setFilteredBeats(filtered);
   };
 
-  const updateFilters = (
+  const updateFilters = (newFilters: FilterValues) => {
+    setActiveFilters(newFilters);
+    if (beats.length > 0) {
+      applyFilters(beats, newFilters);
+    }
+  };
+
+  const clearFilters = () => {
+    setActiveFilters(null);
+    setFilteredBeats(beats);
+  };
+
+  const toggleFavorite = async (beatId: string) => {
+    if (!user) {
+      toast.error('Please log in to add favorites');
+      return;
+    }
+
+    try {
+      const isFav = userFavorites.includes(beatId);
+      let updatedFavorites: string[];
+      
+      if (isFav) {
+        // Remove from favorites
+        updatedFavorites = userFavorites.filter(id => id !== beatId);
+        toast.success('Removed from favorites');
+      } else {
+        // Add to favorites
+        updatedFavorites = [...userFavorites, beatId];
+        toast.success('Added to favorites');
+      }
+      
+      // Update local state immediately for responsive UI
+      setUserFavorites(updatedFavorites);
+      
+      // Update in the database
+      const { error } = await supabase
+        .from('users')
+        .update({ favorites: updatedFavorites })
+        .eq('id', user.id);
+      
+      if (error) {
+        // Revert on error
+        setUserFavorites(userFavorites);
+        toast.error('Failed to update favorites');
+        console.error('Error updating favorites:', error);
+      }
+    } catch (error) {
+      console.error('Error in toggleFavorite:', error);
+      toast.error('Something went wrong');
+    }
+  };
+
+  const isFavorite = (beatId: string) => {
+    return userFavorites.includes(beatId);
+  };
+
+  const isPurchased = (beatId: string) => {
+    return purchasedBeats.includes(beatId);
+  };
+
+  return {
+    beats,
+    filteredBeats,
+    trendingBeats,
+    popularBeats,
+    newBeats,
+    weeklyPicks,
+    featuredBeat,
+    isLoading,
+    loadingError,
+    updateFilters,
+    clearFilters,
+    fetchBeats,
+    fetchTrendingBeats,
+    fetchPopularBeats,
+    toggleFavorite,
+    isFavorite,
+    isPurchased,
+    fetchUserFavorites,
+    fetchPurchasedBeats,
+    userFavorites,
+    purchasedBeats,
+    isOffline,
+    activeFilters
+  };
+}
