@@ -1,3 +1,0 @@
-
-[functions.create-stripe-checkout]
-verify_jwt = true

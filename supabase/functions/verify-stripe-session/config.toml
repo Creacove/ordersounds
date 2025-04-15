@@ -1,3 +1,0 @@
-
-[functions.verify-stripe-session]
-verify_jwt = true
