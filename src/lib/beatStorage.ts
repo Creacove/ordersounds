@@ -34,6 +34,13 @@ type UploadBeatData = {
   cover_image?: string; // Added to accept direct cover image URL or base64
 };
 
+// Local storage keys for offline data
+const OFFLINE_STORAGE_KEYS = {
+  BEATS: 'offline_beats_cache',
+  LAST_FETCH: 'offline_beats_last_fetch',
+  FEATURED_BEAT: 'offline_featured_beat'
+};
+
 /**
  * Retrieves all royalty splits for a specific producer
  * @param producerId The ID of the producer
@@ -72,6 +79,82 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
     console.error('Error in getProducerRoyaltySplits:', error);
     throw error;
   }
+};
+
+// Function to save beats to local storage for offline access
+export const saveBeatsToLocalStorage = (beats: Beat[], featuredBeat: Beat | null = null) => {
+  try {
+    localStorage.setItem(OFFLINE_STORAGE_KEYS.BEATS, JSON.stringify(beats));
+    localStorage.setItem(OFFLINE_STORAGE_KEYS.LAST_FETCH, new Date().toISOString());
+    
+    if (featuredBeat) {
+      localStorage.setItem(OFFLINE_STORAGE_KEYS.FEATURED_BEAT, JSON.stringify(featuredBeat));
+    }
+  } catch (error) {
+    console.error('Failed to save beats to local storage:', error);
+  }
+};
+
+// Function to get beats from local storage when offline
+export const getOfflineBeats = (): { beats: Beat[], lastFetch: string | null, featuredBeat: Beat | null } => {
+  try {
+    const beatsJson = localStorage.getItem(OFFLINE_STORAGE_KEYS.BEATS);
+    const lastFetch = localStorage.getItem(OFFLINE_STORAGE_KEYS.LAST_FETCH);
+    const featuredBeatJson = localStorage.getItem(OFFLINE_STORAGE_KEYS.FEATURED_BEAT);
+    
+    return {
+      beats: beatsJson ? JSON.parse(beatsJson) : [],
+      lastFetch,
+      featuredBeat: featuredBeatJson ? JSON.parse(featuredBeatJson) : null
+    };
+  } catch (error) {
+    console.error('Failed to retrieve beats from local storage:', error);
+    return { beats: [], lastFetch: null, featuredBeat: null };
+  }
+};
+
+// Fallback beats for when nothing can be loaded
+export const getFallbackBeats = (): Beat[] => {
+  return [
+    {
+      id: 'fallback-1',
+      title: 'Demo Beat 1',
+      producer_id: 'demo',
+      producer_name: 'Demo Producer',
+      cover_image_url: 'https://picsum.photos/200',
+      preview_url: '',
+      full_track_url: '',
+      genre: 'Hip Hop',
+      track_type: 'Beat',
+      bpm: 90,
+      tags: ['hip hop', 'rap'],
+      description: 'A demo beat for offline mode',
+      created_at: new Date().toISOString(),
+      favorites_count: 0,
+      purchase_count: 0,
+      status: 'published',
+      is_featured: true
+    },
+    {
+      id: 'fallback-2',
+      title: 'Demo Beat 2',
+      producer_id: 'demo',
+      producer_name: 'Demo Producer',
+      cover_image_url: 'https://picsum.photos/200',
+      preview_url: '',
+      full_track_url: '',
+      genre: 'R&B',
+      track_type: 'Beat',
+      bpm: 80,
+      tags: ['r&b', 'soul'],
+      description: 'Another demo beat',
+      created_at: new Date().toISOString(),
+      favorites_count: 0,
+      purchase_count: 0,
+      status: 'published',
+      is_featured: false
+    }
+  ];
 };
 
 export const uploadBeat = async (
