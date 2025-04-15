@@ -76,8 +76,8 @@ serve(async (req) => {
     // If verified, update the database
     if (isVerified && orderId) {
       // Create a Supabase client
-      const supabaseUrl = Deno.env.get('SUPABASE_URL');
-      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      const supabaseUrl = Deno.env.get('SUPABASE_URL') || "https://uoezlwkxhbzajdivrlby.supabase.co";
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
       
       if (!supabaseUrl || !supabaseAnonKey) {
         console.error('Missing Supabase credentials');
@@ -93,11 +93,16 @@ serve(async (req) => {
         .from('orders')
         .select('status, buyer_id')
         .eq('id', orderId)
-        .single();
+        .maybeSingle();
         
       if (orderCheckError) {
         console.error('Failed to check order status:', orderCheckError);
         throw new Error(`Failed to check order: ${orderCheckError.message}`);
+      }
+      
+      if (!orderData) {
+        console.error('Order not found:', orderId);
+        throw new Error('Order not found');
       }
       
       // Only proceed if order is still pending
@@ -108,6 +113,7 @@ serve(async (req) => {
           .update({
             status: 'completed',
             consent_timestamp: new Date().toISOString(),
+            payment_reference: reference
           })
           .eq('id', orderId);
 
@@ -140,10 +146,10 @@ serve(async (req) => {
         // Only add purchases if they don't exist yet
         if (!existingPurchases || existingPurchases.length === 0) {
           // Create a map of beat licenses from the order items
-          const beatLicenses = {};
+          const beatLicenses: Record<string, string> = {};
           
           if (orderItems && Array.isArray(orderItems)) {
-            orderItems.forEach(item => {
+            orderItems.forEach((item: any) => {
               if (item.beat_id && item.license) {
                 beatLicenses[item.beat_id] = item.license;
               }
@@ -153,15 +159,15 @@ serve(async (req) => {
           console.log('License information map:', beatLicenses);
         
           // Add purchased beats to user's collection
-          const purchasedItems = lineItems.map(item => ({
-            user_id: orderData.buyer_id,
-            beat_id: item.beat_id,
-            license_type: beatLicenses[item.beat_id] || 'basic',
-            currency_code: item.currency_code,
-            order_id: orderId,
-          }));
-          
-          if (purchasedItems.length > 0) {
+          if (lineItems && lineItems.length > 0) {
+            const purchasedItems = lineItems.map(item => ({
+              user_id: orderData.buyer_id,
+              beat_id: item.beat_id,
+              license_type: beatLicenses[item.beat_id] || 'basic',
+              currency_code: item.currency_code,
+              order_id: orderId,
+            }));
+            
             console.log(`Adding ${purchasedItems.length} purchased beats to user collection`);
             const { error: purchaseError } = await supabaseClient
               .from('user_purchased_beats')
@@ -177,101 +183,102 @@ serve(async (req) => {
         }
 
         // Get beat details to identify producers
-        const beatIds = lineItems.map(item => item.beat_id);
-        const { data: beats, error: beatsError } = await supabaseClient
-          .from('beats')
-          .select('id, title, producer_id')
-          .in('id', beatIds);
-          
-        if (beatsError) {
-          console.error('Failed to fetch beat details:', beatsError);
-          // Continue processing, but without producer notifications
-        }
-        
-        // Create map of beats by ID for easy lookup
-        const beatsById = {};
-        if (beats) {
-          beats.forEach(beat => {
-            beatsById[beat.id] = beat;
-          });
-        }
-
-        // Create notification for buyer
-        const { error: buyerNotificationError } = await supabaseClient
-          .from('notifications')
-          .insert({
-            recipient_id: orderData.buyer_id,
-            title: 'Purchase Completed Successfully',
-            body: `Your order has been processed. ${lineItems.length} beat${lineItems.length === 1 ? '' : 's'} added to your library.`,
-            is_read: false
-          });
-          
-        if (buyerNotificationError) {
-          console.error('Failed to create buyer notification:', buyerNotificationError);
-          // Continue processing even if notification fails
-        }
-        
-        // Create notifications for producers
-        if (beats) {
-          // Group beats by producer
-          const beatsByProducer = {};
-          beats.forEach(beat => {
-            if (!beat.producer_id) return;
+        if (lineItems && lineItems.length > 0) {
+          const beatIds = lineItems.map(item => item.beat_id);
+          const { data: beats, error: beatsError } = await supabaseClient
+            .from('beats')
+            .select('id, title, producer_id')
+            .in('id', beatIds);
             
-            if (!beatsByProducer[beat.producer_id]) {
-              beatsByProducer[beat.producer_id] = [];
-            }
-            
-            beatsByProducer[beat.producer_id].push({
-              id: beat.id,
-              title: beat.title
+          if (beatsError) {
+            console.error('Failed to fetch beat details:', beatsError);
+            // Continue processing, but without producer notifications
+          }
+          
+          // Create map of beats by ID for easy lookup
+          const beatsById: Record<string, any> = {};
+          if (beats) {
+            beats.forEach(beat => {
+              beatsById[beat.id] = beat;
             });
-          });
+          }
+
+          // Create notification for buyer
+          const { error: buyerNotificationError } = await supabaseClient
+            .from('notifications')
+            .insert({
+              recipient_id: orderData.buyer_id,
+              title: 'Purchase Completed Successfully',
+              body: `Your order has been processed. ${lineItems.length} beat${lineItems.length === 1 ? '' : 's'} added to your library.`,
+              is_read: false
+            });
+            
+          if (buyerNotificationError) {
+            console.error('Failed to create buyer notification:', buyerNotificationError);
+            // Continue processing even if notification fails
+          }
           
-          // Create notifications for each producer
-          for (const producerId in beatsByProducer) {
-            const producerBeats = beatsByProducer[producerId];
-            
-            // Don't notify producer if they are the buyer (self-purchase)
-            if (producerId === orderData.buyer_id) continue;
-            
-            const { error: producerNotificationError } = await supabaseClient
-              .from('notifications')
-              .insert({
-                recipient_id: producerId,
-                title: 'New Beat Sale!',
-                body: producerBeats.length === 1
-                  ? `Congratulations! Your beat "${producerBeats[0].title}" was just purchased.`
-                  : `Congratulations! ${producerBeats.length} of your beats were just purchased.`,
-                is_read: false
-              });
+          // Create notifications for producers
+          if (beats) {
+            // Group beats by producer
+            const beatsByProducer: Record<string, any[]> = {};
+            beats.forEach(beat => {
+              if (!beat.producer_id) return;
               
-            if (producerNotificationError) {
-              console.error(`Failed to create notification for producer ${producerId}:`, producerNotificationError);
-              // Continue processing even if notification fails
+              if (!beatsByProducer[beat.producer_id]) {
+                beatsByProducer[beat.producer_id] = [];
+              }
+              
+              beatsByProducer[beat.producer_id].push({
+                id: beat.id,
+                title: beat.title
+              });
+            });
+            
+            // Create notifications for each producer
+            for (const producerId in beatsByProducer) {
+              const producerBeats = beatsByProducer[producerId];
+              
+              // Don't notify producer if they are the buyer (self-purchase)
+              if (producerId === orderData.buyer_id) continue;
+              
+              const { error: producerNotificationError } = await supabaseClient
+                .from('notifications')
+                .insert({
+                  recipient_id: producerId,
+                  title: 'New Beat Sale!',
+                  body: producerBeats.length === 1
+                    ? `Congratulations! Your beat "${producerBeats[0].title}" was just purchased.`
+                    : `Congratulations! ${producerBeats.length} of your beats were just purchased.`,
+                  is_read: false
+                });
+                
+              if (producerNotificationError) {
+                console.error(`Failed to create notification for producer ${producerId}:`, producerNotificationError);
+                // Continue processing even if notification fails
+              }
             }
           }
-        }
 
-        // Update purchase count for each beat
-        for (const item of lineItems) {
-          try {
-            // Update purchase count using RPC function
-            const { error: incrementError } = await supabaseClient.rpc('increment', {
-              row_id: item.beat_id,
-              table_name: 'beats',
-              column_name: 'purchase_count',
-            });
-            
-            if (incrementError) {
-              console.error(`Failed to update purchase count for beat ${item.beat_id}:`, incrementError);
+          // Update purchase count for each beat
+          for (const item of lineItems) {
+            try {
+              // Update purchase count directly
+              const { error: updateCountError } = await supabaseClient
+                .from('beats')
+                .update({ purchase_count: supabaseClient.rpc('increment', { column_name: 'purchase_count' }) })
+                .eq('id', item.beat_id);
+              
+              if (updateCountError) {
+                console.error(`Failed to update purchase count for beat ${item.beat_id}:`, updateCountError);
+                // Continue with other beats even if one fails
+              } else {
+                console.log(`Updated purchase count for beat ${item.beat_id}`);
+              }
+            } catch (err) {
+              console.error(`Error updating purchase count for beat ${item.beat_id}:`, err);
               // Continue with other beats even if one fails
-            } else {
-              console.log(`Updated purchase count for beat ${item.beat_id}`);
             }
-          } catch (err) {
-            console.error(`Error updating purchase count for beat ${item.beat_id}:`, err);
-            // Continue with other beats even if one fails
           }
         }
       } else {

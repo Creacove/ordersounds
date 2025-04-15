@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { supabase } from '@/integrations/supabase/client';
-import { createOrder, verifyPaystackPayment } from '@/utils/payment/paystackUtils';
+import { createOrder, verifyPaystackPayment, validateCartItems } from '@/utils/payment/paystackUtils';
 
 declare global {
   interface Window {
@@ -83,7 +83,7 @@ export function usePaystackCheckout({
                 .eq('user_id', user.id)
                 .eq('beat_id', item.beat_id)
                 .eq('order_id', orderId)
-                .single();
+                .maybeSingle();
                 
               if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
                 console.error('Error checking for existing purchase:', checkError);
@@ -116,6 +116,7 @@ export function usePaystackCheckout({
           }
           
           localStorage.setItem('purchaseSuccess', 'true');
+          localStorage.setItem('purchaseTime', Date.now().toString());
           
           // Success! Clear cart and redirect
           clearCart();
@@ -162,7 +163,7 @@ export function usePaystackCheckout({
           .from('beats')
           .select('id, status, producer_id, title')
           .eq('id', beatId)
-          .single();
+          .maybeSingle();
         
         if (beatError) {
           console.error('Error validating beat:', beatError);
@@ -170,7 +171,7 @@ export function usePaystackCheckout({
           return false;
         }
         
-        if (beatData.status !== 'published') {
+        if (!beatData || beatData.status !== 'published') {
           setValidationError('This beat is no longer available for purchase');
           return false;
         }
@@ -186,7 +187,7 @@ export function usePaystackCheckout({
           .select('id')
           .eq('user_id', user.id)
           .eq('beat_id', beatId)
-          .single();
+          .maybeSingle();
           
         if (purchasedError && purchasedError.code !== 'PGRST116') {
           console.error('Error checking purchased beat:', purchasedError);
@@ -222,6 +223,11 @@ export function usePaystackCheckout({
 
       if (beatsError) {
         console.error('Error validating beats:', beatsError);
+        setValidationError('Failed to validate your cart items');
+        return false;
+      }
+
+      if (!beatsData) {
         setValidationError('Failed to validate your cart items');
         return false;
       }
@@ -303,11 +309,17 @@ export function usePaystackCheckout({
           .from('beats')
           .select('id, title, basic_license_price_local')
           .eq('id', beatId)
-          .single();
+          .maybeSingle();
           
         if (beatError) {
           console.error('Error fetching beat details:', beatError);
           toast.error('Failed to fetch beat details. Please try again.');
+          setIsProcessing(false);
+          return;
+        }
+        
+        if (!beatData) {
+          toast.error('Beat details not found. Please try again.');
           setIsProcessing(false);
           return;
         }
@@ -333,6 +345,12 @@ export function usePaystackCheckout({
       
       if (orderError) {
         toast.error('Failed to create order: ' + orderError);
+        setIsProcessing(false);
+        return;
+      }
+      
+      if (!orderId) {
+        toast.error('Failed to create order: No order ID returned');
         setIsProcessing(false);
         return;
       }
@@ -384,7 +402,7 @@ export function usePaystackCheckout({
           onClose: function() {
             closeFunc();
           },
-          callback: function(response) {
+          callback: function(response: any) {
             successFunc(response);
           }
         };

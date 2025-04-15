@@ -680,6 +680,26 @@ export type Database = {
           beat_id: string
         }[]
       }
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: string
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_producer: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      producer_has_beat_in_order: {
+        Args: { order_id: string }
+        Returns: boolean
+      }
+      producer_owns_beat: {
+        Args: { beat_id: string }
+        Returns: boolean
+      }
       remove_favorite: {
         Args: { user_id_param: string; beat_id_param: string }
         Returns: undefined
@@ -687,6 +707,10 @@ export type Database = {
       unfollow_producer: {
         Args: { p_follower_id: string; p_followee_id: string }
         Returns: undefined
+      }
+      user_owns_order: {
+        Args: { order_id: string }
+        Returns: boolean
       }
     }
     Enums: {

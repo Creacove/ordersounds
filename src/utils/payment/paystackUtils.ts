@@ -48,6 +48,8 @@ export const validateCartItems = async (user: any, cartItems: any[]) => {
 
 export const createOrder = async (user: any, totalAmount: number, orderItemsData: any[]) => {
   try {
+    console.log('Creating order with items:', orderItemsData);
+    
     // Create an order record first
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
@@ -70,6 +72,8 @@ export const createOrder = async (user: any, totalAmount: number, orderItemsData
       throw new Error('Failed to create order: No order ID returned');
     }
     
+    console.log('Order created with ID:', orderData.id);
+    
     // Create line items for each beat in the cart
     const lineItems = orderItemsData.map(item => ({
       order_id: orderData.id,
@@ -86,6 +90,8 @@ export const createOrder = async (user: any, totalAmount: number, orderItemsData
       console.error('Line items error:', lineItemError);
       throw new Error(`Line items creation failed: ${lineItemError.message}`);
     }
+    
+    console.log('Line items created successfully');
     
     return { orderId: orderData.id };
   } catch (error) {
@@ -119,7 +125,7 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
     
     console.log('Verification response:', data);
     
-    if (data.verified) {
+    if (data && data.verified) {
       // Dismiss the loading toast
       toast.dismiss('payment-verification');
       return { success: true };
