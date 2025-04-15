@@ -20,21 +20,48 @@ import {
   ArrowRight,
   Star,
   Search,
-  Calendar
+  Calendar,
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
+import { toast } from "sonner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+// Fallback featured beat for when network fails
+const fallbackFeaturedBeat: Beat = {
+  id: "fallback-featured",
+  title: "Featured Demo Beat",
+  producer_id: "demo-producer",
+  producer_name: "Demo Producer",
+  cover_image_url: "/placeholder.svg",
+  preview_url: "",
+  full_track_url: "",
+  basic_license_price_local: 5000,
+  basic_license_price_diaspora: 15,
+  genre: "Afrobeat",
+  bpm: 100,
+  status: "published",
+  is_featured: true,
+  created_at: new Date().toISOString(),
+  tags: ["demo", "featured"]
+};
 
 export default function IndexPage() {
   const { user } = useAuth();
-  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat } = useBeats();
+  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats } = useBeats();
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
-  const { prefetchProducers } = useProducers(); // Add the producers hook
+  const { prefetchProducers } = useProducers();
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
   const navigate = useNavigate();
+
+  const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
 
   // Preload producers data when the page loads
   useEffect(() => {
@@ -46,6 +73,23 @@ export default function IndexPage() {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
+
+  // Manual refresh function that users can trigger
+  const handleRefreshData = async () => {
+    setIsRefreshing(true);
+    setNetworkError(false);
+    
+    try {
+      await fetchBeats();
+      toast.success("Content refreshed successfully");
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      setNetworkError(true);
+      toast.error("Failed to refresh content. Please check your connection.");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -79,7 +123,35 @@ export default function IndexPage() {
           </form>
         </div>
 
-        {featuredBeat && (
+        {networkError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Connection issues detected. Some content may not be available.
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="ml-2" 
+                onClick={handleRefreshData}
+                disabled={isRefreshing}
+              >
+                {isRefreshing ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Refreshing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {displayedFeaturedBeat && (
           <section className="mb-6 px-0 mx-0">
             <SectionTitle 
               title="Featured Beat" 
@@ -88,7 +160,11 @@ export default function IndexPage() {
             />
             
             <div className="mt-3">
-              <BeatCard key={featuredBeat.id} beat={featuredBeat} featured={true} />
+              <BeatCard 
+                key={displayedFeaturedBeat.id} 
+                beat={displayedFeaturedBeat} 
+                featured={true} 
+              />
             </div>
           </section>
         )}

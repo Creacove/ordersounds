@@ -1,10 +1,47 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { FilterValues } from '@/components/filter/BeatFilters';
+
+// Default fallback beats for when we can't load from the API
+const fallbackBeats: Beat[] = [
+  {
+    id: "fallback-1",
+    title: "Demo Beat 1",
+    producer_id: "demo-producer",
+    producer_name: "Demo Producer",
+    cover_image_url: "/placeholder.svg",
+    preview_url: "",
+    full_track_url: "",
+    basic_license_price_local: 5000,
+    basic_license_price_diaspora: 15,
+    genre: "Afrobeat",
+    bpm: 120,
+    status: "published",
+    is_featured: false,
+    created_at: new Date().toISOString(),
+    tags: ["demo", "afrobeat"]
+  },
+  {
+    id: "fallback-2",
+    title: "Demo Beat 2",
+    producer_id: "demo-producer",
+    producer_name: "Demo Producer",
+    cover_image_url: "/placeholder.svg",
+    preview_url: "",
+    full_track_url: "",
+    basic_license_price_local: 7000,
+    basic_license_price_diaspora: 20,
+    genre: "Hip Hop",
+    bpm: 90,
+    status: "published",
+    is_featured: false,
+    created_at: new Date().toISOString(),
+    tags: ["demo", "hiphop"]
+  }
+];
 
 // Utility function to get a cache expiration timestamp
 const getCacheExpiration = (intervalHours: number) => {
@@ -18,10 +55,17 @@ const CACHE_KEYS = {
   TRENDING_BEATS: 'trending_beats_cache',
   FEATURED_BEATS: 'featured_beats_cache',
   WEEKLY_PICKS: 'weekly_picks_cache',
+  ALL_BEATS: 'all_beats_cache',
   TRENDING_EXPIRY: 'trending_beats_expiry',
   FEATURED_EXPIRY: 'featured_beats_expiry',
   WEEKLY_EXPIRY: 'weekly_picks_expiry',
+  ALL_BEATS_EXPIRY: 'all_beats_expiry',
   LAST_TRENDING_REFRESH: 'last_trending_refresh'
+};
+
+// Check if we're online
+const isOnline = (): boolean => {
+  return navigator.onLine;
 };
 
 export function useBeats() {
@@ -33,21 +77,104 @@ export function useBeats() {
   const [userFavorites, setUserFavorites] = useState<string[]>([]);
   const [purchasedBeats, setPurchasedBeats] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
   const { user, currency } = useAuth();
   const [activeFilters, setActiveFilters] = useState<FilterValues | null>(null);
   const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
-
+  const [isOffline, setIsOffline] = useState(!isOnline());
+  const [retryCount, setRetryCount] = useState(0);
+  
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
 
   // Cache expiration durations (in hours)
   const CACHE_DURATIONS = {
-    TRENDING: 1,  // Changed from 24 to 1 hour for trending beats
-    FEATURED: 3,  // Several times a day
-    WEEKLY: 168   // Weekly (7 days * 24 hours)
+    TRENDING: 1,   // 1 hour for trending beats
+    FEATURED: 3,   // 3 hours for featured beats
+    WEEKLY: 168,   // Weekly (7 days * 24 hours)
+    ALL_BEATS: 24  // 24 hours for all beats
   };
 
+  // Load beats from local storage cache
+  const loadFromCache = (cacheKey: string): any[] | null => {
+    try {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        console.log(`Loading ${cacheKey} from cache`);
+        return JSON.parse(cached);
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error loading from cache (${cacheKey}):`, error);
+      return null;
+    }
+  };
+
+  // Save beats to local storage cache
+  const saveToCache = (cacheKey: string, data: any, expiryKey: string, durationHours: number): void => {
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+      localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
+      console.log(`Saved ${cacheKey} to cache, expires in ${durationHours} hours`);
+    } catch (error) {
+      console.error(`Error saving to cache (${cacheKey}):`, error);
+    }
+  };
+
+  // Load fallback data when offline or in case of errors
+  const loadFallbackData = () => {
+    console.log('Loading fallback data');
+    
+    // Use cached data if available
+    const cachedBeats = loadFromCache(CACHE_KEYS.ALL_BEATS) || fallbackBeats;
+    const cachedTrending = loadFromCache(CACHE_KEYS.TRENDING_BEATS) || fallbackBeats;
+    const cachedFeatured = loadFromCache(CACHE_KEYS.FEATURED_BEATS) || fallbackBeats[0];
+    const cachedWeekly = loadFromCache(CACHE_KEYS.WEEKLY_PICKS) || fallbackBeats;
+    
+    setBeats(cachedBeats);
+    setTrendingBeats(cachedTrending);
+    setNewBeats(cachedBeats);
+    setFeaturedBeat(cachedFeatured);
+    setWeeklyPicks(cachedWeekly);
+    
+    // Log price data for debugging
+    fallbackBeats.forEach(beat => {
+      console.log('Beat pricing data:', {
+        beatId: beat.id,
+        beatTitle: beat.title,
+        basic_local: beat.basic_license_price_local,
+        basic_diaspora: beat.basic_license_price_diaspora,
+        calculatedLocal: beat.basic_license_price_local || 0,
+        calculatedDiaspora: beat.basic_license_price_diaspora || 0
+      });
+    });
+    
+    setIsLoading(false);
+    setLoadingError('Could not load beats from server. Using cached or demo content.');
+  };
+
+  // Function to check network status
+  const checkNetworkAndRetry = async () => {
+    if (!isOnline()) {
+      setIsOffline(true);
+      loadFallbackData();
+      return false;
+    }
+    
+    setIsOffline(false);
+    return true;
+  };
+  
   const fetchBeats = useCallback(async () => {
     setIsLoading(true);
+    setLoadingError(null);
+    
+    // Check network status before attempting fetch
+    if (!await checkNetworkAndRetry()) {
+      return;
+    }
+    
+    console.log('Fetching beats from API...');
+    
     try {
       const { data: beatsData, error: beatsError } = await supabase
         .from('beats')
@@ -123,17 +250,20 @@ export function useBeats() {
           };
         });
         
+        // Save all beats to cache
+        saveToCache(CACHE_KEYS.ALL_BEATS, transformedBeats, CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
+        
         setBeats(transformedBeats);
         
-        // Check if trending beats need to be refreshed (every hour)
+        // Check if trending beats need to be refreshed
         const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
         if (shouldRefreshTrending) {
           refreshTrendingBeats(transformedBeats);
         } else {
           // Try to load from cache
-          const cachedTrending = localStorage.getItem(CACHE_KEYS.TRENDING_BEATS);
+          const cachedTrending = loadFromCache(CACHE_KEYS.TRENDING_BEATS);
           if (cachedTrending) {
-            setTrendingBeats(JSON.parse(cachedTrending));
+            setTrendingBeats(cachedTrending);
           } else {
             refreshTrendingBeats(transformedBeats);
           }
@@ -155,17 +285,22 @@ export function useBeats() {
             const featured = sortedByTrending[randomIndex];
             const newFeatured = {...featured, is_featured: true};
             setFeaturedBeat(newFeatured);
-            localStorage.setItem(CACHE_KEYS.FEATURED_BEATS, JSON.stringify(newFeatured));
-            localStorage.setItem(CACHE_KEYS.FEATURED_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.FEATURED)));
+            saveToCache(CACHE_KEYS.FEATURED_BEATS, newFeatured, CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
+          } else {
+            // If no beats available, use fallback beat
+            setFeaturedBeat(fallbackBeats[0]);
           }
         } else {
           // Try to load from cache
-          const cachedFeatured = localStorage.getItem(CACHE_KEYS.FEATURED_BEATS);
+          const cachedFeatured = loadFromCache(CACHE_KEYS.FEATURED_BEATS);
           if (cachedFeatured) {
-            setFeaturedBeat(JSON.parse(cachedFeatured));
+            setFeaturedBeat(cachedFeatured);
           } else if (trendingBeats.length > 0) {
             const featured = trendingBeats[0];
             setFeaturedBeat({...featured, is_featured: true});
+          } else {
+            // Fallback
+            setFeaturedBeat(fallbackBeats[0]);
           }
         }
         
@@ -175,14 +310,15 @@ export function useBeats() {
           refreshWeeklyPicks(transformedBeats);
         } else {
           // Try to load from cache
-          const cachedWeekly = localStorage.getItem(CACHE_KEYS.WEEKLY_PICKS);
+          const cachedWeekly = loadFromCache(CACHE_KEYS.WEEKLY_PICKS);
           if (cachedWeekly) {
-            setWeeklyPicks(JSON.parse(cachedWeekly));
+            setWeeklyPicks(cachedWeekly);
           } else {
             refreshWeeklyPicks(transformedBeats);
           }
         }
         
+        // Sort new beats by creation date
         const sortedByNew = [...transformedBeats].sort((a, b) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
@@ -193,6 +329,12 @@ export function useBeats() {
         } else {
           setFilteredBeats(transformedBeats);
         }
+        
+        // Reset loading and error states
+        setIsLoading(false);
+        setLoadingError(null);
+        setRetryCount(0);
+        setIsOffline(false);
       }
       
       if (user) {
@@ -201,11 +343,19 @@ export function useBeats() {
       }
     } catch (error) {
       console.error('Error fetching beats:', error);
+      
+      // Try to retry a few times before falling back to cached data
+      if (retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        setTimeout(() => fetchBeats(), 1000 * retryCount); // Increasing backoff
+        return;
+      }
+      
+      loadFallbackData();
+      setLoadingError('Failed to load beats');
       toast.error('Failed to load beats');
-    } finally {
-      setIsLoading(false);
     }
-  }, [user, activeFilters]);
+  }, [user, activeFilters, retryCount]);
 
   // Utility function to check if cache should be refreshed
   const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours: number) => {
@@ -219,6 +369,11 @@ export function useBeats() {
   // Function to refresh trending beats with cache updates
   const refreshTrendingBeats = (allBeats: Beat[]) => {
     console.log('Refreshing trending beats - hourly refresh');
+    
+    if (allBeats.length === 0) {
+      setTrendingBeats(fallbackBeats);
+      return;
+    }
     
     // Completely randomize the order of beats to maximize variety
     const shuffled = [...allBeats].sort(() => Math.random() - 0.5);
@@ -250,27 +405,32 @@ export function useBeats() {
     setTrendingBeats(trending);
     
     // Update cache with timestamp
-    localStorage.setItem(CACHE_KEYS.TRENDING_BEATS, JSON.stringify(trending));
-    localStorage.setItem(CACHE_KEYS.TRENDING_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.TRENDING)));
+    saveToCache(CACHE_KEYS.TRENDING_BEATS, trending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
     localStorage.setItem(CACHE_KEYS.LAST_TRENDING_REFRESH, new Date().toISOString());
   };
 
   // Function to refresh weekly picks with cache updates
   const refreshWeeklyPicks = (allBeats: Beat[]) => {
-    if (allBeats.length === 0) return;
+    if (allBeats.length === 0) {
+      setWeeklyPicks(fallbackBeats);
+      return;
+    }
     
     // For weekly picks, select based on a combination of factors
     const shuffled = [...allBeats].sort(() => 0.5 - Math.random());
-    // Select 6 beats that have good engagement but aren't necessarily the top ones
+    // Select beats that have good engagement but aren't necessarily the top ones
     const picks = shuffled
       .filter(beat => beat.favorites_count > 0 || beat.purchase_count > 0)
       .slice(0, 8);
     
-    setWeeklyPicks(picks);
-    
-    // Update cache
-    localStorage.setItem(CACHE_KEYS.WEEKLY_PICKS, JSON.stringify(picks));
-    localStorage.setItem(CACHE_KEYS.WEEKLY_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.WEEKLY)));
+    // If we don't have enough beats with engagement, just use some random ones
+    if (picks.length < 6) {
+      setWeeklyPicks(shuffled.slice(0, 8));
+      saveToCache(CACHE_KEYS.WEEKLY_PICKS, shuffled.slice(0, 8), CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
+    } else {
+      setWeeklyPicks(picks);
+      saveToCache(CACHE_KEYS.WEEKLY_PICKS, picks, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
+    }
   };
 
   const fetchTrendingBeats = useCallback(async () => {
@@ -450,11 +610,13 @@ export function useBeats() {
   }, [popularBeats.length]);
 
   const fetchUserFavorites = async () => {
+    if (!user) return [];
+    
     try {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('favorites')
-        .eq('id', user!.id)
+        .eq('id', user.id)
         .single();
       
       if (!userError && userData) {
@@ -473,14 +635,17 @@ export function useBeats() {
         }
         
         setUserFavorites(favorites);
+        return favorites;
       }
+      return [];
     } catch (error) {
       console.error('Error fetching user favorites:', error);
+      return [];
     }
   };
 
   const fetchPurchasedBeats = async () => {
-    if (!user) return;
+    if (!user) return [];
     
     try {
       console.log('Fetching purchased beats');
@@ -491,7 +656,7 @@ export function useBeats() {
       
       if (purchasedError) {
         console.error('Error fetching purchased beats:', purchasedError);
-        return;
+        return [];
       }
       
       if (purchasedData) {
@@ -585,10 +750,40 @@ export function useBeats() {
         
         return purchasedIds;
       }
+      return [];
     } catch (error) {
       console.error('Error in fetchPurchasedBeats:', error);
+      return [];
     }
   };
+
+  // Set up network status listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      // Refetch data automatically when we're back online
+      fetchBeats();
+      toast.success("You're back online!");
+    };
+    
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.error("You're offline. Some features may be limited.");
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Check immediately on mount
+    if (!navigator.onLine) {
+      setIsOffline(true);
+    }
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   useEffect(() => {
     fetchBeats();
@@ -652,230 +847,4 @@ export function useBeats() {
     setFilteredBeats(filtered);
   };
 
-  const updateFilters = (filters: FilterValues) => {
-    setActiveFilters(filters);
-    applyFilters(beats, filters);
-  };
-
-  const clearFilters = () => {
-    setActiveFilters(null);
-    setFilteredBeats(beats);
-  };
-
-  const toggleFavorite = async (beatId: string) => {
-    if (!user) {
-      toast.error('Please log in to favorite beats');
-      return false;
-    }
-
-    try {
-      const isFavorite = userFavorites.includes(beatId);
-      let newFavorites: string[];
-      
-      if (isFavorite) {
-        newFavorites = userFavorites.filter(id => id !== beatId);
-      } else {
-        newFavorites = [...userFavorites, beatId];
-      }
-      
-      const { error } = await supabase
-        .from('users')
-        .update({ favorites: newFavorites })
-        .eq('id', user.id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (!isFavorite) {
-        // Increment favorites_count
-        await supabase.rpc("increment_counter" as any, {
-          p_table_name: "beats",
-          p_column_name: "favorites_count",
-          p_id: beatId
-        });
-      } else {
-        // Decrement favorites_count
-        const { data: beatData } = await supabase
-          .from('beats')
-          .select('favorites_count')
-          .eq('id', beatId)
-          .single();
-          
-        if (beatData && beatData.favorites_count > 0) {
-          await supabase
-            .from('beats')
-            .update({ favorites_count: Math.max(0, beatData.favorites_count - 1) })
-            .eq('id', beatId);
-        }
-      }
-      
-      setUserFavorites(newFavorites);
-      
-      const updatedBeats = beats.map(beat => 
-        beat.id === beatId 
-          ? { 
-              ...beat, 
-              favorites_count: isFavorite 
-                ? Math.max(0, beat.favorites_count - 1)
-                : beat.favorites_count + 1 
-            } 
-          : beat
-      );
-      setBeats(updatedBeats);
-      
-      if (activeFilters) {
-        applyFilters(updatedBeats, activeFilters);
-      } else {
-        setFilteredBeats(updatedBeats);
-      }
-      
-      toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
-      return !isFavorite;
-    } catch (error) {
-      console.error('Error toggling favorite:', error);
-      toast.error('Failed to update favorites');
-      return false;
-    }
-  };
-
-  const getBeatById = async (beatId: string): Promise<Beat | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('beats')
-        .select(`
-          id, 
-          title, 
-          producer_id,
-          cover_image,
-          audio_preview,
-          audio_file,
-          basic_license_price_local,
-          basic_license_price_diaspora,
-          premium_license_price_local,
-          premium_license_price_diaspora,
-          exclusive_license_price_local,
-          exclusive_license_price_diaspora,
-          custom_license_price_local,
-          custom_license_price_diaspora,
-          genre,
-          track_type,
-          bpm,
-          key,
-          tags,
-          description,
-          upload_date,
-          favorites_count,
-          purchase_count,
-          plays,
-          status,
-          license_type,
-          license_terms,
-          users (full_name, stage_name)
-        `)
-        .eq('id', beatId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching beat:', error);
-        throw error;
-      }
-
-      if (!data) {
-        return null;
-      }
-
-      const userData = data.users;
-      const producerName = userData && userData.stage_name ? userData.stage_name : 
-                            userData && userData.full_name ? userData.full_name : 'Unknown Producer';
-
-      const beat: Beat = {
-        id: data.id,
-        title: data.title,
-        producer_id: data.producer_id,
-        producer_name: producerName,
-        cover_image_url: data.cover_image,
-        preview_url: data.audio_preview,
-        full_track_url: data.audio_file,
-        basic_license_price_local: data.basic_license_price_local,
-        basic_license_price_diaspora: data.basic_license_price_diaspora,
-        premium_license_price_local: data.premium_license_price_local,
-        premium_license_price_diaspora: data.premium_license_price_diaspora,
-        exclusive_license_price_local: data.exclusive_license_price_local,
-        exclusive_license_price_diaspora: data.exclusive_license_price_diaspora,
-        custom_license_price_local: data.custom_license_price_local,
-        custom_license_price_diaspora: data.custom_license_price_diaspora,
-        genre: data.genre,
-        track_type: data.track_type,
-        bpm: data.bpm,
-        key: data.key,
-        tags: data.tags || [],
-        description: data.description,
-        created_at: data.upload_date,
-        favorites_count: data.favorites_count || 0,
-        purchase_count: data.purchase_count || 0,
-        plays: data.plays || 0,
-        status: data.status as 'draft' | 'published',
-        is_featured: false,
-        license_type: data.license_type,
-        license_terms: data.license_terms
-      };
-
-      console.log('Received beat details:', beat);
-      return beat;
-    } catch (error) {
-      console.error('Error in getBeatById:', error);
-      return null;
-    }
-  };
-
-  const getUserFavoriteBeats = () => {
-    return beats.filter(beat => userFavorites.includes(beat.id));
-  };
-
-  const getUserPurchasedBeats = () => {
-    return beats.filter(beat => purchasedBeats.includes(beat.id));
-  };
-
-  const getProducerBeats = (producerId: string) => {
-    return beats.filter(beat => beat.producer_id === producerId);
-  };
-
-  const searchBeats = (query: string) => {
-    const lowerQuery = query.toLowerCase();
-    return beats.filter(beat => 
-      beat.title.toLowerCase().includes(lowerQuery) ||
-      beat.producer_name.toLowerCase().includes(lowerQuery) ||
-      beat.tags.some(tag => tag.toLowerCase().includes(lowerQuery))
-    );
-  };
-
-  return {
-    beats,
-    trendingBeats,
-    newBeats,
-    popularBeats,
-    featuredBeat,
-    weeklyPicks,
-    userFavorites,
-    purchasedBeats,
-    isLoading,
-    toggleFavorite,
-    getBeatById,
-    getUserFavoriteBeats,
-    getUserPurchasedBeats,
-    getProducerBeats,
-    searchBeats,
-    isFavorite: (beatId: string) => userFavorites.includes(beatId),
-    isPurchased: (beatId: string) => purchasedBeats.includes(beatId),
-    filteredBeats,
-    updateFilters,
-    clearFilters,
-    hasFilters: !!activeFilters,
-    fetchPurchasedBeats,
-    fetchTrendingBeats,
-    fetchPopularBeats,
-    fetchBeats,
-    getLastTrendingRefresh: () => localStorage.getItem(CACHE_KEYS.LAST_TRENDING_REFRESH)
-  };
-}
+  const updateFilters = (
