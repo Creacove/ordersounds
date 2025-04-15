@@ -46,7 +46,7 @@ export const validateCartItems = async (user: any, cartItems: any[]) => {
   }
 };
 
-export const createOrder = async (user: any, totalAmount: number, orderItemsData: any[]) => {
+export const createOrder = async (user: any, totalAmount: number, orderItemsData: any[], currency = 'NGN') => {
   try {
     // Create an order record first
     const { data: orderData, error: orderError } = await supabase
@@ -54,9 +54,9 @@ export const createOrder = async (user: any, totalAmount: number, orderItemsData
       .insert({
         buyer_id: user.id,
         total_price: totalAmount,
-        payment_method: 'Paystack',
+        payment_method: currency === 'NGN' ? 'Paystack' : 'Stripe',
         status: 'pending',
-        currency_used: 'NGN'
+        currency_used: currency
       })
       .select('id')
       .single();
@@ -75,7 +75,7 @@ export const createOrder = async (user: any, totalAmount: number, orderItemsData
       order_id: orderData.id,
       beat_id: item.beat_id,
       price_charged: item.price,
-      currency_code: 'NGN',
+      currency_code: currency,
     }));
     
     const { error: lineItemError } = await supabase
@@ -132,6 +132,49 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
     console.error('Payment verification error:', error);
     toast.dismiss('payment-verification');
     toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
+    return { success: false, error: error.message };
+  }
+};
+
+// Creating a function to handle Stripe checkout sessions
+export const createStripeCheckoutSession = async (user: any, totalAmount: number, orderItemsData: any[]) => {
+  try {
+    // First create the order in our system
+    const { orderId, error: orderError } = await createOrder(user, totalAmount, orderItemsData, 'USD');
+    
+    if (orderError) {
+      throw new Error(orderError);
+    }
+    
+    // Call the Stripe checkout edge function
+    const { data, error } = await supabase.functions.invoke('create-stripe-checkout', {
+      body: { 
+        orderId,
+        items: orderItemsData,
+        totalAmount,
+        userId: user.id,
+        email: user.email
+      },
+    });
+    
+    if (error) {
+      console.error('Stripe checkout error:', error);
+      throw new Error(`Stripe checkout failed: ${error.message}`);
+    }
+    
+    console.log('Stripe checkout session created:', data);
+    
+    localStorage.setItem('pendingOrderId', orderId);
+    localStorage.setItem('orderItems', JSON.stringify(orderItemsData));
+    localStorage.setItem('paymentInProgress', 'true');
+    localStorage.setItem('purchaseTime', Date.now().toString());
+    
+    return { 
+      sessionUrl: data.url,
+      success: true 
+    };
+  } catch (error) {
+    console.error('Stripe checkout creation error:', error);
     return { success: false, error: error.message };
   }
 };

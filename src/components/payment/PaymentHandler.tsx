@@ -1,11 +1,13 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
 import { useAuth } from '@/context/AuthContext';
-import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
+import { AlertCircle, RefreshCw, Loader2, CreditCard } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'sonner';
 import { getProducerSplitCode } from '@/utils/payment/paystackSplitUtils';
+import { createStripeCheckoutSession } from '@/utils/payment/paystackUtils';
 
 interface PaymentHandlerProps {
   totalAmount: number;
@@ -28,6 +30,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   const scriptLoadAttempts = useRef(0);
   const maxScriptLoadAttempts = 3;
   const paystackCheckTimer = useRef<NodeJS.Timeout | null>(null);
+  const [stripeProcessing, setStripeProcessing] = useState(false);
 
   const verifyPaystackAvailable = () => {
     try {
@@ -41,6 +44,12 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   };
 
   const loadPaystackScript = () => {
+    // Only load Paystack if using NGN currency
+    if (currency !== 'NGN') {
+      setScriptLoaded(true);
+      return;
+    }
+    
     if (scriptLoadAttempts.current >= maxScriptLoadAttempts) {
       console.error('Maximum script load attempts reached');
       setScriptError(true);
@@ -109,22 +118,28 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   };
 
   useEffect(() => {
-    if (verifyPaystackAvailable()) {
-      console.log('Paystack script is already loaded and PaystackPop is available');
-      setScriptLoaded(true);
-      return;
-    }
-    
-    if (loadingScript) return;
-    
-    loadPaystackScript();
-    
-    return () => {
-      if (paystackCheckTimer.current) {
-        clearTimeout(paystackCheckTimer.current);
+    // For NGN, check if Paystack is loaded
+    if (currency === 'NGN') {
+      if (verifyPaystackAvailable()) {
+        console.log('Paystack script is already loaded and PaystackPop is available');
+        setScriptLoaded(true);
+        return;
       }
-    };
-  }, [loadingScript]);
+      
+      if (loadingScript) return;
+      
+      loadPaystackScript();
+      
+      return () => {
+        if (paystackCheckTimer.current) {
+          clearTimeout(paystackCheckTimer.current);
+        }
+      };
+    } else {
+      // For USD, we're using Stripe - no script needs to be loaded
+      setScriptLoaded(true);
+    }
+  }, [loadingScript, currency]);
 
   useEffect(() => {
     setHasItems(cartItems && cartItems.length > 0);
@@ -132,7 +147,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   
   useEffect(() => {
     const fetchSplitCode = async () => {
-      if (!producerId) return;
+      if (!producerId || currency !== 'NGN') return;
       
       try {
         setLoadingSplitCode(true);
@@ -147,7 +162,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     };
     
     fetchSplitCode();
-  }, [producerId]);
+  }, [producerId, currency]);
 
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
@@ -177,7 +192,9 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     toast.info('Reloading payment system...');
   };
 
-  const handleStartPayment = () => {
+  const handleStartPaystackPayment = () => {
+    if (currency !== 'NGN') return;
+    
     if (!producerId && (!cartItems || cartItems.length === 0)) {
       toast.error('Your cart is empty. Please add items before checkout.');
       return;
@@ -201,6 +218,73 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       setInitiatingPayment(false);
     }, 300);
   };
+  
+  const handleStartStripePayment = async () => {
+    if (currency !== 'USD') return;
+    
+    if (!producerId && (!cartItems || cartItems.length === 0)) {
+      toast.error('Your cart is empty. Please add items before checkout.');
+      return;
+    }
+    
+    setStripeProcessing(true);
+    
+    try {
+      // Prepare order items data
+      let orderItemsData;
+      
+      if (producerId && beatId) {
+        // Direct beat purchase - fetch beat details
+        const { data: beatData, error: beatError } = await supabase
+          .from('beats')
+          .select('id, title, basic_license_price_diaspora')
+          .eq('id', beatId)
+          .single();
+          
+        if (beatError) {
+          console.error('Error fetching beat details:', beatError);
+          toast.error('Failed to fetch beat details. Please try again.');
+          setStripeProcessing(false);
+          return;
+        }
+        
+        orderItemsData = [{
+          beat_id: beatData.id,
+          title: beatData.title,
+          price: beatData.basic_license_price_diaspora,
+          license: 'basic'
+        }];
+      } else {
+        // Cart purchase
+        orderItemsData = cartItems.map(item => ({
+          beat_id: item.beat.id,
+          title: item.beat.title,
+          price: item.beat.basic_license_price_diaspora,
+          license: item.beat.selected_license || 'basic'
+        }));
+      }
+      
+      const stripeResult = await createStripeCheckoutSession(
+        user, 
+        totalAmount,
+        orderItemsData
+      );
+      
+      if (!stripeResult.success) {
+        toast.error(`Payment failed: ${stripeResult.error}`);
+        setStripeProcessing(false);
+        return;
+      }
+      
+      // Redirect to Stripe Checkout
+      window.location.href = stripeResult.sessionUrl;
+      
+    } catch (error) {
+      console.error('Stripe payment error:', error);
+      toast.error('Payment initialization failed. Please try again later.');
+      setStripeProcessing(false);
+    }
+  };
 
   if (!user) {
     return (
@@ -211,11 +295,13 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     );
   }
 
-  const isDisabled = totalAmount <= 0 || (!hasItems && !producerId) || !scriptLoaded || loadingScript || initiatingPayment || loadingSplitCode;
+  const isDisabled = totalAmount <= 0 || (!hasItems && !producerId) || 
+                    (currency === 'NGN' && (!scriptLoaded || loadingScript || initiatingPayment || loadingSplitCode)) ||
+                    (currency === 'USD' && stripeProcessing);
 
   return (
     <div className="space-y-4">
-      {scriptError && (
+      {scriptError && currency === 'NGN' && (
         <div className="p-3 border border-destructive/50 bg-destructive/10 rounded-md mb-4">
           <p className="text-sm font-medium text-destructive">
             There was an error loading the payment system. Please try reloading.
@@ -232,7 +318,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
         </div>
       )}
       
-      {loadingScript && !scriptError && (
+      {loadingScript && !scriptError && currency === 'NGN' && (
         <div className="p-3 border border-primary/20 bg-primary/5 rounded-md mb-4">
           <p className="text-sm text-primary/80 flex items-center gap-2">
             <Loader2 size={14} className="animate-spin" />
@@ -241,7 +327,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
         </div>
       )}
       
-      {loadingSplitCode && producerId && (
+      {loadingSplitCode && producerId && currency === 'NGN' && (
         <div className="p-3 border border-primary/20 bg-primary/5 rounded-md mb-4">
           <p className="text-sm text-primary/80 flex items-center gap-2">
             <Loader2 size={14} className="animate-spin" />
@@ -253,7 +339,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       {currency === 'NGN' ? (
         <>
           <Button 
-            onClick={handleStartPayment}
+            onClick={handleStartPaystackPayment}
             className="w-full py-6 text-base"
             size="lg"
             disabled={isDisabled}
@@ -287,11 +373,19 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
           className="w-full py-6 text-base"
           size="lg"
           disabled={isDisabled}
-          onClick={() => {
-            alert('Stripe payment integration for USD will be implemented separately');
-          }}
+          onClick={handleStartStripePayment}
         >
-          Pay with Stripe ($)
+          {stripeProcessing ? (
+            <>
+              <Loader2 size={16} className="mr-2 animate-spin" />
+              Initializing Payment...
+            </>
+          ) : (
+            <>
+              <CreditCard className="mr-2 h-5 w-5" />
+              Pay with Stripe ($)
+            </>
+          )}
         </Button>
       )}
     </div>

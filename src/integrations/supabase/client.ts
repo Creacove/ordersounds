@@ -16,7 +16,19 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: typeof window !== 'undefined' ? localStorage : undefined,
     detectSessionInUrl: true, // Ensure OAuth redirect handling works
     flowType: 'pkce', // Use PKCE flow for more secure OAuth
-    debug: process.env.NODE_ENV === 'development' // Enable debug in development
+    debug: process.env.NODE_ENV === 'development', // Enable debug in development
+    onAuthStateChange: (event, session) => {
+      // Console logging for development troubleshooting
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Supabase auth event:', event, session ? 'User session available' : 'No session');
+      }
+      
+      // Refresh UI on auth state changes
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // Dispatch a custom event that components can listen for
+        window.dispatchEvent(new Event('supabase.auth.stateChange'));
+      }
+    }
   },
   global: {
     headers: {
