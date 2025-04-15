@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { supabase } from '@/integrations/supabase/client';
-import { createOrder, verifyPaystackPayment, validateCartItems } from '@/utils/payment/paystackUtils';
+import { createOrder, verifyPaystackPayment } from '@/utils/payment/paystackUtils';
 
 declare global {
   interface Window {
@@ -367,6 +367,11 @@ export function usePaystackCheckout({
       // Add split_code to metadata if available
       const metadata = {
         custom_fields: [
+          {
+            display_name: "Order ID",
+            variable_name: "order_id",
+            value: orderId
+          },
           {
             display_name: "Order Items",
             variable_name: "order_items",

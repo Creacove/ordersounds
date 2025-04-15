@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
@@ -27,7 +28,21 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   const [loadingSplitCode, setLoadingSplitCode] = useState(false);
   const scriptLoadAttempts = useRef(0);
   const maxScriptLoadAttempts = 3;
-  const paystackCheckTimer = useRef<NodeJS.Timeout | null>(null);
+  const scriptCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const paystackScriptUrl = "https://js.paystack.co/v1/inline.js";
+
+  // Pre-load Paystack script as soon as possible
+  useEffect(() => {
+    const preloadLink = document.createElement('link');
+    preloadLink.rel = 'preload';
+    preloadLink.as = 'script';
+    preloadLink.href = paystackScriptUrl;
+    document.head.appendChild(preloadLink);
+    
+    return () => {
+      document.head.removeChild(preloadLink);
+    };
+  }, []);
 
   const verifyPaystackAvailable = () => {
     try {
@@ -52,46 +67,50 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     setLoadingScript(true);
     scriptLoadAttempts.current += 1;
     
+    // Clear any existing script checks
+    if (scriptCheckInterval.current) {
+      clearInterval(scriptCheckInterval.current);
+      scriptCheckInterval.current = null;
+    }
+    
     const existingScript = document.getElementById('paystack-script');
     if (existingScript) {
       document.body.removeChild(existingScript);
     }
 
     const script = document.createElement('script');
-    script.src = "https://js.paystack.co/v1/inline.js";
+    script.src = paystackScriptUrl;
     script.id = "paystack-script";
     script.async = true;
     
     script.onload = () => {
-      if (paystackCheckTimer.current) {
-        clearTimeout(paystackCheckTimer.current);
-      }
-      
+      // Check for Paystack object using interval instead of timeout for reliability
       let checkCount = 0;
-      const maxChecks = 5;
+      const maxChecks = 10;
       
-      const checkPaystackLoaded = () => {
+      scriptCheckInterval.current = setInterval(() => {
         checkCount++;
         if (verifyPaystackAvailable()) {
+          clearInterval(scriptCheckInterval.current as NodeJS.Timeout);
+          scriptCheckInterval.current = null;
           console.log('Paystack script loaded successfully');
           setScriptLoaded(true);
           setScriptError(false);
           setLoadingScript(false);
-        } else if (checkCount < maxChecks) {
-          console.log(`PaystackPop not available yet, checking again (${checkCount}/${maxChecks})`);
-          paystackCheckTimer.current = setTimeout(checkPaystackLoaded, 500);
-        } else {
+        } else if (checkCount >= maxChecks) {
+          clearInterval(scriptCheckInterval.current as NodeJS.Timeout);
+          scriptCheckInterval.current = null;
           console.error('Paystack script loaded but PaystackPop is not available after multiple checks');
           setScriptError(true);
           setLoadingScript(false);
           
           setTimeout(() => {
             loadPaystackScript();
-          }, 2000);
+          }, 1500);
+        } else {
+          console.log(`PaystackPop not available yet, checking again (${checkCount}/${maxChecks})`);
         }
-      };
-      
-      paystackCheckTimer.current = setTimeout(checkPaystackLoaded, 500);
+      }, 300); // Check faster with shorter intervals
     };
     
     script.onerror = () => {
@@ -102,7 +121,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       
       setTimeout(() => {
         loadPaystackScript();
-      }, 2000);
+      }, 1500);
     };
     
     document.body.appendChild(script);
@@ -120,8 +139,8 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     loadPaystackScript();
     
     return () => {
-      if (paystackCheckTimer.current) {
-        clearTimeout(paystackCheckTimer.current);
+      if (scriptCheckInterval.current) {
+        clearInterval(scriptCheckInterval.current);
       }
     };
   }, [loadingScript]);

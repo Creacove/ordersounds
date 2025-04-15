@@ -116,26 +116,27 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
       },
     });
     
+    // Always dismiss the loading toast regardless of outcome
+    toast.dismiss('payment-verification');
+    
     if (error) {
-      console.error('Verification error:', error);
-      toast.dismiss('payment-verification');
-      toast.error(`Payment verification failed: ${error.message}`);
+      console.error('Verification error from edge function:', error);
+      toast.error(`Payment verification failed: ${error.message || 'Unknown error'}`);
       return { success: false, error: error.message };
     }
     
     console.log('Verification response:', data);
     
     if (data && data.verified) {
-      // Dismiss the loading toast
-      toast.dismiss('payment-verification');
       return { success: true };
     } else {
-      toast.dismiss('payment-verification');
+      // Handle non-success case separately
+      const errorMsg = data?.message || 'Payment verification failed';
       toast.error('Payment verification failed. Please try again or contact support with your reference: ' + paymentReference);
-      return { success: false, error: 'Payment verification failed' };
+      return { success: false, error: errorMsg };
     }
   } catch (error) {
-    console.error('Payment verification error:', error);
+    console.error('Payment verification exception:', error);
     toast.dismiss('payment-verification');
     toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
     return { success: false, error: error.message };
