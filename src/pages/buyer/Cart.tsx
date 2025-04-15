@@ -61,7 +61,6 @@ export default function Cart() {
     }
   };
 
-  // Set up real-time listener for purchase events
   useEffect(() => {
     if (!user) return;
     
@@ -100,7 +99,6 @@ export default function Cart() {
       refreshCart();
     }
     
-    // Check for successful purchase
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
     const paymentInProgress = localStorage.getItem('paymentInProgress');
     
@@ -110,22 +108,18 @@ export default function Cart() {
       console.log('Detected successful purchase, redirecting to library...');
       clearCart();
       
-      // Clean up localStorage items
       localStorage.removeItem('pendingOrderId');
       localStorage.removeItem('paystackReference');
       localStorage.removeItem('paymentInProgress');
       
-      // Force redirect to library
       window.location.href = '/library';
     }
     
-    // Check if payment was initiated but not completed
     if (paymentInProgress === 'true') {
       const purchaseTime = localStorage.getItem('purchaseTime');
       const now = Date.now();
       const timeDiff = purchaseTime ? now - parseInt(purchaseTime) : 0;
       
-      // If more than 5 minutes have passed, clear the payment flags
       if (timeDiff > 5 * 60 * 1000) {
         localStorage.removeItem('paymentInProgress');
         localStorage.removeItem('purchaseTime');
@@ -133,7 +127,6 @@ export default function Cart() {
     }
   }, [refreshCart, cartItems.length, navigate, clearCart, redirectingFromPayment]);
 
-  // Cleanup localStorage on component unmount
   useEffect(() => {
     return () => {
       if (!redirectingFromPayment) {

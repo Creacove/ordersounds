@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
@@ -269,7 +268,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
         </div>
       )}
       
-      {currency === 'NGN' ? (
+      {currency === 'NGN' && (
         <>
           <Button 
             onClick={handleStartPayment}
@@ -301,17 +300,6 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
             producerId={producerId}
           />
         </>
-      ) : (
-        <Button 
-          className="w-full py-6 text-base"
-          size="lg"
-          disabled={isDisabled}
-          onClick={() => {
-            alert('Stripe payment integration for USD will be implemented separately');
-          }}
-        >
-          Pay with Stripe ($)
-        </Button>
       )}
     </div>
   );
