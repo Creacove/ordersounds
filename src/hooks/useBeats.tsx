@@ -1,10 +1,10 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { FilterValues } from '@/components/filter/BeatFilters';
-import { getOfflineBeats, saveBeatsToLocalStorage, getFallbackBeats } from '@/lib/beatStorage';
 
 // Utility function to get a cache expiration timestamp
 const getCacheExpiration = (intervalHours: number) => {
@@ -33,14 +33,11 @@ export function useBeats() {
   const [userFavorites, setUserFavorites] = useState<string[]>([]);
   const [purchasedBeats, setPurchasedBeats] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isOffline, setIsOffline] = useState<boolean>(false);
-  const [lastSuccessfulFetch, setLastSuccessfulFetch] = useState<string | null>(null);
   const { user, currency } = useAuth();
   const [activeFilters, setActiveFilters] = useState<FilterValues | null>(null);
   const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
+
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
-  const [loadingError, setLoadingError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
 
   // Cache expiration durations (in hours)
   const CACHE_DURATIONS = {
@@ -49,82 +46,9 @@ export function useBeats() {
     WEEKLY: 168   // Weekly (7 days * 24 hours)
   };
 
-  // Function to load fallback data when offline
-  const loadFallbackData = useCallback(() => {
-    console.log('Loading fallback data');
-    setIsOffline(true);
-    
-    // Try to get cached beats from local storage
-    const { beats: cachedBeats, lastFetch, featuredBeat: cachedFeaturedBeat } = getOfflineBeats();
-    
-    if (cachedBeats && cachedBeats.length > 0) {
-      console.log('Using cached beats from local storage', cachedBeats.length);
-      setBeats(cachedBeats);
-      setFilteredBeats(cachedBeats);
-      
-      // Create trending, new, and popular beats from cache
-      setTrendingBeats(cachedBeats.slice(0, 8));
-      setNewBeats(cachedBeats.slice(0, 8));
-      setWeeklyPicks(cachedBeats.slice(0, 5));
-      
-      // Set featured beat if available
-      if (cachedFeaturedBeat) {
-        setFeaturedBeat(cachedFeaturedBeat);
-      } else if (cachedBeats.length > 0) {
-        setFeaturedBeat({...cachedBeats[0], is_featured: true});
-      }
-      
-      if (lastFetch) {
-        setLastSuccessfulFetch(lastFetch);
-      }
-    } else {
-      // Use hardcoded fallback data if no cache is available
-      const fallbackBeats = getFallbackBeats();
-      setBeats(fallbackBeats);
-      setFilteredBeats(fallbackBeats);
-      setTrendingBeats(fallbackBeats);
-      setNewBeats(fallbackBeats);
-      setWeeklyPicks(fallbackBeats);
-      
-      // Set first beat as featured
-      if (fallbackBeats.length > 0) {
-        setFeaturedBeat({...fallbackBeats[0], is_featured: true});
-      }
-    }
-    
-    setIsLoading(false);
-  }, []);
-
-  // Check internet connectivity
-  const checkConnectivity = useCallback(() => {
-    return window.navigator.onLine;
-  }, []);
-
-  // Function to retry loading beats
-  const retryFetchBeats = useCallback(() => {
-    if (retryCount < 3) {
-      console.log(`Retrying fetch beats (attempt ${retryCount + 1})`);
-      setRetryCount(prev => prev + 1);
-      fetchBeats();
-    } else {
-      console.log('Max retry attempts reached, loading fallback data');
-      loadFallbackData();
-    }
-  }, [retryCount]);
-
   const fetchBeats = useCallback(async () => {
     setIsLoading(true);
-    setLoadingError(null);
-    
     try {
-      // Check if we're online
-      if (!checkConnectivity()) {
-        console.log('Offline detected, loading fallback data');
-        loadFallbackData();
-        return;
-      }
-
-      console.log('Fetching beats from API...');
       const { data: beatsData, error: beatsError } = await supabase
         .from('beats')
         .select(`
@@ -201,10 +125,6 @@ export function useBeats() {
         
         setBeats(transformedBeats);
         
-        // Store beats in local storage for offline use
-        const now = new Date().toISOString();
-        setLastSuccessfulFetch(now);
-        
         // Check if trending beats need to be refreshed (every hour)
         const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
         if (shouldRefreshTrending) {
@@ -237,29 +157,15 @@ export function useBeats() {
             setFeaturedBeat(newFeatured);
             localStorage.setItem(CACHE_KEYS.FEATURED_BEATS, JSON.stringify(newFeatured));
             localStorage.setItem(CACHE_KEYS.FEATURED_EXPIRY, String(getCacheExpiration(CACHE_DURATIONS.FEATURED)));
-            
-            // Save to offline storage
-            saveBeatsToLocalStorage(transformedBeats, newFeatured);
           }
         } else {
           // Try to load from cache
           const cachedFeatured = localStorage.getItem(CACHE_KEYS.FEATURED_BEATS);
           if (cachedFeatured) {
-            const parsedFeatured = JSON.parse(cachedFeatured);
-            setFeaturedBeat(parsedFeatured);
-            
-            // Save to offline storage with existing featured beat
-            saveBeatsToLocalStorage(transformedBeats, parsedFeatured);
+            setFeaturedBeat(JSON.parse(cachedFeatured));
           } else if (trendingBeats.length > 0) {
             const featured = trendingBeats[0];
-            const featuredWithFlag = {...featured, is_featured: true};
-            setFeaturedBeat(featuredWithFlag);
-            
-            // Save to offline storage
-            saveBeatsToLocalStorage(transformedBeats, featuredWithFlag);
-          } else {
-            // Save to offline storage without a featured beat
-            saveBeatsToLocalStorage(transformedBeats);
+            setFeaturedBeat({...featured, is_featured: true});
           }
         }
         
@@ -287,10 +193,6 @@ export function useBeats() {
         } else {
           setFilteredBeats(transformedBeats);
         }
-        
-        // Reset offline flag
-        setIsOffline(false);
-        setRetryCount(0);
       }
       
       if (user) {
@@ -299,19 +201,11 @@ export function useBeats() {
       }
     } catch (error) {
       console.error('Error fetching beats:', error);
-      setLoadingError('Failed to load beats');
-      
-      // Handle offline scenario
-      if (!window.navigator.onLine || error.message?.includes('Failed to fetch')) {
-        loadFallbackData();
-      } else {
-        // Retry mechanism for non-connectivity errors
-        retryFetchBeats();
-      }
+      toast.error('Failed to load beats');
     } finally {
       setIsLoading(false);
     }
-  }, [user, activeFilters, loadFallbackData, retryFetchBeats, checkConnectivity]);
+  }, [user, activeFilters]);
 
   // Utility function to check if cache should be refreshed
   const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours: number) => {
@@ -703,31 +597,13 @@ export function useBeats() {
     // Check every 5 minutes if the cache has expired
     const intervalId = setInterval(() => {
       const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
-      if (shouldRefresh && beats.length > 0 && checkConnectivity()) {
+      if (shouldRefresh && beats.length > 0) {
         refreshTrendingBeats(beats);
       }
     }, 5 * 60 * 1000); // Check every 5 minutes
     
-    // Add event listeners for online/offline status
-    const handleOnlineStatus = () => {
-      if (window.navigator.onLine) {
-        console.log('Back online, refreshing beats');
-        fetchBeats();
-      } else {
-        console.log('Went offline, using cached data');
-        loadFallbackData();
-      }
-    };
-    
-    window.addEventListener('online', handleOnlineStatus);
-    window.addEventListener('offline', handleOnlineStatus);
-    
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('online', handleOnlineStatus);
-      window.removeEventListener('offline', handleOnlineStatus);
-    };
-  }, [fetchBeats, beats, checkConnectivity, loadFallbackData]);
+    return () => clearInterval(intervalId);
+  }, [fetchBeats]);
 
   const applyFilters = (beatsToFilter: Beat[], filters: FilterValues) => {
     let filtered = [...beatsToFilter];
@@ -984,9 +860,6 @@ export function useBeats() {
     userFavorites,
     purchasedBeats,
     isLoading,
-    isOffline,
-    loadingError,
-    lastSuccessfulFetch,
     toggleFavorite,
     getBeatById,
     getUserFavoriteBeats,
@@ -1003,7 +876,6 @@ export function useBeats() {
     fetchTrendingBeats,
     fetchPopularBeats,
     fetchBeats,
-    retryFetchBeats,
     getLastTrendingRefresh: () => localStorage.getItem(CACHE_KEYS.LAST_TRENDING_REFRESH)
   };
 }
