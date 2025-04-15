@@ -19,23 +19,27 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       setIsLoading(true);
       console.log("Starting Google authentication flow...");
       
-      // Get the current origin with fallbacks for different environments
+      // Get the current URL without any query parameters or hash
       const origin = typeof window !== 'undefined' ? 
         window.location.origin : 
-        'https://ordersounds.com';
+        'https://app.ordersounds.com';
         
+      // Set redirect URL with absolute path to callback handler
       const redirectUrl = `${origin}/auth/callback`;
       
       console.log(`Setting redirect URL to: ${redirectUrl}`);
       
+      // Use a simplified OAuth flow with clear parameters
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
           queryParams: {
+            // Request offline access for refresh tokens
             access_type: 'offline',
+            // Always prompt for consent to ensure refresh token
             prompt: 'consent',
-          },
+          }
         },
       });
 
@@ -44,7 +48,7 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
         console.error('Google auth error:', error);
       } else {
         console.log("OAuth auth initiated successfully, redirecting...");
-        // No need to do anything else, the redirect will happen automatically
+        // The redirect will happen automatically via Supabase
       }
     } catch (error: any) {
       console.error('Google auth error:', error);
