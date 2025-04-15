@@ -43,11 +43,14 @@ const fallbackFeaturedBeat: Beat = {
   basic_license_price_local: 5000,
   basic_license_price_diaspora: 15,
   genre: "Afrobeat",
+  track_type: "Single", // Added missing required property
   bpm: 100,
   status: "published",
   is_featured: true,
   created_at: new Date().toISOString(),
-  tags: ["demo", "featured"]
+  tags: ["demo", "featured"],
+  favorites_count: 0, // Added missing required property
+  purchase_count: 0, // Added missing required property
 };
 
 export default function IndexPage() {
