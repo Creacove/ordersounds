@@ -5,7 +5,6 @@ import { Heart } from "lucide-react";
 import { useBeats } from "@/hooks/useBeats";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 interface ToggleFavoriteButtonProps {
   beatId: string;
@@ -41,8 +40,8 @@ export function ToggleFavoriteButton({
     setIsButtonClicked(true);
     
     try {
-      const result = await toggleFavorite(beatId);
-      setFavorite(result);
+      const newFavoriteStatus = await toggleFavorite(beatId);
+      setFavorite(newFavoriteStatus);
     } catch (error) {
       console.error('Error toggling favorite:', error);
       toast.error('Failed to update favorite status');
