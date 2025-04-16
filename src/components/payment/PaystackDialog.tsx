@@ -1,5 +1,5 @@
 
-import { RefreshCw, Loader2 } from 'lucide-react';
+import { RefreshCw, Loader2, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,8 @@ interface PaystackDialogProps {
   isValidating: boolean;
   onPaymentStart: () => void;
   onRefreshCart: () => void;
+  forceCancel?: () => void;
+  paymentStarted?: boolean;
 }
 
 export function PaystackDialog({
@@ -22,7 +24,9 @@ export function PaystackDialog({
   isProcessing,
   isValidating,
   onPaymentStart,
-  onRefreshCart
+  onRefreshCart,
+  forceCancel,
+  paymentStarted
 }: PaystackDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -60,14 +64,14 @@ export function PaystackDialog({
         <div className="flex flex-col gap-3 mt-2">
           <Button 
             onClick={onPaymentStart}
-            disabled={isProcessing || isValidating || validationError !== null}
+            disabled={isProcessing || isValidating || validationError !== null || paymentStarted}
             className="w-full py-6 text-base"
             size="lg"
           >
-            {isProcessing ? (
+            {isProcessing || paymentStarted ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Processing...
+                {paymentStarted ? "Payment window opened..." : "Processing..."}
               </>
             ) : isValidating ? (
               <>
@@ -79,14 +83,26 @@ export function PaystackDialog({
             )}
           </Button>
           
+          {(isProcessing || paymentStarted) && forceCancel && (
+            <Button 
+              variant="destructive" 
+              onClick={forceCancel}
+              className="w-full py-2 text-sm"
+              size="sm"
+            >
+              <X size={16} className="mr-2" />
+              Cancel Payment
+            </Button>
+          )}
+          
           <Button 
             variant="outline" 
             onClick={onClose}
-            disabled={isProcessing || isValidating}
+            disabled={isProcessing && !forceCancel}
             className="w-full py-5 text-base"
             size="lg"
           >
-            Cancel
+            Back
           </Button>
         </div>
       </DialogContent>

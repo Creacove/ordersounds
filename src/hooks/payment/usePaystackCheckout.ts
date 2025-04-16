@@ -33,6 +33,7 @@ export function usePaystackCheckout({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [paymentStarted, setPaymentStarted] = useState(false);
   const { user } = useAuth();
   const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
@@ -41,6 +42,7 @@ export function usePaystackCheckout({
   const paystackCloseRef = useRef(() => {
     console.log('Payment window closed');
     setIsProcessing(false);
+    setPaymentStarted(false);
     localStorage.removeItem('paymentInProgress');
     onClose();
   });
@@ -56,10 +58,13 @@ export function usePaystackCheckout({
         if (!orderId || !orderItemsStr) {
           toast.error('Order information missing. Please try again.');
           setIsProcessing(false);
+          setPaymentStarted(false);
           return;
         }
         
         const orderItemsData = JSON.parse(orderItemsStr);
+        
+        toast.loading('Verifying payment...', { id: 'payment-verification' });
         
         // Verify the payment with our backend
         const verificationResult = await verifyPaystackPayment(
@@ -67,6 +72,8 @@ export function usePaystackCheckout({
           orderId,
           orderItemsData
         );
+        
+        toast.dismiss('payment-verification');
         
         if (verificationResult.success) {
           // Process purchased beats immediately
@@ -121,6 +128,7 @@ export function usePaystackCheckout({
           // Success! Clear cart and redirect
           clearCart();
           setIsProcessing(false);
+          setPaymentStarted(false);
           onSuccess(response.reference);
           
           toast.success('Your purchase was successful! Redirecting to your library...');
@@ -133,11 +141,13 @@ export function usePaystackCheckout({
           console.error('Payment verification failed:', verificationResult.error);
           toast.error('Payment verification failed. Please contact support with your reference number.');
           setIsProcessing(false);
+          setPaymentStarted(false);
         }
       } catch (error) {
         console.error('Error during payment verification:', error);
         toast.error('An error occurred during payment processing');
         setIsProcessing(false);
+        setPaymentStarted(false);
       }
     };
     
@@ -276,7 +286,7 @@ export function usePaystackCheckout({
   }, [user, cartItems, producerId, beatId, splitCode]);
 
   const handlePaymentStart = useCallback(async () => {
-    if (isProcessing || isValidating) return;
+    if (isProcessing || isValidating || paymentStarted) return;
     
     setIsProcessing(true);
     
@@ -390,6 +400,9 @@ export function usePaystackCheckout({
         cartItems: orderItemsData
       });
       
+      // Mark payment as started to prevent duplicate calls
+      setPaymentStarted(true);
+      
       // Initialize and open Paystack with direct function references
       try {
         const closeFunc = paystackCloseRef.current;
@@ -421,21 +434,43 @@ export function usePaystackCheckout({
         
         // Explicitly open the payment iframe
         handler.openIframe();
+        
+        // Set a timeout to reset processing state if iframe fails to open
+        setTimeout(() => {
+          if (paymentStarted && isProcessing) {
+            console.log('Payment iframe may have failed to open, resetting state');
+            setIsProcessing(false);
+            setPaymentStarted(false);
+          }
+        }, 5000);
       } catch (error) {
         console.error('Paystack initialization error:', error);
         toast.error('Failed to initialize payment. Please try again.');
         setIsProcessing(false);
+        setPaymentStarted(false);
       }
     } catch (error) {
       console.error('Payment error:', error);
       toast.error('Failed to start payment process');
       setIsProcessing(false);
+      setPaymentStarted(false);
     }
-  }, [isProcessing, isValidating, totalAmount, user, validateCartItems, cartItems, clearCart, onSuccess, producerId, beatId, splitCode]);
+  }, [isProcessing, isValidating, paymentStarted, totalAmount, user, validateCartItems, cartItems, clearCart, onSuccess, producerId, beatId, splitCode]);
 
   const handleRefreshCart = async () => {
     setValidationError(null);
     await validateCartItems();
+  };
+
+  const forceCancel = () => {
+    setIsProcessing(false);
+    setPaymentStarted(false);
+    setValidationError(null);
+    localStorage.removeItem('paymentInProgress');
+    localStorage.removeItem('pendingOrderId');
+    localStorage.removeItem('paystackReference');
+    localStorage.removeItem('orderItems');
+    onClose();
   };
 
   return {
@@ -443,6 +478,8 @@ export function usePaystackCheckout({
     isValidating,
     validationError,
     handlePaymentStart,
-    handleRefreshCart
+    handleRefreshCart,
+    forceCancel,
+    paymentStarted
   };
 }

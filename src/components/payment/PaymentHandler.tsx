@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
@@ -39,7 +40,9 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     document.head.appendChild(preloadLink);
     
     return () => {
-      document.head.removeChild(preloadLink);
+      if (preloadLink.parentNode) {
+        document.head.removeChild(preloadLink);
+      }
     };
   }, []);
 
@@ -72,37 +75,44 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       scriptCheckInterval.current = null;
     }
     
+    // Remove any existing script element
     const existingScript = document.getElementById('paystack-script');
     if (existingScript) {
-      document.body.removeChild(existingScript);
+      existingScript.remove();
     }
 
+    // Create a new script element
     const script = document.createElement('script');
     script.src = paystackScriptUrl;
     script.id = "paystack-script";
     script.async = true;
     
     script.onload = () => {
-      // Check for Paystack object using interval instead of timeout for reliability
+      // Check for Paystack object using interval for reliability
       let checkCount = 0;
       const maxChecks = 10;
       
       scriptCheckInterval.current = setInterval(() => {
         checkCount++;
         if (verifyPaystackAvailable()) {
-          clearInterval(scriptCheckInterval.current as NodeJS.Timeout);
-          scriptCheckInterval.current = null;
+          if (scriptCheckInterval.current) {
+            clearInterval(scriptCheckInterval.current);
+            scriptCheckInterval.current = null;
+          }
           console.log('Paystack script loaded successfully');
           setScriptLoaded(true);
           setScriptError(false);
           setLoadingScript(false);
         } else if (checkCount >= maxChecks) {
-          clearInterval(scriptCheckInterval.current as NodeJS.Timeout);
-          scriptCheckInterval.current = null;
+          if (scriptCheckInterval.current) {
+            clearInterval(scriptCheckInterval.current);
+            scriptCheckInterval.current = null;
+          }
           console.error('Paystack script loaded but PaystackPop is not available after multiple checks');
           setScriptError(true);
           setLoadingScript(false);
           
+          // Try again after a delay
           setTimeout(() => {
             loadPaystackScript();
           }, 1500);
@@ -116,8 +126,9 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       console.error('Failed to load Paystack script');
       setScriptError(true);
       setLoadingScript(false);
-      toast.error('Payment system failed to load. Please try again later.');
+      toast.error('Payment system failed to load. Please try again.');
       
+      // Try again after a delay
       setTimeout(() => {
         loadPaystackScript();
       }, 1500);
@@ -140,6 +151,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     return () => {
       if (scriptCheckInterval.current) {
         clearInterval(scriptCheckInterval.current);
+        scriptCheckInterval.current = null;
       }
     };
   }, [loadingScript]);
@@ -185,6 +197,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   };
 
   const handlePaystackClose = () => {
+    setInitiatingPayment(false);
     setIsPaystackOpen(false);
   };
 
@@ -214,9 +227,10 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     
     setInitiatingPayment(true);
     
+    // Small delay to show feedback before opening dialog
     setTimeout(() => {
       setIsPaystackOpen(true);
-      setInitiatingPayment(false);
+      // Don't reset initiatingPayment here to prevent double-clicks
     }, 300);
   };
 

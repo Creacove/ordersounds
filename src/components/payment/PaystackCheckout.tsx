@@ -27,7 +27,9 @@ export function PaystackCheckout({
     isValidating,
     validationError,
     handlePaymentStart,
-    handleRefreshCart
+    handleRefreshCart,
+    forceCancel,
+    paymentStarted
   } = usePaystackCheckout({
     onSuccess,
     onClose,
@@ -47,6 +49,8 @@ export function PaystackCheckout({
       isValidating={isValidating}
       onPaymentStart={handlePaymentStart}
       onRefreshCart={handleRefreshCart}
+      forceCancel={forceCancel}
+      paymentStarted={paymentStarted}
     />
   );
 }
