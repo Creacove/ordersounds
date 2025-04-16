@@ -7,11 +7,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Music, Grid, List, Table } from "lucide-react";
+import { PlusCircle, Music, Grid, List, Table, RefreshCw, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
 import { BeatListItem } from "@/components/ui/BeatListItem";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import {
   Table as UITable,
   TableBody,
@@ -25,12 +26,13 @@ import { useCart } from "@/context/CartContext";
 type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
-  const { user } = useAuth();
-  const { beats, isLoading, isPurchased, isFavorite } = useBeats();
+  const { user, forceUserDataRefresh } = useAuth();
+  const { beats, isLoading, loadingError, forceRefreshBeats, isPurchased, isFavorite } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -49,6 +51,24 @@ export default function ProducerBeats() {
       setViewMode("list");
     }
   }, [isMobile, viewMode]);
+  
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    
+    try {
+      // First refresh user data
+      if (user) {
+        await forceUserDataRefresh();
+      }
+      
+      // Then refresh beats
+      await forceRefreshBeats();
+    } catch (error) {
+      console.error("Error during refresh:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Filter beats by producer
   const producerBeats = user ? beats.filter(beat => beat.producer_id === user.id) : [];
@@ -81,15 +101,42 @@ export default function ProducerBeats() {
               {producerBeats.length} {producerBeats.length === 1 ? 'beat' : 'beats'}
             </span>
           </div>
-          <Button 
-            onClick={() => navigate('/producer/upload')}
-            size="sm"
-            className="gap-1.5"
-          >
-            <PlusCircle className="h-4 w-4" />
-            Upload
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleRefresh}
+              size="sm" 
+              variant="outline"
+              disabled={isRefreshing}
+              className="gap-1.5"
+            >
+              <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </Button>
+            <Button 
+              onClick={() => navigate('/producer/upload')}
+              size="sm"
+              className="gap-1.5"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Upload
+            </Button>
+          </div>
         </div>
+        
+        {loadingError && (
+          <Alert variant="warning" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Error Loading Beats</AlertTitle>
+            <AlertDescription>
+              {loadingError}
+              <div className="mt-2">
+                <Button size="sm" onClick={handleRefresh} variant="outline" className="gap-2">
+                  <RefreshCw className="h-3 w-3" /> Try Again
+                </Button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         
         {/* View switcher */}
         <div className="flex items-center justify-end gap-2 mb-4">

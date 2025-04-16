@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect } from 'react';
 import { User } from '@/types';
 import { useAuthState } from '@/hooks/auth/useAuthState';
@@ -71,12 +72,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return false;
     }
     
+    console.log(`Forcing refresh of user data for ${user.id}`);
     setIsLoading(true);
+    
     try {
-      console.log(`Forcing refresh of user data for ${user.id}`);
+      // First try to refresh the user session to ensure we have fresh tokens
+      try {
+        console.log("Refreshing user session before fetching user data");
+        await refreshSession();
+      } catch (sessionError) {
+        console.warn("Session refresh failed, continuing with existing session", sessionError);
+      }
+      
+      // Now fetch the user data from the database
       const { data: userData, error } = await supabase
         .from('users')
-        .select('role, status, full_name, country, bio, profile_picture, stage_name')
+        .select('*')
         .eq('id', user.id)
         .maybeSingle();
       
@@ -97,6 +108,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
       
+      // Update the user data in context
       setUser({
         ...user,
         role: userData.role as 'buyer' | 'producer' | 'admin',
@@ -105,12 +117,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         bio: userData.bio || user.bio || '',
         country: userData.country || user.country || '',
         avatar_url: userData.profile_picture || user.avatar_url || '',
-        producer_name: userData.stage_name || user.producer_name || ''
+        producer_name: userData.stage_name || user.producer_name || '',
+        // Add other fields from the database that might have changed
+        updated_at: new Date().toISOString()
       });
       
       setAuthError(null);
       setConsecutiveErrors(0);
       await logSessionEvent('user_refresh_success', { user_id: user.id });
+      toast.success("User data refreshed successfully");
       return true;
     } catch (error: any) {
       console.error("Exception in forceUserDataRefresh:", error);
@@ -126,6 +141,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
     
   const recoverSession = (email?: string) => {
+    toast.loading("Attempting to recover your session...");
     initiateRecoveryFlow(email);
   };
   

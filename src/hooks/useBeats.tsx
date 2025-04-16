@@ -35,13 +35,16 @@ export function useBeats() {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const [retryCount, setRetryCount] = useState(0);
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
+  const [networkTimeout, setNetworkTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Declare fetchUserFavoritesData and fetchPurchasedBeatsData before referencing them
+  // Move function declarations to the top to avoid temporal dead zone issues
   const fetchUserFavoritesData = async () => {
     if (!user) return;
     
     try {
+      console.log('Fetching user favorites for user:', user.id);
       const favorites = await fetchUserFavorites(user.id);
+      console.log('User favorites fetched:', favorites);
       setUserFavorites(favorites);
     } catch (error) {
       console.error('Error fetching user favorites:', error);
@@ -52,7 +55,9 @@ export function useBeats() {
     if (!user) return;
     
     try {
+      console.log('Fetching purchased beats for user:', user.id);
       const purchasedIds = await fetchPurchasedBeats(user.id);
+      console.log('Purchased beat IDs:', purchasedIds);
       setPurchasedBeats(purchasedIds);
       
       if (purchasedIds.length > 0 && beats.length === 0) {
@@ -82,7 +87,7 @@ export function useBeats() {
     return true;
   };
   
-  const loadFallbackData = () => {
+  const loadFallbackData = useCallback(() => {
     console.log('Loading fallback data');
     
     const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS) || fallbackBeats;
@@ -109,11 +114,15 @@ export function useBeats() {
     
     setIsLoading(false);
     setLoadingError('Could not load beats from server. Using cached or demo content.');
-  };
+  }, []);
 
   const fetchBeats = useCallback(async () => {
     setIsLoading(true);
     setLoadingError(null);
+    
+    if (networkTimeout) {
+      clearTimeout(networkTimeout);
+    }
     
     if (!await checkNetworkAndRetry()) {
       return;
@@ -122,8 +131,13 @@ export function useBeats() {
     console.log('Fetching beats from API...');
     
     try {
+      // Set a timeout for the API call
       const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
+        const timeout = setTimeout(() => {
+          reject(new Error("Request timed out after 15 seconds"));
+        }, 15000);
+        setNetworkTimeout(timeout);
+        return () => clearTimeout(timeout);
       });
       
       const transformedBeats = await Promise.race([
@@ -131,12 +145,18 @@ export function useBeats() {
         timeoutPromise
       ]) as Beat[];
       
+      if (networkTimeout) {
+        clearTimeout(networkTimeout);
+        setNetworkTimeout(null);
+      }
+      
       if (!transformedBeats || transformedBeats.length === 0) {
         console.warn("No beats returned from API, using fallback data");
         loadFallbackData();
         return;
       }
       
+      console.log(`Fetched ${transformedBeats.length} beats from API`);
       saveToCache(CACHE_KEYS.ALL_BEATS, transformedBeats, CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
       
       setBeats(transformedBeats);
@@ -209,7 +229,13 @@ export function useBeats() {
     } catch (error: any) {
       console.error('Error fetching beats:', error);
       
+      if (networkTimeout) {
+        clearTimeout(networkTimeout);
+        setNetworkTimeout(null);
+      }
+      
       if (retryCount < 3) {
+        console.log(`Retry attempt ${retryCount + 1} of 3`);
         setRetryCount(prev => prev + 1);
         setTimeout(() => fetchBeats(), 1000 * (retryCount + 1));
         return;
@@ -224,7 +250,7 @@ export function useBeats() {
         toast.error('Failed to load beats. Using cached content.');
       }
     }
-  }, [user, activeFilters, retryCount]);
+  }, [user, activeFilters, retryCount, loadFallbackData, networkTimeout]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -248,8 +274,11 @@ export function useBeats() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      if (networkTimeout) {
+        clearTimeout(networkTimeout);
+      }
     };
-  }, [fetchBeats]);
+  }, [fetchBeats, networkTimeout]);
 
   useEffect(() => {
     fetchBeats();
@@ -263,7 +292,7 @@ export function useBeats() {
     }, 5 * 60 * 1000);
     
     return () => clearInterval(intervalId);
-  }, [fetchBeats]);
+  }, [fetchBeats, beats.length]);
 
   const updateFilters = (newFilters: FilterValues) => {
     setActiveFilters(newFilters);
@@ -324,9 +353,14 @@ export function useBeats() {
   };
   
   const getBeatById = async (id: string): Promise<Beat | null> => {
+    console.log(`Getting beat by ID: ${id}`);
     const localBeat = beats.find(beat => beat.id === id);
-    if (localBeat) return localBeat;
+    if (localBeat) {
+      console.log(`Found beat locally: ${localBeat.title}`);
+      return localBeat;
+    }
     
+    console.log(`Fetching beat from API: ${id}`);
     return fetchBeatById(id);
   };
   
@@ -336,6 +370,13 @@ export function useBeats() {
 
   const getUserFavoriteBeats = (): Beat[] => {
     return beats.filter(beat => userFavorites.includes(beat.id));
+  };
+
+  // Force refresh function to allow manual refresh
+  const forceRefreshBeats = () => {
+    setRetryCount(0);
+    fetchBeats();
+    toast.success('Refreshing beats...');
   };
 
   return {
@@ -351,6 +392,7 @@ export function useBeats() {
     updateFilters,
     clearFilters,
     fetchBeats,
+    forceRefreshBeats, // Add this new function to the returned object
     fetchTrendingBeats: async () => {
       const trending = await fetchTrendingBeats();
       setTrendingBeats(trending);
