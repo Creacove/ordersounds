@@ -77,10 +77,10 @@ export function PaystackDialog({
         {paymentStarted ? (
           <div className="p-3 border border-orange-500/30 bg-orange-500/10 rounded-md mb-4">
             <p className="text-sm">
-              <span className="font-medium">Test Payment Instructions:</span> In test mode, you can use the Success, Bank Authentication, or Declined buttons to simulate different payment outcomes.
+              <span className="font-medium">Test Payment Instructions:</span> In test mode, use the Success, Bank Authentication, or Declined buttons to simulate different payment outcomes.
             </p>
             <p className="text-xs mt-1 text-muted-foreground">
-              If the test buttons aren't clickable yet, please wait a few seconds for the payment screen to fully load.
+              If the test buttons aren't clickable yet, please wait a moment for the payment screen to load. The Paystack test modal should appear separately.
             </p>
           </div>
         ) : null}

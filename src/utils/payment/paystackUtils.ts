@@ -104,7 +104,7 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
   try {
     console.log('Payment success, verifying with backend...', paymentReference, orderId);
     
-    // Show loading toast to indicate verification is in progress
+    // Show loading toast
     toast.loading('Verifying your payment...', { id: 'payment-verification' });
     
     // Call the verification edge function with explicit order items data
@@ -116,7 +116,7 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
       },
     });
     
-    // Always dismiss the loading toast regardless of outcome
+    // Always dismiss the loading toast
     toast.dismiss('payment-verification');
     
     if (error) {
@@ -130,7 +130,6 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
     if (data && data.verified) {
       return { success: true };
     } else {
-      // Handle non-success case separately
       const errorMsg = data?.message || 'Payment verification failed';
       toast.error('Payment verification failed. Please try again or contact support with your reference: ' + paymentReference);
       return { success: false, error: errorMsg };
