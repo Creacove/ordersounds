@@ -81,3 +81,34 @@ export const logSessionEvent = async (
 ) => {
   return logAuthEvent('session', event, details, userId);
 };
+
+/**
+ * Force a re-authentication flow for users experiencing issues
+ * @param email Optional email to pre-populate the login form
+ */
+export const initiateRecoveryFlow = (email?: string) => {
+  try {
+    // Clear any existing auth data that might be causing problems
+    supabase.auth.signOut({ scope: 'local' });
+    
+    // Remove any OAuth-related data
+    localStorage.removeItem('oauth_initiated');
+    localStorage.removeItem('oauth_provider');
+    localStorage.removeItem('oauth_mode');
+    
+    // Clear any Supabase-related error states
+    localStorage.removeItem('supabase.auth.error');
+    sessionStorage.removeItem('supabase.auth.error');
+    
+    // Log this recovery attempt
+    logAuthEvent('recovery', 'initiated', { email });
+    
+    // Redirect to login with recovery parameter
+    const loginUrl = `/login${email ? `?email=${encodeURIComponent(email)}&recovery=true` : '?recovery=true'}`;
+    window.location.href = loginUrl;
+  } catch (error) {
+    console.error('Failed to initiate recovery flow:', error);
+    // Fallback to simple redirect if something fails
+    window.location.href = '/login?recovery=true';
+  }
+};

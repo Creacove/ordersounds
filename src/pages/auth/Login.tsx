@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
@@ -8,12 +9,17 @@ import { Label } from "@/components/ui/label";
 import { GoogleAuthButton } from "@/components/auth/GoogleAuthButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { uniqueToast } from "@/lib/toast";
+import { logAuthEvent } from "@/lib/authLogger";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const recoveryMode = searchParams.get('recovery') === 'true';
+  const recoveryEmail = searchParams.get('email') || "";
+  
+  const [email, setEmail] = useState(recoveryEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,10 +27,39 @@ export default function Login() {
     email: "",
     password: ""
   });
-  const { login } = useAuth();
+  const { login, refreshSession } = useAuth();
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  useEffect(() => {
+    // If in recovery mode, attempt to clean any problematic auth state
+    if (recoveryMode) {
+      const attemptCleanup = async () => {
+        try {
+          // Sign out locally first to clear any problematic tokens
+          await supabase.auth.signOut({ scope: 'local' });
+          
+          // Clear auth storage
+          try {
+            localStorage.removeItem('supabase.auth.token');
+            sessionStorage.removeItem('supabase.auth.token');
+          } catch (e) {
+            console.warn('Could not access storage:', e);
+          }
+          
+          // Log the recovery attempt
+          await logAuthEvent('recovery', 'cleanup_complete', { email: recoveryEmail || undefined });
+          
+          uniqueToast.info('Your session has been reset. Please sign in again.');
+        } catch (error) {
+          console.error('Error during auth recovery:', error);
+        }
+      };
+      
+      attemptCleanup();
+    }
+  }, [recoveryMode, recoveryEmail]);
 
   const validateForm = () => {
     let valid = true;
@@ -55,6 +90,11 @@ export default function Login() {
     if (validateForm()) {
       try {
         setIsSubmitting(true);
+        
+        if (recoveryMode) {
+          await logAuthEvent('recovery', 'login_attempt', { email });
+        }
+        
         await login(email, password);
       } catch (error) {
         console.error("Login error:", error);
@@ -266,15 +306,26 @@ export default function Login() {
           <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-background/95 backdrop-blur-sm border border-border/20 shadow-xl animate-fade-in relative z-10">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold tracking-tight text-center">
-                {showForgotPassword ? "Reset Password" : "Welcome back"}
+                {showForgotPassword ? "Reset Password" : recoveryMode ? "Session Recovery" : "Welcome back"}
               </CardTitle>
               <CardDescription className="text-center">
                 {showForgotPassword 
                   ? "Enter your email to receive a password reset link" 
-                  : "Enter your credentials to sign in to your account"}
+                  : recoveryMode
+                    ? "Please sign in again to restore your session"
+                    : "Enter your credentials to sign in to your account"}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6">
+              {recoveryMode && (
+                <Alert className="bg-amber-500/10 border-amber-500/50 text-amber-600">
+                  <AlertTitle>Session recovery mode</AlertTitle>
+                  <AlertDescription>
+                    Your previous session encountered an error. Sign in again to fix the issue.
+                  </AlertDescription>
+                </Alert>
+              )}
+            
               {showForgotPassword ? renderForgotPasswordForm() : renderLoginForm()}
               {!showForgotPassword && (
                 <>

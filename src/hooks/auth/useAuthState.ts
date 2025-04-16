@@ -6,7 +6,7 @@ import { mapSupabaseUser } from "@/lib/supabase";
 import { uniqueToast } from "@/lib/toast";
 
 // Current app version - used for version-aware migrations
-const CURRENT_APP_VERSION = '1.0.1'; // Increment this when making auth-related changes
+const CURRENT_APP_VERSION = '1.0.2'; // Incremented for auth recovery feature
 
 // Get the previously stored app version
 const getPreviousAppVersion = (): string | null => {
@@ -37,6 +37,7 @@ export interface AuthState {
     previous: string | null;
     hasChanged: boolean;
   };
+  consecutiveErrors: number;
 }
 
 export const useAuthState = () => {
@@ -46,6 +47,7 @@ export const useAuthState = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [hasShownError, setHasShownError] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [consecutiveErrors, setConsecutiveErrors] = useState(0);
   const maxRetries = 3;
 
   // Track app version for migration purposes
@@ -60,6 +62,20 @@ export const useAuthState = () => {
   useEffect(() => {
     storeCurrentAppVersion();
   }, []);
+
+  // Reset consecutive errors when user is set
+  useEffect(() => {
+    if (user) {
+      setConsecutiveErrors(0);
+    }
+  }, [user]);
+
+  // Increment consecutive errors when authError is set
+  useEffect(() => {
+    if (authError && !authError.includes('[silent]')) {
+      setConsecutiveErrors(prev => prev + 1);
+    }
+  }, [authError]);
 
   const getCurrencyFromLocalStorage = () => {
     try {
@@ -299,5 +315,7 @@ export const useAuthState = () => {
     authError,
     setAuthError,
     appVersion,
+    consecutiveErrors,
+    setConsecutiveErrors,
   };
 };

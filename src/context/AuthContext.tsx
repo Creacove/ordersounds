@@ -5,6 +5,7 @@ import { useAuthState } from '@/hooks/auth/useAuthState';
 import { useAuthMethods } from '@/hooks/auth/useAuthMethods';
 import { toast } from 'sonner';
 import { logSessionEvent } from '@/lib/authLogger';
+import { initiateRecoveryFlow } from '@/lib/authLogger';
 
 interface AuthContextType {
   user: User | null;
@@ -19,6 +20,7 @@ interface AuthContextType {
   isProducerInactive: boolean;
   authError: string | null;
   refreshSession: () => Promise<boolean>;
+  recoverSession: (email?: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     authError,
     setAuthError,
     appVersion,
+    consecutiveErrors,
+    setConsecutiveErrors
   } = useAuthState();
   
   const { 
@@ -47,18 +51,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrency, 
     setIsLoading,
     setAuthError,
+    setConsecutiveErrors,
     appVersion
   });
 
   // Function to directly update user info in context
   const updateUserInfo = (updatedUser: User) => {
     setUser(updatedUser);
+    setConsecutiveErrors(0); // Reset error counter on successful user update
   };
   
   // Check if producer is inactive
   const isProducerInactive = 
     user?.role === 'producer' && 
     user?.status === 'inactive';
+    
+  // Recovery function exposed to components
+  const recoverSession = (email?: string) => {
+    initiateRecoveryFlow(email);
+  };
   
   // Log auth errors for monitoring
   useEffect(() => {
@@ -78,8 +89,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } else {
         logSessionEvent('auth_error', { error: authError });
       }
+      
+      // Track consecutive errors - if we get too many, suggest recovery
+      if (consecutiveErrors >= 3 && !authError.includes('[silent]')) {
+        toast.error(
+          "We're having trouble with your session. Please try logging in again.", 
+          { 
+            action: {
+              label: "Fix Now",
+              onClick: () => initiateRecoveryFlow(user?.email)
+            }
+          }
+        );
+      }
     }
-  }, [authError, user]);
+  }, [authError, user, consecutiveErrors]);
 
   // Version-aware token migration on app startup
   useEffect(() => {
@@ -112,7 +136,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         updateUserInfo,
         isProducerInactive,
         authError,
-        refreshSession
+        refreshSession,
+        recoverSession
       }}
     >
       {children}

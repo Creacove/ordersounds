@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +7,7 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { RoleSelectionDialog } from '@/components/auth/RoleSelectionDialog';
 import { Button } from '@/components/ui/button';
 import { uniqueToast } from '@/lib/toast';
-import { logCallbackEvent } from '@/lib/authLogger';
+import { logCallbackEvent, initiateRecoveryFlow } from '@/lib/authLogger';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ export default function AuthCallback() {
   const [retryCount, setRetryCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isGoogleAuth, setIsGoogleAuth] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [showRecoveryOption, setShowRecoveryOption] = useState(false);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -53,6 +56,9 @@ export default function AuthCallback() {
           console.log("Auth callback: Session found", data.session.user.id);
           await logCallbackEvent('session_found', { user_id: data.session.user.id });
           
+          // Store email for potential recovery
+          setUserEmail(data.session.user.email);
+          
           setTimeout(async () => {
             try {
               const { data: userData, error: userError } = await supabase
@@ -76,6 +82,8 @@ export default function AuthCallback() {
                   return;
                 }
                 
+                // After max retries, show recovery option
+                setShowRecoveryOption(true);
                 throw userError;
               }
               
@@ -134,9 +142,8 @@ export default function AuthCallback() {
               setError(`User processing error: ${error.message}`);
               await logCallbackEvent('user_processing_error', { error: error.message });
               
-              navigate('/');
-              uniqueToast.error('Error processing account data');
-            } finally {
+              // Show recovery options when processing fails
+              setShowRecoveryOption(true);
               setIsLoading(false);
             }
           }, wasOAuthFlow ? 1500 : 500);
@@ -151,8 +158,10 @@ export default function AuthCallback() {
         console.error('Error handling auth callback:', error);
         setError(`Auth callback error: ${error.message}`);
         await logCallbackEvent('callback_exception', { error: error.message });
-        uniqueToast.error('Authentication failed');
-        navigate('/login');
+        
+        // Show recovery option on critical errors
+        setShowRecoveryOption(true);
+        setIsLoading(false);
       } finally {
         setIsLoading(false);
       }
@@ -160,6 +169,10 @@ export default function AuthCallback() {
     
     handleAuthCallback();
   }, [navigate, updateUserInfo, user, retryCount, refreshSession]);
+
+  const handleRecovery = () => {
+    initiateRecoveryFlow(userEmail || undefined);
+  };
 
   return (
     <MainLayout hideSidebar>
@@ -187,12 +200,33 @@ export default function AuthCallback() {
               <p className="text-xl font-semibold">Authentication Error</p>
               <p className="text-sm">{error}</p>
             </div>
-            <Button 
-              onClick={() => navigate('/login')}
-              className="mt-4"
-            >
-              Return to Login
-            </Button>
+            {showRecoveryOption ? (
+              <div className="flex flex-col gap-2 items-center">
+                <Button 
+                  onClick={handleRecovery}
+                  className="mt-4 bg-amber-600 hover:bg-amber-700"
+                >
+                  Restart Authentication Process
+                </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Click to reset your session and try again
+                </p>
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/login')}
+                  className="mt-2"
+                >
+                  Return to Login
+                </Button>
+              </div>
+            ) : (
+              <Button 
+                onClick={() => navigate('/login')}
+                className="mt-4"
+              >
+                Return to Login
+              </Button>
+            )}
           </>
         )}
         {!isLoading && !showRoleSelection && !error && (

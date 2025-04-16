@@ -6,12 +6,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { mapSupabaseUser } from '@/lib/supabase';
 import { uniqueToast } from '@/lib/toast';
 import { useState } from 'react';
+import { logSessionEvent } from '@/lib/authLogger';
 
 interface AuthMethodsProps {
   setUser: (user: User | null) => void;
   setCurrency: (currency: 'NGN' | 'USD') => void;
   setIsLoading: (isLoading: boolean) => void;
   setAuthError: (error: string | null) => void;
+  setConsecutiveErrors?: (value: number) => void;
   appVersion?: {
     current: string;
     previous: string | null;
@@ -24,6 +26,7 @@ export const useAuthMethods = ({
   setCurrency, 
   setIsLoading,
   setAuthError,
+  setConsecutiveErrors = () => {},
   appVersion 
 }: AuthMethodsProps) => {
   const navigate = useNavigate();
@@ -50,6 +53,9 @@ export const useAuthMethods = ({
         console.error('Session refresh error:', error);
         setAuthError(`[silent] Refresh session failed: ${error.message}`);
         
+        // Log the refresh failure
+        await logSessionEvent('refresh_failed', { error: error.message });
+        
         // If version changed, show a helpful message
         if (appVersion?.hasChanged) {
           uniqueToast.error('Please login again due to a recent update');
@@ -60,20 +66,26 @@ export const useAuthMethods = ({
       
       if (data?.session && data?.user) {
         console.log('Session refreshed successfully');
+        await logSessionEvent('refresh_success', { user_id: data.user.id });
         
         // Map the user data
         const mappedUser = mapSupabaseUser(data.user);
         setUser(mappedUser);
         
+        // Reset consecutive errors on successful refresh
+        setConsecutiveErrors(0);
+        
         return true;
       } else {
         console.log('No session data returned');
         setAuthError('[silent] No session data returned from refresh');
+        await logSessionEvent('refresh_no_data');
         return false;
       }
     } catch (error: any) {
       console.error('Error refreshing session:', error);
       setAuthError(`[silent] Error in refresh session: ${error.message}`);
+      await logSessionEvent('refresh_exception', { error: error.message });
       return false;
     } finally {
       setIsLoading(false);
