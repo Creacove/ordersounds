@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -5,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { RoleSelectionDialog } from '@/components/auth/RoleSelectionDialog';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { toast } from 'sonner';  // Fixed import
 import { logCallbackEvent, initiateRecoveryFlow } from '@/lib/authLogger';
 import { uniqueToast } from '@/lib/toast';
 
@@ -245,7 +246,7 @@ export default function AuthCallback() {
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();  // Changed from single() to maybeSingle() for better error handling
         
       if (userError) throw userError;
       

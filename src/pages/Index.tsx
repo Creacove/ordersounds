@@ -54,7 +54,7 @@ const fallbackFeaturedBeat: Beat = {
 };
 
 export default function IndexPage() {
-  const { user } = useAuth();
+  const { user, forceUserDataRefresh } = useAuth();
   const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats } = useBeats();
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
   const { prefetchProducers } = useProducers();
@@ -62,15 +62,26 @@ export default function IndexPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [networkError, setNetworkError] = useState(false);
+  const [userDataError, setUserDataError] = useState(false);
   const navigate = useNavigate();
 
   const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
+
+  // Check for user data issues on page load
+  useEffect(() => {
+    if (user && (!user.role || !user.name)) {
+      console.log("Incomplete user data detected, may need refresh");
+      setUserDataError(true);
+    } else {
+      setUserDataError(false);
+    }
+  }, [user]);
 
   // Preload producers data when the page loads
   useEffect(() => {
     // This will trigger the producers data fetch in the background
     prefetchProducers();
-  }, []);
+  }, [prefetchProducers]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,8 +96,18 @@ export default function IndexPage() {
     setNetworkError(false);
     
     try {
+      // First refresh user data if needed
+      if (userDataError && user) {
+        const userRefreshed = await forceUserDataRefresh();
+        if (userRefreshed) {
+          toast.success("User data refreshed successfully");
+        }
+      }
+      
+      // Then refresh beats
       await fetchBeats();
       toast.success("Content refreshed successfully");
+      setUserDataError(false);
     } catch (error) {
       console.error("Error refreshing data:", error);
       setNetworkError(true);
@@ -126,11 +147,13 @@ export default function IndexPage() {
           </form>
         </div>
 
-        {networkError && (
-          <Alert variant="destructive" className="mb-6">
+        {(networkError || userDataError) && (
+          <Alert variant={userDataError ? "warning" : "destructive"} className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Connection issues detected. Some content may not be available.
+              {userDataError 
+                ? "User data may be incomplete. This could cause limited functionality." 
+                : "Connection issues detected. Some content may not be available."}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -146,7 +169,7 @@ export default function IndexPage() {
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    Retry
+                    {userDataError ? "Refresh User Data" : "Retry"}
                   </>
                 )}
               </Button>

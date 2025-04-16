@@ -5,7 +5,7 @@ import { useAuthMethods } from '@/hooks/auth/useAuthMethods';
 import { toast } from 'sonner';
 import { logSessionEvent } from '@/lib/authLogger';
 import { initiateRecoveryFlow } from '@/lib/authLogger';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         .from('users')
         .select('role, status, full_name, country, bio, profile_picture, stage_name')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error("Force user data refresh error:", error);
