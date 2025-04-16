@@ -1,18 +1,84 @@
+
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { mapSupabaseUser } from '@/lib/supabase';
 import { uniqueToast } from '@/lib/toast';
+import { useState } from 'react';
 
 interface AuthMethodsProps {
   setUser: (user: User | null) => void;
   setCurrency: (currency: 'NGN' | 'USD') => void;
   setIsLoading: (isLoading: boolean) => void;
+  setAuthError: (error: string | null) => void;
+  appVersion?: {
+    current: string;
+    previous: string | null;
+    hasChanged: boolean;
+  };
 }
 
-export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMethodsProps) => {
+export const useAuthMethods = ({ 
+  setUser, 
+  setCurrency, 
+  setIsLoading,
+  setAuthError,
+  appVersion 
+}: AuthMethodsProps) => {
   const navigate = useNavigate();
+  const [tokenRefreshAttempted, setTokenRefreshAttempted] = useState(false);
+
+  // Function to refresh the session using refresh token
+  const refreshSession = async (): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      setAuthError(null);
+      
+      if (tokenRefreshAttempted) {
+        console.log('Token refresh already attempted, skipping to prevent loop');
+        return false;
+      }
+
+      setTokenRefreshAttempted(true);
+      console.log('Attempting to refresh session...');
+      
+      // Try to refresh the token using Supabase's built-in refresh mechanism
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        console.error('Session refresh error:', error);
+        setAuthError(`[silent] Refresh session failed: ${error.message}`);
+        
+        // If version changed, show a helpful message
+        if (appVersion?.hasChanged) {
+          uniqueToast.error('Please login again due to a recent update');
+        }
+        
+        return false;
+      }
+      
+      if (data?.session && data?.user) {
+        console.log('Session refreshed successfully');
+        
+        // Map the user data
+        const mappedUser = mapSupabaseUser(data.user);
+        setUser(mappedUser);
+        
+        return true;
+      } else {
+        console.log('No session data returned');
+        setAuthError('[silent] No session data returned from refresh');
+        return false;
+      }
+    } catch (error: any) {
+      console.error('Error refreshing session:', error);
+      setAuthError(`[silent] Error in refresh session: ${error.message}`);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -277,6 +343,7 @@ export const useAuthMethods = ({ setUser, setCurrency, setIsLoading }: AuthMetho
     login,
     signup,
     logout,
-    updateProfile
+    updateProfile,
+    refreshSession
   };
 };

@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { User } from '@/types';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { mapSupabaseUser } from '@/lib/supabase';
@@ -36,19 +36,19 @@ export const useAuthMethods = ({
     try {
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
-      const eventData = {
+      
+      // Log to console for now
+      console.log('Auth event:', {
         event_type: event,
         user_id: userId || 'anonymous',
-        details: JSON.stringify({
+        details: {
           ...details,
           app_version: appVersion.current,
           timestamp: new Date().toISOString(),
-        }),
-        created_at: new Date().toISOString()
-      };
-
-      // Store in Supabase (assuming an auth_logs table exists)
-      await supabase.from('auth_logs').insert([eventData]);
+        }
+      });
+      
+      // We'll implement proper database logging once types are updated
     } catch (error) {
       // Silent error - don't break the app if logging fails
       console.error('Failed to log auth event:', error);
