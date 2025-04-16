@@ -55,8 +55,19 @@ export function PaystackDialog({
               size="sm" 
               className="mt-2 w-full"
               onClick={onRefreshCart}
+              disabled={isValidating}
             >
-              <RefreshCw className="mr-2 h-4 w-4" /> Refresh Cart
+              {isValidating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" /> 
+                  Refresh Cart
+                </>
+              )}
             </Button>
           </div>
         )}
@@ -68,10 +79,15 @@ export function PaystackDialog({
             className="w-full py-6 text-base"
             size="lg"
           >
-            {isProcessing || paymentStarted ? (
+            {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                {paymentStarted ? "Payment window opened..." : "Processing..."}
+                Processing...
+              </>
+            ) : paymentStarted ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Payment window opened...
               </>
             ) : isValidating ? (
               <>

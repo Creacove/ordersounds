@@ -37,6 +37,7 @@ export function usePaystackCheckout({
   const { user } = useAuth();
   const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
+  const paymentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Create direct function references to prevent serialization issues
   const paystackCloseRef = useRef(() => {
@@ -44,11 +45,24 @@ export function usePaystackCheckout({
     setIsProcessing(false);
     setPaymentStarted(false);
     localStorage.removeItem('paymentInProgress');
+    
+    // Clear any existing payment timeout
+    if (paymentTimeoutRef.current) {
+      clearTimeout(paymentTimeoutRef.current);
+      paymentTimeoutRef.current = null;
+    }
+    
     onClose();
   });
   
   const paystackSuccessRef = useRef((response: any) => {
     console.log('Payment complete! Response:', response);
+    
+    // Clear any existing payment timeout
+    if (paymentTimeoutRef.current) {
+      clearTimeout(paymentTimeoutRef.current);
+      paymentTimeoutRef.current = null;
+    }
     
     const handleSuccess = async () => {
       try {
@@ -124,6 +138,7 @@ export function usePaystackCheckout({
           
           localStorage.setItem('purchaseSuccess', 'true');
           localStorage.setItem('purchaseTime', Date.now().toString());
+          localStorage.removeItem('paymentInProgress');
           
           // Success! Clear cart and redirect
           clearCart();
@@ -435,14 +450,18 @@ export function usePaystackCheckout({
         // Explicitly open the payment iframe
         handler.openIframe();
         
-        // Set a timeout to reset processing state if iframe fails to open
-        setTimeout(() => {
-          if (paymentStarted && isProcessing) {
-            console.log('Payment iframe may have failed to open, resetting state');
-            setIsProcessing(false);
-            setPaymentStarted(false);
-          }
-        }, 5000);
+        // Set a timeout to reset processing state if iframe fails to open or payment takes too long
+        if (paymentTimeoutRef.current) {
+          clearTimeout(paymentTimeoutRef.current);
+        }
+        
+        paymentTimeoutRef.current = setTimeout(() => {
+          console.log('Payment timeout reached, resetting state');
+          toast.error('Payment taking too long. Please try again.');
+          setIsProcessing(false);
+          setPaymentStarted(false);
+          localStorage.removeItem('paymentInProgress');
+        }, 120000); // 2 minute timeout
       } catch (error) {
         console.error('Paystack initialization error:', error);
         toast.error('Failed to initialize payment. Please try again.');
@@ -470,8 +489,27 @@ export function usePaystackCheckout({
     localStorage.removeItem('pendingOrderId');
     localStorage.removeItem('paystackReference');
     localStorage.removeItem('orderItems');
+    
+    // Clear any existing payment timeout
+    if (paymentTimeoutRef.current) {
+      clearTimeout(paymentTimeoutRef.current);
+      paymentTimeoutRef.current = null;
+    }
+    
     onClose();
+    
+    toast.info('Payment canceled');
   };
+
+  // Cleanup timeout on unmount
+  useCallback(() => {
+    return () => {
+      if (paymentTimeoutRef.current) {
+        clearTimeout(paymentTimeoutRef.current);
+        paymentTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   return {
     isProcessing,

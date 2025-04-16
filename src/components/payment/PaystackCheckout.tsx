@@ -39,6 +39,9 @@ export function PaystackCheckout({
     beatId
   });
 
+  // Don't render anything if dialog is not open
+  if (!isOpen) return null;
+
   return (
     <PaystackDialog
       isOpen={isOpen}
