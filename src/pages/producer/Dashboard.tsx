@@ -7,10 +7,6 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { getProducerStats } from "@/lib/producerStats";
-import { Button } from "@/components/ui/button";
-import { RefreshCw, AlertCircle } from "lucide-react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { toast } from "sonner";
 
 // Import refactored components
 import { StatsCards } from "@/components/producer/dashboard/StatsCards";
@@ -21,8 +17,8 @@ import { TopSellingBeats } from "@/components/producer/dashboard/TopSellingBeats
 import { BankDetailsCard } from "@/components/producer/dashboard/BankDetailsCard";
 
 export default function ProducerDashboard() {
-  const { user, currency, forceUserDataRefresh } = useAuth();
-  const { getProducerBeats, forceRefreshBeats, isLoading, loadingError } = useBeats();
+  const { user, currency } = useAuth();
+  const { getProducerBeats } = useBeats();
   const { notifications } = useNotifications();
   const navigate = useNavigate();
   const [showBankDetails, setShowBankDetails] = useState(false);
@@ -31,7 +27,6 @@ export default function ProducerDashboard() {
   const [stats, setStats] = useState(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [userLoadError, setUserLoadError] = useState<string | null>(null);
 
   // Fetch producer data including bank details and subaccount info
   useEffect(() => {
@@ -40,8 +35,6 @@ export default function ProducerDashboard() {
 
       try {
         setIsLoadingProducer(true);
-        setUserLoadError(null);
-        
         const { data, error } = await supabase
           .from("users")
           .select(
@@ -52,7 +45,6 @@ export default function ProducerDashboard() {
 
         if (error) {
           console.error("Error fetching producer data:", error);
-          setUserLoadError("Could not load your producer profile. Please refresh.");
           return;
         }
 
@@ -64,7 +56,6 @@ export default function ProducerDashboard() {
         }
       } catch (error) {
         console.error("Error fetching producer data:", error);
-        setUserLoadError("An unexpected error occurred while loading your producer profile.");
       } finally {
         setIsLoadingProducer(false);
       }
@@ -118,67 +109,11 @@ export default function ProducerDashboard() {
     // Refresh producer data
     setRefreshTrigger((prev) => prev + 1);
   };
-  
-  const handleRefreshData = async () => {
-    toast.loading("Refreshing data...");
-    
-    // Refresh user data first
-    if (user) {
-      const success = await forceUserDataRefresh();
-      if (!success) {
-        toast.error("Failed to refresh user data. Please try again.");
-      }
-    }
-    
-    // Then refresh beats
-    forceRefreshBeats();
-    
-    // Finally refresh everything else
-    setRefreshTrigger(prev => prev + 1);
-    
-    toast.dismiss();
-    toast.success("Data refreshed successfully!");
-  };
 
   return (
     <MainLayout>
       <div className="container py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold">Producer Dashboard</h1>
-          <Button onClick={handleRefreshData} className="gap-2" variant="outline">
-            <RefreshCw className="h-4 w-4" /> Refresh Data
-          </Button>
-        </div>
-
-        {userLoadError && (
-          <Alert variant="warning" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>User Data Error</AlertTitle>
-            <AlertDescription>
-              {userLoadError}
-              <div className="mt-2">
-                <Button size="sm" onClick={handleRefreshData} variant="outline" className="gap-2">
-                  <RefreshCw className="h-3 w-3" /> Try Again
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        {loadingError && (
-          <Alert variant="warning" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Beats Loading Error</AlertTitle>
-            <AlertDescription>
-              {loadingError}
-              <div className="mt-2">
-                <Button size="sm" onClick={forceRefreshBeats} variant="outline" className="gap-2">
-                  <RefreshCw className="h-3 w-3" /> Try Again
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
+        <h1 className="text-2xl font-bold mb-6">Producer Dashboard</h1>
 
         {isLoadingProducer ? (
           <div className="text-center">Loading bank details...</div>
