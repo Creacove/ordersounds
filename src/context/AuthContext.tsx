@@ -21,6 +21,7 @@ interface AuthContextType {
   authError: string | null;
   refreshSession: () => Promise<boolean>;
   recoverSession: (email?: string) => void;
+  forceUserDataRefresh: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -65,6 +66,68 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isProducerInactive = 
     user?.role === 'producer' && 
     user?.status === 'inactive';
+  
+  // Force refresh user data from database
+  const forceUserDataRefresh = async (): Promise<boolean> => {
+    if (!user) {
+      console.log("Cannot refresh user data, no user in context");
+      return false;
+    }
+    
+    setIsLoading(true);
+    try {
+      console.log(`Forcing refresh of user data for ${user.id}`);
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('role, status, full_name, country, bio, profile_picture, stage_name')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) {
+        console.error("Force user data refresh error:", error);
+        setAuthError(`User data refresh failed: ${error.message}`);
+        await logSessionEvent('user_refresh_failed', { 
+          error: error.message,
+          user_id: user.id
+        });
+        return false;
+      }
+      
+      if (!userData) {
+        console.error("No user data found during forced refresh");
+        setAuthError("User data refresh failed: No data found");
+        await logSessionEvent('user_refresh_no_data', { user_id: user.id });
+        return false;
+      }
+      
+      // Update the user in context with fresh data
+      setUser({
+        ...user,
+        role: userData.role as 'buyer' | 'producer' | 'admin',
+        status: userData.status as 'active' | 'inactive',
+        name: userData.full_name || user.name,
+        bio: userData.bio || user.bio || '',
+        country: userData.country || user.country || '',
+        avatar_url: userData.profile_picture || user.avatar_url || '',
+        producer_name: userData.stage_name || user.producer_name || ''
+      });
+      
+      setAuthError(null);
+      setConsecutiveErrors(0);
+      await logSessionEvent('user_refresh_success', { user_id: user.id });
+      return true;
+    } catch (error: any) {
+      console.error("Exception in forceUserDataRefresh:", error);
+      setAuthError(`Error refreshing user data: ${error.message}`);
+      await logSessionEvent('user_refresh_exception', { 
+        error: error.message,
+        user_id: user.id
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
     
   // Recovery function exposed to components
   const recoverSession = (email?: string) => {
@@ -137,7 +200,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         isProducerInactive,
         authError,
         refreshSession,
-        recoverSession
+        recoverSession,
+        forceUserDataRefresh
       }}
     >
       {children}
