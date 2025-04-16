@@ -5,10 +5,38 @@ import { supabase } from "@/integrations/supabase/client";
 import { mapSupabaseUser } from "@/lib/supabase";
 import { uniqueToast } from "@/lib/toast";
 
+// Current app version - used for version-aware migrations
+const CURRENT_APP_VERSION = '1.0.1'; // Increment this when making auth-related changes
+
+// Get the previously stored app version
+const getPreviousAppVersion = (): string | null => {
+  try {
+    return localStorage.getItem('app_version');
+  } catch (error) {
+    console.error('Error getting app version from localStorage:', error);
+    return null;
+  }
+};
+
+// Store the current app version
+const storeCurrentAppVersion = (): void => {
+  try {
+    localStorage.setItem('app_version', CURRENT_APP_VERSION);
+  } catch (error) {
+    console.error('Error storing app version in localStorage:', error);
+  }
+};
+
 export interface AuthState {
   user: User | null;
   isLoading: boolean;
   currency: "NGN" | "USD";
+  authError: string | null;
+  appVersion: {
+    current: string;
+    previous: string | null;
+    hasChanged: boolean;
+  };
 }
 
 export const useAuthState = () => {
@@ -17,7 +45,21 @@ export const useAuthState = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [hasShownError, setHasShownError] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const maxRetries = 3;
+
+  // Track app version for migration purposes
+  const previousVersion = getPreviousAppVersion();
+  const [appVersion] = useState({
+    current: CURRENT_APP_VERSION,
+    previous: previousVersion,
+    hasChanged: previousVersion !== null && previousVersion !== CURRENT_APP_VERSION
+  });
+
+  // Store the current app version after initialization
+  useEffect(() => {
+    storeCurrentAppVersion();
+  }, []);
 
   const getCurrencyFromLocalStorage = () => {
     try {
@@ -62,18 +104,20 @@ export const useAuthState = () => {
           setHasShownError(true);
         }
         
+        setAuthError(`Error fetching user data: ${userError.message}`);
         throw userError;
       }
       
       // Reset retry count and error flag on success
       setRetryCount(0);
       setHasShownError(false);
+      setAuthError(null);
       
       // Call success handler if data was retrieved
       if (userData) {
         onSuccess(userData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in fetchUserData:", error);
       
       // Only show the error toast once per session
@@ -81,6 +125,8 @@ export const useAuthState = () => {
         uniqueToast.error("Unable to load user data. Please refresh the page.");
         setHasShownError(true);
       }
+      
+      setAuthError(`[silent] Error fetching user data: ${error.message}`);
     }
   };
 
@@ -95,7 +141,10 @@ export const useAuthState = () => {
 
         if (error) {
           console.error("Session check error:", error);
-          if (mounted) setIsLoading(false);
+          if (mounted) {
+            setIsLoading(false);
+            setAuthError(`[silent] Session check failed: ${error.message}`);
+          }
           return;
         }
 
@@ -144,7 +193,7 @@ export const useAuthState = () => {
               // Finally set loading to false
               setIsLoading(false);
             });
-          }, 1000); // Increased delay to avoid race conditions
+          }, 100); // Slightly reduced delay as we're using setTimeout for safer auth operations
         } else {
           if (mounted) {
             setIsLoading(false);
@@ -152,13 +201,16 @@ export const useAuthState = () => {
             setCurrency(currency);
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Session check error:", error);
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setAuthError(`[silent] Session check error: ${error.message}`);
+        }
       }
     };
 
-    // Then set up auth state listener
+    // IMPORTANT: Set up auth state listener FIRST
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -209,14 +261,16 @@ export const useAuthState = () => {
             };
 
             setUser(enrichedUser);
+            setAuthError(null);
             
             const currency = getCurrencyFromLocalStorage();
             setCurrency(currency);
             setIsLoading(false);
           });
-        }, 1000); // Increased delay to avoid race conditions
+        }, 100);
       } else if (event === "SIGNED_OUT") {
         setUser(null);
+        setAuthError(null);
         setIsLoading(false);
         setHasShownError(false); // Reset error flag on sign out
         
@@ -226,6 +280,7 @@ export const useAuthState = () => {
       }
     });
 
+    // THEN check for existing session
     checkSession();
 
     return () => {
@@ -241,5 +296,8 @@ export const useAuthState = () => {
     setCurrency,
     isLoading,
     setIsLoading,
+    authError,
+    setAuthError,
+    appVersion,
   };
 };

@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,11 +10,36 @@ import { uniqueToast } from '@/lib/toast';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
-  const { user, updateUserInfo } = useAuth();
+  const { user, updateUserInfo, refreshSession } = useAuth();
   const [showRoleSelection, setShowRoleSelection] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [retryCount, setRetryCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isGoogleAuth, setIsGoogleAuth] = useState(false);
+
+  // Function to log auth callback events
+  const logCallbackEvent = async (event: string, details: any = {}) => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const userId = session?.session?.user?.id;
+      
+      const eventData = {
+        event_type: `callback_${event}`,
+        user_id: userId || details.user_id || 'anonymous',
+        details: JSON.stringify({
+          ...details,
+          timestamp: new Date().toISOString(),
+        }),
+        created_at: new Date().toISOString()
+      };
+
+      // Store in Supabase
+      await supabase.from('auth_logs').insert([eventData]);
+    } catch (error) {
+      // Silent error - don't break the app if logging fails
+      console.error('Failed to log auth callback event:', error);
+    }
+  };
 
   useEffect(() => {
     const handleAuthCallback = async () => {
@@ -22,19 +48,39 @@ export default function AuthCallback() {
         setError(null);
         console.log("Auth callback: Processing authentication response");
         
-        // Get the session from the URL (Supabase handles this)
+        // Check if this was a Google OAuth flow
+        const wasOAuthFlow = localStorage.getItem('oauth_initiated');
+        const oauthProvider = localStorage.getItem('oauth_provider');
+        setIsGoogleAuth(oauthProvider === 'google');
+        
+        if (wasOAuthFlow && oauthProvider === 'google') {
+          console.log("This appears to be a Google OAuth flow");
+          logCallbackEvent('google_detected', { oauth_initiated: wasOAuthFlow });
+        }
+        
+        // Get the session to see if we're authenticated
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error("Auth callback error:", error);
           setError(`Session error: ${error.message}`);
-          throw error;
+          logCallbackEvent('session_error', { error: error.message });
+          
+          // Try to recover using session refresh
+          const refreshed = await refreshSession();
+          if (!refreshed) {
+            throw error;
+          } else {
+            console.log("Auth callback: Session refreshed successfully");
+            logCallbackEvent('session_refreshed');
+          }
         }
         
         if (data?.session) {
           console.log("Auth callback: Session found", data.session.user.id);
+          logCallbackEvent('session_found', { user_id: data.session.user.id });
           
-          // Add a delay before fetching user data to ensure the session is properly registered
+          // Check if user exists and has a role with additional timeout for Google auth
           setTimeout(async () => {
             try {
               // Check if user exists and has a role
@@ -48,6 +94,10 @@ export default function AuthCallback() {
               if (userError) {
                 console.error("User data fetch error:", userError);
                 setError(`User data error: ${userError.message}`);
+                logCallbackEvent('user_data_error', { 
+                  error: userError.message,
+                  user_id: data.session.user.id
+                });
                 
                 // Retry logic for temporary connection issues
                 if (retryCount < 3) {
@@ -63,12 +113,18 @@ export default function AuthCallback() {
               // If the user doesn't have a role yet, show the role selection dialog
               if (!userData?.role) {
                 console.log("No role found, showing role selection");
+                logCallbackEvent('no_role_found', { user_id: data.session.user.id });
                 setShowRoleSelection(true);
                 setIsLoading(false);
                 return;
               }
               
               console.log("User has role:", userData.role, "Status:", userData.status);
+              logCallbackEvent('role_found', { 
+                role: userData.role,
+                status: userData.status,
+                user_id: data.session.user.id
+              });
               
               // Ensure role is a valid type
               const validRole: 'buyer' | 'producer' | 'admin' = 
@@ -94,6 +150,7 @@ export default function AuthCallback() {
               // Handle inactive producer - ALWAYS redirect to activation page
               if (validRole === 'producer' && validStatus === 'inactive') {
                 console.log("Inactive producer, redirecting to activation page");
+                logCallbackEvent('producer_inactive_redirect', { user_id: data.session.user.id });
                 navigate('/producer-activation');
                 return;
               }
@@ -104,25 +161,37 @@ export default function AuthCallback() {
               } else {
                 navigate('/');
               }
+              
+              // Clean up OAuth data
+              localStorage.removeItem('oauth_initiated');
+              localStorage.removeItem('oauth_provider');
+              localStorage.removeItem('oauth_mode');
+              
             } catch (error: any) {
               console.error('Error processing user data:', error);
               setError(`User processing error: ${error.message}`);
+              logCallbackEvent('user_processing_error', { error: error.message });
+              
               // On error, redirect to home page with a notification
               navigate('/');
               uniqueToast.error('Error processing account data');
             } finally {
               setIsLoading(false);
             }
-          }, 1000); // Increased delay to ensure session is properly registered
+          }, wasOAuthFlow ? 1500 : 500); // Increased delay for Google auth to ensure everything is synced
+          
         } else {
           console.log("No session found, redirecting to login");
           setError("No session found in response");
+          logCallbackEvent('no_session');
+          
           // No session found, redirect to login
           navigate('/login');
         }
       } catch (error: any) {
         console.error('Error handling auth callback:', error);
         setError(`Auth callback error: ${error.message}`);
+        logCallbackEvent('callback_exception', { error: error.message });
         uniqueToast.error('Authentication failed');
         navigate('/login');
       } finally {
@@ -131,7 +200,7 @@ export default function AuthCallback() {
     };
     
     handleAuthCallback();
-  }, [navigate, updateUserInfo, user, retryCount]);
+  }, [navigate, updateUserInfo, user, retryCount, refreshSession]);
 
   return (
     <MainLayout hideSidebar>
@@ -143,7 +212,9 @@ export default function AuthCallback() {
         {isLoading && (
           <>
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
-            <h2 className="mt-4 text-xl">Signing you in...</h2>
+            <h2 className="mt-4 text-xl">
+              {isGoogleAuth ? "Completing Google sign-in..." : "Signing you in..."}
+            </h2>
             {retryCount > 0 && (
               <p className="mt-2 text-sm text-muted-foreground">
                 Connecting to server... (Attempt {retryCount + 1}/4)

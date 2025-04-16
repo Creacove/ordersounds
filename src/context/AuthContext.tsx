@@ -1,8 +1,9 @@
 
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 import { User } from '@/types';
 import { useAuthState } from '@/hooks/auth/useAuthState';
 import { useAuthMethods } from '@/hooks/auth/useAuthMethods';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
@@ -15,6 +16,8 @@ interface AuthContextType {
   updateProfile: (data: Partial<User>) => Promise<void>;
   updateUserInfo: (user: User) => void;
   isProducerInactive: boolean;
+  authError: string | null;
+  refreshSession: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,18 +29,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     currency, 
     setCurrency, 
     isLoading, 
-    setIsLoading 
+    setIsLoading,
+    authError,
+    setAuthError,
+    appVersion,
   } = useAuthState();
   
   const { 
     login, 
     signup, 
     logout, 
-    updateProfile 
+    updateProfile,
+    refreshSession
   } = useAuthMethods({ 
     setUser, 
     setCurrency, 
-    setIsLoading 
+    setIsLoading,
+    setAuthError,
+    appVersion
   });
 
   // Function to directly update user info in context
@@ -49,6 +58,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const isProducerInactive = 
     user?.role === 'producer' && 
     user?.status === 'inactive';
+  
+  // Log auth errors for monitoring
+  useEffect(() => {
+    if (authError) {
+      console.error('Authentication error:', authError);
+      // Only show toast for non-silent errors (silent errors are handled internally)
+      if (!authError.includes('[silent]')) {
+        toast.error(`Authentication error: ${authError}`);
+      }
+    }
+  }, [authError]);
+
+  // Version-aware token migration on app startup
+  useEffect(() => {
+    // Try to refresh the session on app load
+    const initAuth = async () => {
+      if (!isLoading && !user) {
+        try {
+          await refreshSession();
+        } catch (error) {
+          // Silent error, handled by refreshSession
+          console.log('Silent session refresh attempt failed');
+        }
+      }
+    };
+    
+    initAuth();
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -63,6 +100,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         updateProfile,
         updateUserInfo,
         isProducerInactive,
+        authError,
+        refreshSession
       }}
     >
       {children}
