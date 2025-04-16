@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -34,6 +35,41 @@ export function useBeats() {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const [retryCount, setRetryCount] = useState(0);
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
+
+  // Declare fetchUserFavoritesData and fetchPurchasedBeatsData before referencing them
+  const fetchUserFavoritesData = async () => {
+    if (!user) return;
+    
+    try {
+      const favorites = await fetchUserFavorites(user.id);
+      setUserFavorites(favorites);
+    } catch (error) {
+      console.error('Error fetching user favorites:', error);
+    }
+  };
+
+  const fetchPurchasedBeatsData = async () => {
+    if (!user) return;
+    
+    try {
+      const purchasedIds = await fetchPurchasedBeats(user.id);
+      setPurchasedBeats(purchasedIds);
+      
+      if (purchasedIds.length > 0 && beats.length === 0) {
+        const purchasedBeatsDetails = await fetchPurchasedBeatDetails(purchasedIds);
+        
+        if (purchasedBeatsDetails.length > 0) {
+          setBeats(prevBeats => {
+            const existingIds = new Set(prevBeats.map(b => b.id));
+            const newBeats = purchasedBeatsDetails.filter(b => !existingIds.has(b.id));
+            return [...prevBeats, ...newBeats];
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching purchased beats:', error);
+    }
+  };
 
   const checkNetworkAndRetry = async () => {
     if (!isOnline()) {
@@ -188,41 +224,7 @@ export function useBeats() {
         toast.error('Failed to load beats. Using cached content.');
       }
     }
-  }, [user, activeFilters, retryCount, loadFallbackData, fetchAllBeats, fetchUserFavoritesData, fetchPurchasedBeatsData]);
-
-  const fetchUserFavoritesData = async () => {
-    if (!user) return;
-    
-    try {
-      const favorites = await fetchUserFavorites(user.id);
-      setUserFavorites(favorites);
-    } catch (error) {
-      console.error('Error fetching user favorites:', error);
-    }
-  };
-
-  const fetchPurchasedBeatsData = async () => {
-    if (!user) return;
-    
-    try {
-      const purchasedIds = await fetchPurchasedBeats(user.id);
-      setPurchasedBeats(purchasedIds);
-      
-      if (purchasedIds.length > 0 && beats.length === 0) {
-        const purchasedBeatsDetails = await fetchPurchasedBeatDetails(purchasedIds);
-        
-        if (purchasedBeatsDetails.length > 0) {
-          setBeats(prevBeats => {
-            const existingIds = new Set(prevBeats.map(b => b.id));
-            const newBeats = purchasedBeatsDetails.filter(b => !existingIds.has(b.id));
-            return [...prevBeats, ...newBeats];
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching purchased beats:', error);
-    }
-  };
+  }, [user, activeFilters, retryCount]);
 
   useEffect(() => {
     const handleOnline = () => {
