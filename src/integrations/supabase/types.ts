@@ -9,6 +9,69 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      auth_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          event_type: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      auth_sessions: {
+        Row: {
+          access_token: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          provider: string
+          refresh_token: string | null
+          updated_at: string
+          user_id: string | null
+          version: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          provider: string
+          refresh_token?: string | null
+          updated_at?: string
+          user_id?: string | null
+          version?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          provider?: string
+          refresh_token?: string | null
+          updated_at?: string
+          user_id?: string | null
+          version?: string | null
+        }
+        Relationships: []
+      }
       beats: {
         Row: {
           audio_file: string | null
@@ -700,12 +763,25 @@ export type Database = {
         Args: { beat_id: string }
         Returns: boolean
       }
+      refresh_auth_token: {
+        Args: {
+          p_user_id: string
+          p_refresh_token: string
+          p_new_access_token: string
+          p_new_refresh_token?: string
+        }
+        Returns: boolean
+      }
       remove_favorite: {
         Args: { user_id_param: string; beat_id_param: string }
         Returns: undefined
       }
       unfollow_producer: {
         Args: { p_follower_id: string; p_followee_id: string }
+        Returns: undefined
+      }
+      update_session_version: {
+        Args: { p_user_id: string; p_version: string }
         Returns: undefined
       }
       user_owns_order: {

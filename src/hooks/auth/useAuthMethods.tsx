@@ -1,6 +1,3 @@
-
-// This is a new file we need to create with specific status handling for producers
-
 import { useState } from 'react';
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,6 +5,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { mapSupabaseUser } from '@/lib/supabase';
 import { uniqueToast } from '@/lib/toast';
+import { logSessionEvent } from '@/lib/authLogger';
 
 interface AuthMethodsProps {
   setUser: (user: User | null) => void;
@@ -31,30 +29,6 @@ export const useAuthMethods = ({
   const navigate = useNavigate();
   const [tokenRefreshAttempted, setTokenRefreshAttempted] = useState(false);
 
-  // Helper to log authentication events
-  const logAuthEvent = async (event: string, details: any = {}) => {
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      const userId = session?.session?.user?.id;
-      
-      // Log to console for now
-      console.log('Auth event:', {
-        event_type: event,
-        user_id: userId || 'anonymous',
-        details: {
-          ...details,
-          app_version: appVersion.current,
-          timestamp: new Date().toISOString(),
-        }
-      });
-      
-      // We'll implement proper database logging once types are updated
-    } catch (error) {
-      // Silent error - don't break the app if logging fails
-      console.error('Failed to log auth event:', error);
-    }
-  };
-
   // Function to refresh the session using refresh token
   const refreshSession = async (): Promise<boolean> => {
     try {
@@ -69,6 +43,26 @@ export const useAuthMethods = ({
       setTokenRefreshAttempted(true);
       console.log('Attempting to refresh session...');
       
+      // Try to update our session version if token exists
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        if (session?.session?.user) {
+          // Call our new database function to update session version tracking
+          await supabase.rpc('update_session_version', {
+            p_user_id: session.session.user.id,
+            p_version: appVersion.current
+          });
+          await logSessionEvent('version_updated', { 
+            previous: appVersion.previous,
+            current: appVersion.current,
+            user_id: session.session.user.id
+          });
+        }
+      } catch (versionError) {
+        console.warn('Failed to update session version:', versionError);
+        // Non-critical operation, continue with token refresh
+      }
+      
       // Try to refresh the token using Supabase's built-in refresh mechanism
       const { data, error } = await supabase.auth.refreshSession();
       
@@ -81,7 +75,7 @@ export const useAuthMethods = ({
           uniqueToast.error('Please login again due to a recent update');
         }
         
-        logAuthEvent('refresh_failed', { error: error.message });
+        await logSessionEvent('refresh_failed', { error: error.message });
         return false;
       }
       
@@ -92,7 +86,7 @@ export const useAuthMethods = ({
         const mappedUser = mapSupabaseUser(data.user);
         setUser(mappedUser);
         
-        logAuthEvent('refresh_success', { 
+        await logSessionEvent('refresh_success', { 
           provider: data.user.app_metadata.provider || 'email',
           user_id: data.user.id
         });
@@ -106,7 +100,7 @@ export const useAuthMethods = ({
     } catch (error: any) {
       console.error('Error refreshing session:', error);
       setAuthError(`[silent] Error in refresh session: ${error.message}`);
-      logAuthEvent('refresh_exception', { error: error.message });
+      await logSessionEvent('refresh_exception', { error: error.message });
       return false;
     } finally {
       setIsLoading(false);
@@ -133,20 +127,20 @@ export const useAuthMethods = ({
           uniqueToast.error("Email not confirmed. Please check your inbox for a confirmation email or try signing up again.");
           setIsLoading(false);
           setAuthError(`Email not confirmed: ${error.message}`);
-          logAuthEvent('login_email_unconfirmed', { email });
+          await logSessionEvent('login_email_unconfirmed', { email });
           return;
         }
         
         uniqueToast.error(error.message || 'Failed to log in');
         setIsLoading(false);
         setAuthError(`Login failed: ${error.message}`);
-        logAuthEvent('login_failed', { error: error.message, email });
+        await logSessionEvent('login_failed', { error: error.message, email });
         return;
       }
 
       if (data?.user) {
         console.log("Login successful:", data.user.id);
-        logAuthEvent('login_success', { 
+        await logSessionEvent('login_success', { 
           provider: 'email', 
           user_id: data.user.id 
         });
@@ -158,13 +152,13 @@ export const useAuthMethods = ({
       
       uniqueToast.error("Failed to login. Please try again.");
       setAuthError('Login failed: No user data returned');
-      logAuthEvent('login_no_user_data', { email });
+      await logSessionEvent('login_no_user_data', { email });
       
     } catch (error: any) {
       console.error('Login error:', error);
       uniqueToast.error(error.message || 'Failed to log in');
       setAuthError(`Login error: ${error.message}`);
-      logAuthEvent('login_exception', { error: error.message, email });
+      await logSessionEvent('login_exception', { error: error.message, email });
     } finally {
       setIsLoading(false);
     }
@@ -187,7 +181,7 @@ export const useAuthMethods = ({
         toast.error('A user with this email already exists');
         setIsLoading(false);
         setAuthError('Signup failed: User already exists');
-        logAuthEvent('signup_user_exists', { email });
+        await logSessionEvent('signup_user_exists', { email });
         return;
       }
       
@@ -210,7 +204,7 @@ export const useAuthMethods = ({
         toast.error(error.message);
         setIsLoading(false);
         setAuthError(`Signup failed: ${error.message}`);
-        logAuthEvent('signup_failed', { error: error.message, email });
+        await logSessionEvent('signup_failed', { error: error.message, email });
         return;
       }
 
@@ -235,14 +229,14 @@ export const useAuthMethods = ({
           console.error('Error creating user profile:', profileError);
           toast.error('Could not complete profile setup, but auth account was created');
           setAuthError(`User profile creation failed: ${profileError.message}`);
-          logAuthEvent('signup_profile_failed', { 
+          await logSessionEvent('signup_profile_failed', { 
             error: profileError.message, 
             user_id: data.user.id
           });
         } else {
           console.log("User profile created successfully");
           toast.success('Account created successfully!');
-          logAuthEvent('signup_success', { 
+          await logSessionEvent('signup_success', { 
             user_id: data.user.id,
             role: role
           });
@@ -262,7 +256,7 @@ export const useAuthMethods = ({
           
           if (signInData?.user) {
             console.log("Auto-login successful, redirecting to callback");
-            logAuthEvent('signup_auto_login', { user_id: signInData.user.id });
+            await logSessionEvent('signup_auto_login', { user_id: signInData.user.id });
             navigate('/auth/callback');
             return;
           }
@@ -276,7 +270,7 @@ export const useAuthMethods = ({
       console.error('Signup error:', error);
       toast.error(error.message || 'Failed to create account');
       setAuthError(`Signup error: ${error.message}`);
-      logAuthEvent('signup_exception', { error: error.message, email });
+      await logSessionEvent('signup_exception', { error: error.message, email });
     } finally {
       setIsLoading(false);
     }
@@ -299,13 +293,13 @@ export const useAuthMethods = ({
       
       setUser(null);
       toast.success('Logged out successfully');
-      logAuthEvent('logout_success', { user_id: userId });
+      await logSessionEvent('logout_success', { user_id: userId });
       navigate('/login');
     } catch (error: any) {
       console.error('Logout error:', error);
       toast.error(error.message || 'Failed to logout');
       setAuthError(`Logout failed: ${error.message}`);
-      logAuthEvent('logout_failed', { error: error.message });
+      await logSessionEvent('logout_failed', { error: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -407,12 +401,12 @@ export const useAuthMethods = ({
       }
       
       toast.success('Profile updated successfully');
-      logAuthEvent('profile_updated', { user_id: userData.user.id });
+      await logSessionEvent('profile_updated', { user_id: userData.user.id });
     } catch (error: any) {
       console.error('Profile update error:', error);
       toast.error(error.message || 'Failed to update profile');
       setAuthError(`Profile update failed: ${error.message}`);
-      logAuthEvent('profile_update_failed', { error: error.message });
+      await logSessionEvent('profile_update_failed', { error: error.message });
     } finally {
       setIsLoading(false);
     }

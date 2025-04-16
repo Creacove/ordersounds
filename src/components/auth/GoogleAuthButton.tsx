@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { uniqueToast } from '@/lib/toast';
 import { FcGoogle } from 'react-icons/fc';
+import { logGoogleAuthEvent } from '@/lib/authLogger';
 
 interface GoogleAuthButtonProps {
   mode: 'login' | 'signup';
@@ -13,36 +14,6 @@ interface GoogleAuthButtonProps {
 export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { setCurrency } = useAuth();
-
-  // Log Google auth events
-  const logGoogleAuthEvent = async (event: string, details: any = {}) => {
-    try {
-      // Log to console for now until types are updated
-      console.log('Google auth event:', {
-        event_type: `google_${event}`,
-        user_id: details.user_id || 'anonymous',
-        details: {
-          ...details,
-          timestamp: new Date().toISOString(),
-        },
-        created_at: new Date().toISOString()
-      });
-      
-      // Once types are updated, we can use this:
-      // await supabase.from('auth_logs').insert([{
-      //   event_type: `google_${event}`,
-      //   user_id: details.user_id || 'anonymous',
-      //   details: JSON.stringify({
-      //     ...details,
-      //     timestamp: new Date().toISOString(),
-      //   }),
-      //   created_at: new Date().toISOString()
-      // }]);
-    } catch (error) {
-      // Silent error - don't break the app if logging fails
-      console.error('Failed to log Google auth event:', error);
-    }
-  };
 
   const handleGoogleLogin = async () => {
     try {
@@ -63,6 +34,12 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       localStorage.removeItem('supabase.auth.error');
       sessionStorage.removeItem('supabase.auth.error');
       
+      // Log the start of the auth flow
+      await logGoogleAuthEvent('auth_initiated', {
+        mode: mode,
+        redirect_url: redirectUrl
+      });
+      
       // Use a more robust OAuth flow with explicit parameters
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -82,10 +59,9 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
       if (error) {
         uniqueToast.error(error.message || "Failed to sign in with Google");
         console.error('Google auth error:', error);
-        logGoogleAuthEvent('auth_error', { error: error.message });
+        await logGoogleAuthEvent('auth_error', { error: error.message });
       } else if (data?.url) {
         console.log("OAuth auth initiated successfully, redirecting to:", data.url);
-        logGoogleAuthEvent('auth_initiated', {});
         
         // Store additional data about this OAuth attempt
         try {
@@ -100,12 +76,12 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
         window.location.href = data.url;
       } else {
         uniqueToast.error('Failed to initialize Google sign in');
-        logGoogleAuthEvent('auth_no_url', {});
+        await logGoogleAuthEvent('auth_no_url', {});
       }
     } catch (error: any) {
       console.error('Google auth error:', error);
       uniqueToast.error('An error occurred during Google authentication');
-      logGoogleAuthEvent('auth_exception', { error: error.message });
+      await logGoogleAuthEvent('auth_exception', { error: error.message });
     } finally {
       setIsLoading(false);
     }

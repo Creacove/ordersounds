@@ -4,6 +4,7 @@ import { User } from '@/types';
 import { useAuthState } from '@/hooks/auth/useAuthState';
 import { useAuthMethods } from '@/hooks/auth/useAuthMethods';
 import { toast } from 'sonner';
+import { logSessionEvent } from '@/lib/authLogger';
 
 interface AuthContextType {
   user: User | null;
@@ -67,8 +68,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (!authError.includes('[silent]')) {
         toast.error(`Authentication error: ${authError}`);
       }
+      
+      // Log auth errors to our new system
+      if (user) {
+        logSessionEvent('auth_error', { 
+          error: authError,
+          user_id: user.id
+        });
+      } else {
+        logSessionEvent('auth_error', { error: authError });
+      }
     }
-  }, [authError]);
+  }, [authError, user]);
 
   // Version-aware token migration on app startup
   useEffect(() => {
