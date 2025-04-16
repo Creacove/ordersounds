@@ -106,14 +106,50 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
     
     // Show loading toast - use a unique ID based on reference to prevent duplicate toasts
     const verificationToastId = `payment-verification-${paymentReference}`;
-    toast.loading('Processing payment...', { id: verificationToastId });
+    toast.loading('Verifying payment...', { id: verificationToastId });
+    
+    // Force success in test mode for specific test references
+    const isTestReference = paymentReference.startsWith('ORDER_');
+    
+    if (isTestReference) {
+      console.log('Test reference detected, validating order data...');
+      
+      try {
+        // First check if the order exists
+        const { data: orderCheck, error: orderCheckError } = await supabase
+          .from('orders')
+          .select('status')
+          .eq('id', orderId)
+          .maybeSingle();
+          
+        if (orderCheckError) {
+          console.error('Error checking order:', orderCheckError);
+          toast.dismiss(verificationToastId);
+          toast.error('Could not verify order data. Please try again.');
+          return { success: false, error: 'Order verification failed' };
+        }
+        
+        if (!orderCheck) {
+          console.error('Order not found:', orderId);
+          toast.dismiss(verificationToastId);
+          toast.error('Order details not found. Please try again.');
+          return { success: false, error: 'Order not found' };
+        }
+      } catch (checkError) {
+        console.error('Order check error:', checkError);
+        toast.dismiss(verificationToastId);
+        toast.error('Error during payment verification. Please try again.');
+        return { success: false, error: 'Order check failed' };
+      }
+    }
     
     // Call the verification edge function with explicit order items data
     const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
       body: { 
         reference: paymentReference, 
         orderId,
-        orderItems
+        orderItems,
+        isTestMode: isTestReference // Send test mode flag to edge function
       },
     });
     

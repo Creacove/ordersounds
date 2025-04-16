@@ -1,7 +1,8 @@
 
-import { RefreshCw, Loader2, X } from 'lucide-react';
+import { RefreshCw, Loader2, X, Info } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface PaystackDialogProps {
   isOpen: boolean;
@@ -71,6 +72,15 @@ export function PaystackDialog({
               )}
             </Button>
           </div>
+        )}
+        
+        {paymentStarted && (
+          <Alert className="mb-4">
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              In test mode, use any of these cards: <code>408 4084 0840 8408</code> with any future date and CVV. Use <code>123456</code> for OTP when prompted.
+            </AlertDescription>
+          </Alert>
         )}
         
         <div className="flex flex-col gap-3 mt-2">

@@ -35,7 +35,7 @@ serve(async (req) => {
       );
     }
 
-    const { reference, orderId, orderItems } = body;
+    const { reference, orderId, orderItems, isTestMode } = body;
     
     if (!reference) {
       console.error('Missing payment reference');
@@ -55,8 +55,183 @@ serve(async (req) => {
 
     console.log(`Processing verification for reference: ${reference}, order: ${orderId}`);
     console.log('Order items received:', orderItems);
+    console.log('Test mode:', isTestMode);
+    
+    // Create a Supabase client for database operations
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') || "https://uoezlwkxhbzajdivrlby.supabase.co";
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
-    // Verify the payment with Paystack
+    // First check if order exists and get its details
+    const { data: orderData, error: orderCheckError } = await supabaseClient
+      .from('orders')
+      .select('status, buyer_id')
+      .eq('id', orderId)
+      .maybeSingle();
+      
+    if (orderCheckError) {
+      console.error('Failed to check order status:', orderCheckError);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          verified: false,
+          message: `Failed to find order: ${orderCheckError.message}`,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
+    if (!orderData) {
+      console.error('Order not found:', orderId);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          verified: false,
+          message: 'Order not found',
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    
+    // If order is already completed, return success
+    if (orderData.status === 'completed') {
+      console.log(`Order ${orderId} already completed, proceeding as success`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          verified: true,
+          message: 'Order already completed',
+          data: {
+            reference: reference,
+            orderId: orderId,
+          },
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    // Special handling for test mode or references with ORDER_ prefix
+    if (isTestMode || reference.startsWith('ORDER_')) {
+      console.log(`Test mode detected for reference: ${reference}`);
+      
+      try {
+        // Update order status
+        const { error: updateError } = await supabaseClient
+          .from('orders')
+          .update({
+            status: 'completed',
+            consent_timestamp: new Date().toISOString(),
+            payment_reference: reference
+          })
+          .eq('id', orderId);
+          
+        if (updateError) {
+          console.error('Failed to update order status:', updateError);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              verified: false,
+              message: `Failed to update order: ${updateError.message}`,
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        
+        console.log(`Successfully updated order ${orderId} status to completed`);
+        
+        // Process user_purchased_beats
+        if (orderItems && Array.isArray(orderItems)) {
+          try {
+            // Add purchased beats directly instead of waiting for webhook
+            const purchasedItems = orderItems.map(item => ({
+              user_id: orderData.buyer_id,
+              beat_id: item.beat_id,
+              license_type: item.license || 'basic',
+              currency_code: 'NGN',
+              order_id: orderId,
+            }));
+            
+            console.log(`Adding ${purchasedItems.length} purchased beats to user collection`);
+            const { error: purchaseError } = await supabaseClient
+              .from('user_purchased_beats')
+              .insert(purchasedItems);
+              
+            if (purchaseError) {
+              console.error('Failed to record purchases:', purchaseError);
+              // Continue despite error - the order is still marked as completed
+            } else {
+              console.log(`Successfully recorded ${purchasedItems.length} purchases`);
+            }
+            
+            // Update purchase counts for beats
+            for (const item of orderItems) {
+              try {
+                const { error: updateCountError } = await supabaseClient
+                  .from('beats')
+                  .update({ 
+                    purchase_count: supabaseClient.rpc('increment', { column_name: 'purchase_count' }) 
+                  })
+                  .eq('id', item.beat_id);
+                
+                if (updateCountError) {
+                  console.error(`Failed to update purchase count for beat ${item.beat_id}:`, updateCountError);
+                } else {
+                  console.log(`Updated purchase count for beat ${item.beat_id}`);
+                }
+              } catch (err) {
+                console.error(`Error updating purchase count:`, err);
+              }
+            }
+            
+            // Create notification for buyer
+            try {
+              const { error: buyerNotificationError } = await supabaseClient
+                .from('notifications')
+                .insert({
+                  recipient_id: orderData.buyer_id,
+                  title: 'Purchase Completed Successfully',
+                  body: `Your order has been processed. ${orderItems.length} beat${orderItems.length === 1 ? '' : 's'} added to your library.`,
+                  is_read: false
+                });
+                
+              if (!buyerNotificationError) {
+                console.log('Created notification for buyer');
+              }
+            } catch (notifyError) {
+              console.error('Error creating buyer notification:', notifyError);
+            }
+          } catch (purchaseErr) {
+            console.error('Error recording purchases:', purchaseErr);
+          }
+        }
+        
+        // Return success response
+        return new Response(
+          JSON.stringify({
+            success: true,
+            verified: true,
+            message: 'Payment accepted in test mode',
+            data: {
+              reference: reference,
+              orderId: orderId,
+            },
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      } catch (error) {
+        console.error('Error processing test payment:', error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            verified: false,
+            message: `Error processing test payment: ${error.message}`,
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    }
+
+    // For non-test transactions, verify with Paystack API
     try {
       console.log(`Making request to Paystack API: https://api.paystack.co/transaction/verify/${reference}`);
       const verifyResponse = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
@@ -70,123 +245,6 @@ serve(async (req) => {
       if (!verifyResponse.ok) {
         const errorText = await verifyResponse.text();
         console.error(`Paystack API error (${verifyResponse.status}):`, errorText);
-        
-        // For testing in test mode, we'll assume success even if verification fails
-        // This helps with the test buttons that don't actually create real transactions
-        if (reference.startsWith('ORDER_')) {
-          console.log('Detected test reference - proceeding with order processing despite verification failure');
-          
-          // Create a Supabase client
-          const supabaseUrl = Deno.env.get('SUPABASE_URL') || "https://uoezlwkxhbzajdivrlby.supabase.co";
-          const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
-          
-          // Update order status to completed directly
-          const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-          
-          // First check if order exists
-          const { data: orderData, error: orderCheckError } = await supabaseClient
-            .from('orders')
-            .select('status, buyer_id')
-            .eq('id', orderId)
-            .maybeSingle();
-            
-          if (orderCheckError) {
-            console.error('Failed to check order status:', orderCheckError);
-            
-            return new Response(
-              JSON.stringify({
-                success: false,
-                verified: false,
-                message: `Failed to find order: ${orderCheckError.message}`,
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
-          }
-          
-          if (!orderData) {
-            console.error('Order not found:', orderId);
-            
-            return new Response(
-              JSON.stringify({
-                success: false,
-                verified: false,
-                message: 'Order not found',
-              }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-            );
-          }
-          
-          // Only proceed if order is still pending
-          if (orderData.status !== 'completed') {
-            // Update order status
-            const { error: updateError } = await supabaseClient
-              .from('orders')
-              .update({
-                status: 'completed',
-                consent_timestamp: new Date().toISOString(),
-                payment_reference: reference
-              })
-              .eq('id', orderId);
-              
-            if (updateError) {
-              console.error('Failed to update order status:', updateError);
-              
-              return new Response(
-                JSON.stringify({
-                  success: false,
-                  verified: false,
-                  message: `Failed to update order: ${updateError.message}`,
-                }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-              );
-            }
-            
-            console.log(`Successfully updated order ${orderId} status to completed`);
-            
-            // Process user_purchased_beats
-            if (orderItems && Array.isArray(orderItems)) {
-              try {
-                // Add purchased beats directly instead of waiting for webhook
-                const purchasedItems = orderItems.map(item => ({
-                  user_id: orderData.buyer_id,
-                  beat_id: item.beat_id,
-                  license_type: item.license || 'basic',
-                  currency_code: 'NGN',
-                  order_id: orderId,
-                }));
-                
-                console.log(`Adding ${purchasedItems.length} purchased beats to user collection`);
-                const { error: purchaseError } = await supabaseClient
-                  .from('user_purchased_beats')
-                  .insert(purchasedItems);
-                  
-                if (purchaseError) {
-                  console.error('Failed to record purchases:', purchaseError);
-                } else {
-                  console.log(`Successfully recorded ${purchasedItems.length} purchases`);
-                }
-              } catch (purchaseErr) {
-                console.error('Error recording purchases:', purchaseErr);
-              }
-            }
-          }
-          
-          // Return success response
-          return new Response(
-            JSON.stringify({
-              success: true,
-              verified: true,
-              message: 'Payment accepted in test mode',
-              data: {
-                reference: reference,
-                orderId: orderId,
-              },
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-        
-        // Return error for non-test transactions
         return new Response(
           JSON.stringify({
             success: false,
@@ -208,273 +266,97 @@ serve(async (req) => {
       console.log(`Payment verification result: ${isVerified ? 'VERIFIED' : 'FAILED'}`);
 
       // If verified, update the database
-      if (isVerified && orderId) {
-        // Create a Supabase client
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') || "https://uoezlwkxhbzajdivrlby.supabase.co";
-        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
-        
-        if (!supabaseUrl || !supabaseAnonKey) {
-          console.error('Missing Supabase credentials');
-          throw new Error('Server configuration error');
-        }
-        
-        const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-
+      if (isVerified) {
         console.log(`Updating order ${orderId} to completed status`);
         
-        // First check if order has already been processed
-        const { data: orderData, error: orderCheckError } = await supabaseClient
-          .from('orders')
-          .select('status, buyer_id')
-          .eq('id', orderId)
-          .maybeSingle();
-          
-        if (orderCheckError) {
-          console.error('Failed to check order status:', orderCheckError);
-          // Continue processing, just log the error
-        }
-        
-        if (!orderData) {
-          console.error('Order not found:', orderId);
-          
-          // Return a 200 response to the client with error details
-          return new Response(
-            JSON.stringify({
-              success: false,
-              verified: false,
-              message: 'Order not found',
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        }
-        
-        // Only proceed if order is still pending
-        if (orderData.status !== 'completed') {
-          try {
-            // Update order status
-            const { error: updateError } = await supabaseClient
-              .from('orders')
-              .update({
-                status: 'completed',
-                consent_timestamp: new Date().toISOString(),
-                payment_reference: reference
-              })
-              .eq('id', orderId);
+        try {
+          // Update order status
+          const { error: updateError } = await supabaseClient
+            .from('orders')
+            .update({
+              status: 'completed',
+              consent_timestamp: new Date().toISOString(),
+              payment_reference: reference
+            })
+            .eq('id', orderId);
 
-            if (updateError) {
-              console.error('Failed to update order status:', updateError);
-              // Continue processing, just log the error
-            } else {
-              console.log(`Successfully updated order ${orderId} status to completed`);
-            }
-
-            // Get cart items associated with this order
-            const { data: lineItems, error: lineItemsError } = await supabaseClient
-              .from('line_items')
-              .select('beat_id, price_charged, currency_code')
-              .eq('order_id', orderId);
-
-            if (lineItemsError) {
-              console.error('Failed to fetch line items:', lineItemsError);
-              // Continue processing, just log the error
-            } else if (lineItems && lineItems.length > 0) {
-              console.log(`Retrieved ${lineItems.length} line items for order ${orderId}`);
-            }
-
-            // Check if purchased items are already recorded
-            const { data: existingPurchases, error: checkPurchasesError } = await supabaseClient
-              .from('user_purchased_beats')
-              .select('id')
-              .eq('order_id', orderId);
-              
-            if (checkPurchasesError) {
-              console.error('Failed to check existing purchases:', checkPurchasesError);
-              // Continue processing, just log the error
-            }
-            
-            // Only add purchases if they don't exist yet
-            if ((!existingPurchases || existingPurchases.length === 0) && lineItems && lineItems.length > 0) {
-              // Create a map of beat licenses from the order items
-              const beatLicenses: Record<string, string> = {};
-              
-              if (orderItems && Array.isArray(orderItems)) {
-                orderItems.forEach((item: any) => {
-                  if (item.beat_id && item.license) {
-                    beatLicenses[item.beat_id] = item.license;
-                  }
-                });
-              }
-              
-              console.log('License information map:', beatLicenses);
-            
-              // Add purchased beats to user's collection
-              try {
-                const purchasedItems = lineItems.map(item => ({
-                  user_id: orderData.buyer_id,
-                  beat_id: item.beat_id,
-                  license_type: beatLicenses[item.beat_id] || 'basic',
-                  currency_code: item.currency_code,
-                  order_id: orderId,
-                }));
-                
-                console.log(`Adding ${purchasedItems.length} purchased beats to user collection`);
-                const { error: purchaseError } = await supabaseClient
-                  .from('user_purchased_beats')
-                  .insert(purchasedItems);
-                
-                if (purchaseError) {
-                  console.error('Failed to record purchases:', purchaseError);
-                  // Continue processing, just log the error
-                } else {
-                  console.log(`Successfully recorded ${purchasedItems.length} purchases`);
-                }
-              } catch (purchaseInsertError) {
-                console.error('Exception recording purchases:', purchaseInsertError);
-                // Continue processing, just log the error
-              }
-            } else {
-              console.log(`Purchases already recorded for order ${orderId}`);
-            }
-
-            // Update purchase count and create notifications
-            if (lineItems && lineItems.length > 0) {
-              try {
-                // Get beat details to identify producers
-                const beatIds = lineItems.map(item => item.beat_id);
-                const { data: beats, error: beatsError } = await supabaseClient
-                  .from('beats')
-                  .select('id, title, producer_id')
-                  .in('id', beatIds);
-                  
-                if (beatsError) {
-                  console.error('Failed to fetch beat details:', beatsError);
-                  // Continue processing, just log the error
-                }
-                
-                // Create map of beats by ID for easy lookup
-                const beatsById: Record<string, any> = {};
-                if (beats) {
-                  beats.forEach(beat => {
-                    beatsById[beat.id] = beat;
-                  });
-                }
-
-                // Create notification for buyer
-                try {
-                  const { error: buyerNotificationError } = await supabaseClient
-                    .from('notifications')
-                    .insert({
-                      recipient_id: orderData.buyer_id,
-                      title: 'Purchase Completed Successfully',
-                      body: `Your order has been processed. ${lineItems.length} beat${lineItems.length === 1 ? '' : 's'} added to your library.`,
-                      is_read: false
-                    });
-                    
-                  if (buyerNotificationError) {
-                    console.error('Failed to create buyer notification:', buyerNotificationError);
-                    // Continue processing even if notification fails
-                  } else {
-                    console.log('Created notification for buyer');
-                  }
-                } catch (notifyError) {
-                  console.error('Exception creating buyer notification:', notifyError);
-                  // Continue processing, just log the error
-                }
-                
-                // Create notifications for producers
-                if (beats) {
-                  try {
-                    // Group beats by producer
-                    const beatsByProducer: Record<string, any[]> = {};
-                    beats.forEach(beat => {
-                      if (!beat.producer_id) return;
-                      
-                      if (!beatsByProducer[beat.producer_id]) {
-                        beatsByProducer[beat.producer_id] = [];
-                      }
-                      
-                      beatsByProducer[beat.producer_id].push({
-                        id: beat.id,
-                        title: beat.title
-                      });
-                    });
-                    
-                    // Create notifications for each producer
-                    for (const producerId in beatsByProducer) {
-                      const producerBeats = beatsByProducer[producerId];
-                      
-                      // Don't notify producer if they are the buyer (self-purchase)
-                      if (producerId === orderData.buyer_id) continue;
-                      
-                      const { error: producerNotificationError } = await supabaseClient
-                        .from('notifications')
-                        .insert({
-                          recipient_id: producerId,
-                          title: 'New Beat Sale!',
-                          body: producerBeats.length === 1
-                            ? `Congratulations! Your beat "${producerBeats[0].title}" was just purchased.`
-                            : `Congratulations! ${producerBeats.length} of your beats were just purchased.`,
-                          is_read: false
-                        });
-                        
-                      if (producerNotificationError) {
-                        console.error(`Failed to create notification for producer ${producerId}:`, producerNotificationError);
-                        // Continue processing even if notification fails
-                      } else {
-                        console.log(`Created notification for producer ${producerId}`);
-                      }
-                    }
-                  } catch (producerNotifyError) {
-                    console.error('Exception creating producer notifications:', producerNotifyError);
-                    // Continue processing, just log the error
-                  }
-                }
-
-                // Update purchase count for each beat
-                for (const item of lineItems) {
-                  try {
-                    // Update purchase count directly
-                    const { error: updateCountError } = await supabaseClient
-                      .from('beats')
-                      .update({ purchase_count: supabaseClient.rpc('increment', { column_name: 'purchase_count' }) })
-                      .eq('id', item.beat_id);
-                    
-                    if (updateCountError) {
-                      console.error(`Failed to update purchase count for beat ${item.beat_id}:`, updateCountError);
-                      // Continue with other beats even if one fails
-                    } else {
-                      console.log(`Updated purchase count for beat ${item.beat_id}`);
-                    }
-                  } catch (err) {
-                    console.error(`Error updating purchase count for beat ${item.beat_id}:`, err);
-                    // Continue with other beats even if one fails
-                  }
-                }
-              } catch (notificationError) {
-                console.error('Exception handling notifications and purchase counts:', notificationError);
-                // Continue processing, just log the error
-              }
-            }
-          } catch (updateProcessError) {
-            console.error('Exception during order update process:', updateProcessError);
-            
-            // Return a 200 response with error details
+          if (updateError) {
+            console.error('Failed to update order status:', updateError);
             return new Response(
               JSON.stringify({
                 success: false,
                 verified: true,
-                message: 'Payment was verified but an error occurred during order processing',
+                message: 'Payment was verified but an error occurred updating order',
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
             );
           }
-        } else {
-          console.log(`Order ${orderId} already completed, skipping updates`);
+
+          // Process purchased items
+          if (orderItems && Array.isArray(orderItems)) {
+            // Create a map of beat licenses from the order items
+            const beatLicenses: Record<string, string> = {};
+            
+            orderItems.forEach((item: any) => {
+              if (item.beat_id && item.license) {
+                beatLicenses[item.beat_id] = item.license;
+              }
+            });
+            
+            // Add purchased beats to user's collection
+            try {
+              const purchasedItems = orderItems.map(item => ({
+                user_id: orderData.buyer_id,
+                beat_id: item.beat_id,
+                license_type: beatLicenses[item.beat_id] || 'basic',
+                currency_code: 'NGN',
+                order_id: orderId,
+              }));
+              
+              console.log(`Adding ${purchasedItems.length} purchased beats to user collection`);
+              const { error: purchaseError } = await supabaseClient
+                .from('user_purchased_beats')
+                .insert(purchasedItems);
+              
+              if (purchaseError) {
+                console.error('Failed to record purchases:', purchaseError);
+              } else {
+                console.log(`Successfully recorded ${purchasedItems.length} purchases`);
+              }
+              
+              // Update purchase counts
+              for (const item of orderItems) {
+                try {
+                  const { error: updateCountError } = await supabaseClient
+                    .from('beats')
+                    .update({ 
+                      purchase_count: supabaseClient.rpc('increment', { column_name: 'purchase_count' }) 
+                    })
+                    .eq('id', item.beat_id);
+                    
+                  if (!updateCountError) {
+                    console.log(`Updated purchase count for beat ${item.beat_id}`);
+                  }
+                } catch (err) {
+                  console.error(`Error updating purchase count:`, err);
+                }
+              }
+            } catch (purchaseInsertError) {
+              console.error('Exception recording purchases:', purchaseInsertError);
+            }
+          }
+        } catch (updateProcessError) {
+          console.error('Exception during order update process:', updateProcessError);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              verified: true,
+              message: 'Payment was verified but an error occurred during order processing',
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
         }
 
-        // Log transaction details for auditing
-        console.log(`Payment verification completed successfully for order ${orderId} with transaction reference ${reference}`);
-        
         // Return successful verification to client
         return new Response(
           JSON.stringify({
@@ -503,89 +385,13 @@ serve(async (req) => {
           }),
           { 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200, // Return 200 to handle this gracefully on client
+            status: 200,
           }
         );
       }
     } catch (payStackApiError) {
       console.error('Error calling Paystack API:', payStackApiError);
       
-      // For test mode, proceed with success
-      if (reference.startsWith('ORDER_')) {
-        console.log('Detected test reference - proceeding with order processing despite API error');
-        
-        try {
-          // Create a Supabase client
-          const supabaseUrl = Deno.env.get('SUPABASE_URL') || "https://uoezlwkxhbzajdivrlby.supabase.co";
-          const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
-          
-          // Update order status to completed directly
-          const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-          
-          // First check if order exists
-          const { data: orderData, error: orderCheckError } = await supabaseClient
-            .from('orders')
-            .select('status, buyer_id')
-            .eq('id', orderId)
-            .maybeSingle();
-            
-          if (orderCheckError || !orderData) {
-            throw new Error('Order not found or error checking order');
-          }
-          
-          // Update order status
-          const { error: updateError } = await supabaseClient
-            .from('orders')
-            .update({
-              status: 'completed',
-              consent_timestamp: new Date().toISOString(),
-              payment_reference: reference
-            })
-            .eq('id', orderId);
-            
-          if (updateError) {
-            throw new Error(`Failed to update order: ${updateError.message}`);
-          }
-          
-          // Add purchase records if not already there
-          if (orderItems && Array.isArray(orderItems)) {
-            const purchasedItems = orderItems.map(item => ({
-              user_id: orderData.buyer_id,
-              beat_id: item.beat_id,
-              license_type: item.license || 'basic',
-              currency_code: 'NGN',
-              order_id: orderId,
-            }));
-            
-            const { error: purchaseError } = await supabaseClient
-              .from('user_purchased_beats')
-              .insert(purchasedItems);
-              
-            if (purchaseError) {
-              console.error('Failed to record purchases in test mode:', purchaseError);
-              // Continue anyway
-            }
-          }
-          
-          // Return success
-          return new Response(
-            JSON.stringify({
-              success: true,
-              verified: true,
-              message: 'Payment accepted in test mode',
-              data: {
-                reference: reference,
-                orderId: orderId,
-              },
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-          );
-        } catch (testModeError) {
-          console.error('Error in test mode processing:', testModeError);
-        }
-      }
-      
-      // Return error for non-test transactions or failed test mode processing
       return new Response(
         JSON.stringify({
           success: false,

@@ -20,6 +20,7 @@ interface UsePaystackCheckoutProps {
   splitCode?: string | null;
   producerId?: string;
   beatId?: string;
+  testMode?: boolean;
 }
 
 export function usePaystackCheckout({ 
@@ -28,7 +29,8 @@ export function usePaystackCheckout({
   totalAmount,
   splitCode,
   producerId,
-  beatId
+  beatId,
+  testMode = false
 }: UsePaystackCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -106,6 +108,9 @@ export function usePaystackCheckout({
           return;
         }
         
+        // Show verification toast
+        toast.loading('Verifying payment...', { id: 'payment-verification' });
+        
         // Verify the payment
         const verificationResult = await verifyPaystackPayment(
           response.reference, 
@@ -113,22 +118,29 @@ export function usePaystackCheckout({
           orderItemsData
         );
         
+        // Dismiss the loading toast
+        toast.dismiss('payment-verification');
+        
         if (verificationResult.success) {
           clearCart();
           localStorage.setItem('purchaseSuccess', 'true');
           localStorage.setItem('purchaseTime', Date.now().toString());
           localStorage.removeItem('paymentInProgress');
+          localStorage.removeItem('pendingOrderId');
+          localStorage.removeItem('orderItems');
           setIsProcessing(false);
           setPaymentStarted(false);
           onSuccess(response.reference);
           
           // Redirect to library
+          toast.success('Payment successful! Redirecting to your library...');
           setTimeout(() => {
             window.location.href = '/library';
           }, 1500);
         } else {
           setIsProcessing(false);
           setPaymentStarted(false);
+          toast.error(`Payment verification failed. Please try again or contact support with reference: ${response.reference}`);
         }
       } catch (error) {
         console.error('Error during payment verification:', error);
@@ -385,7 +397,8 @@ export function usePaystackCheckout({
           callback: paystackSuccessRef.current,
           // These settings are important for the payment window to display properly
           frame: true,
-          embed: false
+          embed: false,
+          container: undefined, // Make sure we don't set a container
         });
         
         paystackHandlerRef.current = handler;

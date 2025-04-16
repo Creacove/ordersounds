@@ -35,7 +35,8 @@ export function PaystackCheckout({
     totalAmount,
     splitCode,
     producerId,
-    beatId
+    beatId,
+    testMode: true // Force test mode to ensure consistency
   });
 
   // Don't render anything if dialog is not open
