@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -39,14 +40,13 @@ export function usePaystackCheckout({
   const paymentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const paystackHandlerRef = useRef<any>(null);
   
-  // Create direct function references to prevent serialization issues
+  // Create function references for Paystack callbacks
   const paystackCloseRef = useRef(() => {
     console.log('Payment window closed');
     setIsProcessing(false);
     setPaymentStarted(false);
     localStorage.removeItem('paymentInProgress');
     
-    // Clear any existing payment timeout
     if (paymentTimeoutRef.current) {
       clearTimeout(paymentTimeoutRef.current);
       paymentTimeoutRef.current = null;
@@ -55,10 +55,10 @@ export function usePaystackCheckout({
     onClose();
   });
   
+  // Function to handle successful payments
   const paystackSuccessRef = useRef((response: any) => {
     console.log('Payment complete! Response:', response);
     
-    // Clear any existing payment timeout
     if (paymentTimeoutRef.current) {
       clearTimeout(paymentTimeoutRef.current);
       paymentTimeoutRef.current = null;
@@ -78,75 +78,42 @@ export function usePaystackCheckout({
         
         const orderItemsData = JSON.parse(orderItemsStr);
         
-        toast.loading('Verifying payment...', { id: 'payment-verification' });
-        
-        // Direct verification through the client
-        try {
-          // First check the current status of the order
-          const { data: orderData, error: orderCheckError } = await supabase
-            .from('orders')
-            .select('status')
-            .eq('id', orderId)
-            .single();
-            
-          if (orderCheckError) {
-            console.error('Error checking order status:', orderCheckError);
-            toast.error('Error checking order status. Please try again.');
-          } else if (orderData && orderData.status === 'completed') {
-            // Order is already completed, treat as success
-            console.log('Order already completed, proceeding as success');
-            toast.success('Payment successful! Redirecting to your library...');
-            
-            clearCart();
-            localStorage.setItem('purchaseSuccess', 'true');
-            localStorage.setItem('purchaseTime', Date.now().toString());
-            setIsProcessing(false);
-            setPaymentStarted(false);
-            onSuccess(response.reference);
-            
-            // Force direct to library
-            setTimeout(() => {
-              window.location.href = '/library';
-            }, 1500);
-            return;
-          }
-        } catch (orderCheckErr) {
-          console.error('Exception checking order status:', orderCheckErr);
-          // Continue with normal verification
+        // Check current order status first
+        const { data: orderData, error: orderCheckError } = await supabase
+          .from('orders')
+          .select('status')
+          .eq('id', orderId)
+          .single();
+          
+        if (orderCheckError) {
+          console.error('Error checking order status:', orderCheckError);
+        } else if (orderData && orderData.status === 'completed') {
+          // Order already completed, skip verification
+          console.log('Order already completed, proceeding as success');
+          toast.success('Payment successful! Redirecting to your library...');
+          
+          clearCart();
+          localStorage.setItem('purchaseSuccess', 'true');
+          localStorage.setItem('purchaseTime', Date.now().toString());
+          setIsProcessing(false);
+          setPaymentStarted(false);
+          onSuccess(response.reference);
+          
+          // Force redirect to library
+          setTimeout(() => {
+            window.location.href = '/library';
+          }, 1500);
+          return;
         }
         
-        // Verify the payment using the edge function
-        try {
-          // Here we call the edge function directly with the transaction reference
-          const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
-            body: { 
-              reference: response.reference, 
-              orderId,
-              orderItems: orderItemsData
-            },
-          });
-          
-          toast.dismiss('payment-verification');
-          
-          if (error) {
-            console.error('Edge function error:', error);
-            toast.error(`Verification failed: ${error.message || 'Unknown error'}`);
-            setIsProcessing(false);
-            setPaymentStarted(false);
-            return;
-          }
-          
-          if (!data || !data.verified) {
-            const errorMsg = data?.message || 'Payment verification failed';
-            console.error('Verification failed:', errorMsg);
-            toast.error(`Payment verification failed: ${errorMsg}`);
-            setIsProcessing(false);
-            setPaymentStarted(false);
-            return;
-          }
-          
-          // On success
-          toast.success('Payment successful! Redirecting to your library...');
+        // Verify the payment
+        const verificationResult = await verifyPaystackPayment(
+          response.reference, 
+          orderId,
+          orderItemsData
+        );
+        
+        if (verificationResult.success) {
           clearCart();
           localStorage.setItem('purchaseSuccess', 'true');
           localStorage.setItem('purchaseTime', Date.now().toString());
@@ -155,20 +122,17 @@ export function usePaystackCheckout({
           setPaymentStarted(false);
           onSuccess(response.reference);
           
-          // Force navigate to library
+          // Redirect to library
           setTimeout(() => {
             window.location.href = '/library';
           }, 1500);
-          
-        } catch (verifyError) {
-          console.error('Error during edge function call:', verifyError);
-          toast.error('Payment verification failed. Please try again.');
+        } else {
           setIsProcessing(false);
           setPaymentStarted(false);
         }
       } catch (error) {
         console.error('Error during payment verification:', error);
-        toast.error('An error occurred during payment processing');
+        toast.error('An error occurred processing your payment');
         setIsProcessing(false);
         setPaymentStarted(false);
       }
@@ -177,7 +141,7 @@ export function usePaystackCheckout({
     handleSuccess();
   });
 
-  // Cleanup on unmount
+  // Clean up on unmount
   useEffect(() => {
     return () => {
       if (paymentTimeoutRef.current) {
@@ -187,6 +151,7 @@ export function usePaystackCheckout({
     };
   }, []);
 
+  // Validate cart items before checkout
   const validateCartItems = useCallback(async () => {
     if (!user) {
       setValidationError('You must be logged in to complete this purchase');
@@ -197,7 +162,7 @@ export function usePaystackCheckout({
     setValidationError(null);
 
     try {
-      // If we're using direct beat purchase with producer split
+      // Direct beat purchase with producer split
       if (producerId && beatId) {
         console.log('Validating direct beat purchase:', beatId);
         
@@ -241,16 +206,10 @@ export function usePaystackCheckout({
           return false;
         }
         
-        // If split code is missing
-        if (!splitCode) {
-          console.warn('Split code missing for producer:', producerId);
-          // We'll continue anyway, but the payment won't be split
-        }
-        
         return true;
       }
       
-      // Normal cart validation
+      // Cart validation
       console.log('Validating cart items:', cartItems);
       
       if (!cartItems || cartItems.length === 0) {
@@ -277,11 +236,7 @@ export function usePaystackCheckout({
 
       const availableBeats = beatsData.filter(beat => beat.status === 'published');
       if (availableBeats.length !== beatIds.length) {
-        const unavailableBeats = beatIds.filter(
-          id => !availableBeats.some(beat => beat.id === id)
-        );
-        
-        setValidationError(`Some beats in your cart are no longer available (${unavailableBeats.length} items)`);
+        setValidationError(`Some beats in your cart are no longer available`);
         return false;
       }
 
@@ -316,15 +271,16 @@ export function usePaystackCheckout({
     } finally {
       setIsValidating(false);
     }
-  }, [user, cartItems, producerId, beatId, splitCode]);
+  }, [user, cartItems, producerId, beatId]);
 
+  // Start the payment process
   const handlePaymentStart = useCallback(async () => {
     if (isProcessing || isValidating || paymentStarted) return;
     
     setIsProcessing(true);
     
     try {
-      // Ensure PaystackPop is available
+      // Verify PaystackPop is available
       if (typeof window === 'undefined' || !window.PaystackPop || typeof window.PaystackPop.setup !== 'function') {
         console.error('PaystackPop not properly loaded');
         toast.error('Payment system not ready. Please refresh the page and try again.');
@@ -354,15 +310,8 @@ export function usePaystackCheckout({
           .eq('id', beatId)
           .maybeSingle();
           
-        if (beatError) {
-          console.error('Error fetching beat details:', beatError);
+        if (beatError || !beatData) {
           toast.error('Failed to fetch beat details. Please try again.');
-          setIsProcessing(false);
-          return;
-        }
-        
-        if (!beatData) {
-          toast.error('Beat details not found. Please try again.');
           setIsProcessing(false);
           return;
         }
@@ -398,7 +347,7 @@ export function usePaystackCheckout({
         return;
       }
       
-      // Store order ID and cart info for verification
+      // Store order data for verification
       localStorage.setItem('pendingOrderId', orderId);
       localStorage.setItem('orderItems', JSON.stringify(orderItemsData));
       localStorage.setItem('paystackReference', reference);
@@ -413,35 +362,18 @@ export function usePaystackCheckout({
             display_name: "Order ID",
             variable_name: "order_id",
             value: orderId
-          },
-          {
-            display_name: "Order Items",
-            variable_name: "order_items",
-            value: JSON.stringify(orderItemsData)
           }
         ]
       };
       
-      // Payment log
-      console.log('Starting Paystack payment with:', {
-        reference,
-        amount: totalAmount,
-        email: user?.email,
-        orderId,
-        splitCode: splitCode || 'N/A',
-        cartItems: orderItemsData
-      });
+      console.log('Starting Paystack payment');
       
       // Mark payment as started
       setPaymentStarted(true);
       
-      // Initialize and open Paystack with improved settings
       try {
-        const closeFunc = paystackCloseRef.current;
-        const successFunc = paystackSuccessRef.current;
-        
-        // Create handler with explicit callback functions and improved configuration
-        const handlerConfig: any = {
+        // Create Paystack handler with proper configuration
+        const handler = window.PaystackPop.setup({
           key: 'pk_test_b3ff87016c279c34b015be72594fde728d5849b8', // Public test key
           email: user?.email || '',
           amount: totalAmount * 100, // Convert to kobo
@@ -449,48 +381,37 @@ export function usePaystackCheckout({
           ref: reference,
           label: 'OrderSOUNDS',
           metadata: metadata,
-          onClose: function() {
-            closeFunc();
-          },
-          callback: function(response: any) {
-            successFunc(response);
-          },
-          // These settings ensure the modal is not embedded in an iframe and can display properly
-          embed: false,
-          container: null,
-          frame: true // Force using the popup window for better test button accessibility
-        };
+          onClose: paystackCloseRef.current,
+          callback: paystackSuccessRef.current,
+          // These settings are important for the payment window to display properly
+          frame: true,
+          embed: false
+        });
         
-        // Add split_code if available
-        if (splitCode) {
-          handlerConfig.split_code = splitCode;
-        }
-        
-        const handler = window.PaystackPop.setup(handlerConfig);
         paystackHandlerRef.current = handler;
         
         // Explicitly open the payment iframe
         handler.openIframe();
         
-        // First quick timeout to check if popup opened
+        // Set timeout to check for problems
         if (paymentTimeoutRef.current) {
           clearTimeout(paymentTimeoutRef.current);
         }
         
+        // First timeout - provide feedback
         paymentTimeoutRef.current = setTimeout(() => {
-          console.log('Initial check for payment window');
-          // Just display a message that payment is in progress
-          toast.info('Payment process started. The test payment screen should now be visible.');
+          if (!paymentStarted) return;
           
           // Longer timeout for the overall process
           paymentTimeoutRef.current = setTimeout(() => {
-            console.log('Final check for payment window (2 min timeout)');
+            if (!paymentStarted) return;
+            console.log('Payment taking too long - automatic timeout');
             toast.error('Payment taking too long. Please try again.');
             setIsProcessing(false);
             setPaymentStarted(false);
             localStorage.removeItem('paymentInProgress');
           }, 120000); // 2 minute overall timeout
-        }, 3000); // First check after 3 seconds
+        }, 3000);
       } catch (error) {
         console.error('Paystack initialization error:', error);
         toast.error('Failed to initialize payment. Please try again.');
@@ -503,13 +424,15 @@ export function usePaystackCheckout({
       setIsProcessing(false);
       setPaymentStarted(false);
     }
-  }, [isProcessing, isValidating, paymentStarted, totalAmount, user, validateCartItems, cartItems, clearCart, onSuccess, producerId, beatId, splitCode]);
+  }, [isProcessing, isValidating, paymentStarted, totalAmount, user, validateCartItems, cartItems, producerId, beatId, splitCode]);
 
+  // Handle cart refresh
   const handleRefreshCart = async () => {
     setValidationError(null);
     await validateCartItems();
   };
 
+  // Force cancel payment
   const forceCancel = () => {
     setIsProcessing(false);
     setPaymentStarted(false);
@@ -519,13 +442,11 @@ export function usePaystackCheckout({
     localStorage.removeItem('paystackReference');
     localStorage.removeItem('orderItems');
     
-    // Clear any existing payment timeout
     if (paymentTimeoutRef.current) {
       clearTimeout(paymentTimeoutRef.current);
       paymentTimeoutRef.current = null;
     }
     
-    // If we have a handler reference, try to close it
     if (paystackHandlerRef.current && typeof paystackHandlerRef.current.close === 'function') {
       try {
         paystackHandlerRef.current.close();
@@ -536,7 +457,6 @@ export function usePaystackCheckout({
     }
     
     onClose();
-    
     toast.info('Payment canceled');
   };
 

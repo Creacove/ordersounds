@@ -104,8 +104,9 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
   try {
     console.log('Payment success, verifying with backend...', paymentReference, orderId);
     
-    // Show loading toast
-    toast.loading('Verifying your payment...', { id: 'payment-verification' });
+    // Show loading toast - use a unique ID based on reference to prevent duplicate toasts
+    const verificationToastId = `payment-verification-${paymentReference}`;
+    toast.loading('Processing payment...', { id: verificationToastId });
     
     // Call the verification edge function with explicit order items data
     const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
@@ -117,11 +118,11 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
     });
     
     // Always dismiss the loading toast
-    toast.dismiss('payment-verification');
+    toast.dismiss(verificationToastId);
     
     if (error) {
       console.error('Verification error from edge function:', error);
-      toast.error(`Payment verification failed: ${error.message || 'Unknown error'}`);
+      toast.error(`Payment could not be verified. ${error.message || 'Please try again later.'}`);
       return { success: false, error: error.message };
     }
     
@@ -131,13 +132,13 @@ export const verifyPaystackPayment = async (paymentReference: string, orderId: s
       return { success: true };
     } else {
       const errorMsg = data?.message || 'Payment verification failed';
-      toast.error('Payment verification failed. Please try again or contact support with your reference: ' + paymentReference);
+      toast.error(`Payment could not be completed. Please try again or contact support with reference: ${paymentReference}`);
       return { success: false, error: errorMsg };
     }
   } catch (error) {
     console.error('Payment verification exception:', error);
-    toast.dismiss('payment-verification');
-    toast.error('There was an issue with your purchase. Please contact support with reference: ' + paymentReference);
+    toast.dismiss(`payment-verification-${paymentReference}`);
+    toast.error(`Transaction could not be completed. Please contact support with reference: ${paymentReference}`);
     return { success: false, error: error.message };
   }
 };

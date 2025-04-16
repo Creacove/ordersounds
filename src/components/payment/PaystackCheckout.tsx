@@ -7,7 +7,6 @@ interface PaystackProps {
   onClose: () => void;
   isOpen: boolean;
   totalAmount: number;
-  // New props for split payment
   splitCode?: string | null;
   producerId?: string;
   beatId?: string;

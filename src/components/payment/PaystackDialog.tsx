@@ -35,8 +35,8 @@ export function PaystackDialog({
           <DialogTitle className="text-xl">Complete Your Purchase</DialogTitle>
           <DialogDescription>
             {paymentStarted ? 
-              "Paystack payment window should be open. If not visible, please wait or use the Cancel button below." :
-              "You'll be redirected to Paystack to securely complete your payment."}
+              "Payment window is opening. If you don't see it, please check if it's been blocked by your browser." :
+              "You'll be redirected to Paystack's secure payment platform to complete this transaction."}
           </DialogDescription>
         </DialogHeader>
         
@@ -45,7 +45,6 @@ export function PaystackDialog({
           <p className="text-2xl font-bold">₦{totalAmount.toLocaleString()}</p>
           <p className="text-xs text-muted-foreground mt-1">
             <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded-sm font-medium">Test Mode</span>
-            {" "}- No real charges will be made
           </p>
         </div>
         
@@ -74,17 +73,6 @@ export function PaystackDialog({
           </div>
         )}
         
-        {paymentStarted ? (
-          <div className="p-3 border border-orange-500/30 bg-orange-500/10 rounded-md mb-4">
-            <p className="text-sm">
-              <span className="font-medium">Test Payment Instructions:</span> In test mode, use the Success, Bank Authentication, or Declined buttons to simulate different payment outcomes.
-            </p>
-            <p className="text-xs mt-1 text-muted-foreground">
-              If the test buttons aren't clickable yet, please wait a moment for the payment screen to load. The Paystack test modal should appear separately.
-            </p>
-          </div>
-        ) : null}
-        
         <div className="flex flex-col gap-3 mt-2">
           <Button 
             onClick={onPaymentStart}
@@ -100,7 +88,7 @@ export function PaystackDialog({
             ) : paymentStarted ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Payment window opened...
+                Opening payment window...
               </>
             ) : isValidating ? (
               <>
@@ -108,7 +96,7 @@ export function PaystackDialog({
                 Validating...
               </>
             ) : (
-              'Pay with Paystack (Test Mode)'
+              'Proceed to Payment'
             )}
           </Button>
           

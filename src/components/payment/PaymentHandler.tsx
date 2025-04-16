@@ -30,22 +30,9 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
   const maxScriptLoadAttempts = 3;
   const scriptCheckInterval = useRef<NodeJS.Timeout | null>(null);
   const paystackScriptUrl = "https://js.paystack.co/v1/inline.js";
+  const scriptRef = useRef<HTMLScriptElement | null>(null);
 
-  // Pre-load Paystack script as soon as possible
-  useEffect(() => {
-    const preloadLink = document.createElement('link');
-    preloadLink.rel = 'preload';
-    preloadLink.as = 'script';
-    preloadLink.href = paystackScriptUrl;
-    document.head.appendChild(preloadLink);
-    
-    return () => {
-      if (preloadLink.parentNode) {
-        document.head.removeChild(preloadLink);
-      }
-    };
-  }, []);
-
+  // Check if Paystack is already available in the window object
   const verifyPaystackAvailable = () => {
     try {
       return window.PaystackPop && 
@@ -57,23 +44,38 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     }
   };
 
-  const loadPaystackScript = () => {
-    if (scriptLoadAttempts.current >= maxScriptLoadAttempts) {
-      console.error('Maximum script load attempts reached');
-      setScriptError(true);
-      setLoadingScript(false);
-      toast.error('Unable to load payment system after multiple attempts. Please refresh the page or try again later.');
-      return;
-    }
-
-    setLoadingScript(true);
-    scriptLoadAttempts.current += 1;
-    
-    // Clear any existing script checks
+  // Clean up any ongoing checks or timeouts
+  const cleanupPaystackResources = () => {
     if (scriptCheckInterval.current) {
       clearInterval(scriptCheckInterval.current);
       scriptCheckInterval.current = null;
     }
+  };
+
+  // Improved script loading with better error handling
+  const loadPaystackScript = () => {
+    // Don't try loading if we've reached the max attempts
+    if (scriptLoadAttempts.current >= maxScriptLoadAttempts) {
+      console.error('Maximum script load attempts reached');
+      setScriptError(true);
+      setLoadingScript(false);
+      toast.error('Payment system unavailable. Please try again later.');
+      return;
+    }
+
+    // Clean up any existing script element
+    if (scriptRef.current && scriptRef.current.parentNode) {
+      scriptRef.current.parentNode.removeChild(scriptRef.current);
+      scriptRef.current = null;
+    }
+
+    // Clean up any existing intervals
+    cleanupPaystackResources();
+    
+    // Show loading state
+    setLoadingScript(true);
+    setScriptError(false);
+    scriptLoadAttempts.current += 1;
     
     // Remove any existing script element
     const existingScript = document.getElementById('paystack-script');
@@ -86,8 +88,11 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     script.src = paystackScriptUrl;
     script.id = "paystack-script";
     script.async = true;
+    scriptRef.current = script;
     
     script.onload = () => {
+      console.log('Paystack script loaded, checking for PaystackPop object');
+      
       // Check for Paystack object using interval for reliability
       let checkCount = 0;
       const maxChecks = 10;
@@ -95,71 +100,68 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
       scriptCheckInterval.current = setInterval(() => {
         checkCount++;
         if (verifyPaystackAvailable()) {
-          if (scriptCheckInterval.current) {
-            clearInterval(scriptCheckInterval.current);
-            scriptCheckInterval.current = null;
-          }
+          cleanupPaystackResources();
           console.log('Paystack script loaded successfully');
           setScriptLoaded(true);
           setScriptError(false);
           setLoadingScript(false);
         } else if (checkCount >= maxChecks) {
-          if (scriptCheckInterval.current) {
-            clearInterval(scriptCheckInterval.current);
-            scriptCheckInterval.current = null;
-          }
-          console.error('Paystack script loaded but PaystackPop is not available after multiple checks');
+          cleanupPaystackResources();
+          console.error('Paystack script loaded but PaystackPop not available after multiple checks');
           setScriptError(true);
           setLoadingScript(false);
           
           // Try again after a delay
           setTimeout(() => {
             loadPaystackScript();
-          }, 1500);
+          }, 2000);
         } else {
-          console.log(`PaystackPop not available yet, checking again (${checkCount}/${maxChecks})`);
+          console.log(`Checking for PaystackPop (${checkCount}/${maxChecks})`);
         }
-      }, 300); // Check faster with shorter intervals
+      }, 300);
     };
     
     script.onerror = () => {
       console.error('Failed to load Paystack script');
       setScriptError(true);
       setLoadingScript(false);
-      toast.error('Payment system failed to load. Please try again.');
+      toast.error('Payment system could not be loaded. Please try again.');
       
       // Try again after a delay
       setTimeout(() => {
         loadPaystackScript();
-      }, 1500);
+      }, 2000);
     };
     
     document.body.appendChild(script);
   };
 
+  // Load script on component mount
   useEffect(() => {
+    // If Paystack is already available, don't load the script again
     if (verifyPaystackAvailable()) {
-      console.log('Paystack script is already loaded and PaystackPop is available');
+      console.log('Paystack already loaded');
       setScriptLoaded(true);
+      setLoadingScript(false);
       return;
     }
     
+    // Don't load if already loading
     if (loadingScript) return;
     
     loadPaystackScript();
     
     return () => {
-      if (scriptCheckInterval.current) {
-        clearInterval(scriptCheckInterval.current);
-        scriptCheckInterval.current = null;
-      }
+      cleanupPaystackResources();
     };
-  }, [loadingScript]);
+  }, []);
 
+  // Update hasItems when cart changes
   useEffect(() => {
     setHasItems(cartItems && cartItems.length > 0);
   }, [cartItems]);
   
+  // Fetch producer split code if needed
   useEffect(() => {
     const fetchSplitCode = async () => {
       if (!producerId) return;
@@ -179,6 +181,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     fetchSplitCode();
   }, [producerId]);
 
+  // Handle successful payment
   const handlePaystackSuccess = (reference: string) => {
     console.log('Payment successful with reference:', reference);
     
@@ -197,11 +200,13 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     setInitiatingPayment(false);
   };
 
+  // Handle payment modal close
   const handlePaystackClose = () => {
     setInitiatingPayment(false);
     setIsPaystackOpen(false);
   };
 
+  // Handle script reload
   const handleReloadScript = () => {
     setScriptError(false);
     scriptLoadAttempts.current = 0;
@@ -209,6 +214,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     toast.info('Reloading payment system...');
   };
 
+  // Start payment process
   const handleStartPayment = () => {
     if (!producerId && (!cartItems || cartItems.length === 0)) {
       toast.error('Your cart is empty. Please add items before checkout.');
@@ -216,12 +222,12 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     }
     
     if (loadingScript) {
-      toast.error('Payment system is still loading. Please wait a moment and try again.');
+      toast.error('Payment system still initializing. Please wait a moment.');
       return;
     }
     
     if (!verifyPaystackAvailable()) {
-      toast.error('Payment system not properly initialized. Attempting to reload...');
+      toast.error('Payment system not ready. Reloading payment gateway...');
       handleReloadScript();
       return;
     }
@@ -231,11 +237,11 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     // Small delay to show feedback before opening dialog
     setTimeout(() => {
       setIsPaystackOpen(true);
-      // Reset initiatingPayment here to allow clicking in the Paystack modal
       setInitiatingPayment(false);
     }, 300);
   };
 
+  // If user is not logged in, show message
   if (!user) {
     return (
       <div className="flex items-center gap-2 p-4 border rounded-md bg-muted/30 text-muted-foreground">
@@ -270,7 +276,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
         <div className="p-3 border border-primary/20 bg-primary/5 rounded-md mb-4">
           <p className="text-sm text-primary/80 flex items-center gap-2">
             <Loader2 size={14} className="animate-spin" />
-            Loading payment system... Please wait.
+            Loading payment system...
           </p>
         </div>
       )}
@@ -279,7 +285,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
         <div className="p-3 border border-primary/20 bg-primary/5 rounded-md mb-4">
           <p className="text-sm text-primary/80 flex items-center gap-2">
             <Loader2 size={14} className="animate-spin" />
-            Preparing payment details... Please wait.
+            Preparing transaction...
           </p>
         </div>
       )}
@@ -295,7 +301,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
             {initiatingPayment ? (
               <>
                 <Loader2 size={16} className="mr-2 animate-spin" />
-                Initializing Payment...
+                Initializing...
               </>
             ) : loadingScript ? (
               'Loading Payment System...'
