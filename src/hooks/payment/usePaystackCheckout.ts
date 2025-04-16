@@ -1,5 +1,4 @@
-
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
@@ -38,6 +37,7 @@ export function usePaystackCheckout({
   const { cartItems, clearCart } = useCart();
   const navigate = useNavigate();
   const paymentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const paystackHandlerRef = useRef<any>(null);
   
   // Create direct function references to prevent serialization issues
   const paystackCloseRef = useRef(() => {
@@ -168,6 +168,16 @@ export function usePaystackCheckout({
     
     handleSuccess();
   });
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (paymentTimeoutRef.current) {
+        clearTimeout(paymentTimeoutRef.current);
+        paymentTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   const validateCartItems = useCallback(async () => {
     if (!user) {
@@ -445,23 +455,38 @@ export function usePaystackCheckout({
           handlerConfig.split_code = splitCode;
         }
         
+        // Set embed to true to ensure the modal doesn't use a full iframe takeover
+        handlerConfig.embed = false;
+        
+        // Set container to null to allow Paystack to handle its own positioning
+        // This will make the Paystack iframe more accessible
+        handlerConfig.container = null;
+        
         const handler = window.PaystackPop.setup(handlerConfig);
+        paystackHandlerRef.current = handler;
         
         // Explicitly open the payment iframe
         handler.openIframe();
         
-        // Set a timeout to reset processing state if iframe fails to open or payment takes too long
+        // Shorter timeout (15s) to reset processing state if payment is stuck
         if (paymentTimeoutRef.current) {
           clearTimeout(paymentTimeoutRef.current);
         }
         
         paymentTimeoutRef.current = setTimeout(() => {
-          console.log('Payment timeout reached, resetting state');
-          toast.error('Payment taking too long. Please try again.');
-          setIsProcessing(false);
-          setPaymentStarted(false);
-          localStorage.removeItem('paymentInProgress');
-        }, 120000); // 2 minute timeout
+          console.log('Initial timeout reached, setting longer timeout');
+          // Only show a message and keep the payment flow going
+          toast.info('Payment process started. The test payment screen should now be interactive.');
+          
+          // Set a longer timeout for the overall process
+          paymentTimeoutRef.current = setTimeout(() => {
+            console.log('Payment timeout reached, resetting state');
+            toast.error('Payment taking too long. Please try again.');
+            setIsProcessing(false);
+            setPaymentStarted(false);
+            localStorage.removeItem('paymentInProgress');
+          }, 120000); // 2 minute overall timeout
+        }, 5000); // First check after 5 seconds
       } catch (error) {
         console.error('Paystack initialization error:', error);
         toast.error('Failed to initialize payment. Please try again.');
@@ -496,20 +521,20 @@ export function usePaystackCheckout({
       paymentTimeoutRef.current = null;
     }
     
+    // If we have a handler reference, try to close it
+    if (paystackHandlerRef.current && typeof paystackHandlerRef.current.close === 'function') {
+      try {
+        paystackHandlerRef.current.close();
+      } catch (err) {
+        console.error('Error closing Paystack iframe:', err);
+      }
+      paystackHandlerRef.current = null;
+    }
+    
     onClose();
     
     toast.info('Payment canceled');
   };
-
-  // Cleanup timeout on unmount
-  useCallback(() => {
-    return () => {
-      if (paymentTimeoutRef.current) {
-        clearTimeout(paymentTimeoutRef.current);
-        paymentTimeoutRef.current = null;
-      }
-    };
-  }, []);
 
   return {
     isProcessing,

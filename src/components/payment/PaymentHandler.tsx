@@ -194,6 +194,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     }
     
     setIsPaystackOpen(false);
+    setInitiatingPayment(false);
   };
 
   const handlePaystackClose = () => {
@@ -230,7 +231,8 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     // Small delay to show feedback before opening dialog
     setTimeout(() => {
       setIsPaystackOpen(true);
-      // Don't reset initiatingPayment here to prevent double-clicks
+      // Reset initiatingPayment here to allow clicking in the Paystack modal
+      setInitiatingPayment(false);
     }, 300);
   };
 
@@ -243,7 +245,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
     );
   }
 
-  const isDisabled = totalAmount <= 0 || (!hasItems && !producerId) || !scriptLoaded || loadingScript || initiatingPayment || loadingSplitCode;
+  const isDisabled = totalAmount <= 0 || (!hasItems && !producerId) || !scriptLoaded || loadingScript || loadingSplitCode;
 
   return (
     <div className="space-y-4">

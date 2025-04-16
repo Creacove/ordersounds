@@ -34,7 +34,9 @@ export function PaystackDialog({
         <DialogHeader className="mb-2">
           <DialogTitle className="text-xl">Complete Your Purchase</DialogTitle>
           <DialogDescription>
-            You'll be redirected to Paystack to securely complete your payment.
+            {paymentStarted ? 
+              "Paystack payment window should be open. If not visible, please wait or use the Cancel button below." :
+              "You'll be redirected to Paystack to securely complete your payment."}
           </DialogDescription>
         </DialogHeader>
         
@@ -71,6 +73,17 @@ export function PaystackDialog({
             </Button>
           </div>
         )}
+        
+        {paymentStarted ? (
+          <div className="p-3 border border-orange-500/30 bg-orange-500/10 rounded-md mb-4">
+            <p className="text-sm">
+              <span className="font-medium">Test Payment Instructions:</span> In test mode, you can use the Success, Bank Authentication, or Declined buttons to simulate different payment outcomes.
+            </p>
+            <p className="text-xs mt-1 text-muted-foreground">
+              If the test buttons aren't clickable yet, please wait a few seconds for the payment screen to fully load.
+            </p>
+          </div>
+        ) : null}
         
         <div className="flex flex-col gap-3 mt-2">
           <Button 
