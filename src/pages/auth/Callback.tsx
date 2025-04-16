@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,18 +23,27 @@ export default function AuthCallback() {
       const { data: session } = await supabase.auth.getSession();
       const userId = session?.session?.user?.id;
       
-      const eventData = {
+      // Log to console for now until types are updated
+      console.log('Auth callback event:', {
         event_type: `callback_${event}`,
         user_id: userId || details.user_id || 'anonymous',
-        details: JSON.stringify({
+        details: {
           ...details,
           timestamp: new Date().toISOString(),
-        }),
+        },
         created_at: new Date().toISOString()
-      };
-
-      // Store in Supabase
-      await supabase.from('auth_logs').insert([eventData]);
+      });
+      
+      // Once types are updated, we can use this:
+      // await supabase.from('auth_logs').insert([{
+      //   event_type: `callback_${event}`,
+      //   user_id: userId || details.user_id || 'anonymous',
+      //   details: JSON.stringify({
+      //     ...details,
+      //     timestamp: new Date().toISOString(),
+      //   }),
+      //   created_at: new Date().toISOString()
+      // }]);
     } catch (error) {
       // Silent error - don't break the app if logging fails
       console.error('Failed to log auth callback event:', error);

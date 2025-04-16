@@ -17,20 +17,27 @@ export function GoogleAuthButton({ mode }: GoogleAuthButtonProps) {
   // Log Google auth events
   const logGoogleAuthEvent = async (event: string, details: any = {}) => {
     try {
-      const eventData = {
+      // Log to console for now until types are updated
+      console.log('Google auth event:', {
         event_type: `google_${event}`,
         user_id: details.user_id || 'anonymous',
-        details: JSON.stringify({
+        details: {
           ...details,
           timestamp: new Date().toISOString(),
-        }),
+        },
         created_at: new Date().toISOString()
-      };
-
-      // Store in auth activity for analytics instead of direct table insert
-      console.log('Logging Google auth event:', eventData);
-      // We'll log these events in a more type-safe way later when the auth_logs
-      // table is properly defined in the Supabase types
+      });
+      
+      // Once types are updated, we can use this:
+      // await supabase.from('auth_logs').insert([{
+      //   event_type: `google_${event}`,
+      //   user_id: details.user_id || 'anonymous',
+      //   details: JSON.stringify({
+      //     ...details,
+      //     timestamp: new Date().toISOString(),
+      //   }),
+      //   created_at: new Date().toISOString()
+      // }]);
     } catch (error) {
       // Silent error - don't break the app if logging fails
       console.error('Failed to log Google auth event:', error);
