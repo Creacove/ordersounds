@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect } from 'react';
 import { User } from '@/types';
 import { useAuthState } from '@/hooks/auth/useAuthState';
@@ -6,6 +5,7 @@ import { useAuthMethods } from '@/hooks/auth/useAuthMethods';
 import { toast } from 'sonner';
 import { logSessionEvent } from '@/lib/authLogger';
 import { initiateRecoveryFlow } from '@/lib/authLogger';
+import { supabase } from '@/lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -56,18 +56,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     appVersion
   });
 
-  // Function to directly update user info in context
   const updateUserInfo = (updatedUser: User) => {
     setUser(updatedUser);
-    setConsecutiveErrors(0); // Reset error counter on successful user update
+    setConsecutiveErrors(0);
   };
-  
-  // Check if producer is inactive
+
   const isProducerInactive = 
     user?.role === 'producer' && 
     user?.status === 'inactive';
-  
-  // Force refresh user data from database
+
   const forceUserDataRefresh = async (): Promise<boolean> => {
     if (!user) {
       console.log("Cannot refresh user data, no user in context");
@@ -100,7 +97,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
       
-      // Update the user in context with fresh data
       setUser({
         ...user,
         role: userData.role as 'buyer' | 'producer' | 'admin',
@@ -129,21 +125,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
     
-  // Recovery function exposed to components
   const recoverSession = (email?: string) => {
     initiateRecoveryFlow(email);
   };
   
-  // Log auth errors for monitoring
   useEffect(() => {
     if (authError) {
       console.error('Authentication error:', authError);
-      // Only show toast for non-silent errors (silent errors are handled internally)
       if (!authError.includes('[silent]')) {
         toast.error(`Authentication error: ${authError}`);
       }
       
-      // Log auth errors to our new system
       if (user) {
         logSessionEvent('auth_error', { 
           error: authError,
@@ -153,7 +145,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         logSessionEvent('auth_error', { error: authError });
       }
       
-      // Track consecutive errors - if we get too many, suggest recovery
       if (consecutiveErrors >= 3 && !authError.includes('[silent]')) {
         toast.error(
           "We're having trouble with your session. Please try logging in again.", 
@@ -168,15 +159,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [authError, user, consecutiveErrors]);
 
-  // Version-aware token migration on app startup
   useEffect(() => {
-    // Try to refresh the session on app load
     const initAuth = async () => {
       if (!isLoading && !user) {
         try {
           await refreshSession();
         } catch (error) {
-          // Silent error, handled by refreshSession
           console.log('Silent session refresh attempt failed');
         }
       }
