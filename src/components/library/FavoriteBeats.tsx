@@ -20,7 +20,7 @@ export function FavoriteBeats() {
     setIsRefreshing(true);
     try {
       // Just re-fetch the beats data which includes favorites
-      await new Promise(resolve => setTimeout(resolve, 500)); // Short delay for UX
+      await new Promise(resolve => setTimeout(resolve, 300)); // Shortened delay for better UX
       toast.success('Your favorites have been refreshed');
     } catch (error) {
       console.error('Error refreshing favorites:', error);
@@ -42,7 +42,7 @@ export function FavoriteBeats() {
           <Skeleton className="h-9 w-24" />
         </div>
         <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
+          {[1, 2].map((i) => ( // Reduced number of skeleton elements
             <Skeleton key={i} className="h-16 w-full" />
           ))}
         </div>

@@ -1,4 +1,3 @@
-
 // Cache keys for localStorage
 export const CACHE_KEYS = {
   TRENDING_BEATS: 'trending_beats_cache',
@@ -14,10 +13,10 @@ export const CACHE_KEYS = {
 
 // Cache expiration durations (in hours)
 export const CACHE_DURATIONS = {
-  TRENDING: 1,   // 1 hour for trending beats
-  FEATURED: 3,   // 3 hours for featured beats
+  TRENDING: 3,   // Extended from 1 hour to 3 hours for trending beats
+  FEATURED: 6,   // Extended from 3 hours to 6 hours for featured beats
   WEEKLY: 168,   // Weekly (7 days * 24 hours)
-  ALL_BEATS: 24  // 24 hours for all beats
+  ALL_BEATS: 48  // Extended from 24 hours to 48 hours for all beats
 };
 
 // Utility function to get a cache expiration timestamp
@@ -45,6 +44,12 @@ export const loadFromCache = <T>(cacheKey: string): T | null => {
 // Save items to local storage cache
 export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, durationHours: number): void => {
   try {
+    // Don't save empty arrays or null data
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      console.warn(`Not saving empty data to cache (${cacheKey})`);
+      return;
+    }
+
     localStorage.setItem(cacheKey, JSON.stringify(data));
     localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
     console.log(`Saved ${cacheKey} to cache, expires in ${durationHours} hours`);
@@ -65,4 +70,26 @@ export const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours:
 // Check if we're online
 export const isOnline = (): boolean => {
   return navigator.onLine;
+};
+
+// Optimize cache storage by limiting size
+export const optimizeCacheStorage = (maxBeats: number = 50): void => {
+  try {
+    const allBeatsString = localStorage.getItem(CACHE_KEYS.ALL_BEATS);
+    if (allBeatsString) {
+      const allBeats = JSON.parse(allBeatsString);
+      if (Array.isArray(allBeats) && allBeats.length > maxBeats) {
+        // Keep only the most popular beats in cache
+        const optimizedBeats = allBeats
+          .sort((a, b) => ((b.purchase_count || 0) + (b.favorites_count || 0)) - 
+                          ((a.purchase_count || 0) + (a.favorites_count || 0)))
+          .slice(0, maxBeats);
+        
+        localStorage.setItem(CACHE_KEYS.ALL_BEATS, JSON.stringify(optimizedBeats));
+        console.log(`Optimized beats cache: reduced from ${allBeats.length} to ${optimizedBeats.length} items`);
+      }
+    }
+  } catch (error) {
+    console.error('Error optimizing cache storage:', error);
+  }
 };
