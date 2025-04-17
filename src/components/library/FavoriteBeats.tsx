@@ -30,8 +30,9 @@ export function FavoriteBeats() {
     }
   };
 
-  const handleRemoveFavorite = async (beatId: string) => {
-    await toggleFavorite(beatId);
+  // Updated to return a boolean as expected by the component
+  const handleRemoveFavorite = async (beatId: string): Promise<boolean> => {
+    return await toggleFavorite(beatId);
   };
 
   if (isLoading) {

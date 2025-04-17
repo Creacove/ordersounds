@@ -25,7 +25,7 @@ export interface BeatCardProps {
   onPlayClick?: () => void;
   className?: string;
   showStatus?: boolean;
-  onToggleFavorite?: (beatId: string) => Promise<boolean>; // Add onToggleFavorite prop
+  onToggleFavorite?: (beatId: string) => Promise<boolean>;
 }
 
 export const BeatCard = ({
@@ -37,7 +37,7 @@ export const BeatCard = ({
   onPlayClick,
   className,
   showStatus = false,
-  onToggleFavorite, // Add to function parameters
+  onToggleFavorite,
 }: BeatCardProps) => {
   const { title, producer_name, cover_image_url, status } = beat;
   const [isPlaying, setIsPlaying] = useState(false);
@@ -50,23 +50,14 @@ export const BeatCard = ({
     onPlayClick?.();
   };
 
-  const handleAddToCart = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleAddToCart = (event: React.MouseEvent) => {
     event.stopPropagation();
     addToCart(beat);
   };
 
-  const handleRemoveFromCart = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleRemoveFromCart = (event: React.MouseEvent) => {
     event.stopPropagation();
     removeFromCart(beat.id);
-  };
-
-  // Update to use button events correctly
-  const handleAddToCartButton = (event: React.MouseEvent<HTMLButtonElement>) => {
-    handleAddToCart(event);
-  };
-
-  const handleRemoveFromCartButton = (event: React.MouseEvent<HTMLButtonElement>) => {
-    handleRemoveFromCart(event);
   };
 
   return (
@@ -119,11 +110,11 @@ export const BeatCard = ({
                 {!isPurchased && (
                   <>
                     {isInCart ? (
-                      <DropdownMenuItem onClick={handleRemoveFromCartButton}>
+                      <DropdownMenuItem onClick={(e) => handleRemoveFromCart(e)}>
                         Remove from Cart
                       </DropdownMenuItem>
                     ) : (
-                      <DropdownMenuItem onClick={handleAddToCartButton}>
+                      <DropdownMenuItem onClick={(e) => handleAddToCart(e)}>
                         Add to Cart
                       </DropdownMenuItem>
                     )}
