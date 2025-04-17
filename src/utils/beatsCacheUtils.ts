@@ -15,11 +15,11 @@ export const CACHE_KEYS = {
 
 // Cache expiration durations (in hours)
 export const CACHE_DURATIONS = {
-  TRENDING: 12,    // Extended from 6 to 12 hours for trending beats
-  FEATURED: 24,    // Extended from 12 to 24 hours for featured beats
-  WEEKLY: 168,     // Weekly (7 days * 24 hours)
-  ALL_BEATS: 96,   // Extended from 72 to 96 hours for all beats
-  FETCH_COOLDOWN: 3/60 // 3 minutes cooldown between fetch attempts (increased from 1 minute)
+  TRENDING: 6,    // Extended from 3 to 6 hours for trending beats
+  FEATURED: 12,   // Extended from 6 to 12 hours for featured beats
+  WEEKLY: 168,    // Weekly (7 days * 24 hours)
+  ALL_BEATS: 72,  // Extended from 48 to 72 hours for all beats
+  FETCH_COOLDOWN: 1/60 // 1 minute cooldown between fetch attempts
 };
 
 // Utility function to get a cache expiration timestamp
@@ -75,7 +75,7 @@ export const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours:
 
 // Check if we're online
 export const isOnline = (): boolean => {
-  return typeof navigator !== 'undefined' && navigator.onLine;
+  return navigator.onLine;
 };
 
 // Check if we should attempt a new fetch based on the cooldown period
@@ -95,9 +95,8 @@ export const recordFetchAttempt = (): void => {
 };
 
 // Optimize cache storage by limiting size
-export const optimizeCacheStorage = (maxBeats: number = 20): void => {
+export const optimizeCacheStorage = (maxBeats: number = 30): void => {
   try {
-    // Reduced from 30 to 20 max beats to store in cache
     const allBeatsString = localStorage.getItem(CACHE_KEYS.ALL_BEATS);
     if (allBeatsString) {
       const allBeats = JSON.parse(allBeatsString);
@@ -137,7 +136,7 @@ export const deepCleanCache = (): void => {
     }
     
     // Ensure cache size is optimal
-    optimizeCacheStorage(20);
+    optimizeCacheStorage(30);
   } catch (error) {
     console.error('Error in deepCleanCache:', error);
   }

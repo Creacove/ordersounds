@@ -32,7 +32,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           .from('users')
           .select('favorites')
           .eq('id', user.id)
-          .maybeSingle();
+          .single();
         
         if (error) {
           console.error('Error checking favorite status:', error);
@@ -45,12 +45,8 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         // Ensure favorites is treated as an array
         if (Array.isArray(favorites)) {
           setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
-        } else if (typeof favorites === 'object') {
-          // Handle if favorites is a JSON object not an array
-          const favsArray = Object.values(favorites);
-          setIsFavorite(favsArray.some((fav: any) => fav.beat_id === beat.id));
         } else {
-          console.warn('favorites is not an array or object:', favorites);
+          console.warn('favorites is not an array:', favorites);
           setIsFavorite(false);
         }
       } catch (error) {
@@ -91,7 +87,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         .from('users')
         .select('favorites')
         .eq('id', user.id)
-        .maybeSingle();
+        .single();
       
       if (userError) {
         throw userError;
@@ -108,12 +104,10 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         // Remove from favorites
         favorites = favorites.filter((fav: any) => fav.beat_id !== beat.id);
         
-        // Handle as string/UUID for the query
         await supabase
-          .rpc('remove_favorite', {
-            user_id_param: user.id,
-            beat_id_param: beat.id
-          });
+          .from('users')
+          .update({ favorites })
+          .eq('id', user.id);
         
         setIsFavorite(false);
         toast("Removed from favorites");
@@ -124,32 +118,25 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           added_at: new Date().toISOString()
         });
         
-        // Handle as string/UUID for the query
         await supabase
-          .rpc('add_favorite', {
-            user_id_param: user.id,
-            beat_id_param: beat.id
-          });
+          .from('users')
+          .update({ favorites })
+          .eq('id', user.id);
         
         // Create notification for beat owner if present
         if (beat.producer_id) {
-          try {
-            await supabase
-              .from('notifications')
-              .insert([{
-                recipient_id: beat.producer_id,
-                sender_id: user.id,
-                notification_type: 'favorite',
-                title: 'New favorite',
-                body: `Someone favorited your beat "${beat.title}"`,
-                is_read: false,
-                related_entity_id: beat.id,
-                related_entity_type: 'beat'
-              }]);
-          } catch (notifError) {
-            console.error('Error creating notification:', notifError);
-            // Don't fail the favorite action if notification fails
-          }
+          await supabase
+            .from('notifications')
+            .insert({
+              recipient_id: beat.producer_id,
+              sender_id: user.id,
+              notification_type: 'favorite',
+              title: 'New favorite',
+              body: `Someone favorited your beat "${beat.title}"`,
+              is_read: false,
+              related_entity_id: beat.id,
+              related_entity_type: 'beat'
+            });
         }
         
         setIsFavorite(true);
