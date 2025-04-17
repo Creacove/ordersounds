@@ -23,11 +23,39 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
       'Content-Type': 'application/json'
     },
     fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-      // Add retry and timeout logic for more reliable network requests
-      return fetch(input, init).catch(err => {
+      const fetchOptions = {
+        ...init,
+        headers: {
+          ...init?.headers,
+          'Cache-Control': 'no-cache'  // Prevent caching by CDN
+        }
+      };
+      
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
+      const fetchPromise = fetch(input, {
+        ...fetchOptions,
+        signal: controller.signal
+      }).then(response => {
+        clearTimeout(timeoutId);
+        return response;
+      }).catch(err => {
+        clearTimeout(timeoutId);
         console.error('Supabase fetch error:', err);
         throw err;
       });
+      
+      return fetchPromise;
+    }
+  },
+  db: {
+    schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 2 // Limit realtime events to reduce connection pressure
     }
   }
 });

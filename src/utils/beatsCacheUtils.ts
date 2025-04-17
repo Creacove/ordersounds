@@ -1,3 +1,4 @@
+
 // Cache keys for localStorage
 export const CACHE_KEYS = {
   TRENDING_BEATS: 'trending_beats_cache',
@@ -8,15 +9,17 @@ export const CACHE_KEYS = {
   FEATURED_EXPIRY: 'featured_beats_expiry',
   WEEKLY_EXPIRY: 'weekly_picks_expiry',
   ALL_BEATS_EXPIRY: 'all_beats_expiry',
-  LAST_TRENDING_REFRESH: 'last_trending_refresh'
+  LAST_TRENDING_REFRESH: 'last_trending_refresh',
+  LAST_FETCH_ATTEMPT: 'last_fetch_attempt'
 };
 
 // Cache expiration durations (in hours)
 export const CACHE_DURATIONS = {
-  TRENDING: 3,   // Extended from 1 hour to 3 hours for trending beats
-  FEATURED: 6,   // Extended from 3 hours to 6 hours for featured beats
-  WEEKLY: 168,   // Weekly (7 days * 24 hours)
-  ALL_BEATS: 48  // Extended from 24 hours to 48 hours for all beats
+  TRENDING: 6,    // Extended from 3 to 6 hours for trending beats
+  FEATURED: 12,   // Extended from 6 to 12 hours for featured beats
+  WEEKLY: 168,    // Weekly (7 days * 24 hours)
+  ALL_BEATS: 72,  // Extended from 48 to 72 hours for all beats
+  FETCH_COOLDOWN: 1/60 // 1 minute cooldown between fetch attempts
 };
 
 // Utility function to get a cache expiration timestamp
@@ -53,6 +56,9 @@ export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, dur
     localStorage.setItem(cacheKey, JSON.stringify(data));
     localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
     console.log(`Saved ${cacheKey} to cache, expires in ${durationHours} hours`);
+    
+    // Record successful fetch time
+    localStorage.setItem(CACHE_KEYS.LAST_FETCH_ATTEMPT, String(Date.now()));
   } catch (error) {
     console.error(`Error saving to cache (${cacheKey}):`, error);
   }
@@ -72,8 +78,24 @@ export const isOnline = (): boolean => {
   return navigator.onLine;
 };
 
+// Check if we should attempt a new fetch based on the cooldown period
+export const shouldAttemptFetch = (): boolean => {
+  const lastAttempt = localStorage.getItem(CACHE_KEYS.LAST_FETCH_ATTEMPT);
+  if (!lastAttempt) return true;
+  
+  const cooldownMs = CACHE_DURATIONS.FETCH_COOLDOWN * 60 * 60 * 1000; // Convert to ms
+  const currentTime = Date.now();
+  
+  return (currentTime - parseInt(lastAttempt)) > cooldownMs;
+};
+
+// Record a fetch attempt regardless of outcome
+export const recordFetchAttempt = (): void => {
+  localStorage.setItem(CACHE_KEYS.LAST_FETCH_ATTEMPT, String(Date.now()));
+};
+
 // Optimize cache storage by limiting size
-export const optimizeCacheStorage = (maxBeats: number = 50): void => {
+export const optimizeCacheStorage = (maxBeats: number = 30): void => {
   try {
     const allBeatsString = localStorage.getItem(CACHE_KEYS.ALL_BEATS);
     if (allBeatsString) {
@@ -91,5 +113,31 @@ export const optimizeCacheStorage = (maxBeats: number = 50): void => {
     }
   } catch (error) {
     console.error('Error optimizing cache storage:', error);
+  }
+};
+
+// Deep clean cache to prevent storage issues
+export const deepCleanCache = (): void => {
+  try {
+    // Clear unused or potentially corrupted cache items
+    const keysToKeep = [
+      CACHE_KEYS.ALL_BEATS,
+      CACHE_KEYS.ALL_BEATS_EXPIRY,
+      CACHE_KEYS.TRENDING_BEATS,
+      CACHE_KEYS.TRENDING_EXPIRY
+    ];
+    
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes('_cache') && !keysToKeep.includes(key)) {
+        localStorage.removeItem(key);
+        console.log(`Removed potentially stale cache item: ${key}`);
+      }
+    }
+    
+    // Ensure cache size is optimal
+    optimizeCacheStorage(30);
+  } catch (error) {
+    console.error('Error in deepCleanCache:', error);
   }
 };

@@ -24,7 +24,7 @@ export const hasSufficientCachedData = (): boolean => {
 
 // Function to prioritize API requests
 export const prioritizeNetworkRequests = (): void => {
-  if (typeof navigator === 'undefined' || !navigator.connection) return;
+  if (typeof navigator === 'undefined') return;
   
   try {
     // Inform the browser which resources are critical
