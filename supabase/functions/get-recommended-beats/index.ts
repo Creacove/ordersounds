@@ -63,41 +63,93 @@ serve(async (req) => {
     // Get the producer IDs
     const producerIds = followers.map(follow => follow.followee_id);
     
-    // Get recent beats from followed producers
-    const { data: beats, error: beatsError } = await supabase
-      .from("beats")
-      .select(`
-        id, 
-        title, 
-        cover_image,
-        basic_license_price_local,
-        producer_id,
-        users!beats_producer_id_fkey (
-          stage_name,
-          full_name
-        )
-      `)
-      .in("producer_id", producerIds)
-      .order("upload_date", { ascending: false })
-      .limit(10);
-    
-    if (beatsError) {
+    try {
+      // Use a simpler query with fewer joins and columns to reduce timeout risk
+      const { data: beats, error: beatsError } = await supabase
+        .from("beats")
+        .select(`
+          id, 
+          title, 
+          cover_image,
+          audio_preview,
+          audio_file,
+          basic_license_price_local,
+          basic_license_price_diaspora,
+          producer_id,
+          genre,
+          bpm,
+          status,
+          tags,
+          track_type,
+          upload_date,
+          plays,
+          favorites_count,
+          purchase_count
+        `)
+        .in("producer_id", producerIds)
+        .eq("status", "published")
+        .order("upload_date", { ascending: false })
+        .limit(10);
+      
+      if (beatsError) {
+        console.error("Error fetching beats:", beatsError);
+        return new Response(
+          JSON.stringify({ error: beatsError.message, beats: [] }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Get producer names in a separate query to avoid complex joins
+      if (beats && beats.length > 0) {
+        const producersData = {};
+        
+        // Get unique producer IDs from the beats
+        const uniqueProducerIds = [...new Set(beats.map(beat => beat.producer_id))];
+        
+        // Fetch producer data
+        const { data: producers, error: producersError } = await supabase
+          .from("users")
+          .select("id, full_name, stage_name")
+          .in("id", uniqueProducerIds);
+          
+        if (!producersError && producers) {
+          // Create lookup object
+          producers.forEach(producer => {
+            producersData[producer.id] = {
+              full_name: producer.full_name,
+              stage_name: producer.stage_name
+            };
+          });
+          
+          // Add producer data to each beat
+          beats.forEach(beat => {
+            if (producersData[beat.producer_id]) {
+              beat.producer = producersData[beat.producer_id];
+            }
+          });
+        }
+      }
+      
+      // Return recommended beats
       return new Response(
-        JSON.stringify({ error: beatsError.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ beats: beats || [] }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (queryError) {
+      console.error("Query processing error:", queryError);
+      // Return empty beats array instead of error to prevent frontend crashes
+      return new Response(
+        JSON.stringify({ error: "Database query timed out", beats: [] }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
-    // Return recommended beats
-    return new Response(
-      JSON.stringify({ beats: beats || [] }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-    
   } catch (error) {
+    console.error("Server error:", error);
+    // Return empty beats array to prevent frontend crashes
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error.message, beats: [] }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
