@@ -28,11 +28,9 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       
       try {
         // Check if the user has this beat in their favorites
-        const { data: userData, error } = await supabase
-          .from('users')
-          .select('favorites')
-          .eq('id', user.id)
-          .single();
+        const { data, error } = await supabase.rpc('get_user_favorites', {
+          user_id_param: user.id
+        });
         
         if (error) {
           console.error('Error checking favorite status:', error);
@@ -40,15 +38,8 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         }
         
         // Check if beat.id exists in the favorites array
-        const favorites = userData?.favorites || [];
-        
-        // Ensure favorites is treated as an array
-        if (Array.isArray(favorites)) {
-          setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
-        } else {
-          console.warn('favorites is not an array:', favorites);
-          setIsFavorite(false);
-        }
+        const beatIds = Array.isArray(data) ? data.map(item => item.beat_id) : [];
+        setIsFavorite(beatIds.includes(beat.id));
       } catch (error) {
         console.error('Error checking favorite status:', error);
       }
@@ -82,61 +73,40 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     try {
       setIsFavoriting(true);
       
-      // Get the user's current favorites
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('favorites')
-        .eq('id', user.id)
-        .single();
-      
-      if (userError) {
-        throw userError;
-      }
-      
-      let favorites = userData?.favorites || [];
-      
-      // Ensure favorites is treated as an array
-      if (!Array.isArray(favorites)) {
-        favorites = [];
-      }
-      
       if (isFavorite) {
-        // Remove from favorites
-        favorites = favorites.filter((fav: any) => fav.beat_id !== beat.id);
+        // Remove from favorites using RPC
+        const { error } = await supabase.rpc('remove_favorite', {
+          user_id_param: user.id,
+          beat_id_param: beat.id
+        });
         
-        await supabase
-          .from('users')
-          .update({ favorites })
-          .eq('id', user.id);
+        if (error) throw error;
         
         setIsFavorite(false);
         toast("Removed from favorites");
       } else {
-        // Add to favorites
-        favorites.push({
-          beat_id: beat.id,
-          added_at: new Date().toISOString()
+        // Add to favorites using RPC
+        const { error } = await supabase.rpc('add_favorite', {
+          user_id_param: user.id,
+          beat_id_param: beat.id
         });
         
-        await supabase
-          .from('users')
-          .update({ favorites })
-          .eq('id', user.id);
+        if (error) throw error;
         
         // Create notification for beat owner if present
         if (beat.producer_id) {
-          await supabase
-            .from('notifications')
-            .insert({
-              recipient_id: beat.producer_id,
-              sender_id: user.id,
-              notification_type: 'favorite',
-              title: 'New favorite',
-              body: `Someone favorited your beat "${beat.title}"`,
-              is_read: false,
-              related_entity_id: beat.id,
-              related_entity_type: 'beat'
-            });
+          await supabase.rpc('create_notification', {
+            recipient_id_param: beat.producer_id,
+            sender_id_param: user.id,
+            type_param: 'favorite',
+            title_param: 'New favorite',
+            body_param: `Someone favorited your beat "${beat.title}"`,
+            entity_id_param: beat.id,
+            entity_type_param: 'beat'
+          }).catch(err => {
+            console.error('Error creating notification:', err);
+            // Don't throw, we still want to mark as favorite even if notification fails
+          });
         }
         
         setIsFavorite(true);

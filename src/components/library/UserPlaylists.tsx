@@ -27,11 +27,13 @@ export function UserPlaylists() {
     
     try {
       setIsLoading(true);
+      
+      // Use filter for UUID compatibility
       const { data, error } = await supabase
         .from('playlists')
         .select('*')
-        .eq('owner_id', user.id)
-        .order('created_date', { ascending: false }); // Changed from created_at to created_date
+        .filter('owner_id', 'eq', user.id)
+        .order('created_date', { ascending: false });
         
       if (error) throw error;
       
@@ -63,6 +65,7 @@ export function UserPlaylists() {
 
   const handleCreatePlaylist = async (playlistData) => {
     try {
+      // Insert a single object (not an array) for the playlist
       const { data, error } = await supabase
         .from('playlists')
         .insert({

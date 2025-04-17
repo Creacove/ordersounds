@@ -15,18 +15,23 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
     detectSessionInUrl: true, // Ensure OAuth redirect handling works
-    flowType: 'pkce', // Use PKCE flow for more secure OAuth
-    debug: process.env.NODE_ENV === 'development' // Enable debug in development
+    flowType: 'pkce' // Use PKCE flow for more secure OAuth
+  },
+  headers: {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_PUBLISHABLE_KEY // Explicitly include the API key in headers
   },
   global: {
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_PUBLISHABLE_KEY // Also include in global headers
     },
     fetch: (input: RequestInfo | URL, init?: RequestInit) => {
       const fetchOptions = {
         ...init,
         headers: {
           ...init?.headers,
+          'apikey': SUPABASE_PUBLISHABLE_KEY, // Ensure API key is included in all requests
           'Cache-Control': 'no-cache'  // Prevent caching by CDN
         }
       };
