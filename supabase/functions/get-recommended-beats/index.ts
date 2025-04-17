@@ -22,11 +22,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
-        JSON.stringify({ 
-          error: "Unauthorized", 
-          details: "Missing authorization header",
-          beats: [] // Always include beats array, even if empty
-        }),
+        JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -38,11 +34,7 @@ serve(async (req) => {
     
     if (authError || !user) {
       return new Response(
-        JSON.stringify({ 
-          error: "Unauthorized", 
-          details: authError || "User not found",
-          beats: [] // Always include beats array, even if empty
-        }),
+        JSON.stringify({ error: "Unauthorized", details: authError }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -55,10 +47,7 @@ serve(async (req) => {
     
     if (followersError) {
       return new Response(
-        JSON.stringify({ 
-          error: followersError.message,
-          beats: [] // Always include beats array, even if empty
-        }),
+        JSON.stringify({ error: followersError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -81,34 +70,20 @@ serve(async (req) => {
         id, 
         title, 
         cover_image,
-        audio_preview,
-        audio_file,
         basic_license_price_local,
-        basic_license_price_diaspora,
         producer_id,
-        upload_date,
-        genre,
-        bpm,
-        track_type,
-        tags,
-        favorites_count,
-        purchase_count,
         users!beats_producer_id_fkey (
           stage_name,
           full_name
         )
       `)
       .in("producer_id", producerIds)
-      .eq("status", "published")
       .order("upload_date", { ascending: false })
       .limit(10);
     
     if (beatsError) {
       return new Response(
-        JSON.stringify({ 
-          error: beatsError.message,
-          beats: [] // Always include beats array, even if empty
-        }),
+        JSON.stringify({ error: beatsError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -121,10 +96,7 @@ serve(async (req) => {
     
   } catch (error) {
     return new Response(
-      JSON.stringify({ 
-        error: error.message, 
-        beats: [] // Always include beats array, even if empty
-      }),
+      JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
