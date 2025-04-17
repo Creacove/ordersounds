@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -7,16 +7,11 @@ import { FilterValues } from '@/components/filter/BeatFilters';
 import { applyFilters } from '@/utils/beatsFilterUtils';
 import { 
   CACHE_KEYS, CACHE_DURATIONS, 
-  loadFromCache, saveToCache, checkShouldRefreshCache, isOnline,
-  optimizeCacheStorage
+  loadFromCache, saveToCache, checkShouldRefreshCache, isOnline 
 } from '@/utils/beatsCacheUtils';
 import { 
   refreshTrendingBeats, refreshWeeklyPicks, selectFeaturedBeat 
 } from '@/utils/beatsTrendingUtils';
-import {
-  prioritizeNetworkRequests, hasSufficientCachedData,
-  getSortedFallbackBeats, LOADING_TIMEOUT
-} from '@/utils/beatsOptimizer';
 import { 
   fallbackBeats, fetchAllBeats, fetchTrendingBeats,
   fetchPopularBeats, fetchUserFavorites, fetchPurchasedBeats,
@@ -40,65 +35,9 @@ export function useBeats() {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const [retryCount, setRetryCount] = useState(0);
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
-  
-  const loadingTimerRef = useRef<number | null>(null);
-  const isDataInitializedRef = useRef<boolean>(false);
-
-  // Initialize with cached data first for faster initial rendering
-  useEffect(() => {
-    const initializeFromCache = () => {
-      // Prioritize network resources
-      prioritizeNetworkRequests();
-      
-      // Load cached data for faster initial render
-      const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
-      const cachedTrending = loadFromCache<Beat[]>(CACHE_KEYS.TRENDING_BEATS);
-      const cachedFeatured = loadFromCache<Beat>(CACHE_KEYS.FEATURED_BEATS);
-      const cachedWeekly = loadFromCache<Beat[]>(CACHE_KEYS.WEEKLY_PICKS);
-      
-      if (cachedBeats && cachedBeats.length > 0) {
-        setBeats(cachedBeats);
-        
-        // Preload trending if available
-        if (cachedTrending && cachedTrending.length > 0) {
-          setTrendingBeats(cachedTrending);
-        } else {
-          // Generate trending from cached beats as fallback
-          setTrendingBeats(refreshTrendingBeats(cachedBeats));
-        }
-        
-        // Set featured beat
-        if (cachedFeatured) {
-          setFeaturedBeat(cachedFeatured);
-        } else if (cachedTrending && cachedTrending.length > 0) {
-          setFeaturedBeat({...cachedTrending[0], is_featured: true});
-        } else if (cachedBeats.length > 0) {
-          setFeaturedBeat({...cachedBeats[0], is_featured: true});
-        }
-        
-        // Sort by newest for new beats section
-        const sortedByNew = [...cachedBeats].sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setNewBeats(sortedByNew);
-        
-        // Set weekly picks if available or generate from cache
-        if (cachedWeekly && cachedWeekly.length > 0) {
-          setWeeklyPicks(cachedWeekly);
-        } else {
-          setWeeklyPicks(refreshWeeklyPicks(cachedBeats));
-        }
-        
-        // Don't set loading to false yet, but show cached data while loading fresh data
-        isDataInitializedRef.current = true;
-      }
-    };
-    
-    initializeFromCache();
-  }, []);
 
   // Declare fetchUserFavoritesData and fetchPurchasedBeatsData before referencing them
-  const fetchUserFavoritesData = useCallback(async () => {
+  const fetchUserFavoritesData = async () => {
     if (!user) return;
     
     try {
@@ -107,9 +46,9 @@ export function useBeats() {
     } catch (error) {
       console.error('Error fetching user favorites:', error);
     }
-  }, [user]);
+  };
 
-  const fetchPurchasedBeatsData = useCallback(async () => {
+  const fetchPurchasedBeatsData = async () => {
     if (!user) return;
     
     try {
@@ -130,9 +69,9 @@ export function useBeats() {
     } catch (error) {
       console.error('Error fetching purchased beats:', error);
     }
-  }, [user, beats.length]);
+  };
 
-  const checkNetworkAndRetry = useCallback(async () => {
+  const checkNetworkAndRetry = async () => {
     if (!isOnline()) {
       setIsOffline(true);
       loadFallbackData();
@@ -141,9 +80,9 @@ export function useBeats() {
     
     setIsOffline(false);
     return true;
-  }, []);
+  };
   
-  const loadFallbackData = useCallback(() => {
+  const loadFallbackData = () => {
     console.log('Loading fallback data');
     
     const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS) || fallbackBeats;
@@ -151,30 +90,30 @@ export function useBeats() {
     const cachedFeatured = loadFromCache<Beat>(CACHE_KEYS.FEATURED_BEATS) || fallbackBeats[0];
     const cachedWeekly = loadFromCache<Beat[]>(CACHE_KEYS.WEEKLY_PICKS) || fallbackBeats;
     
-    const sortedFallbackBeats = getSortedFallbackBeats(cachedBeats);
-    
-    setBeats(sortedFallbackBeats);
+    setBeats(cachedBeats);
     setTrendingBeats(cachedTrending);
-    setNewBeats(sortedFallbackBeats);
+    setNewBeats(cachedBeats);
     setFeaturedBeat(cachedFeatured);
     setWeeklyPicks(cachedWeekly);
     
+    fallbackBeats.forEach(beat => {
+      console.log('Beat pricing data:', {
+        beatId: beat.id,
+        beatTitle: beat.title,
+        basic_local: beat.basic_license_price_local,
+        basic_diaspora: beat.basic_license_price_diaspora,
+        calculatedLocal: beat.basic_license_price_local || 0,
+        calculatedDiaspora: beat.basic_license_price_diaspora || 0
+      });
+    });
+    
     setIsLoading(false);
     setLoadingError('Could not load beats from server. Using cached or demo content.');
-  }, []);
+  };
 
   const fetchBeats = useCallback(async () => {
     setIsLoading(true);
     setLoadingError(null);
-    
-    // Set a timeout to make sure we show something if the request takes too long
-    if (loadingTimerRef.current) window.clearTimeout(loadingTimerRef.current);
-    loadingTimerRef.current = window.setTimeout(() => {
-      if (!isDataInitializedRef.current && hasSufficientCachedData()) {
-        console.log('Loading timeout reached, using cached data');
-        loadFallbackData();
-      }
-    }, LOADING_TIMEOUT) as unknown as number;
     
     if (!await checkNetworkAndRetry()) {
       return;
@@ -184,7 +123,7 @@ export function useBeats() {
     
     try {
       const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error("Request timed out after 12 seconds")), 12000);
+        setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
       });
       
       const transformedBeats = await Promise.race([
@@ -206,7 +145,6 @@ export function useBeats() {
       if (shouldRefreshTrending) {
         const trending = refreshTrendingBeats(transformedBeats);
         setTrendingBeats(trending);
-        saveToCache(CACHE_KEYS.TRENDING_BEATS, trending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       } else {
         const cachedTrending = loadFromCache<Beat[]>(CACHE_KEYS.TRENDING_BEATS);
         if (cachedTrending) {
@@ -214,7 +152,6 @@ export function useBeats() {
         } else {
           const trending = refreshTrendingBeats(transformedBeats);
           setTrendingBeats(trending);
-          saveToCache(CACHE_KEYS.TRENDING_BEATS, trending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
         }
       }
       
@@ -222,7 +159,6 @@ export function useBeats() {
       if (shouldRefreshFeatured) {
         const featured = selectFeaturedBeat(transformedBeats);
         setFeaturedBeat(featured);
-        saveToCache(CACHE_KEYS.FEATURED_BEATS, featured, CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
       } else {
         const cachedFeatured = loadFromCache<Beat>(CACHE_KEYS.FEATURED_BEATS);
         if (cachedFeatured) {
@@ -230,7 +166,6 @@ export function useBeats() {
         } else if (trendingBeats.length > 0) {
           const featured = {...trendingBeats[0], is_featured: true};
           setFeaturedBeat(featured);
-          saveToCache(CACHE_KEYS.FEATURED_BEATS, featured, CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
         } else {
           setFeaturedBeat(fallbackBeats[0]);
         }
@@ -240,7 +175,6 @@ export function useBeats() {
       if (shouldRefreshWeekly) {
         const weekly = refreshWeeklyPicks(transformedBeats);
         setWeeklyPicks(weekly);
-        saveToCache(CACHE_KEYS.WEEKLY_PICKS, weekly, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
       } else {
         const cachedWeekly = loadFromCache<Beat[]>(CACHE_KEYS.WEEKLY_PICKS);
         if (cachedWeekly) {
@@ -248,7 +182,6 @@ export function useBeats() {
         } else {
           const weekly = refreshWeeklyPicks(transformedBeats);
           setWeeklyPicks(weekly);
-          saveToCache(CACHE_KEYS.WEEKLY_PICKS, weekly, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
         }
       }
       
@@ -268,16 +201,6 @@ export function useBeats() {
       setLoadingError(null);
       setRetryCount(0);
       setIsOffline(false);
-      isDataInitializedRef.current = true;
-      
-      // Optimize the cache storage after successful fetch
-      optimizeCacheStorage();
-      
-      // Clear any loading timer
-      if (loadingTimerRef.current) {
-        window.clearTimeout(loadingTimerRef.current);
-        loadingTimerRef.current = null;
-      }
       
       if (user) {
         await fetchUserFavoritesData();
@@ -286,9 +209,9 @@ export function useBeats() {
     } catch (error: any) {
       console.error('Error fetching beats:', error);
       
-      if (retryCount < 2) { // Reduced retry count from 3 to 2 for faster fallback
+      if (retryCount < 3) {
         setRetryCount(prev => prev + 1);
-        setTimeout(() => fetchBeats(), 800 * (retryCount + 1)); // Reduced timeout for faster fallback
+        setTimeout(() => fetchBeats(), 1000 * (retryCount + 1));
         return;
       }
       
@@ -300,14 +223,8 @@ export function useBeats() {
       } else {
         toast.error('Failed to load beats. Using cached content.');
       }
-      
-      // Clear any loading timer
-      if (loadingTimerRef.current) {
-        window.clearTimeout(loadingTimerRef.current);
-        loadingTimerRef.current = null;
-      }
     }
-  }, [user, activeFilters, retryCount, checkNetworkAndRetry, loadFallbackData, fetchPurchasedBeatsData, fetchUserFavoritesData]);
+  }, [user, activeFilters, retryCount]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -331,43 +248,35 @@ export function useBeats() {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      
-      // Clear timeout on unmount
-      if (loadingTimerRef.current) {
-        window.clearTimeout(loadingTimerRef.current);
-      }
     };
   }, [fetchBeats]);
 
-  // Initial data fetching
   useEffect(() => {
     fetchBeats();
     
-    // Less frequent refresh for trending data
     const intervalId = setInterval(() => {
       const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       if (shouldRefresh && beats.length > 0) {
         const trending = refreshTrendingBeats(beats);
         setTrendingBeats(trending);
-        saveToCache(CACHE_KEYS.TRENDING_BEATS, trending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       }
-    }, 10 * 60 * 1000); // Increased from 5 to 10 minutes for less frequent updates
+    }, 5 * 60 * 1000);
     
     return () => clearInterval(intervalId);
-  }, [fetchBeats, beats]);
+  }, [fetchBeats]);
 
-  const updateFilters = useCallback((newFilters: FilterValues) => {
+  const updateFilters = (newFilters: FilterValues) => {
     setActiveFilters(newFilters);
     if (beats.length > 0) {
       const filtered = applyFilters(beats, newFilters);
       setFilteredBeats(filtered);
     }
-  }, [beats]);
+  };
 
-  const clearFilters = useCallback(() => {
+  const clearFilters = () => {
     setActiveFilters(null);
     setFilteredBeats(beats);
-  }, [beats]);
+  };
 
   const toggleFavorite = async (beatId: string): Promise<boolean> => {
     if (!user) {
@@ -406,28 +315,28 @@ export function useBeats() {
     }
   };
 
-  const isFavorite = useCallback((beatId: string): boolean => {
+  const isFavorite = (beatId: string): boolean => {
     return userFavorites.includes(beatId);
-  }, [userFavorites]);
+  };
 
-  const isPurchased = useCallback((beatId: string): boolean => {
+  const isPurchased = (beatId: string): boolean => {
     return purchasedBeats.includes(beatId);
-  }, [purchasedBeats]);
+  };
   
-  const getBeatById = useCallback(async (id: string): Promise<Beat | null> => {
+  const getBeatById = async (id: string): Promise<Beat | null> => {
     const localBeat = beats.find(beat => beat.id === id);
     if (localBeat) return localBeat;
     
     return fetchBeatById(id);
-  }, [beats]);
+  };
   
-  const getUserPurchasedBeats = useCallback((): Beat[] => {
+  const getUserPurchasedBeats = (): Beat[] => {
     return beats.filter(beat => purchasedBeats.includes(beat.id));
-  }, [beats, purchasedBeats]);
+  };
 
-  const getUserFavoriteBeats = useCallback((): Beat[] => {
+  const getUserFavoriteBeats = (): Beat[] => {
     return beats.filter(beat => userFavorites.includes(beat.id));
-  }, [beats, userFavorites]);
+  };
 
   return {
     beats,

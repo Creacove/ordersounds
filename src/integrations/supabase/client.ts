@@ -20,83 +20,14 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
   global: {
     headers: {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_PUBLISHABLE_KEY // Add API key to all requests
+      'Content-Type': 'application/json'
     },
     fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-      const fetchOptions = {
-        ...init,
-        headers: {
-          ...init?.headers,
-          'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`, // Add auth header
-          'Cache-Control': 'no-cache'  // Prevent caching by CDN
-        }
-      };
-      
-      // Add timeout to prevent hanging requests
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-      
-      const fetchPromise = fetch(input, {
-        ...fetchOptions,
-        signal: controller.signal
-      }).then(response => {
-        clearTimeout(timeoutId);
-        return response;
-      }).catch(err => {
-        clearTimeout(timeoutId);
+      // Add retry and timeout logic for more reliable network requests
+      return fetch(input, init).catch(err => {
         console.error('Supabase fetch error:', err);
         throw err;
       });
-      
-      return fetchPromise;
-    }
-  },
-  db: {
-    schema: 'public'
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 2 // Limit realtime events to reduce connection pressure
     }
   }
 });
-
-// Add helper function to map database beat to Beat interface
-export const mapDatabaseBeatToBeat = (dbBeat: any) => {
-  return {
-    id: dbBeat.id,
-    title: dbBeat.title,
-    producer_id: dbBeat.producer_id,
-    producer_name: dbBeat.users?.stage_name || dbBeat.users?.full_name || 'Unknown Producer',
-    cover_image_url: dbBeat.cover_image || '',
-    preview_url: dbBeat.audio_preview || '',
-    full_track_url: dbBeat.audio_file || '',
-    genre: dbBeat.genre || '',
-    track_type: dbBeat.track_type || '',
-    bpm: dbBeat.bpm || 0,
-    tags: dbBeat.tags || [],
-    description: dbBeat.description || '',
-    created_at: dbBeat.upload_date || dbBeat.created_at || new Date().toISOString(),
-    updated_at: dbBeat.updated_at || '',
-    favorites_count: dbBeat.favorites_count || 0,
-    purchase_count: dbBeat.purchase_count || 0,
-    status: (dbBeat.status === 'draft' || dbBeat.status === 'published') 
-            ? dbBeat.status 
-            : 'published',
-    is_featured: dbBeat.is_featured || false,
-    license_type: dbBeat.license_type || '',
-    license_terms: dbBeat.license_terms || '',
-    basic_license_price_local: dbBeat.basic_license_price_local || 0,
-    basic_license_price_diaspora: dbBeat.basic_license_price_diaspora || 0,
-    premium_license_price_local: dbBeat.premium_license_price_local || 0,
-    premium_license_price_diaspora: dbBeat.premium_license_price_diaspora || 0,
-    exclusive_license_price_local: dbBeat.exclusive_license_price_local || 0,
-    exclusive_license_price_diaspora: dbBeat.exclusive_license_price_diaspora || 0,
-    plays: dbBeat.plays || 0,
-    key: dbBeat.key || '',
-    duration: dbBeat.duration || '',
-    producer: dbBeat.producer || dbBeat.users,
-    users: dbBeat.users
-  };
-};
