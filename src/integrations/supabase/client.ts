@@ -15,25 +15,25 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
     detectSessionInUrl: true, // Ensure OAuth redirect handling works
-    flowType: 'pkce', // Use PKCE flow for more secure OAuth
-    debug: process.env.NODE_ENV === 'development' // Enable debug in development
+    flowType: 'pkce' // Use PKCE flow for more secure OAuth
   },
   global: {
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-store, no-cache, must-revalidate' // Prevent CDN caching issues
     },
     fetch: (input: RequestInfo | URL, init?: RequestInit) => {
       const fetchOptions = {
         ...init,
         headers: {
           ...init?.headers,
-          'Cache-Control': 'no-cache'  // Prevent caching by CDN
+          'Cache-Control': 'no-cache, no-store' // Stronger cache prevention
         }
       };
       
-      // Add timeout to prevent hanging requests
+      // Add shorter timeout to prevent hanging requests
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // Reduced from 15s to 8s timeout
       
       const fetchPromise = fetch(input, {
         ...fetchOptions,
@@ -55,7 +55,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
   realtime: {
     params: {
-      eventsPerSecond: 2 // Limit realtime events to reduce connection pressure
+      eventsPerSecond: 1 // Reduced from 2 to 1 to lower connection pressure
     }
-  }
+  },
+  // Add connection pool settings to avoid connection overload
+  poolSize: 10 // Limit concurrent connections
 });
