@@ -1,7 +1,7 @@
 export interface User {
   id: string;
   email: string;
-  role: 'buyer' | 'producer' | 'admin';
+  role: "buyer" | "producer" | "admin";
   name: string;
   avatar_url?: string;
   bio?: string;
@@ -9,7 +9,7 @@ export interface User {
   updated_at?: string;
   country?: string;
   producer_name?: string; // For producers only
-  default_currency?: 'NGN' | 'USD';
+  default_currency?: "NGN" | "USD";
   bank_code?: string;
   account_number?: string;
   verified_account_name?: string;
@@ -25,7 +25,7 @@ export interface User {
   stage_name?: string;
   follower_count?: number;
   // Add status field
-  status?: 'active' | 'inactive';
+  status?: "active" | "inactive";
 }
 
 export interface Beat {
@@ -45,9 +45,9 @@ export interface Beat {
   updated_at?: string;
   favorites_count: number;
   purchase_count: number;
-  status: 'draft' | 'published';
+  status: "draft" | "published";
   is_featured?: boolean;
-  license_type?: 'basic' | 'premium' | 'exclusive' | string;
+  license_type?: "basic" | "premium" | "exclusive" | string;
   license_terms?: string;
   basic_license_price_local?: number;
   basic_license_price_diaspora?: number;
@@ -74,7 +74,7 @@ export interface Beat {
 
 export interface Playlist {
   id: string;
-  name: string; 
+  name: string;
   owner_id: string;
   cover_image?: string;
   is_public: boolean;
@@ -99,8 +99,8 @@ export interface Purchase {
   id: string;
   user_id: string;
   total_amount: number;
-  currency: 'NGN' | 'USD';
-  payment_provider: 'Paystack' | 'Stripe';
+  currency: "NGN" | "USD";
+  payment_provider: "Paystack" | "Stripe";
   transaction_reference: string;
   contract_consent_at: string;
   created_at: string;
@@ -110,7 +110,7 @@ export interface PurchasedBeat {
   purchase_id: string;
   beat_id: string;
   amount: number;
-  currency: 'NGN' | 'USD';
+  currency: "NGN" | "USD";
 }
 
 export interface RoyaltySplit {
@@ -136,10 +136,29 @@ export interface Notification {
   recipient_id: string;
   title: string;
   body: string;
-  notification_type: 'info' | 'success' | 'warning' | 'error' | string;
+  notification_type: "info" | "success" | "warning" | "error" | string;
   is_read: boolean;
   created_date: string;
   related_entity_id?: string;
   related_entity_type?: string;
   sender_id?: string;
+}
+
+export interface ProducerBankDetails {
+  bank_code: string;
+  account_number: string;
+  account_name?: string; // Optional on input, required on output from resolve
+}
+
+export interface SubaccountResponse {
+  subaccount_code: string;
+  split_code: string;
+  account_name: string; // Name verified by Paystack
+  bank_name: string; // Name of the bank
+}
+
+export interface PaystackBank {
+  name: string;
+  code: string;
+  id: number;
 }

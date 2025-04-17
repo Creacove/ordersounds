@@ -1,250 +1,180 @@
+// src/utils/payment/paystackSplitUtils.ts
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type {
+  ProducerBankDetails,
+  SubaccountResponse,
+  PaystackBank,
+} from "@/types"; // Import shared types
 
-// Type definitions
-export interface ProducerBankDetails {
-  bank_code: string;
-  account_number: string;
-  account_name?: string;
-}
+// --- Keep Type Definitions ---
+export type { ProducerBankDetails, SubaccountResponse, PaystackBank };
 
-export interface SubaccountResponse {
-  subaccount_code: string;
-  split_code: string;
-  account_name: string;
-  bank_name: string;
-}
+// --- Remove PAYSTACK_SECRET constant ---
+// const PAYSTACK_SECRET = "sk_test_... THIS MUST BE REMOVED";
 
-const PAYSTACK_SECRET = "sk_test_ec208ff2f8e96d80e9adca93adbb259e3796a801";
+// --- Update functions to call Edge Functions ---
 
-async function getBanks() {
-  const res = await fetch(`https://api.paystack.co/bank?country=nigeria`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${PAYSTACK_SECRET}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("Failed to fetch banks:", errorText);
-    throw new Error("Failed to fetch banks");
-  }
-
-  const data = await res.json();
-  return data.data as { name: string; code: string; id: number }[]; // Array of banks
-  console.log("data", data.data);
-}
-
-async function getAccountName(accountNumber: string, bankCode: string) {
-  const response = await fetch(
-    `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to resolve account number: ${response.statusText}`);
-  }
-
-  const resp = await response.json();
-  if (resp.status && resp.data && resp.data.account_name) {
-    return resp.data.account_name;
-  } else {
-    throw new Error(
-      "Failed to resolve account number: Invalid response format"
-    );
-  }
-}
-
-/*.data*
- * Creates a subaccount and transaction split for a producer
- */
-export const createProducerSubaccount = async (
-  producerId: string
-): Promise<SubaccountResponse | null> => {
+export const fetchSupportedBanks = async (): Promise<PaystackBank[]> => {
   try {
-    console.log("Creating producer subaccount for producer:", producerId);
-
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("bank_code, account_number, verified_account_name, full_name")
-      .eq("id", producerId)
-      .single();
-
-    if (userError || !userData.bank_code || !userData.account_number) {
-      console.error(
-        "Error retrieving user bank details:",
-        userError || "Missing bank details"
-      );
-      toast.error(
-        "Missing bank details. Please update your bank information first."
-      );
-      return null;
-    }
-
-    const subaccountPayload = {
-      business_name: userData.full_name || "Producer",
-      settlement_bank: userData.bank_code,
-      account_number: userData.account_number,
-      percentage_charge: 10, // 10% for the platform
-    };
-
-    const subaccountResponse = await fetch(
-      "https://api.paystack.co/subaccount",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(subaccountPayload),
-      }
+    console.log("Fetching supported banks via Edge Function");
+    const { data, error } = await supabase.functions.invoke<PaystackBank[]>(
+      "paystack-banks"
     );
 
-    if (!subaccountResponse.ok) {
-      const errorText = await subaccountResponse.text();
-      console.error("Failed to create subaccount:", errorText);
-      toast.error("Failed to create payment account");
-      return null;
-    }
+    if (error) throw error;
+    if (!data) throw new Error("No data returned from paystack-banks function");
+    console.log("data", data);
+    return data;
+  } catch (error: any) {
+    console.error("Error fetching banks via Edge Function:", error);
+    toast.error(error.message || "Failed to fetch supported banks.");
+    return [];
+  }
+};
 
-    const subaccountData = await subaccountResponse.json();
-
-    if (!subaccountData.status || !subaccountData.data) {
-      console.error("Invalid subaccount response:", subaccountData);
-      toast.error("Failed to create payment account");
-      return null;
-    }
-
-    const splitPayload = {
-      name: `${userData.full_name || "Producer"} Split`,
-      type: "percentage",
-      currency: "NGN",
-      subaccounts: [
-        {
-          subaccount: subaccountData.data.subaccount_code,
-          share: 90, // 90% for the producer
-        },
-      ],
-    };
-
-    // Get bank name for display
-    const banks = await getBanks();
-    const bankName =
-      banks.find((bank) => bank.code === userData.bank_code)?.name ||
-      "Unknown Bank";
-
-    const splitResponse = await fetch("https://api.paystack.co/split", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${PAYSTACK_SECRET}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(splitPayload),
+export const resolveAccountNumber = async (
+  accountNumber: string,
+  bankCode: string
+): Promise<string | null> => {
+  try {
+    console.log("Resolving account number via Edge Function:", {
+      accountNumber,
+      bankCode,
     });
+    const { data, error } = await supabase.functions.invoke<
+      { account_name: string } | { error: string }
+    >("paystack-resolve-account", { body: { accountNumber, bankCode } });
 
-    if (!splitResponse.ok) {
-      const errorText = await splitResponse.text();
-      console.error("Failed to create split:", errorText);
-      toast.error("Failed to create payment account");
+    if (error) throw error; // Network or function invocation error
+
+    // Check for application-level error returned in the data payload
+    if (data && "error" in data) {
+      console.error("Error resolving account from Edge Function:", data.error);
+      toast.error(data.error); // Show specific error from backend
       return null;
     }
 
-    const splitData = await splitResponse.json();
-
-    if (!splitData.status || !splitData.data) {
-      console.error("Invalid split response:", splitData);
-      toast.error("Failed to create payment account");
-      return null;
+    if (data && "account_name" in data) {
+      return data.account_name;
+    } else {
+      throw new Error("Invalid response format from resolve function");
     }
-
-    const response: SubaccountResponse = {
-      subaccount_code: subaccountData.data.subaccount_code,
-      split_code: splitData.data.split_code,
-      account_name: subaccountData.data.account_name,
-      bank_name: bankName,
-    };
-
-    // Update user record with subaccount and split codes
-    const { error } = await supabase
-      .from("users")
-      .update({
-        paystack_subaccount_code: response.subaccount_code,
-        paystack_split_code: response.split_code,
-      })
-      .eq("id", producerId);
-
-    if (error) {
-      console.error("Error updating subaccount codes:", error);
-      toast.error("Error saving subaccount information");
-      return null;
+  } catch (error: any) {
+    console.error("Error invoking resolve account Edge Function:", error);
+    // Avoid double-toasting if already handled above
+    if (!(error.message && error.message.includes("Invalid response format"))) {
+      // toast.error(error.message || "Failed to verify account number.");
+      // Let the function error handler display the toast
     }
-
-    console.log("Subaccount created successfully:", response);
-
-    return response;
-  } catch (error) {
-    console.error("Error creating producer subaccount:", error);
-    toast.error("Failed to create payment account");
     return null;
   }
 };
 
-/**
- * Updates a producer's subaccount bank details
- */
-export const updateProducerBankDetails = async (
-  producerId: string,
-  bankDetails: ProducerBankDetails
-): Promise<boolean> => {
+export const createProducerSubaccount = async (
+  producerId: string
+): Promise<SubaccountResponse | null> => {
   try {
-    console.log("Updating producer bank details:", { producerId, bankDetails });
+    console.log(
+      "Creating producer subaccount via Edge Function for producer:",
+      producerId
+    );
+    toast.info("Setting up payment account..."); // Give user feedback
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    const { data, error } = await supabase.functions.invoke<
+      SubaccountResponse | { error: string }
+    >("paystack-create-subaccount", { body: { producerId } });
 
-    // Check if subaccount exists
-    const { data: userData, error: userError } = await supabase
-      .from("users")
-      .select("paystack_subaccount_code")
-      .eq("id", producerId)
-      .single();
+    if (error) throw error; // Network/invocation error
 
-    if (!userError && userData.paystack_subaccount_code) {
-      // Update existing subaccount
-      console.log(
-        "Updating existing subaccount:",
-        userData.paystack_subaccount_code
+    if (data && "error" in data) {
+      console.error(
+        "Error creating subaccount from Edge Function:",
+        data.error
       );
-    } else {
-      // Create new subaccount
-      console.log("Creating new subaccount for producer:", producerId);
-      const subaccountResult = await createProducerSubaccount(producerId);
-      if (!subaccountResult) {
-        console.error("Failed to create subaccount");
-        return false;
-      }
+      toast.error(data.error);
+      return null;
     }
 
-    console.log("Bank details updated successfully");
-    return true;
-  } catch (error) {
-    console.error("Error updating producer bank details:", error);
-    toast.error("Failed to update bank details");
+    if (data && "subaccount_code" in data) {
+      console.log("Subaccount created successfully via Edge Function:", data);
+      toast.success("Payment account created successfully!");
+      return data;
+    } else {
+      throw new Error(
+        "Invalid response format from create subaccount function"
+      );
+    }
+  } catch (error: any) {
+    console.error("Error invoking create subaccount Edge Function:", error);
+    // Avoid double-toasting
+    if (!(error.message && error.message.includes("Invalid response format"))) {
+      toast.error(error.message || "Failed to create payment account.");
+    }
+    return null;
+  }
+};
+
+export const updateProducerBankDetails = async (
+  producerId: string,
+  bankDetails: ProducerBankDetails // Make sure account_name is included if needed by update function
+): Promise<boolean> => {
+  try {
+    console.log("Updating producer bank details via Edge Function:", {
+      producerId,
+      bankDetails,
+    });
+    toast.info("Updating bank details...");
+
+    // You might need to resolve the account name *before* calling the update function
+    // if the Edge Function doesn't do it internally.
+    const resolvedName = await resolveAccountNumber(
+      bankDetails.account_number,
+      bankDetails.bank_code
+    );
+    if (!resolvedName) {
+      // Error already shown by resolveAccountNumber
+      return false;
+    }
+    // Add resolved name if your update function expects it
+    // const detailsToSend = { ...bankDetails, account_name: resolvedName };
+
+    const { data, error } = await supabase.functions.invoke<
+      { success?: boolean; message?: string } | { error: string }
+    >(
+      "paystack-update-subaccount", // Ensure this function exists and is deployed
+      { method: "PUT", body: { producerId, bankDetails /* : detailsToSend */ } }
+    );
+
+    if (error) throw error;
+
+    if (data && "error" in data) {
+      console.error(
+        "Error updating bank details from Edge Function:",
+        data.error
+      );
+      toast.error(data.error);
+      return false;
+    }
+
+    if (data && "success" in data && data.success !== undefined) {
+      console.log("Bank details updated successfully via Edge Function", data);
+      toast.success(data.message || "Bank details updated successfully.");
+      return true;
+    } else {
+      throw new Error(
+        "Update failed or invalid response format from update function"
+      );
+    }
+  } catch (error: any) {
+    console.error("Error invoking update bank details Edge Function:", error);
+    if (!(error.message && error.message.includes("Update failed"))) {
+      toast.error(error.message || "Failed to update bank details.");
+    }
     return false;
   }
 };
 
-/**
- * Updates a producer's transaction split percentage
- */
 export const updateProducerSplitPercentage = async (
   producerId: string,
   sharePercentage: number
@@ -254,289 +184,258 @@ export const updateProducerSplitPercentage = async (
       toast.error("Share percentage must be between 0 and 100");
       return false;
     }
+    console.log("Updating split percentage via Edge Function:", {
+      producerId,
+      sharePercentage,
+    });
+    toast.info("Updating split percentage...");
 
-    console.log("Updating split percentage:", { producerId, sharePercentage });
+    const { data, error } = await supabase.functions.invoke<
+      { success?: boolean; message?: string } | { error: string }
+    >(
+      "paystack-update-split", // Ensure this function exists and is deployed
+      { body: { producerId, sharePercentage } }
+    );
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (error) throw error;
 
-    // Update split share in the database
-    // This would be handled by your Edge Function in production
-    console.log("Split percentage updated successfully");
-    toast.success("Split percentage updated successfully");
+    if (data && "error" in data) {
+      console.error(
+        "Error updating split percentage from Edge Function:",
+        data.error
+      );
+      toast.error(data.error);
+      return false;
+    }
 
-    return true;
-  } catch (error) {
-    console.error("Error updating split percentage:", error);
-    toast.error("Failed to update split percentage");
+    if (data && "success" in data && data.success !== undefined) {
+      console.log("Split percentage updated successfully via Edge Function");
+      toast.success(data.message || "Split percentage updated successfully.");
+      return true;
+    } else {
+      throw new Error(
+        "Update failed or invalid response format from split update function"
+      );
+    }
+  } catch (error: any) {
+    console.error(
+      "Error invoking update split percentage Edge Function:",
+      error
+    );
+    if (!(error.message && error.message.includes("Update failed"))) {
+      toast.error(error.message || "Failed to update split percentage.");
+    }
     return false;
   }
 };
 
-/**
- * Fetches the list of supported banks from Paystack
- */
-export const fetchSupportedBanks = async (): Promise<any[]> => {
-  try {
-    console.log("Fetching supported banks");
-
-    return await getBanks();
-  } catch (error) {
-    console.error("Error fetching banks:", error);
-    return [];
-  }
-};
-
-/**
- * Gets the split code for a specific producer
- */
 export const getProducerSplitCode = async (
   producerId: string
 ): Promise<string | null> => {
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("paystack_split_code")
-      .eq("id", producerId)
-      .single();
+    console.log("Fetching producer split code via Edge Function:", producerId);
+    const { data, error } = await supabase.functions.invoke<
+      { split_code: string } | { error: string }
+    >(
+      "get-producer-split-code", // Ensure this function exists and is deployed
+      { body: { producerId } }
+    );
 
-    if (error || !data) {
-      console.error("Error fetching split code:", error);
+    if (error) throw error;
+
+    if (data && "error" in data) {
+      // Don't toast for "not found" errors usually, just return null
+      if (!data.error.toLowerCase().includes("not found")) {
+        console.error(
+          "Error fetching split code from Edge Function:",
+          data.error
+        );
+        toast.error(data.error);
+      } else {
+        console.log("Split code not found for producer:", producerId);
+      }
       return null;
     }
 
-    return data.paystack_split_code;
-  } catch (error) {
-    console.error("Error fetching split code:", error);
+    if (data && "split_code" in data) {
+      return data.split_code;
+    } else {
+      throw new Error("Invalid response format from get split code function");
+    }
+  } catch (error: any) {
+    console.error("Error invoking get split code Edge Function:", error);
+    if (!(error.message && error.message.includes("Invalid response format"))) {
+      toast.error(error.message || "Failed to fetch producer configuration.");
+    }
     return null;
   }
 };
 
-/**
- * Resolves the bank account number to verify it exists and get account name
- */
-export const resolveAccountNumber = async (
-  accountNumber: string,
-  bankCode: string
-): Promise<string | null> => {
-  try {
-    // This would normally be handled by your backend
-    // For demo purposes, we're simulating the response
-    console.log("Resolving account number:", { accountNumber, bankCode });
-
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    const banks = await getBanks();
-    // Simulate success for valid account numbers
-    const accName = await getAccountName(accountNumber, bankCode);
-
-    return accName;
-
-    // Simulate error for invalid account numbers
-    return null;
-  } catch (error) {
-    console.error("Error resolving account number:", error);
-    return null;
-  }
-};
-
-/**
- * Initializes a transaction with split payment
- */
 export const initializePaystackSplitTransaction = async (
   email: string,
-  amount: number,
+  amount: number, // Expect amount in MAJOR unit (Naira) here, convert before sending if needed
   splitCode: string,
-  reference: string
-): Promise<{ authorization_url: string; reference: string } | null> => {
+  reference?: string, // Optional reference from client
+  metadata?: any, // Optional metadata
+  callbackUrl?: string // Optional callback URL
+): Promise<{
+  authorization_url: string;
+  reference: string;
+  access_code: string;
+} | null> => {
   try {
-    // This would be handled by your backend, calling Paystack API
-    // For demo purposes, we'll simulate the response
-    console.log("Initializing transaction with split:", {
+    console.log("Initializing transaction via Edge Function:", {
       email,
       amount,
       splitCode,
       reference,
     });
+    toast.info("Initializing payment...");
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Convert amount to Kobo for the backend
+    const amountInKobo = Math.round(amount * 100);
+    if (amountInKobo <= 0) {
+      toast.error("Invalid payment amount.");
+      return null;
+    }
 
-    // Return a simulated response
-    return {
-      authorization_url: `https://checkout.paystack.com/demo-split-payment?reference=${reference}`,
-      reference: reference,
+    const body: any = {
+      email,
+      amount: amountInKobo,
+      splitCode,
+      metadata,
+      callbackUrl,
     };
-  } catch (error) {
-    console.error("Error initializing transaction:", error);
+    if (reference) {
+      body.reference = reference;
+    }
+
+    const { data, error } = await supabase.functions.invoke<
+      | { authorization_url: string; reference: string; access_code: string }
+      | { error: string }
+    >("paystack-init-transaction", { body });
+
+    if (error) throw error;
+
+    if (data && "error" in data) {
+      console.error(
+        "Error initializing transaction from Edge Function:",
+        data.error
+      );
+      toast.error(data.error);
+      return null;
+    }
+
+    if (data && "authorization_url" in data) {
+      console.log("Transaction initialized successfully:", data);
+      // No toast here, usually redirect happens next
+      return data;
+    } else {
+      throw new Error("Invalid response format from init transaction function");
+    }
+  } catch (error: any) {
+    console.error("Error invoking init transaction Edge Function:", error);
+    if (!(error.message && error.message.includes("Invalid response format"))) {
+      toast.error(error.message || "Failed to initialize payment.");
+    }
     return null;
   }
 };
 
-/**
- * For admin: Fetch all subaccounts
- */
+// --- Admin Functions ---
+
 export const adminFetchAllSubaccounts = async (): Promise<any[]> => {
   try {
-    // This would call your Edge Function in production
-    console.log("Fetching all subaccounts");
+    console.log("Fetching all subaccounts via Admin Edge Function");
+    // Assumes the admin user is logged in and the token will be sent automatically
+    const { data, error } = await supabase.functions.invoke<
+      any[] | { error: string }
+    >("admin-paystack-subaccounts");
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (error) throw error; // Network or invocation error (like 401/403 if auth fails)
 
-    // Query all producers with subaccount codes
-    const { data, error } = await supabase
-      .from("users")
-      .select(
-        "id, full_name, stage_name, email, paystack_subaccount_code, bank_code, account_number, verified_account_name"
-      )
-      .eq("role", "producer")
-      .not("paystack_subaccount_code", "is", null);
-
-    if (error) {
-      console.error("Error fetching producers with subaccounts:", error);
+    if (data && Array.isArray(data)) {
+      return data;
+    } else if (data && "error" in data) {
+      console.error(
+        "Error fetching admin subaccounts from Edge Function:",
+        data.error
+      );
+      toast.error(data.error); // e.g., "Forbidden"
       return [];
+    } else {
+      throw new Error(
+        "Invalid response format from admin subaccounts function"
+      );
     }
-
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    const banks = await getBanks();
-    // Map to a more friendly format for the admin
-    return data.map((producer) => ({
-      id: producer.id,
-      producer_name: producer.stage_name || producer.full_name,
-      email: producer.email,
-      subaccount_code: producer.paystack_subaccount_code,
-      bank_details: {
-        bank_name:
-          banks.find((bank) => bank.code === producer.bank_code)?.name ||
-          "Unknown Bank",
-        account_number: producer.account_number,
-        account_name: producer.verified_account_name,
-      },
-    }));
-  } catch (error) {
-    console.error("Error fetching subaccounts:", error);
+  } catch (error: any) {
+    console.error("Error invoking admin subaccounts Edge Function:", error);
+    // Handle specific HTTP errors if needed (e.g., 403 Forbidden)
+    const message =
+      error.context?.httpStatus === 403
+        ? "Access Denied"
+        : error.message || "Failed to fetch subaccounts.";
+    toast.error(message);
     return [];
   }
 };
 
-/**
- * For admin: Fetch all transaction splits
- */
 export const adminFetchAllSplits = async (): Promise<any[]> => {
   try {
-    // This would call your Edge Function in production
-    console.log("Fetching all splits");
+    console.log("Fetching all splits via Admin Edge Function");
+    const { data, error } = await supabase.functions.invoke<
+      any[] | { error: string }
+    >("admin-paystack-splits");
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    if (error) throw error;
 
-    // Query all producers with split codes
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, full_name, stage_name, email, paystack_split_code")
-      .eq("role", "producer")
-      .not("paystack_split_code", "is", null);
-
-    if (error) {
-      console.error("Error fetching producers with splits:", error);
+    if (data && Array.isArray(data)) {
+      return data;
+    } else if (data && "error" in data) {
+      console.error(
+        "Error fetching admin splits from Edge Function:",
+        data.error
+      );
+      toast.error(data.error);
       return [];
+    } else {
+      throw new Error("Invalid response format from admin splits function");
     }
-
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    // Map to a more friendly format for the admin
-    return data.map((producer) => ({
-      id: producer.id,
-      producer_name: producer.stage_name || producer.full_name,
-      email: producer.email,
-      split_code: producer.paystack_split_code,
-      share_percentage: 90, // Default is 90% for producer, 10% for platform
-    }));
-  } catch (error) {
-    console.error("Error fetching splits:", error);
+  } catch (error: any) {
+    console.error("Error invoking admin splits Edge Function:", error);
+    const message =
+      error.context?.httpStatus === 403
+        ? "Access Denied"
+        : error.message || "Failed to fetch splits.";
+    toast.error(message);
     return [];
   }
 };
 
+// --- Functions that might remain client-side (or also become Edge Functions) ---
+
 /**
- * Get producer payment analytics
+ * Get producer payment analytics (Example - likely needs DB access -> Edge Function)
  */
 export const getProducerPaymentAnalytics = async (
   producerId: string
 ): Promise<any> => {
-  try {
-    console.log("Fetching payment analytics for producer:", producerId);
-
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    // In a production environment, this would query your database
-    // For now, we'll return mock data
-
-    return {
-      total_earnings: 125000, // in smallest currency unit (kobo/cents)
-      pending_balance: 15000,
-      successful_payments: 12,
-      pending_payments: 2,
-      failed_payments: 1,
-      recent_transactions: [
-        {
-          id: "trx_1",
-          amount: 25000,
-          status: "successful",
-          date: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-          beat_title: "Summer Vibes",
-          buyer_name: "John D.",
-        },
-        {
-          id: "trx_2",
-          amount: 15000,
-          status: "successful",
-          date: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
-          beat_title: "Midnight Dream",
-          buyer_name: "Sarah M.",
-        },
-        {
-          id: "trx_3",
-          amount: 30000,
-          status: "pending",
-          date: new Date(Date.now() - 86400000 * 1).toISOString(), // 1 day ago
-          beat_title: "Urban Flow",
-          buyer_name: "Alex T.",
-        },
-      ],
-      monthly_earnings: [
-        { month: "Jan", amount: 0 },
-        { month: "Feb", amount: 0 },
-        { month: "Mar", amount: 5000 },
-        { month: "Apr", amount: 15000 },
-        { month: "May", amount: 35000 },
-        { month: "Jun", amount: 25000 },
-        { month: "Jul", amount: 45000 },
-        { month: "Aug", amount: 0 },
-        { month: "Sep", amount: 0 },
-        { month: "Oct", amount: 0 },
-        { month: "Nov", amount: 0 },
-        { month: "Dec", amount: 0 },
-      ],
-    };
-  } catch (error) {
-    console.error("Error fetching producer payment analytics:", error);
-    return {
-      total_earnings: 0,
-      pending_balance: 0,
-      successful_payments: 0,
-      pending_payments: 0,
-      failed_payments: 0,
-      recent_transactions: [],
-      monthly_earnings: [],
-    };
-  }
+  // TODO: Implement this, likely by calling another Edge Function
+  // that queries your orders/transactions table securely.
+  console.warn(
+    "getProducerPaymentAnalytics needs to be implemented, likely via an Edge Function."
+  );
+  toast.info("Loading payment analytics...");
+  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate delay
+  // Return mock data for now
+  return {
+    total_earnings: 0,
+    pending_balance: 0,
+    successful_payments: 0,
+    pending_payments: 0,
+    failed_payments: 0,
+    recent_transactions: [],
+    monthly_earnings: [],
+    // Add mock data structure here if needed for UI development
+  };
 };

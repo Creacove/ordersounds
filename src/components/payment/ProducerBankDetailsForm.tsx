@@ -31,7 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface Bank {
   name: string;
   code: string;
-  active: boolean;
+
   id: number;
 }
 
@@ -92,9 +92,9 @@ export function ProducerBankDetailsForm({
       try {
         const banksList = await fetchSupportedBanks();
         // Filter only active banks
-        const activeBanks = banksList.filter((bank: Bank) => bank.active);
+
         setBanks(
-          activeBanks.sort((a: Bank, b: Bank) => a.name.localeCompare(b.name))
+          banksList.sort((a: Bank, b: Bank) => a.name.localeCompare(b.name))
         );
       } catch (error) {
         console.error("Error loading banks:", error);
