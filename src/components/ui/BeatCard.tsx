@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,7 +16,6 @@ import { useAuth } from "@/context/AuthContext";
 import { Beat } from "@/types";
 import { Badge } from "@/components/ui/badge";
 
-// Add the showStatus prop to the component's props
 export interface BeatCardProps {
   beat: Beat;
   isFavorite?: boolean;
@@ -25,6 +25,7 @@ export interface BeatCardProps {
   onPlayClick?: () => void;
   className?: string;
   showStatus?: boolean;
+  onToggleFavorite?: (beatId: string) => Promise<boolean>; // Add onToggleFavorite prop
 }
 
 export const BeatCard = ({
@@ -36,6 +37,7 @@ export const BeatCard = ({
   onPlayClick,
   className,
   showStatus = false,
+  onToggleFavorite, // Add to function parameters
 }: BeatCardProps) => {
   const { title, producer_name, cover_image_url, status } = beat;
   const [isPlaying, setIsPlaying] = useState(false);
@@ -56,6 +58,15 @@ export const BeatCard = ({
   const handleRemoveFromCart = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     removeFromCart(beat.id);
+  };
+
+  // Update to use button events correctly
+  const handleAddToCartButton = (event: React.MouseEvent<HTMLButtonElement>) => {
+    handleAddToCart(event);
+  };
+
+  const handleRemoveFromCartButton = (event: React.MouseEvent<HTMLButtonElement>) => {
+    handleRemoveFromCart(event);
   };
 
   return (
@@ -108,11 +119,11 @@ export const BeatCard = ({
                 {!isPurchased && (
                   <>
                     {isInCart ? (
-                      <DropdownMenuItem onClick={handleRemoveFromCart}>
+                      <DropdownMenuItem onClick={handleRemoveFromCartButton}>
                         Remove from Cart
                       </DropdownMenuItem>
                     ) : (
-                      <DropdownMenuItem onClick={handleAddToCart}>
+                      <DropdownMenuItem onClick={handleAddToCartButton}>
                         Add to Cart
                       </DropdownMenuItem>
                     )}

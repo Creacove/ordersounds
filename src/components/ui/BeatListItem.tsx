@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -10,7 +11,6 @@ import { useCart } from "@/context/CartContext";
 import { useBeats } from "@/hooks/useBeats";
 import { Badge } from "@/components/ui/badge";
 
-// Add showStatus prop to the component's props
 export interface BeatListItemProps {
   beat: Beat;
   isFavorite?: boolean;
@@ -19,6 +19,8 @@ export interface BeatListItemProps {
   showControls?: boolean;
   onPlayClick?: () => void;
   showStatus?: boolean;
+  onToggleFavorite?: (beatId: string) => Promise<boolean>; // Add onToggleFavorite prop
+  onPlay?: () => void; // Add onPlay prop
 }
 
 export const BeatListItem = ({
@@ -29,6 +31,8 @@ export const BeatListItem = ({
   showControls = true,
   onPlayClick,
   showStatus = false,
+  onToggleFavorite, // Add to function parameters
+  onPlay, // Add to function parameters
 }: BeatListItemProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const navigate = useNavigate();
@@ -39,6 +43,7 @@ export const BeatListItem = ({
   const handlePlayClick = () => {
     setIsPlaying(!isPlaying);
     onPlayClick?.();
+    onPlay?.(); // Call onPlay prop if provided
   };
 
   const handleAddToCart = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -53,7 +58,13 @@ export const BeatListItem = ({
 
   const handleToggleFavorite = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    await toggleFavorite(beat.id);
+    
+    // Use provided onToggleFavorite if available, otherwise fall back to the hook
+    if (onToggleFavorite) {
+      await onToggleFavorite(beat.id);
+    } else {
+      await toggleFavorite(beat.id);
+    }
   };
 
   return (
