@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Music, Grid, List, Table } from "lucide-react";
+import { PlusCircle, Music, Grid, List, Table, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,8 +21,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCart } from "@/context/CartContext";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type ViewMode = "grid" | "list" | "table";
+type StatusFilter = "all" | "published" | "draft";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
@@ -31,6 +40,7 @@ export default function ProducerBeats() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -50,8 +60,13 @@ export default function ProducerBeats() {
     }
   }, [isMobile, viewMode]);
 
-  // Filter beats by producer
+  // Filter beats by producer and status
   const producerBeats = user ? beats.filter(beat => beat.producer_id === user.id) : [];
+  
+  const filteredBeats = producerBeats.filter(beat => {
+    if (statusFilter === "all") return true;
+    return beat.status === statusFilter;
+  });
 
   // If not logged in or not a producer, show login prompt
   if (!user || user.role !== 'producer') {
@@ -67,6 +82,9 @@ export default function ProducerBeats() {
       </MainLayout>
     );
   }
+
+  const publishedCount = producerBeats.filter(beat => beat.status === "published").length;
+  const draftCount = producerBeats.filter(beat => beat.status === "draft").length;
 
   return (
     <MainLayout activeTab="beats">
@@ -91,37 +109,65 @@ export default function ProducerBeats() {
           </Button>
         </div>
         
-        {/* View switcher */}
-        <div className="flex items-center justify-end gap-2 mb-4">
-          <Button
-            variant={viewMode === "grid" ? "secondary" : "ghost"}
-            size="sm"
-            className="text-xs py-1 px-2.5 h-auto"
-            onClick={() => setViewMode("grid")}
-          >
-            <Grid className="h-3.5 w-3.5 mr-1.5" />
-            Grid
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            className="text-xs py-1 px-2.5 h-auto"
-            onClick={() => setViewMode("list")}
-          >
-            <List className="h-3.5 w-3.5 mr-1.5" />
-            List
-          </Button>
-          {!isMobile && (
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+          {/* Status filter */}
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select
+              value={statusFilter}
+              onValueChange={(value: StatusFilter) => setStatusFilter(value)}
+            >
+              <SelectTrigger className="w-[140px] h-9">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Beats</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="draft">Drafts</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2 ml-2">
+              <Badge variant="outline" className="bg-primary/10">
+                Published: {publishedCount}
+              </Badge>
+              <Badge variant="outline" className="bg-muted">
+                Drafts: {draftCount}
+              </Badge>
+            </div>
+          </div>
+          
+          {/* View switcher */}
+          <div className="flex items-center justify-end gap-2">
             <Button
-              variant={viewMode === "table" ? "secondary" : "ghost"}
+              variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="sm"
               className="text-xs py-1 px-2.5 h-auto"
-              onClick={() => setViewMode("table")}
+              onClick={() => setViewMode("grid")}
             >
-              <Table className="h-3.5 w-3.5 mr-1.5" />
-              Table
+              <Grid className="h-3.5 w-3.5 mr-1.5" />
+              Grid
             </Button>
-          )}
+            <Button
+              variant={viewMode === "list" ? "secondary" : "ghost"}
+              size="sm"
+              className="text-xs py-1 px-2.5 h-auto"
+              onClick={() => setViewMode("list")}
+            >
+              <List className="h-3.5 w-3.5 mr-1.5" />
+              List
+            </Button>
+            {!isMobile && (
+              <Button
+                variant={viewMode === "table" ? "secondary" : "ghost"}
+                size="sm"
+                className="text-xs py-1 px-2.5 h-auto"
+                onClick={() => setViewMode("table")}
+              >
+                <Table className="h-3.5 w-3.5 mr-1.5" />
+                Table
+              </Button>
+            )}
+          </div>
         </div>
         
         {isLoading ? (
@@ -134,12 +180,12 @@ export default function ProducerBeats() {
               </div>
             ))}
           </div>
-        ) : producerBeats.length > 0 ? (
+        ) : filteredBeats.length > 0 ? (
           <>
             {/* Grid View - Desktop */}
             {viewMode === "grid" && (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-                {producerBeats.map((beat) => (
+                {filteredBeats.map((beat) => (
                   <BeatCard 
                     key={beat.id} 
                     beat={beat}
@@ -147,6 +193,7 @@ export default function ProducerBeats() {
                     isInCart={isInCart(beat.id)}
                     isPurchased={isPurchased(beat.id)}
                     className="h-full shadow-sm hover:shadow"
+                    showStatus
                   />
                 ))}
               </div>
@@ -155,13 +202,14 @@ export default function ProducerBeats() {
             {/* List View */}
             {viewMode === "list" && (
               <div className="space-y-3">
-                {producerBeats.map((beat) => (
+                {filteredBeats.map((beat) => (
                   <BeatListItem
                     key={beat.id}
                     beat={beat}
                     isFavorite={isFavorite(beat.id)}
                     isInCart={isInCart(beat.id)}
                     isPurchased={isPurchased(beat.id)}
+                    showStatus
                   />
                 ))}
               </div>
@@ -175,6 +223,7 @@ export default function ProducerBeats() {
                     <TableRow>
                       <TableHead className="w-[80px]"></TableHead>
                       <TableHead>Title</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Genre</TableHead>
                       <TableHead>BPM</TableHead>
                       <TableHead>Key</TableHead>
@@ -187,7 +236,7 @@ export default function ProducerBeats() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {producerBeats.map((beat) => (
+                    {filteredBeats.map((beat) => (
                       <TableRow 
                         key={beat.id}
                         className="cursor-pointer hover:bg-muted/50"
@@ -203,6 +252,11 @@ export default function ProducerBeats() {
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">{beat.title}</TableCell>
+                        <TableCell>
+                          <Badge variant={beat.status === "published" ? "default" : "outline"} className={beat.status === "draft" ? "bg-muted text-muted-foreground" : ""}>
+                            {beat.status === "published" ? "Published" : "Draft"}
+                          </Badge>
+                        </TableCell>
                         <TableCell>{beat.genre}</TableCell>
                         <TableCell>{beat.bpm} BPM</TableCell>
                         <TableCell>{beat.key || "-"}</TableCell>
@@ -225,9 +279,19 @@ export default function ProducerBeats() {
               <div className="rounded-full bg-primary/10 p-3 mb-4">
                 <Music className="h-6 w-6 text-primary" />
               </div>
-              <h2 className="heading-responsive-sm mb-2">No Beats Yet</h2>
+              <h2 className="heading-responsive-sm mb-2">
+                {statusFilter === "all" 
+                  ? "No Beats Yet" 
+                  : statusFilter === "published" 
+                    ? "No Published Beats" 
+                    : "No Draft Beats"}
+              </h2>
               <p className="text-sm text-muted-foreground max-w-md mb-5">
-                You haven't uploaded any beats yet. Get started by uploading your first beat!
+                {statusFilter === "all" 
+                  ? "You haven't uploaded any beats yet. Get started by uploading your first beat!" 
+                  : statusFilter === "published" 
+                    ? "You don't have any published beats yet. Publish your drafted beats or upload new ones." 
+                    : "You don't have any draft beats. Your beats are either published or you haven't uploaded any yet."}
               </p>
               <Button 
                 onClick={() => navigate('/producer/upload')}
