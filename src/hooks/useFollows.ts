@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,6 +70,18 @@ export function useFollows() {
       staleTime: 10 * 60 * 1000, // 10 minutes
       gcTime: 15 * 60 * 1000, // 15 minutes
       retry: 1 // Only retry once to reduce server load
+    });
+  };
+
+  // Hook to check if user is following a producer - using react-query
+  const useFollowStatus = (producerId: string) => {
+    return useQuery({
+      queryKey: ['followStatus', user?.id, producerId],
+      queryFn: async () => {
+        return isFollowing(producerId);
+      },
+      enabled: !!user && !!producerId,
+      staleTime: 5 * 60 * 1000, // 5 minutes
     });
   };
 
@@ -152,6 +165,13 @@ export function useFollows() {
     }
   };
 
+  // Toggle follow status function
+  const toggleFollow = async (producerId: string, currentlyFollowing: boolean): Promise<boolean> => {
+    return currentlyFollowing 
+      ? unfollowProducer(producerId) 
+      : followProducer(producerId);
+  };
+
   // Function to check if user is following a producer
   const isFollowing = async (producerId: string): Promise<boolean> => {
     if (!user) return false;
@@ -162,9 +182,9 @@ export function useFollows() {
         .select('*')
         .eq('follower_id', user.id)
         .eq('followee_id', producerId)
-        .single();
+        .maybeSingle(); // Change to maybeSingle to avoid error when not found
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error checking follow status:', error);
         return false;
       }
@@ -228,8 +248,10 @@ export function useFollows() {
 
   return {
     useRecommendedBeats,
+    useFollowStatus,
     followProducer,
     unfollowProducer,
+    toggleFollow,
     isFollowing,
     getFollowedProducers,
     getFollowerCount

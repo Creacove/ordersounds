@@ -24,7 +24,7 @@ export function FollowButton({
   className = '',
 }: FollowButtonProps) {
   const { user } = useAuth();
-  const { useFollowStatus, toggleFollow } = useFollows();
+  const { useFollowStatus, followProducer, unfollowProducer } = useFollows();
   const { data: isFollowing, isLoading: isStatusLoading } = useFollowStatus(producerId);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -39,7 +39,13 @@ export function FollowButton({
     
     setIsLoading(true);
     try {
-      const result = await toggleFollow(producerId, followState);
+      let result;
+      if (followState) {
+        result = await unfollowProducer(producerId);
+      } else {
+        result = await followProducer(producerId);
+      }
+      
       if (result && onFollowChange) {
         onFollowChange(!followState);
       }

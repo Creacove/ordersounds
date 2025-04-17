@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
@@ -16,6 +15,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Beat } from '@/types';
 import { progressivelyLoadData } from '@/utils/offlineDataManager';
 
+interface BeatWithSupabaseFields extends Beat {
+  cover_image?: string;
+  audio_preview?: string;
+  audio_file?: string;
+  upload_date?: string;
+}
+
 export function RecommendedBeats() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -24,11 +30,9 @@ export function RecommendedBeats() {
   const [showRecommendations, setShowRecommendations] = useState(false);
   const { playBeat } = usePlayer();
   
-  // Safely extract the beats from the response
   const recommendedBeats = Array.isArray(recommendedBeatsResponse) ? recommendedBeatsResponse : [];
 
   useEffect(() => {
-    // Only show recommendations if we have user and beats
     if (user && recommendedBeats && recommendedBeats.length > 0) {
       setShowRecommendations(true);
     } else {
@@ -37,7 +41,7 @@ export function RecommendedBeats() {
   }, [user, recommendedBeats]);
 
   if (!showRecommendations) {
-    return null; // Don't render anything if there are no recommendations
+    return null;
   }
 
   const handlePlayBeat = (beat: Beat) => {
@@ -50,29 +54,57 @@ export function RecommendedBeats() {
     navigate(`/beat/${beatId}`);
   };
 
-  // Helper to get producer name from beat data
   const getProducerName = (beat: any) => {
-    // Check for the producer object first
     if (beat.producer) {
       return beat.producer.full_name || beat.producer.stage_name || 'Producer';
     }
     
-    // Check for the users object (backward compatibility)
     if (beat.users) {
       return beat.users.full_name || beat.users.stage_name || 'Producer';
     }
     
-    // Fallback to direct properties
     if (beat.full_name) return beat.full_name;
     if (beat.producer_name) return beat.producer_name;
     
     return 'Producer';
   };
 
-  // Check if the item is valid before rendering
+  const transformBeat = (beat: any): BeatWithSupabaseFields | null => {
+    if (!beat || typeof beat !== 'object' || !beat.id) return null;
+    
+    return {
+      id: beat.id,
+      title: beat.title || 'Untitled Beat',
+      producer_id: beat.producer_id || '',
+      producer_name: getProducerName(beat),
+      cover_image_url: beat.cover_image || '',
+      preview_url: beat.audio_preview || '',
+      full_track_url: beat.audio_file || '',
+      basic_license_price_local: beat.basic_license_price_local || 0,
+      basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+      genre: beat.genre || '',
+      created_at: beat.upload_date || new Date().toISOString(),
+      favorites_count: beat.favorites_count || 0,
+      purchase_count: beat.purchase_count || 0,
+      bpm: beat.bpm || 0,
+      track_type: beat.track_type || '',
+      tags: beat.tags || [],
+      status: (beat.status as 'draft' | 'published') || 'published',
+      plays: beat.plays || 0,
+      cover_image: beat.cover_image,
+      audio_preview: beat.audio_preview,
+      audio_file: beat.audio_file,
+      upload_date: beat.upload_date
+    };
+  };
+
   const isValidBeat = (beat: any): beat is Beat => {
     return beat && typeof beat === 'object' && 'id' in beat && typeof beat.id === 'string';
   };
+
+  const validBeats = recommendedBeats
+    .map(transformBeat)
+    .filter(Boolean) as BeatWithSupabaseFields[];
 
   return (
     <div className="mb-6 px-6 md:px-8 pb-4">
@@ -96,11 +128,10 @@ export function RecommendedBeats() {
         </div>
       ) : (
         <>
-          {/* Desktop view: Modern table layout without column headers */}
           <div className="hidden md:block">
             <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
               <ScrollArea className="max-h-[320px]">
-                {recommendedBeats.filter(isValidBeat).slice(0, 5).map((beat, index) => (
+                {validBeats.slice(0, 5).map((beat, index) => (
                   <div 
                     key={beat.id} 
                     className={cn(
@@ -111,9 +142,9 @@ export function RecommendedBeats() {
                   >
                     <div className="flex-1 flex items-center gap-3 min-w-0">
                       <div className="relative w-10 h-10 rounded-md bg-muted flex-shrink-0">
-                        {beat.cover_image ? (
+                        {beat.cover_image_url ? (
                           <img 
-                            src={beat.cover_image} 
+                            src={beat.cover_image_url} 
                             alt={beat.title} 
                             className="w-full h-full object-cover rounded-md"
                           />
@@ -161,9 +192,8 @@ export function RecommendedBeats() {
             </div>
           </div>
           
-          {/* Mobile view: Card grid */}
           <div className="grid grid-cols-2 gap-4 md:hidden mt-3">
-            {recommendedBeats.filter(isValidBeat).slice(0, 4).map((beat) => (
+            {validBeats.slice(0, 4).map((beat) => (
               <BeatCardCompact 
                 key={beat.id} 
                 beat={{
@@ -171,20 +201,20 @@ export function RecommendedBeats() {
                   title: beat.title,
                   producer_id: beat.producer_id,
                   producer_name: getProducerName(beat),
-                  cover_image_url: beat.cover_image || '',
-                  basic_license_price_local: beat.basic_license_price_local || 0,
-                  basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
-                  genre: beat.genre || '',
-                  created_at: beat.upload_date || '',
-                  favorites_count: beat.favorites_count || 0,
-                  purchase_count: beat.purchase_count || 0,
+                  cover_image_url: beat.cover_image_url,
+                  basic_license_price_local: beat.basic_license_price_local,
+                  basic_license_price_diaspora: beat.basic_license_price_diaspora,
+                  genre: beat.genre,
+                  created_at: beat.created_at,
+                  favorites_count: beat.favorites_count,
+                  purchase_count: beat.purchase_count,
                   plays: beat.plays || 0,
-                  preview_url: beat.audio_preview || '',
-                  full_track_url: beat.audio_file || '',
-                  bpm: beat.bpm || 0,
-                  track_type: beat.track_type || '',
-                  tags: beat.tags || [],
-                  status: (beat.status as 'draft' | 'published') || 'published',
+                  preview_url: beat.preview_url,
+                  full_track_url: beat.full_track_url,
+                  bpm: beat.bpm,
+                  track_type: beat.track_type,
+                  tags: beat.tags,
+                  status: beat.status,
                 }} 
               />
             ))}
