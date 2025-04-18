@@ -706,6 +706,10 @@ export type Database = {
         Args: { p_follower_id: string; p_followee_id: string }
         Returns: undefined
       }
+      get_complete_schema: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
       get_producer_of_week: {
         Args: Record<PropertyKey, never>
         Returns: {
