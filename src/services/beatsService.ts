@@ -1,3 +1,4 @@
+
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -162,8 +163,8 @@ export const fetchAllBeats = async (options = { includeDetails: true }): Promise
     }
 
     if (beatsData) {
-      // Explicitly cast the data to the SupabaseBeat type
-      return (beatsData as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+      // Fix: Use type assertion directly to any[] first to break the deep type checking
+      return (beatsData as any[]).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     return [];
   } catch (error) {
@@ -214,7 +215,8 @@ export const fetchTrendingBeats = async (): Promise<Beat[]> => {
     }
 
     if (data) {
-      return (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+      // Fix: Use type assertion directly to any[] first
+      return (data as any[]).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     return [];
   } catch (error) {
@@ -371,7 +373,8 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
     } 
     
     if (beatsData) {
-      return (beatsData as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+      // Fix: Use type assertion directly to any[] first
+      return (beatsData as any[]).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
     return [];
@@ -454,7 +457,8 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
     }
 
     if (data) {
-      return mapSupabaseBeatToBeat(data as SupabaseBeat);
+      // Fix: Use type assertion to any first
+      return mapSupabaseBeatToBeat(data as any as SupabaseBeat);
     }
     
     return null;
