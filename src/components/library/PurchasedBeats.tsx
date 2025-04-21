@@ -5,7 +5,6 @@ import { EmptyState } from './EmptyState';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Music } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-// Removed: import { PurchasedBeatsLoading } from './PurchasedBeatsLoading';
 import { PurchasedBeatsMobile } from './PurchasedBeatsMobile';
 import { PurchasedBeatsDesktop } from './PurchasedBeatsDesktop';
 
@@ -76,4 +75,3 @@ export function PurchasedBeats() {
     </div>
   );
 }
-
