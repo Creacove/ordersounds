@@ -61,6 +61,9 @@ const PlaylistRedirect = () => {
   return <Navigate to={`/playlists/${playlistId}`} replace />;
 };
 
+// Empty fallback component to prevent loading screen
+const NoFallback = () => null;
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
@@ -72,7 +75,7 @@ const App = () => (
                 <ScrollToTop />
                 <Toaster />
                 <Sonner position="top-right" expand={true} closeButton={true} />
-                <Suspense fallback={<div>Loading...</div>}>
+                <Suspense fallback={<NoFallback />}>
                   <Routes>
                     {/* Public Routes */}
                     <Route path="/" element={<Home />} />
