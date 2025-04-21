@@ -3,7 +3,7 @@ import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
-export function ProtectedProducerRoute({ children }: { children: ReactNode }) {
+function ProtectedProducerRoute({ children }: { children: ReactNode }) {
   const { user, isLoading, isProducerInactive } = useAuth();
 
   // Show loading state if auth is still being checked
@@ -32,3 +32,5 @@ export function ProtectedProducerRoute({ children }: { children: ReactNode }) {
 
   return <>{children}</>;
 }
+
+export default ProtectedProducerRoute;
