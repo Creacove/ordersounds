@@ -72,6 +72,10 @@ const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
   };
 };
 
+// Create reusable type that doesn't cause infinite recursion
+type BasicQuery = typeof supabase.from<'beats'>;
+type QueryBuilder = ReturnType<BasicQuery['select']>;
+
 // Simplified base query for beats with essential fields only
 const createBasicBeatsQuery = () => {
   return supabase
@@ -99,8 +103,35 @@ const createBasicBeatsQuery = () => {
     `);
 };
 
-// Create reusable type that doesn't cause infinite recursion
-type QueryBuilder = ReturnType<typeof createBasicBeatsQuery>;
+// Create optimized query for featured beat
+const createFeaturedBeatQuery = () => {
+  return supabase
+    .from('beats')
+    .select(`
+      id,
+      title,
+      producer_id,
+      users (
+        full_name,
+        stage_name
+      ),
+      cover_image,
+      audio_preview,
+      audio_file,
+      basic_license_price_local,
+      basic_license_price_diaspora,
+      genre,
+      track_type,
+      bpm,
+      key,
+      description,
+      upload_date,
+      status
+    `)
+    .eq('status', 'published')
+    .limit(1)
+    .order('favorites_count', { ascending: false });
+};
 
 // Optimized fetchAllBeats with optional parameters to optimize query size
 export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number } = {}): Promise<Beat[]> => {
@@ -188,7 +219,6 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
       return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
-    // Return empty array if no beats found
     return [];
   } catch (error) {
     console.error('Error fetching trending beats:', error);
@@ -198,17 +228,18 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
 
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    // Create a query to get a set of random beats
+    // Get a set of beats ordered by most recent to get a random sampling
     const { data, error } = await createBasicBeatsQuery()
       .eq('status', 'published')
-      .limit(limit);
+      .order('upload_date', { ascending: false })
+      .limit(50); // Get a larger pool to select from
 
     if (error) {
       throw error;
     }
 
     if (data && Array.isArray(data) && data.length > 0) {
-      // Randomize the returned beats
+      // Shuffle and take required number
       const shuffled = [...data].sort(() => Math.random() - 0.5);
       return shuffled.slice(0, limit).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
@@ -217,6 +248,26 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   } catch (error) {
     console.error('Error fetching random beats:', error);
     return [];
+  }
+};
+
+export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
+  try {
+    const { data, error } = await createFeaturedBeatQuery();
+
+    if (error) {
+      throw error;
+    }
+
+    if (data && data.length > 0) {
+      const featuredBeat = mapSupabaseBeatToBeat(data[0] as SupabaseBeat);
+      return { ...featuredBeat, is_featured: true };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching featured beat:', error);
+    return null;
   }
 };
 
