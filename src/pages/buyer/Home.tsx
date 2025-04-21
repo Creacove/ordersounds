@@ -29,11 +29,11 @@ import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
-import { fetchTrendingBeats, fetchPopularBeats } from "@/services/beatsService";
+import { fetchTrendingBeats, fetchRandomBeats, fetchNewBeats } from "@/services/beatsService";
 
 export default function Home() {
   // Use the limit parameter to first load just the beats we need for display
-  const { featuredBeat, trendingBeats: allTrendingBeats, newBeats: allNewBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
+  const { featuredBeat, trendingBeats: allTrendingBeats, newBeats: allNewBeats, isLoading, toggleFavorite, isFavorite, isPurchased, weeklyPicks } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);

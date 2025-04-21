@@ -3,8 +3,6 @@ import { Beat } from '@/types';
 import { saveToCache } from './beatsCacheUtils';
 import { CACHE_KEYS, CACHE_DURATIONS } from './beatsCacheUtils';
 
-// Do not import fallbackBeats. Only use real beats from the DB.
-
 // Function to refresh trending beats with cache updates
 export const refreshTrendingBeats = (allBeats: Beat[]): Beat[] => {
   console.log('Refreshing trending beats - hourly refresh');
@@ -50,17 +48,10 @@ export const refreshWeeklyPicks = (allBeats: Beat[]): Beat[] => {
   }
 
   const shuffled = [...allBeats].sort(() => 0.5 - Math.random());
-  const picks = shuffled
-    .filter(beat => beat.favorites_count > 0 || beat.purchase_count > 0)
-    .slice(0, 8);
-
-  if (picks.length < 6) {
-    saveToCache(CACHE_KEYS.WEEKLY_PICKS, shuffled.slice(0, 8), CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
-    return shuffled.slice(0, 8);
-  } else {
-    saveToCache(CACHE_KEYS.WEEKLY_PICKS, picks, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
-    return picks;
-  }
+  const picks = shuffled.slice(0, 8);
+  
+  saveToCache(CACHE_KEYS.WEEKLY_PICKS, picks, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
+  return picks;
 };
 
 export const selectFeaturedBeat = (beats: Beat[]): Beat | null => {
@@ -69,11 +60,7 @@ export const selectFeaturedBeat = (beats: Beat[]): Beat | null => {
   }
 
   const shuffled = [...beats].sort(() => 0.5 - Math.random());
-  const sortedByTrending = shuffled
-    .sort((a, b) => (b.favorites_count * (0.9 + Math.random() * 0.2)) -
-      (a.favorites_count * (0.9 + Math.random() * 0.2)));
-
-  const randomIndex = Math.floor(Math.random() * Math.min(10, sortedByTrending.length));
-  const featured = sortedByTrending[randomIndex];
+  const randomIndex = Math.floor(Math.random() * Math.min(10, shuffled.length));
+  const featured = shuffled[randomIndex];
   return featured ? { ...featured, is_featured: true } : null;
 };
