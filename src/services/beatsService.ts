@@ -79,7 +79,7 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
     const { includeDetails = true, limit = 0 } = options;
     
     // Build query based on options to optimize payload size
-    let query = supabase
+    let baseQuery = supabase
       .from('beats')
       .select(`
         id,
@@ -113,13 +113,10 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
       `)
       .eq('status', 'published');
     
-    // Add limit if specified
-    if (limit > 0) {
-      query = query.limit(limit);
-    }
-    
-    // Single fetch with no retry logic
-    const { data: beatsData, error: beatsError } = await query;
+    // Execute query with limit if specified
+    const { data: beatsData, error: beatsError } = await (limit > 0 ? 
+      baseQuery.limit(limit) : 
+      baseQuery);
     
     if (beatsError) {
       throw beatsError;
@@ -141,7 +138,8 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
 
 export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    const query = supabase
+    // Create query with order and conditionally add limit
+    const baseQuery = supabase
       .from('beats')
       .select(`
         id,
@@ -175,11 +173,10 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
       .eq('status', 'published')
       .order('favorites_count', { ascending: false });
 
-    if (limit > 0) {
-      query = query.limit(limit);
-    }
-
-    const { data, error } = await query;
+    // Execute query with or without limit
+    const { data, error } = await (limit > 0 ? 
+      baseQuery.limit(limit) : 
+      baseQuery);
 
     if (error) {
       throw error;
@@ -338,20 +335,15 @@ export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
         status
       `)
       .eq('status', 'published')
-      .order('upload_date', { ascending: false });
+      .order('upload_date', { ascending: false })
+      .limit(limit > 0 ? limit : 50);
 
-    if (limit > 0) {
-      const limitedData = data?.slice(0, limit);
-      
-      if (error) {
-        console.error('Error fetching new beats:', error);
-        return [];
-      }
+    if (error) {
+      console.error('Error fetching new beats:', error);
+      return [];
+    }
 
-      if (limitedData && Array.isArray(limitedData) && limitedData.length > 0) {
-        return limitedData.map(beat => mapSupabaseBeatToBeat(beat as any));
-      }
-    } else if (data) {
+    if (data && Array.isArray(data) && data.length > 0) {
       return data.map(beat => mapSupabaseBeatToBeat(beat as any));
     }
     
@@ -396,19 +388,14 @@ export const fetchPopularBeats = async (limit = 6): Promise<Beat[]> => {
         status
       `)
       .eq('status', 'published')
-      .order('purchase_count', { ascending: false });
+      .order('purchase_count', { ascending: false })
+      .limit(limit > 0 ? limit : 50);
 
-    if (limit > 0) {
-      const limitedData = data?.slice(0, limit);
-      
-      if (error) {
-        throw error;
-      }
+    if (error) {
+      throw error;
+    }
 
-      if (limitedData && Array.isArray(limitedData) && limitedData.length > 0) {
-        return limitedData.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-      }
-    } else if (data) {
+    if (data && Array.isArray(data) && data.length > 0) {
       return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
