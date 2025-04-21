@@ -30,6 +30,9 @@ import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { TrendingBeats } from "@/components/marketplace/TrendingBeats";
+import { WeeklyPicks } from "@/components/marketplace/WeeklyPicks";
+import { NewBeats } from "@/components/marketplace/NewBeats";
 
 // Fallback featured beat for when network fails
 const fallbackFeaturedBeat: Beat = {
@@ -209,60 +212,14 @@ export default function IndexPage() {
         {/* Recommended Beats section */}
         <RecommendedBeats />
 
-        <section className="mb-6 px-0 mx-0">
-          <SectionTitle 
-            title="Trending Beats" 
-            icon={<TrendingUp className="h-5 w-5" />} 
-            badge="Updated Hourly"
-          />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {trendingBeats.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
-          <div className="mt-3 flex justify-end">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/trending">
-                View all trending <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </section>
+        {/* Trending Beats section - now using the cached component */}
+        <TrendingBeats />
 
-        <section className="mb-6 px-0 mx-0">
-          <SectionTitle 
-            title="Weekly Picks" 
-            icon={<Calendar className="h-5 w-5" />}
-            badge="Updated Weekly"
-          />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {weeklyPicks.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-            {weeklyPicks.length === 0 && trendingBeats.slice(10, 14).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
-        </section>
+        {/* Weekly Picks section - now using the cached component */}
+        <WeeklyPicks />
 
-        <section className="mb-6 px-0 mx-0">
-          <SectionTitle 
-            title="New Releases" 
-            icon={<Flame className="h-5 w-5" />}
-          />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {newBeats.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
-          <div className="mt-3 flex justify-end">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/new">
-                View all new releases <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </section>
+        {/* New Beats section - now using the cached component */}
+        <NewBeats />
 
         <section className="mb-6 px-0 mx-0">
           <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
