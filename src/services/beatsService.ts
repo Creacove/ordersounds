@@ -1,3 +1,4 @@
+
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
@@ -73,11 +74,7 @@ const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
   };
 };
 
-// Create reusable type that doesn't cause infinite recursion
-type BasicQuery = typeof supabase.from<'beats'>;
-type QueryBuilder = ReturnType<BasicQuery['select']>;
-
-// Simplified base query for beats with essential fields only
+// Create a basic beats query that we can reuse
 const createBasicBeatsQuery = () => {
   return supabase
     .from('beats')
@@ -102,6 +99,44 @@ const createBasicBeatsQuery = () => {
       purchase_count,
       status
     `);
+};
+
+// Create a featured beat query that we can reuse
+const createFeaturedBeatQuery = () => {
+  return supabase
+    .from('beats')
+    .select(`
+      id,
+      title,
+      producer_id,
+      users (
+        full_name,
+        stage_name
+      ),
+      cover_image,
+      audio_preview,
+      audio_file,
+      basic_license_price_local,
+      basic_license_price_diaspora,
+      premium_license_price_local,
+      premium_license_price_diaspora,
+      exclusive_license_price_local,
+      exclusive_license_price_diaspora,
+      custom_license_price_local,
+      custom_license_price_diaspora,
+      genre,
+      track_type,
+      bpm,
+      tags,
+      description,
+      upload_date,
+      favorites_count,
+      purchase_count,
+      status
+    `)
+    .eq('status', 'published')
+    .order('favorites_count', { ascending: false })
+    .limit(1);
 };
 
 // Optimized query for fetching new beats with minimal data
@@ -184,7 +219,7 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
 
     if (beatsData && beatsData.length > 0) {
       // Type casting to avoid recursive type issues
-      return beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      return beatsData.map((beat) => mapSupabaseBeatToBeat(beat as any));
     }
     
     // Return empty array if no beats found
@@ -257,7 +292,7 @@ export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
     }
 
     if (data && data.length > 0) {
-      const featuredBeat = mapSupabaseBeatToBeat(data[0] as SupabaseBeat);
+      const featuredBeat = mapSupabaseBeatToBeat(data[0] as any);
       return { ...featuredBeat, is_featured: true };
     }
 
@@ -284,7 +319,7 @@ export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
     }
 
     if (data && Array.isArray(data) && data.length > 0) {
-      return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      return data.map(beat => mapSupabaseBeatToBeat(beat as any));
     }
     
     return [];

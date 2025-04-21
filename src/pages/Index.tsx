@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -20,6 +21,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { fetchFeaturedBeat } from "@/services/beatsService";
 import { toast } from "sonner";
 import { NewBeats } from "@/components/marketplace/NewBeats";
+import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 
 const fallbackFeaturedBeat: Beat = {
   id: "fallback-featured",
