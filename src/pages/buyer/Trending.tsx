@@ -35,8 +35,8 @@ export default function Trending() {
 
   const loadMoreBeats = () => {
     setIsLoadingMore(true);
-    // Increase the number of displayed beats
-    setDisplayCount(prevCount => prevCount + 10);
+    // Increase the number of displayed beats by 30
+    setDisplayCount(prevCount => prevCount + 30);
     setIsLoadingMore(false);
   };
 
@@ -68,7 +68,7 @@ export default function Trending() {
         
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {[...Array(15)].map((_, i) => (
+            {[...Array(30)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2">
                 <Skeleton className="aspect-square rounded-lg" />
                 <Skeleton className="h-5 w-2/3" />
@@ -100,7 +100,7 @@ export default function Trending() {
                   disabled={isLoadingMore}
                   className="gap-2"
                 >
-                  {isLoadingMore ? 'Loading...' : 'Load More Beats'}
+                  {isLoadingMore ? 'Loading...' : 'Show More Beats'}
                   {!isLoadingMore && <ChevronDown className="h-4 w-4" />}
                 </Button>
               </div>
