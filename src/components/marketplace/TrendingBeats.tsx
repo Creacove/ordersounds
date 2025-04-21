@@ -14,7 +14,7 @@ export const TrendingBeats = () => {
     queryKey: ['trending-beats'],
     queryFn: () => fetchRandomBeats(5),
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (renamed from cacheTime)
   });
 
   if (isLoading) {
