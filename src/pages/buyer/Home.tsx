@@ -36,7 +36,7 @@ export default function Home() {
   const { featuredBeat, trendingBeats: allTrendingBeats, newBeats: allNewBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
   const { prefetchProducers } = useProducers();
