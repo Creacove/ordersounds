@@ -1,4 +1,3 @@
-
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -81,7 +80,7 @@ export interface SupabaseBeat {
 }
 
 // Helper function to map a SupabaseBeat to a Beat
-const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
+const mapSupabaseBeatToBeat = (beat: any): Beat => {
   const userData = beat.users;
   const producerName = userData && userData.stage_name ? userData.stage_name : 
                      userData && userData.full_name ? userData.full_name : 'Unknown Producer';
@@ -117,8 +116,35 @@ const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
   };
 };
 
+// Simplified base query for beats with essential fields only
+const createBasicBeatsQuery = () => {
+  return supabase
+    .from('beats')
+    .select(`
+      id,
+      title,
+      producer_id,
+      users (
+        full_name,
+        stage_name
+      ),
+      cover_image,
+      audio_preview,
+      basic_license_price_local,
+      basic_license_price_diaspora,
+      genre,
+      track_type,
+      bpm,
+      tags,
+      upload_date,
+      favorites_count,
+      purchase_count,
+      status
+    `);
+};
+
 // Optimized fetchAllBeats with optional parameters to optimize query size
-export const fetchAllBeats = async (options = { includeDetails: true }): Promise<Beat[]> => {
+export const fetchAllBeats = async (options = { includeDetails: true, limit: 0 }): Promise<Beat[]> => {
   try {
     // Build query based on options to optimize payload size
     let query = supabase
@@ -155,7 +181,12 @@ export const fetchAllBeats = async (options = { includeDetails: true }): Promise
       `)
       .eq('status', 'published');
     
-    // Single fetch with no retry logic - we rely on the extended timeout in the enhancedFetch
+    // Add limit if specified
+    if (options.limit > 0) {
+      query = query.limit(options.limit);
+    }
+    
+    // Single fetch with no retry logic
     const { data: beatsData, error: beatsError } = await query;
     
     if (beatsError) {
@@ -163,8 +194,8 @@ export const fetchAllBeats = async (options = { includeDetails: true }): Promise
     }
 
     if (beatsData) {
-      // Fix: Use type assertion directly to any[] first to break the deep type checking
-      return (beatsData as any[]).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      // Using simple array mapping with any type to avoid deep instantiation
+      return beatsData.map(beat => mapSupabaseBeatToBeat(beat));
     }
     return [];
   } catch (error) {
@@ -173,50 +204,25 @@ export const fetchAllBeats = async (options = { includeDetails: true }): Promise
   }
 };
 
-export const fetchTrendingBeats = async (): Promise<Beat[]> => {
+export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
   try {
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
+    const query = createBasicBeatsQuery()
       .eq('status', 'published')
-      .order('favorites_count', { ascending: false })
-      .limit(30);
+      .order('favorites_count', { ascending: false });
+    
+    if (limit > 0) {
+      query.limit(limit);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       throw error;
     }
 
     if (data) {
-      // Fix: Use type assertion directly to any[] first
-      return (data as any[]).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      // Using simple array mapping
+      return data.map(beat => mapSupabaseBeatToBeat(beat));
     }
     return [];
   } catch (error) {
@@ -225,49 +231,24 @@ export const fetchTrendingBeats = async (): Promise<Beat[]> => {
   }
 };
 
-export const fetchPopularBeats = async (): Promise<Beat[]> => {
+export const fetchPopularBeats = async (limit = 6): Promise<Beat[]> => {
   try {
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
+    const query = createBasicBeatsQuery()
       .eq('status', 'published')
-      .order('purchase_count', { ascending: false })
-      .limit(6);
+      .order('purchase_count', { ascending: false });
+      
+    if (limit > 0) {
+      query.limit(limit);
+    }
+    
+    const { data, error } = await query;
     
     if (error) {
       throw error;
     }
 
     if (data) {
-      return (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+      return data.map(beat => mapSupabaseBeatToBeat(beat));
     }
     return [];
   } catch (error) {
@@ -334,37 +315,7 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
   if (beatIds.length === 0) return [];
   
   try {
-    const { data: beatsData, error: beatsError } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
+    const { data: beatsData, error: beatsError } = await createBasicBeatsQuery()
       .in('id', beatIds);
         
     if (beatsError) {
@@ -373,8 +324,7 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
     } 
     
     if (beatsData) {
-      // Fix: Use type assertion directly to any[] first
-      return (beatsData as any[]).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      return beatsData.map(beat => mapSupabaseBeatToBeat(beat));
     }
     
     return [];
@@ -457,8 +407,7 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
     }
 
     if (data) {
-      // Fix: Use type assertion to any first
-      return mapSupabaseBeatToBeat(data as any as SupabaseBeat);
+      return mapSupabaseBeatToBeat(data);
     }
     
     return null;

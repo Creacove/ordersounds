@@ -29,20 +29,24 @@ import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
+import { fetchTrendingBeats, fetchPopularBeats } from "@/services/beatsService";
 
 export default function Home() {
-  const { featuredBeat, trendingBeats, newBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
+  // Use the limit parameter to first load just the beats we need for display
+  const { featuredBeat, trendingBeats: allTrendingBeats, newBeats: allNewBeats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] useState(false);
   const { playBeat, isPlaying: isPlayerPlaying, currentBeat } = usePlayer();
   const { user } = useAuth();
   const { prefetchProducers } = useProducers();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    prefetchProducers();
-  }, []);
-
+  
+  // Display only 5 beats initially
+  const [trendingBeats, setTrendingBeats] = useState([]);
+  const [newBeats, setNewBeats] = useState([]);
+  
+  // Use react-query for producer data with prefetch
   const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
     queryKey: ['topProducers'],
     queryFn: async () => {
@@ -68,6 +72,7 @@ export default function Home() {
     enabled: true
   });
 
+  // Use react-query for featured playlists with limited data
   const { data: featuredPlaylists = [], isLoading: isLoadingPlaylists } = useQuery({
     queryKey: ['featuredPlaylists'],
     queryFn: async () => {
@@ -100,6 +105,24 @@ export default function Home() {
     },
     enabled: true
   });
+  
+  // Progressive loading of trending and new beats
+  useEffect(() => {
+    // Set the first 5 trending beats 
+    if (allTrendingBeats && allTrendingBeats.length > 0) {
+      setTrendingBeats(allTrendingBeats.slice(0, 5));
+    }
+    
+    // Set the first 5 new beats
+    if (allNewBeats && allNewBeats.length > 0) {
+      setNewBeats(allNewBeats.slice(0, 5));
+    }
+  }, [allTrendingBeats, allNewBeats]);
+
+  useEffect(() => {
+    // Prefetch producer data for better performance
+    prefetchProducers();
+  }, []);
 
   const handlePlayFeatured = () => {
     if (featuredBeat) {
@@ -140,7 +163,7 @@ export default function Home() {
     { name: "Amapiano", icon: <Sparkles size={16} /> },
   ];
 
-  const weeklyPicks = trendingBeats.slice(0, 6);
+  const weeklyPicks = allTrendingBeats.slice(0, 6);
 
   const isCurrentlyPlaying = (beatId) => {
     return isPlayerPlaying && currentBeat?.id === beatId;
@@ -334,7 +357,7 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {trendingBeats.slice(0, 5).map((beat) => (
+                  {trendingBeats.map((beat) => (
                     <BeatCard 
                       key={beat.id} 
                       beat={beat}
@@ -465,7 +488,7 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                  {newBeats.slice(0, 5).map((beat) => (
+                  {newBeats.map((beat) => (
                     <BeatCard 
                       key={beat.id} 
                       beat={beat}
