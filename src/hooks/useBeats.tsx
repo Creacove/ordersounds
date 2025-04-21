@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -16,7 +17,7 @@ import {
   fetchPopularBeats, fetchUserFavorites, fetchPurchasedBeats,
   fetchPurchasedBeatDetails, toggleFavoriteAPI, fetchBeatById,
   getProducerBeats, getUserFavoriteBeats
-} from '@/services/beatsService';
+} from '@/services/beats';
 
 export function useBeats() {
   const [beats, setBeats] = useState<Beat[]>([]);
@@ -108,12 +109,12 @@ export function useBeats() {
 
   const fetchInitialBeats = useCallback(async () => {
     try {
-      const initialBeats = await fetchTrendingBeats(5);
+      const initialBeats = await fetchTrendingBeats(30);
       if (initialBeats && initialBeats.length > 0) {
         setTrendingBeats(initialBeats);
       }
       
-      const initialNewBeats = await fetchNewBeats(5); 
+      const initialNewBeats = await fetchNewBeats(30); 
       if (initialNewBeats && initialNewBeats.length > 0) {
         setNewBeats(initialNewBeats);
       }

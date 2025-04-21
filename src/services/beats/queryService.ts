@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -89,9 +88,31 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
   }
 };
 
-export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
+export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
   try {
-    const query = createBasicBeatsQuery()
+    const query = supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status
+      `)
       .eq('status', 'published')
       .order('favorites_count', { ascending: false });
 
@@ -116,9 +137,31 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
   }
 };
 
-export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
+export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
   try {
-    const query = createBasicBeatsQuery()
+    const query = supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status
+      `)
       .eq('status', 'published')
       .order('upload_date', { ascending: false });
 
