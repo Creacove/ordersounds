@@ -5,7 +5,7 @@ import { EmptyState } from './EmptyState';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, Music } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { PurchasedBeatsLoading } from './PurchasedBeatsLoading';
+// Removed: import { PurchasedBeatsLoading } from './PurchasedBeatsLoading';
 import { PurchasedBeatsMobile } from './PurchasedBeatsMobile';
 import { PurchasedBeatsDesktop } from './PurchasedBeatsDesktop';
 
@@ -21,10 +21,7 @@ export function PurchasedBeats() {
   } = usePurchasedBeats();
   const isMobile = useIsMobile();
 
-  // Show a loading skeleton while initial data is being loaded
-  if (isLoading || !beatsLoaded) {
-    return <PurchasedBeatsLoading />;
-  }
+  // **Always display main content, never show a loading skeleton**
 
   if (!purchasedBeats || purchasedBeats.length === 0) {
     return (
@@ -79,3 +76,4 @@ export function PurchasedBeats() {
     </div>
   );
 }
+
