@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
@@ -30,9 +31,9 @@ import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { fetchTrendingBeats, fetchRandomBeats, fetchNewBeats } from "@/services/beatsService";
-import { TrendingBeats } from "@/components/marketplace/TrendingBeats";
 
 export default function Home() {
+  // Use the limit parameter to first load just the beats we need for display
   const { 
     featuredBeat, 
     trendingBeats: allTrendingBeats, 
@@ -51,9 +52,11 @@ export default function Home() {
   const { prefetchProducers } = useProducers();
   const navigate = useNavigate();
   
+  // Display only 5 beats initially
   const [trendingBeats, setTrendingBeats] = useState([]);
   const [newBeats, setNewBeats] = useState([]);
-
+  
+  // Use react-query for producer data with prefetch
   const { data: topProducers = [], isLoading: isLoadingProducers } = useQuery({
     queryKey: ['topProducers'],
     queryFn: async () => {
@@ -79,6 +82,7 @@ export default function Home() {
     enabled: true
   });
 
+  // Use react-query for featured playlists with limited data
   const { data: featuredPlaylists = [], isLoading: isLoadingPlaylists } = useQuery({
     queryKey: ['featuredPlaylists'],
     queryFn: async () => {
@@ -111,18 +115,22 @@ export default function Home() {
     },
     enabled: true
   });
-
+  
+  // Progressive loading of trending and new beats
   useEffect(() => {
+    // Set the first 5 trending beats 
     if (allTrendingBeats && allTrendingBeats.length > 0) {
       setTrendingBeats(allTrendingBeats.slice(0, 5));
     }
     
+    // Set the first 5 new beats
     if (allNewBeats && allNewBeats.length > 0) {
       setNewBeats(allNewBeats.slice(0, 5));
     }
   }, [allTrendingBeats, allNewBeats]);
 
   useEffect(() => {
+    // Prefetch producer data for better performance
     prefetchProducers();
   }, []);
 
@@ -165,6 +173,8 @@ export default function Home() {
     { name: "Amapiano", icon: <Sparkles size={16} /> },
   ];
 
+  // Remove duplicate weeklyPicks definition - we're using the one from useBeats() hook
+  
   const isCurrentlyPlaying = (beatId) => {
     return isPlayerPlaying && currentBeat?.id === beatId;
   };
@@ -328,7 +338,46 @@ export default function Home() {
             )}
 
             <section className="mb-10">
-              <TrendingBeats />
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-semibold">Trending Beats</h2>
+                  <div className="bg-rose-500/10 text-rose-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                    <Flame size={12} />
+                    <span>Hot</span>
+                  </div>
+                </div>
+                <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
+                  Show all
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+              
+              {isLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {[...Array(5)].map((_, i) => (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "bg-card rounded-lg aspect-square animate-pulse",
+                        "opacity-75"
+                      )}
+                      style={{ animationDelay: `${i * 0.1}s` }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {trendingBeats.map((beat) => (
+                    <BeatCard 
+                      key={beat.id} 
+                      beat={beat}
+                      onToggleFavorite={toggleFavorite}
+                      isFavorite={isFavorite(beat.id)}
+                      isPurchased={isPurchased(beat.id)}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
 
             <section className="bg-card/50 p-4 sm:p-6 rounded-lg mb-10 border">

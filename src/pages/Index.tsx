@@ -4,25 +4,34 @@ import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { BeatCard } from "@/components/marketplace/BeatCard";
 import { BeatCardCompact } from "@/components/marketplace/BeatCardCompact";
+import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { usePlayer } from "@/context/PlayerContext";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlaylists } from "@/hooks/usePlaylists";
+import { useProducers } from "@/hooks/useProducers";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  TrendingUp, Flame, ListMusic, ArrowRight, Star, Search,
-  Calendar, RefreshCw, AlertCircle
+  TrendingUp,
+  Flame,
+  ListMusic,
+  ArrowRight,
+  Star,
+  Search,
+  Calendar,
+  RefreshCw,
+  AlertCircle
 } from "lucide-react";
-import { Beat } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { fetchFeaturedBeat } from "@/services/beatsService";
 import { toast } from "sonner";
-import { NewBeats } from "@/components/marketplace/NewBeats";
-import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
+// Fallback featured beat for when network fails
 const fallbackFeaturedBeat: Beat = {
   id: "fallback-featured",
   title: "Featured Demo Beat",
@@ -34,35 +43,31 @@ const fallbackFeaturedBeat: Beat = {
   basic_license_price_local: 5000,
   basic_license_price_diaspora: 15,
   genre: "Afrobeat",
-  track_type: "Single",
+  track_type: "Single", // Added missing required property
   bpm: 100,
   status: "published",
   is_featured: true,
   created_at: new Date().toISOString(),
   tags: ["demo", "featured"],
-  favorites_count: 0,
-  purchase_count: 0,
+  favorites_count: 0, // Added missing required property
+  purchase_count: 0, // Added missing required property
 };
 
 export default function IndexPage() {
   const { user, forceUserDataRefresh } = useAuth();
-  const { playlists } = usePlaylists();
-  const { 
-    beats, isLoading: isLoadingBeats, 
-    trendingBeats, newBeats, weeklyPicks, 
-    fetchBeats 
-  } = useBeats();
-  const [featuredBeat, setFeaturedBeat] = useState<Beat | null>(null);
-  const [isLoadingFeatured, setIsLoadingFeatured] = useState(true);
+  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats } = useBeats();
+  const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
+  const { prefetchProducers } = useProducers();
+  const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const [userDataError, setUserDataError] = useState(false);
-  const [featuredPlaylists, setFeaturedPlaylists] = useState<any[]>([]);
   const navigate = useNavigate();
 
   const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
 
+  // Check for user data issues on page load
   useEffect(() => {
     if (user && (!user.role || !user.name)) {
       console.log("Incomplete user data detected, may need refresh");
@@ -72,6 +77,12 @@ export default function IndexPage() {
     }
   }, [user]);
 
+  // Preload producers data when the page loads
+  useEffect(() => {
+    // This will trigger the producers data fetch in the background
+    prefetchProducers();
+  }, [prefetchProducers]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
@@ -79,11 +90,13 @@ export default function IndexPage() {
     }
   };
 
+  // Manual refresh function that users can trigger
   const handleRefreshData = async () => {
     setIsRefreshing(true);
     setNetworkError(false);
     
     try {
+      // First refresh user data if needed
       if (userDataError && user) {
         const userRefreshed = await forceUserDataRefresh();
         if (userRefreshed) {
@@ -91,6 +104,7 @@ export default function IndexPage() {
         }
       }
       
+      // Then refresh beats
       await fetchBeats();
       toast.success("Content refreshed successfully");
       setUserDataError(false);
@@ -108,21 +122,6 @@ export default function IndexPage() {
       setFeaturedPlaylists(playlists.filter(p => p.is_public).slice(0, 4));
     }
   }, [playlists]);
-
-  useEffect(() => {
-    const loadFeaturedBeat = async () => {
-      try {
-        const beat = await fetchFeaturedBeat();
-        setFeaturedBeat(beat);
-      } catch (error) {
-        console.error('Error loading featured beat:', error);
-      } finally {
-        setIsLoadingFeatured(false);
-      }
-    };
-
-    loadFeaturedBeat();
-  }, []);
 
   return (
     <MainLayoutWithPlayer>
@@ -178,11 +177,7 @@ export default function IndexPage() {
           </Alert>
         )}
 
-        {isLoadingFeatured ? (
-          <div className="mb-6 px-0 mx-0">
-            <div className="h-[200px] bg-card/50 animate-pulse rounded-lg" />
-          </div>
-        ) : featuredBeat ? (
+        {displayedFeaturedBeat && (
           <section className="mb-6 px-0 mx-0">
             <SectionTitle 
               title="Featured Beat" 
@@ -192,13 +187,13 @@ export default function IndexPage() {
             
             <div className="mt-3">
               <BeatCard 
-                key={featuredBeat.id} 
-                beat={featuredBeat} 
+                key={displayedFeaturedBeat.id} 
+                beat={displayedFeaturedBeat} 
                 featured={true} 
               />
             </div>
           </section>
-        ) : null}
+        )}
 
         <section className="mb-6 px-0 mx-0">
           <SectionTitle 
@@ -211,6 +206,7 @@ export default function IndexPage() {
           </div>
         </section>
 
+        {/* Recommended Beats section */}
         <RecommendedBeats />
 
         <section className="mb-6 px-0 mx-0">
@@ -249,7 +245,24 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <NewBeats />
+        <section className="mb-6 px-0 mx-0">
+          <SectionTitle 
+            title="New Releases" 
+            icon={<Flame className="h-5 w-5" />}
+          />
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            {newBeats.slice(0, 8).map((beat) => (
+              <BeatCardCompact key={beat.id} beat={beat} />
+            ))}
+          </div>
+          <div className="mt-3 flex justify-end">
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/new">
+                View all new releases <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+        </section>
 
         <section className="mb-6 px-0 mx-0">
           <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />

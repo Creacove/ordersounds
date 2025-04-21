@@ -1,6 +1,5 @@
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { PostgrestError } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 // Type for beat data returned from Supabase - simplified to avoid circular references
@@ -73,13 +72,43 @@ const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
   };
 };
 
+// Simplified base query for beats with essential fields only
+const createBasicBeatsQuery = () => {
+  return supabase
+    .from('beats')
+    .select(`
+      id,
+      title,
+      producer_id,
+      users (
+        full_name,
+        stage_name
+      ),
+      cover_image,
+      audio_preview,
+      basic_license_price_local,
+      basic_license_price_diaspora,
+      genre,
+      track_type,
+      bpm,
+      tags,
+      upload_date,
+      favorites_count,
+      purchase_count,
+      status
+    `);
+};
+
+// Function type for query builders to avoid type recursion issues
+type QueryBuilder = typeof supabase.from;
+
 // Optimized fetchAllBeats with optional parameters to optimize query size
 export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number } = {}): Promise<Beat[]> => {
   try {
     const { includeDetails = true, limit = 0 } = options;
     
     // Build query based on options to optimize payload size
-    let baseQuery = supabase
+    let query = supabase
       .from('beats')
       .select(`
         id,
@@ -113,10 +142,13 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
       `)
       .eq('status', 'published');
     
-    // Execute query with limit if specified
-    const { data: beatsData, error: beatsError } = await (limit > 0 ? 
-      baseQuery.limit(limit) : 
-      baseQuery);
+    // Add limit if specified
+    if (limit > 0) {
+      query = query.limit(limit);
+    }
+    
+    // Single fetch with no retry logic
+    const { data: beatsData, error: beatsError } = await query;
     
     if (beatsError) {
       throw beatsError;
@@ -124,7 +156,7 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
 
     if (beatsData && beatsData.length > 0) {
       // Type casting to avoid recursive type issues
-      return beatsData.map((beat) => mapSupabaseBeatToBeat(beat as any));
+      return beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
     // Return empty array if no beats found
@@ -138,45 +170,15 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
 
 export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    // Create query with order and conditionally add limit
-    const baseQuery = supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
+    const query = createBasicBeatsQuery()
       .eq('status', 'published')
       .order('favorites_count', { ascending: false });
 
-    // Execute query with or without limit
-    const { data, error } = await (limit > 0 ? 
-      baseQuery.limit(limit) : 
-      baseQuery);
+    if (limit > 0) {
+      query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
@@ -186,6 +188,7 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
       return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
+    // Return empty array if no beats found
     return [];
   } catch (error) {
     console.error('Error fetching trending beats:', error);
@@ -195,52 +198,26 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
 
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    // Get a set of beats ordered by most recent to get a random sampling
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
+    // Create a query to get a set of random beats
+    const query = createBasicBeatsQuery()
       .eq('status', 'published')
-      .order('upload_date', { ascending: false })
-      .limit(50); // Get a larger pool to select from
+      .limit(Math.max(limit, 20)); // Fetch more than needed to allow for randomization
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
     }
 
     if (data && Array.isArray(data) && data.length > 0) {
-      // Shuffle and take required number
+      // Shuffle the beats randomly
       const shuffled = [...data].sort(() => Math.random() - 0.5);
-      return shuffled.slice(0, limit).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      // Take the requested number of beats or all if there are fewer
+      const selectedBeats = shuffled.slice(0, limit);
+      return selectedBeats.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
+    // Return empty array if no beats found
     return [];
   } catch (error) {
     console.error('Error fetching random beats:', error);
@@ -248,148 +225,45 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   }
 };
 
-export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
+export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
+    const query = createBasicBeatsQuery()
       .eq('status', 'published')
-      .order('favorites_count', { ascending: false })
-      .limit(1);
+      .order('upload_date', { ascending: false });
+
+    if (limit > 0) {
+      query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
     }
 
-    if (data && data.length > 0) {
-      const featuredBeat = mapSupabaseBeatToBeat(data[0] as any);
-      return { ...featuredBeat, is_featured: true };
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Error fetching featured beat:', error);
-    return null;
-  }
-};
-
-export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
-      .eq('status', 'published')
-      .order('upload_date', { ascending: false })
-      .limit(limit > 0 ? limit : 50);
-
-    if (error) {
-      console.error('Error fetching new beats:', error);
-      return [];
-    }
-
     if (data && Array.isArray(data) && data.length > 0) {
-      return data.map(beat => mapSupabaseBeatToBeat(beat as any));
+      return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
+    // Return empty array if no beats found
     return [];
   } catch (error) {
-    console.error('Error in fetchNewBeats:', error);
+    console.error('Error fetching new beats:', error);
     return [];
   }
 };
 
 export const fetchPopularBeats = async (limit = 6): Promise<Beat[]> => {
   try {
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        status
-      `)
+    const query = createBasicBeatsQuery()
       .eq('status', 'published')
-      .order('purchase_count', { ascending: false })
-      .limit(limit > 0 ? limit : 50);
+      .order('purchase_count', { ascending: false });
+
+    if (limit > 0) {
+      query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
@@ -465,39 +339,7 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
   if (beatIds.length === 0) return [];
   
   try {
-    const { data: beatsData, error: beatsError } = await supabase
-      .from('beats')
-      .select(`
-        id,
-        title,
-        producer_id,
-        users (
-          full_name,
-          stage_name
-        ),
-        cover_image,
-        audio_preview,
-        audio_file,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        genre,
-        track_type,
-        bpm,
-        key,
-        tags,
-        description,
-        upload_date,
-        favorites_count,
-        purchase_count,
-        plays,
-        status
-      `)
+    const { data: beatsData, error: beatsError } = await createBasicBeatsQuery()
       .in('id', beatIds);
         
     if (beatsError) {
