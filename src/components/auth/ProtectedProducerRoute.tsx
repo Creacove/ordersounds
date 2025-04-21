@@ -3,7 +3,6 @@ import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
-// Add default export to fix TS error
 const ProtectedProducerRoute = ({ children }: { children: ReactNode }) => {
   const { user, isLoading, isProducerInactive } = useAuth();
 

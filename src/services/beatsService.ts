@@ -1,3 +1,4 @@
+
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -52,9 +53,9 @@ export interface SupabaseBeat {
   title: string;
   producer_id: string;
   users?: {
-    full_name?: string;
-    stage_name?: string;
-  };
+    full_name?: string | null;
+    stage_name?: string | null;
+  } | null;
   cover_image?: string | null;
   audio_preview?: string | null;
   audio_file?: string | null;
@@ -162,7 +163,8 @@ export const fetchAllBeats = async (options = { includeDetails: true }): Promise
     }
 
     if (beatsData) {
-      return beatsData.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
+      // Explicitly cast the data to the SupabaseBeat type
+      return (beatsData as unknown as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     }
     return [];
   } catch (error) {
@@ -213,7 +215,7 @@ export const fetchTrendingBeats = async (): Promise<Beat[]> => {
     }
 
     if (data) {
-      return data.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
+      return (data as unknown as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     }
     return [];
   } catch (error) {
@@ -370,7 +372,7 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
     } 
     
     if (beatsData) {
-      return beatsData.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
+      return (beatsData as unknown as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     }
     
     return [];

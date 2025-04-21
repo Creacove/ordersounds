@@ -15,8 +15,9 @@ const ongoingRequests = new Map();
 const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
   // Get the URL string properly regardless of the input type
   const url = typeof input === 'string' ? input : 
-              input instanceof URL ? input.href : 
-              'url' in input ? input.url : '';
+              input instanceof URL ? input.toString() : 
+              'toString' in input ? input.toString() : '';
+              
   const method = init?.method || 'GET';
   
   // Create a unique key for this request
