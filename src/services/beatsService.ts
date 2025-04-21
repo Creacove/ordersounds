@@ -1,4 +1,3 @@
-
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -47,7 +46,7 @@ export const fallbackBeats: Beat[] = [
   }
 ];
 
-// Type for beat data returned from Supabase
+// Type for beat data returned from Supabase - simplified to avoid circular references
 export interface SupabaseBeat {
   id: string;
   title: string;
@@ -164,7 +163,7 @@ export const fetchAllBeats = async (options = { includeDetails: true }): Promise
 
     if (beatsData) {
       // Explicitly cast the data to the SupabaseBeat type
-      return (beatsData as unknown as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+      return (beatsData as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     }
     return [];
   } catch (error) {
@@ -215,7 +214,7 @@ export const fetchTrendingBeats = async (): Promise<Beat[]> => {
     }
 
     if (data) {
-      return (data as unknown as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+      return (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     }
     return [];
   } catch (error) {
@@ -266,7 +265,7 @@ export const fetchPopularBeats = async (): Promise<Beat[]> => {
     }
 
     if (data) {
-      return data.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
+      return (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     }
     return [];
   } catch (error) {
@@ -372,7 +371,7 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
     } 
     
     if (beatsData) {
-      return (beatsData as unknown as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+      return (beatsData as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     }
     
     return [];

@@ -33,4 +33,5 @@ const ProtectedProducerRoute = ({ children }: { children: ReactNode }) => {
   return <>{children}</>;
 };
 
+// Add default export to fix TypeScript error
 export default ProtectedProducerRoute;
