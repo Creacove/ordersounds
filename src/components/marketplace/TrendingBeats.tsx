@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Flame } from "lucide-react";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useBeats } from "@/hooks/useBeats";
-import { fetchRandomBeats } from "@/services/beatsService";
+import { fetchTrendingBeats } from "@/services/beatsService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
 
@@ -12,9 +12,9 @@ export const TrendingBeats = () => {
 
   const { data: beats = [], isLoading } = useQuery({
     queryKey: ['trending-beats'],
-    queryFn: () => fetchRandomBeats(5),
+    queryFn: () => fetchTrendingBeats(5),
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (renamed from cacheTime)
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
   if (isLoading) {
