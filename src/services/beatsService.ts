@@ -209,19 +209,18 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
     const query = createBasicBeatsQuery()
       .eq('status', 'published')
       .order('favorites_count', { ascending: false });
-    
+
     if (limit > 0) {
       query.limit(limit);
     }
-    
+
     const { data, error } = await query;
-    
+
     if (error) {
       throw error;
     }
 
-    if (data) {
-      // Using simple array mapping
+    if (data && Array.isArray(data) && data.length > 0) {
       return data.map(beat => mapSupabaseBeatToBeat(beat));
     }
     return [];
@@ -236,18 +235,18 @@ export const fetchPopularBeats = async (limit = 6): Promise<Beat[]> => {
     const query = createBasicBeatsQuery()
       .eq('status', 'published')
       .order('purchase_count', { ascending: false });
-      
+
     if (limit > 0) {
       query.limit(limit);
     }
-    
+
     const { data, error } = await query;
-    
+
     if (error) {
       throw error;
     }
 
-    if (data) {
+    if (data && Array.isArray(data) && data.length > 0) {
       return data.map(beat => mapSupabaseBeatToBeat(beat));
     }
     return [];
