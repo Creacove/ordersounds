@@ -1,4 +1,3 @@
-
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -101,7 +100,7 @@ const createBasicBeatsQuery = () => {
 };
 
 // Function type for query builders to avoid type recursion issues
-type QueryBuilder = ReturnType<typeof supabase.from>;
+type QueryBuilder = typeof supabase.from;
 
 // Optimized fetchAllBeats with optional parameters to optimize query size
 export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number } = {}): Promise<Beat[]> => {
