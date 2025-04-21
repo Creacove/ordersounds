@@ -10,9 +10,9 @@ const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Track ongoing request URLs to prevent duplicate requests
 const ongoingRequests = new Map();
 
-// Enhanced fetch with retry logic, deduplication and adaptive timeouts
+// Enhanced fetch with single attempt, longer timeout, and deduplication
 const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  const url = typeof input === 'string' ? input : input.url;
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
   const method = init?.method || 'GET';
   
   // Create a unique key for this request
@@ -24,63 +24,49 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
       // Return the existing promise to avoid duplicate requests
       return await ongoingRequests.get(requestKey);
     } catch (err) {
-      // If the ongoing request fails, we'll try again below
+      // Clear the failed request from the map and continue with a new attempt
       ongoingRequests.delete(requestKey);
+      console.warn('Previous request failed, making a fresh attempt');
     }
   }
   
-  // Define max retries based on request importance
-  // Reduce from 3 retries to 1 for non-critical requests
-  const isReadOperation = method === 'GET' || method === 'OPTIONS';
-  const maxRetries = isReadOperation ? 1 : 2;
-  const baseDelay = 800; // Reduced from 1000ms
-  
-  // Create the fetch promise
+  // Create the fetch promise with NO retries - only one attempt
   const fetchPromise = (async () => {
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const startTime = Date.now();
-        
-        // Set a reasonable timeout based on request type and network conditions
-        const timeoutDuration = getAdaptiveTimeout(url);
-        
-        // Create a timeout promise
-        const timeoutPromise = new Promise<Response>((_, reject) => {
-          setTimeout(() => {
-            reject(new Error(`Request timeout after ${timeoutDuration}ms`));
-          }, timeoutDuration);
-        });
-        
-        // Race the fetch against the timeout
-        const response = await Promise.race([
-          fetch(input, init),
-          timeoutPromise
-        ]);
-        
-        const endTime = Date.now();
-        const responseTime = endTime - startTime;
-        
-        // Track response time for adaptive timeout calculation
-        updateNetworkMetrics(responseTime);
-        
-        // Check for server errors and handle accordingly
-        if (response.status >= 500) {
-          throw new Error(`Server error: ${response.status}`);
-        }
-        
-        return response;
-      } catch (err) {
-        if (attempt === maxRetries) {
-          throw err; // Retries exhausted, propagate the error
-        }
-        
-        // Exponential backoff with less jitter
-        const delay = baseDelay * Math.pow(1.5, attempt) * (0.8 + Math.random() * 0.4);
-        await new Promise(resolve => setTimeout(resolve, delay));
+    try {
+      const startTime = Date.now();
+      
+      // Set a much longer timeout for critical data fetches
+      // This is especially important for the initial data load
+      const timeoutDuration = getLongerTimeout(url);
+      
+      // Create a timeout promise
+      const timeoutPromise = new Promise<Response>((_, reject) => {
+        setTimeout(() => {
+          reject(new Error(`Request timeout after ${timeoutDuration}ms`));
+        }, timeoutDuration);
+      });
+      
+      // Race the fetch against the timeout
+      const response = await Promise.race([
+        fetch(input, init),
+        timeoutPromise
+      ]);
+      
+      const endTime = Date.now();
+      const responseTime = endTime - startTime;
+      
+      // Track response time for future reference
+      updateNetworkMetrics(responseTime);
+      
+      if (response.status >= 500) {
+        throw new Error(`Server error: ${response.status}`);
       }
+      
+      return response;
+    } catch (err) {
+      // We don't retry - just throw the error for the caller to handle
+      throw err;
     }
-    
-    throw new Error('Unexpected fetch retry logic failure');
   })();
   
   // Store the promise in the ongoing requests map
@@ -95,72 +81,42 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
   }
 };
 
-// More sophisticated adaptive timeout based on endpoint and previous response times
-const getAdaptiveTimeout = (url: string): number => {
-  // Base timeouts (reduced from previous values)
+// Use much longer timeouts for critical operations
+const getLongerTimeout = (url: string): number => {
+  // Significantly longer timeouts than before
   const baseTimeouts = {
-    short: 15000,   // 15s for simple queries
-    standard: 25000, // 25s for standard operations
-    long: 45000     // 45s for complex operations
+    initial: 60000,    // 60s for initial data load
+    standard: 45000,   // 45s for standard operations
+    auth: 30000        // 30s for auth operations
   };
   
-  try {
-    // Check for stored network metrics
-    const networkConditions = localStorage.getItem(CACHE_KEYS.NETWORK_CONDITIONS);
-    
-    // Get response times history
-    const responseTimesRaw = localStorage.getItem('network_response_times');
-    const responseTimes = responseTimesRaw ? JSON.parse(responseTimesRaw) : [];
-    
-    // Calculate average response time if we have history
-    let avgResponseTime = 0;
-    if (responseTimes.length > 0) {
-      avgResponseTime = responseTimes.reduce((sum: number, time: number) => sum + time, 0) / responseTimes.length;
-    }
-    
-    // Adjust timeout based on endpoint complexity and previous performance
-    if (url.includes('beats?select')) {
-      // Complex queries get longer timeout but with intelligent reduction
-      let timeout = baseTimeouts.long;
-      if (avgResponseTime > 0) {
-        // Add a buffer to the average time (2x + 10s)
-        timeout = Math.min(timeout, Math.max(baseTimeouts.standard, avgResponseTime * 2 + 10000));
-      }
-      return timeout;
-    } else if (url.includes('auth')) {
-      // Auth endpoints are critical, give them standard timeout
-      return baseTimeouts.standard;
-    } else {
-      // For other endpoints, use network conditions to determine timeout
-      if (networkConditions === 'slow') {
-        return baseTimeouts.long;
-      } else if (networkConditions === 'medium') {
-        return baseTimeouts.standard;
-      }
-      return baseTimeouts.short;
-    }
-  } catch (e) {
-    // Default to standard timeout on errors
-    return baseTimeouts.standard;
+  // Prioritize based on endpoint importance
+  if (url.includes('beats?select')) {
+    // This is the critical data fetch that needs to succeed
+    return baseTimeouts.initial;
+  } else if (url.includes('auth')) {
+    // Auth endpoints are critical, but typically faster
+    return baseTimeouts.auth;
   }
+  
+  // Default to standard timeout for all other operations
+  return baseTimeouts.standard;
 };
 
 // Track network performance metrics
 const updateNetworkMetrics = (responseTimeMs: number): void => {
   try {
     // Update network conditions classification
-    if (responseTimeMs > 5000) {
-      updateNetworkConditions(responseTimeMs);
-    }
+    updateNetworkConditions(responseTimeMs);
     
-    // Store last 5 response times for adaptive timeout calculation
+    // Store last 3 response times (reduced from 5 to avoid excessive storage)
     const responseTimesRaw = localStorage.getItem('network_response_times') || '[]';
     const responseTimes = JSON.parse(responseTimesRaw);
     
     responseTimes.push(responseTimeMs);
     
-    // Keep only the last 5 response times
-    if (responseTimes.length > 5) {
+    // Keep only the last 3 response times
+    if (responseTimes.length > 3) {
       responseTimes.shift();
     }
     
@@ -193,7 +149,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
   realtime: {
     params: {
-      eventsPerSecond: 1  // Reduced from 2 to 1 to limit realtime connections
+      eventsPerSecond: 0.5  // Reduced from 1 to 0.5 to further limit realtime connections
     }
   }
 });
@@ -204,10 +160,10 @@ let lastConnectionCheck = 0;
 
 // Export a function to check API health with throttling
 export const checkSupabaseConnection = async (): Promise<boolean> => {
-  // Check if we've done this recently or if it's already in progress
+  // Extended throttling: Check once every 5 minutes instead of every minute
   const now = Date.now();
-  if (connectionCheckInProgress || (now - lastConnectionCheck < 60000)) {
-    // Return cached result if we checked within the last minute
+  if (connectionCheckInProgress || (now - lastConnectionCheck < 300000)) { // 5 minutes
+    // Return cached result if we checked within the last 5 minutes
     const cachedResult = localStorage.getItem('supabase_connection_status');
     return cachedResult === 'connected';
   }
@@ -215,34 +171,18 @@ export const checkSupabaseConnection = async (): Promise<boolean> => {
   connectionCheckInProgress = true;
   
   try {
-    const start = Date.now();
-    // Try to get from cache first
+    // Try to get from cache first - always prefer cached data
     const cachedBeats = loadFromCache(CACHE_KEYS.ALL_BEATS);
     
     if (cachedBeats) {
-      // If we have cached data, do a lighter health check
-      const { data, error } = await supabase.from('beats').select('id').limit(1).maybeSingle();
-      const end = Date.now();
-      const isConnected = !error;
-      
-      // Store connection status and update last check time
-      localStorage.setItem('supabase_connection_status', isConnected ? 'connected' : 'disconnected');
+      // If we have cached data, just assume we're online
+      // and avoid making a network check at all
+      localStorage.setItem('supabase_connection_status', 'connected');
       lastConnectionCheck = now;
-      
-      // Display slow connection warning if needed
-      const responseTime = end - start;
-      if (responseTime > 5000 && isConnected) {
-        toast.warning("Network connection is slow. App may take longer to load.", {
-          duration: 5000,
-          id: "network-slow"
-        });
-      }
-      
-      return isConnected;
+      return true;
     } else {
-      // For first load, we need a more thorough check
+      // Only for first load, we need to check if we can connect
       const { data, error } = await supabase.from('beats').select('id').limit(1).maybeSingle();
-      const end = Date.now();
       
       const isConnected = !error;
       localStorage.setItem('supabase_connection_status', isConnected ? 'connected' : 'disconnected');

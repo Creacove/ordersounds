@@ -1,3 +1,4 @@
+
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -38,7 +39,7 @@ const ProducerDashboard = React.lazy(() => import("./pages/producer/Dashboard"))
 const UploadBeat = React.lazy(() => import("./pages/producer/UploadBeat"));
 const ProducerBeats = React.lazy(() => import("./pages/producer/Beats"));
 const Royalties = React.lazy(() => import("./pages/producer/Royalties"));
-const ProtectedProducerRoute = React.lazy(() => import("./components/auth/ProtectedProducerRoute"));
+const ProtectedProducerRoute = React.lazy(() => import("@/components/auth/ProtectedProducerRoute").then(module => ({ default: module.default })));
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -8,7 +8,6 @@ import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { usePlayer } from "@/context/PlayerContext";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useProducers } from "@/hooks/useProducers";
@@ -22,10 +21,10 @@ import {
   Search,
   Calendar,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  WifiOff
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { User, Beat } from "@/types";
+import { Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { toast } from "sonner";
@@ -55,13 +54,23 @@ const fallbackFeaturedBeat: Beat = {
 
 export default function IndexPage() {
   const { user, forceUserDataRefresh } = useAuth();
-  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats } = useBeats();
+  const { 
+    beats, 
+    isLoading: isLoadingBeats, 
+    trendingBeats, 
+    newBeats, 
+    weeklyPicks, 
+    featuredBeat, 
+    fetchBeats,
+    forceRefresh,
+    isOffline,
+    dataFreshness,
+    fetchInProgress
+  } = useBeats();
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
   const { prefetchProducers } = useProducers();
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [networkError, setNetworkError] = useState(false);
   const [userDataError, setUserDataError] = useState(false);
   const navigate = useNavigate();
 
@@ -77,11 +86,14 @@ export default function IndexPage() {
     }
   }, [user]);
 
-  // Preload producers data when the page loads
+  // Load producers data in the background once content is loaded
   useEffect(() => {
-    // This will trigger the producers data fetch in the background
-    prefetchProducers();
-  }, [prefetchProducers]);
+    if (!isLoadingBeats && beats.length > 0) {
+      // This will trigger the producers data fetch in the background
+      // after main content is loaded
+      prefetchProducers();
+    }
+  }, [prefetchProducers, isLoadingBeats, beats]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,28 +104,27 @@ export default function IndexPage() {
 
   // Manual refresh function that users can trigger
   const handleRefreshData = async () => {
-    setIsRefreshing(true);
-    setNetworkError(false);
+    if (fetchInProgress) {
+      toast.info("Refresh already in progress...");
+      return;
+    }
     
     try {
       // First refresh user data if needed
       if (userDataError && user) {
+        toast.info("Refreshing user data...");
         const userRefreshed = await forceUserDataRefresh();
         if (userRefreshed) {
           toast.success("User data refreshed successfully");
+          setUserDataError(false);
         }
       }
       
       // Then refresh beats
-      await fetchBeats();
-      toast.success("Content refreshed successfully");
-      setUserDataError(false);
+      await forceRefresh();
     } catch (error) {
       console.error("Error refreshing data:", error);
-      setNetworkError(true);
       toast.error("Failed to refresh content. Please check your connection.");
-    } finally {
-      setIsRefreshing(false);
     }
   };
 
@@ -147,21 +158,33 @@ export default function IndexPage() {
           </form>
         </div>
 
-        {(networkError || userDataError) && (
-          <Alert variant={userDataError ? "warning" : "destructive"} className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {userDataError 
-                ? "User data may be incomplete. This could cause limited functionality." 
-                : "Connection issues detected. Some content may not be available."}
+        {/* Unified status alert */}
+        {(isOffline || userDataError || dataFreshness === 'stale' || dataFreshness === 'expired') && (
+          <Alert 
+            variant={
+              isOffline ? "destructive" : 
+              userDataError ? "warning" : 
+              dataFreshness === 'expired' ? "destructive" : 
+              "default"
+            } 
+            className="mb-6"
+          >
+            {isOffline && <WifiOff className="h-4 w-4" />}
+            {!isOffline && <AlertCircle className="h-4 w-4" />}
+            <AlertDescription className="flex items-center justify-between">
+              <span>
+                {isOffline && "You're offline. Using cached content."}
+                {!isOffline && userDataError && "User data may be incomplete. This could cause limited functionality."}
+                {!isOffline && !userDataError && dataFreshness === 'expired' && "Content is outdated. Click refresh for the latest."}
+                {!isOffline && !userDataError && dataFreshness === 'stale' && "Content may be outdated. Consider refreshing."}
+              </span>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="ml-2" 
                 onClick={handleRefreshData}
-                disabled={isRefreshing}
+                disabled={isOffline || fetchInProgress}
               >
-                {isRefreshing ? (
+                {fetchInProgress ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                     Refreshing...
@@ -169,7 +192,7 @@ export default function IndexPage() {
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    {userDataError ? "Refresh User Data" : "Retry"}
+                    {userDataError ? "Refresh User Data" : "Refresh Content"}
                   </>
                 )}
               </Button>
@@ -213,7 +236,7 @@ export default function IndexPage() {
           <SectionTitle 
             title="Trending Beats" 
             icon={<TrendingUp className="h-5 w-5" />} 
-            badge="Updated Hourly"
+            badge="Updated Daily"
           />
           <div className="grid grid-cols-2 gap-2 mt-3">
             {trendingBeats.slice(0, 8).map((beat) => (
