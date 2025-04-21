@@ -47,7 +47,7 @@ export const fallbackBeats: Beat[] = [
 ];
 
 // Type for beat data returned from Supabase
-interface SupabaseBeat {
+export interface SupabaseBeat {
   id: string;
   title: string;
   producer_id: string;
@@ -55,29 +55,66 @@ interface SupabaseBeat {
     full_name?: string;
     stage_name?: string;
   };
-  cover_image?: string;
-  audio_preview?: string;
-  audio_file?: string;
-  basic_license_price_local?: number;
-  basic_license_price_diaspora?: number;
-  premium_license_price_local?: number;
-  premium_license_price_diaspora?: number;
-  exclusive_license_price_local?: number;
-  exclusive_license_price_diaspora?: number;
-  custom_license_price_local?: number;
-  custom_license_price_diaspora?: number;
-  genre?: string;
-  track_type?: string;
-  bpm?: number;
-  tags?: string[];
-  description?: string;
-  upload_date?: string;
-  favorites_count?: number;
-  purchase_count?: number;
-  status?: string;
-  key?: string;
-  plays?: number;
+  cover_image?: string | null;
+  audio_preview?: string | null;
+  audio_file?: string | null;
+  basic_license_price_local?: number | null;
+  basic_license_price_diaspora?: number | null;
+  premium_license_price_local?: number | null;
+  premium_license_price_diaspora?: number | null;
+  exclusive_license_price_local?: number | null;
+  exclusive_license_price_diaspora?: number | null;
+  custom_license_price_local?: number | null;
+  custom_license_price_diaspora?: number | null;
+  genre?: string | null;
+  track_type?: string | null;
+  bpm?: number | null;
+  tags?: string[] | null;
+  description?: string | null;
+  upload_date?: string | null;
+  favorites_count?: number | null;
+  purchase_count?: number | null;
+  status?: string | null;
+  key?: string | null;
+  plays?: number | null;
 }
+
+// Helper function to map a SupabaseBeat to a Beat
+const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
+  const userData = beat.users;
+  const producerName = userData && userData.stage_name ? userData.stage_name : 
+                     userData && userData.full_name ? userData.full_name : 'Unknown Producer';
+  
+  const status = beat.status === 'published' ? 'published' : 'draft';
+  
+  return {
+    id: beat.id,
+    title: beat.title,
+    producer_id: beat.producer_id,
+    producer_name: producerName,
+    cover_image_url: beat.cover_image || '',
+    preview_url: beat.audio_preview || '',
+    full_track_url: beat.audio_file || '',
+    basic_license_price_local: beat.basic_license_price_local || 0,
+    basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+    premium_license_price_local: beat.premium_license_price_local || 0,
+    premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
+    exclusive_license_price_local: beat.exclusive_license_price_local || 0,
+    exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
+    custom_license_price_local: beat.custom_license_price_local || 0,
+    custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
+    genre: beat.genre || '',
+    track_type: beat.track_type || 'Beat',
+    bpm: beat.bpm || 0,
+    tags: beat.tags || [],
+    description: beat.description,
+    created_at: beat.upload_date || new Date().toISOString(),
+    favorites_count: beat.favorites_count || 0,
+    purchase_count: beat.purchase_count || 0,
+    status: status,
+    is_featured: false,
+  };
+};
 
 // Optimized fetchAllBeats with optional parameters to optimize query size
 export const fetchAllBeats = async (options = { includeDetails: true }): Promise<Beat[]> => {
@@ -125,41 +162,7 @@ export const fetchAllBeats = async (options = { includeDetails: true }): Promise
     }
 
     if (beatsData) {
-      return beatsData.map((beat: SupabaseBeat) => {
-        const userData = beat.users;
-        const producerName = userData && userData.stage_name ? userData.stage_name : 
-                           userData && userData.full_name ? userData.full_name : 'Unknown Producer';
-        
-        const status = beat.status === 'published' ? 'published' : 'draft';
-        
-        return {
-          id: beat.id,
-          title: beat.title,
-          producer_id: beat.producer_id,
-          producer_name: producerName,
-          cover_image_url: beat.cover_image || '',
-          preview_url: beat.audio_preview || '',
-          full_track_url: beat.audio_file || '',
-          basic_license_price_local: beat.basic_license_price_local || 0,
-          basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
-          premium_license_price_local: beat.premium_license_price_local || 0,
-          premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
-          exclusive_license_price_local: beat.exclusive_license_price_local || 0,
-          exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-          custom_license_price_local: beat.custom_license_price_local || 0,
-          custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
-          genre: beat.genre || '',
-          track_type: beat.track_type || 'Beat',
-          bpm: beat.bpm || 0,
-          tags: beat.tags || [],
-          description: beat.description,
-          created_at: beat.upload_date || new Date().toISOString(),
-          favorites_count: beat.favorites_count || 0,
-          purchase_count: beat.purchase_count || 0,
-          status: status,
-          is_featured: false,
-        };
-      });
+      return beatsData.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
     }
     return [];
   } catch (error) {
@@ -210,39 +213,7 @@ export const fetchTrendingBeats = async (): Promise<Beat[]> => {
     }
 
     if (data) {
-      return data.map((beat: SupabaseBeat) => {
-        const userData = beat.users;
-        const producerName = userData && userData.stage_name ? userData.stage_name : 
-                           userData && userData.full_name ? userData.full_name : 'Unknown Producer';
-        
-        return {
-          id: beat.id,
-          title: beat.title,
-          producer_id: beat.producer_id,
-          producer_name: producerName,
-          cover_image_url: beat.cover_image || '',
-          preview_url: beat.audio_preview || '',
-          full_track_url: beat.audio_file || '',
-          basic_license_price_local: beat.basic_license_price_local || 0,
-          basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
-          premium_license_price_local: beat.premium_license_price_local || 0,
-          premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
-          exclusive_license_price_local: beat.exclusive_license_price_local || 0,
-          exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-          custom_license_price_local: beat.custom_license_price_local || 0,
-          custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
-          genre: beat.genre || '',
-          track_type: beat.track_type || 'Beat',
-          bpm: beat.bpm || 0,
-          tags: beat.tags || [],
-          description: beat.description,
-          created_at: beat.upload_date || '',
-          favorites_count: beat.favorites_count || 0,
-          purchase_count: beat.purchase_count || 0,
-          status: beat.status === 'published' ? 'published' : 'draft',
-          is_featured: false,
-        };
-      });
+      return data.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
     }
     return [];
   } catch (error) {
@@ -293,39 +264,7 @@ export const fetchPopularBeats = async (): Promise<Beat[]> => {
     }
 
     if (data) {
-      return data.map((beat: SupabaseBeat) => {
-        const userData = beat.users;
-        const producerName = userData && userData.stage_name ? userData.stage_name : 
-                           userData && userData.full_name ? userData.full_name : 'Unknown Producer';
-        
-        return {
-          id: beat.id,
-          title: beat.title,
-          producer_id: beat.producer_id,
-          producer_name: producerName,
-          cover_image_url: beat.cover_image || '',
-          preview_url: beat.audio_preview || '',
-          full_track_url: beat.audio_file || '',
-          basic_license_price_local: beat.basic_license_price_local || 0,
-          basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
-          premium_license_price_local: beat.premium_license_price_local || 0,
-          premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
-          exclusive_license_price_local: beat.exclusive_license_price_local || 0,
-          exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-          custom_license_price_local: beat.custom_license_price_local || 0,
-          custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
-          genre: beat.genre || '',
-          track_type: beat.track_type || 'Beat',
-          bpm: beat.bpm || 0,
-          tags: beat.tags || [],
-          description: beat.description,
-          created_at: beat.upload_date || '',
-          favorites_count: beat.favorites_count || 0,
-          purchase_count: beat.purchase_count || 0,
-          status: beat.status === 'published' ? 'published' : 'draft',
-          is_featured: false,
-        };
-      });
+      return data.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
     }
     return [];
   } catch (error) {
@@ -431,39 +370,7 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
     } 
     
     if (beatsData) {
-      return beatsData.map((beat: SupabaseBeat) => {
-        const userData = beat.users;
-        const producerName = userData && userData.stage_name ? userData.stage_name : 
-                          userData && userData.full_name ? userData.full_name : 'Unknown Producer';
-        
-        return {
-          id: beat.id,
-          title: beat.title,
-          producer_id: beat.producer_id,
-          producer_name: producerName,
-          cover_image_url: beat.cover_image || '',
-          preview_url: beat.audio_preview || '',
-          full_track_url: beat.audio_file || '',
-          basic_license_price_local: beat.basic_license_price_local || 0,
-          basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
-          premium_license_price_local: beat.premium_license_price_local || 0,
-          premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
-          exclusive_license_price_local: beat.exclusive_license_price_local || 0,
-          exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-          custom_license_price_local: beat.custom_license_price_local || 0,
-          custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
-          genre: beat.genre || '',
-          track_type: beat.track_type || 'Beat',
-          bpm: beat.bpm || 0,
-          tags: beat.tags || [],
-          description: beat.description,
-          created_at: beat.upload_date || '',
-          favorites_count: beat.favorites_count || 0,
-          purchase_count: beat.purchase_count || 0,
-          status: beat.status === 'published' ? 'published' : 'draft',
-          is_featured: false,
-        };
-      });
+      return beatsData.map((beat: SupabaseBeat) => mapSupabaseBeatToBeat(beat));
     }
     
     return [];
@@ -546,39 +453,7 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
     }
 
     if (data) {
-      const userData = data.users;
-      const producerName = userData && userData.stage_name ? userData.stage_name : 
-                         userData && userData.full_name ? userData.full_name : 'Unknown Producer';
-      
-      return {
-        id: data.id,
-        title: data.title,
-        producer_id: data.producer_id,
-        producer_name: producerName,
-        cover_image_url: data.cover_image || '',
-        preview_url: data.audio_preview || '',
-        full_track_url: data.audio_file || '',
-        basic_license_price_local: data.basic_license_price_local || 0,
-        basic_license_price_diaspora: data.basic_license_price_diaspora || 0,
-        premium_license_price_local: data.premium_license_price_local || 0,
-        premium_license_price_diaspora: data.premium_license_price_diaspora || 0,
-        exclusive_license_price_local: data.exclusive_license_price_local || 0,
-        exclusive_license_price_diaspora: data.exclusive_license_price_diaspora || 0,
-        custom_license_price_local: data.custom_license_price_local || 0,
-        custom_license_price_diaspora: data.custom_license_price_diaspora || 0,
-        genre: data.genre || '',
-        track_type: data.track_type || 'Beat',
-        bpm: data.bpm || 0,
-        key: data.key,
-        tags: data.tags || [],
-        description: data.description,
-        created_at: data.upload_date || '',
-        favorites_count: data.favorites_count || 0,
-        purchase_count: data.purchase_count || 0,
-        plays: data.plays || 0,
-        status: data.status === 'published' ? 'published' : 'draft',
-        is_featured: false,
-      };
+      return mapSupabaseBeatToBeat(data as SupabaseBeat);
     }
     
     return null;
