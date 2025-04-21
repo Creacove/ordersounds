@@ -3,32 +3,23 @@ import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { BeatCard } from "@/components/marketplace/BeatCard";
 import { BeatCardCompact } from "@/components/marketplace/BeatCardCompact";
-import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { usePlayer } from "@/context/PlayerContext";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlaylists } from "@/hooks/usePlaylists";
-import { useProducers } from "@/hooks/useProducers";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  TrendingUp,
-  Flame,
-  ListMusic,
-  ArrowRight,
-  Star,
-  Search,
-  Calendar,
-  RefreshCw,
-  AlertCircle
+  TrendingUp, Flame, ListMusic, ArrowRight, Star, Search,
+  Calendar, RefreshCw, AlertCircle
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { User, Beat } from "@/types";
+import { Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
-import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { fetchFeaturedBeat } from "@/services/beatsService";
+import { toast } from "sonner";
+import { NewBeats } from "@/components/marketplace/NewBeats";
 
 const fallbackFeaturedBeat: Beat = {
   id: "fallback-featured",
@@ -53,6 +44,7 @@ const fallbackFeaturedBeat: Beat = {
 
 export default function IndexPage() {
   const { user, forceUserDataRefresh } = useAuth();
+  const { playlists } = usePlaylists();
   const { 
     beats, isLoading: isLoadingBeats, 
     trendingBeats, newBeats, weeklyPicks, 
@@ -64,6 +56,7 @@ export default function IndexPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const [userDataError, setUserDataError] = useState(false);
+  const [featuredPlaylists, setFeaturedPlaylists] = useState<any[]>([]);
   const navigate = useNavigate();
 
   const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
@@ -76,10 +69,6 @@ export default function IndexPage() {
       setUserDataError(false);
     }
   }, [user]);
-
-  useEffect(() => {
-    prefetchProducers();
-  }, [prefetchProducers]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,24 +247,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-6 px-0 mx-0">
-          <SectionTitle 
-            title="New Releases" 
-            icon={<Flame className="h-5 w-5" />}
-          />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {newBeats.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
-          <div className="mt-3 flex justify-end">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/new">
-                View all new releases <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </section>
+        <NewBeats />
 
         <section className="mb-6 px-0 mx-0">
           <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />

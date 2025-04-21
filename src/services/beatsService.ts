@@ -1,5 +1,6 @@
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { PostgrestError } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 
 // Type for beat data returned from Supabase - simplified to avoid circular references
@@ -103,8 +104,8 @@ const createBasicBeatsQuery = () => {
     `);
 };
 
-// Create optimized query for featured beat
-const createFeaturedBeatQuery = () => {
+// Optimized query for fetching new beats with minimal data
+const createNewBeatsQuery = () => {
   return supabase
     .from('beats')
     .select(`
@@ -117,20 +118,16 @@ const createFeaturedBeatQuery = () => {
       ),
       cover_image,
       audio_preview,
-      audio_file,
       basic_license_price_local,
       basic_license_price_diaspora,
       genre,
       track_type,
       bpm,
-      key,
-      description,
       upload_date,
       status
     `)
     .eq('status', 'published')
-    .limit(1)
-    .order('favorites_count', { ascending: false });
+    .order('upload_date', { ascending: false });
 };
 
 // Optimized fetchAllBeats with optional parameters to optimize query size
@@ -273,9 +270,7 @@ export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
 
 export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    const query = createBasicBeatsQuery()
-      .eq('status', 'published')
-      .order('upload_date', { ascending: false });
+    const query = createNewBeatsQuery();
 
     if (limit > 0) {
       query.limit(limit);
@@ -284,17 +279,17 @@ export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
     const { data, error } = await query;
 
     if (error) {
-      throw error;
+      console.error('Error fetching new beats:', error);
+      return [];
     }
 
     if (data && Array.isArray(data) && data.length > 0) {
       return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
-    // Return empty array if no beats found
     return [];
   } catch (error) {
-    console.error('Error fetching new beats:', error);
+    console.error('Error in fetchNewBeats:', error);
     return [];
   }
 };
