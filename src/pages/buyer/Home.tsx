@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
@@ -33,7 +34,16 @@ import { fetchTrendingBeats, fetchRandomBeats, fetchNewBeats } from "@/services/
 
 export default function Home() {
   // Use the limit parameter to first load just the beats we need for display
-  const { featuredBeat, trendingBeats: allTrendingBeats, newBeats: allNewBeats, isLoading, toggleFavorite, isFavorite, isPurchased, weeklyPicks } = useBeats();
+  const { 
+    featuredBeat, 
+    trendingBeats: allTrendingBeats, 
+    newBeats: allNewBeats, 
+    isLoading, 
+    toggleFavorite, 
+    isFavorite, 
+    isPurchased, 
+    weeklyPicks 
+  } = useBeats();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -163,8 +173,8 @@ export default function Home() {
     { name: "Amapiano", icon: <Sparkles size={16} /> },
   ];
 
-  const weeklyPicks = allTrendingBeats.slice(0, 6);
-
+  // Remove duplicate weeklyPicks definition - we're using the one from useBeats() hook
+  
   const isCurrentlyPlaying = (beatId) => {
     return isPlayerPlaying && currentBeat?.id === beatId;
   };
@@ -381,7 +391,7 @@ export default function Home() {
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {weeklyPicks.map((beat) => (
+                {weeklyPicks && weeklyPicks.map((beat) => (
                   <div 
                     key={beat.id} 
                     className="p-3 bg-background/50 rounded-md border border-border/50 flex items-center gap-3 hover:bg-background/80 transition-colors cursor-pointer"

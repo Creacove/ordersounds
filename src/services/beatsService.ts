@@ -100,9 +100,14 @@ const createBasicBeatsQuery = () => {
     `);
 };
 
+// Function type for query builders to avoid type recursion issues
+type QueryBuilder = ReturnType<typeof supabase.from>;
+
 // Optimized fetchAllBeats with optional parameters to optimize query size
-export const fetchAllBeats = async (options = { includeDetails: true, limit: 0 }): Promise<Beat[]> => {
+export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number } = {}): Promise<Beat[]> => {
   try {
+    const { includeDetails = true, limit = 0 } = options;
+    
     // Build query based on options to optimize payload size
     let query = supabase
       .from('beats')
@@ -116,10 +121,10 @@ export const fetchAllBeats = async (options = { includeDetails: true, limit: 0 }
         ),
         cover_image,
         audio_preview,
-        ${options.includeDetails ? 'audio_file,' : ''}
+        ${includeDetails ? 'audio_file,' : ''}
         basic_license_price_local,
         basic_license_price_diaspora,
-        ${options.includeDetails ? `
+        ${includeDetails ? `
         premium_license_price_local,
         premium_license_price_diaspora,
         exclusive_license_price_local,
@@ -130,7 +135,7 @@ export const fetchAllBeats = async (options = { includeDetails: true, limit: 0 }
         track_type,
         bpm,
         tags,
-        ${options.includeDetails ? 'description,' : ''}
+        ${includeDetails ? 'description,' : ''}
         upload_date,
         favorites_count,
         purchase_count,
@@ -139,8 +144,8 @@ export const fetchAllBeats = async (options = { includeDetails: true, limit: 0 }
       .eq('status', 'published');
     
     // Add limit if specified
-    if (options.limit > 0) {
-      query = query.limit(options.limit);
+    if (limit > 0) {
+      query = query.limit(limit);
     }
     
     // Single fetch with no retry logic
@@ -151,7 +156,7 @@ export const fetchAllBeats = async (options = { includeDetails: true, limit: 0 }
     }
 
     if (beatsData && beatsData.length > 0) {
-      // Using simple array mapping with proper type annotation to avoid infinite type instantiation
+      // Type casting to avoid recursive type issues
       return beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
@@ -344,7 +349,7 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
     } 
     
     if (beatsData) {
-      return beatsData.map(beat => mapSupabaseBeatToBeat(beat));
+      return beatsData.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
     return [];
