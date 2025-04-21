@@ -1,4 +1,3 @@
-
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
@@ -76,93 +75,17 @@ const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
 
 // Create a basic beats query that we can reuse
 const createBasicBeatsQuery = () => {
-  return supabase
-    .from('beats')
-    .select(`
-      id,
-      title,
-      producer_id,
-      users (
-        full_name,
-        stage_name
-      ),
-      cover_image,
-      audio_preview,
-      basic_license_price_local,
-      basic_license_price_diaspora,
-      genre,
-      track_type,
-      bpm,
-      tags,
-      upload_date,
-      favorites_count,
-      purchase_count,
-      status
-    `);
+  return supabase.from('beats') as any;
 };
 
 // Create a featured beat query that we can reuse
 const createFeaturedBeatQuery = () => {
-  return supabase
-    .from('beats')
-    .select(`
-      id,
-      title,
-      producer_id,
-      users (
-        full_name,
-        stage_name
-      ),
-      cover_image,
-      audio_preview,
-      audio_file,
-      basic_license_price_local,
-      basic_license_price_diaspora,
-      premium_license_price_local,
-      premium_license_price_diaspora,
-      exclusive_license_price_local,
-      exclusive_license_price_diaspora,
-      custom_license_price_local,
-      custom_license_price_diaspora,
-      genre,
-      track_type,
-      bpm,
-      tags,
-      description,
-      upload_date,
-      favorites_count,
-      purchase_count,
-      status
-    `)
-    .eq('status', 'published')
-    .order('favorites_count', { ascending: false })
-    .limit(1);
+  return supabase.from('beats') as any;
 };
 
 // Optimized query for fetching new beats with minimal data
 const createNewBeatsQuery = () => {
-  return supabase
-    .from('beats')
-    .select(`
-      id,
-      title,
-      producer_id,
-      users (
-        full_name,
-        stage_name
-      ),
-      cover_image,
-      audio_preview,
-      basic_license_price_local,
-      basic_license_price_diaspora,
-      genre,
-      track_type,
-      bpm,
-      upload_date,
-      status
-    `)
-    .eq('status', 'published')
-    .order('upload_date', { ascending: false });
+  return supabase.from('beats') as any;
 };
 
 // Optimized fetchAllBeats with optional parameters to optimize query size
@@ -285,7 +208,41 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
 
 export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
   try {
-    const { data, error } = await createFeaturedBeatQuery();
+    const query = createFeaturedBeatQuery()
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        audio_file,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        description,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status
+      `)
+      .eq('status', 'published')
+      .order('favorites_count', { ascending: false })
+      .limit(1);
+
+    const { data, error } = await query;
 
     if (error) {
       throw error;
