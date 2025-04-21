@@ -1,4 +1,3 @@
-
 // Cache keys for localStorage
 export const CACHE_KEYS = {
   TRENDING_BEATS: 'trending_beats_cache',
@@ -10,22 +9,30 @@ export const CACHE_KEYS = {
   WEEKLY_EXPIRY: 'weekly_picks_expiry',
   ALL_BEATS_EXPIRY: 'all_beats_expiry',
   LAST_TRENDING_REFRESH: 'last_trending_refresh',
-  NETWORK_CONDITIONS: 'network_conditions'
+  NETWORK_CONDITIONS: 'network_conditions',
+  PRODUCERS: 'producers_cache',
+  PRODUCERS_EXPIRY: 'producers_expiry',
+  PLAYLISTS: 'playlists_cache',
+  PLAYLISTS_EXPIRY: 'playlists_expiry',
+  USER_FAVORITES: 'user_favorites_cache',
+  USER_PURCHASES: 'user_purchases_cache'
 };
 
-// Cache expiration durations (in hours)
+// Cache expiration durations (in hours) - Increased to reduce API calls
 export const CACHE_DURATIONS = {
-  TRENDING: 6,     // Increased from 1 hour to 6 hours for trending beats
-  FEATURED: 12,    // Increased from 3 hours to 12 hours for featured beats
-  WEEKLY: 168,     // Weekly (7 days * 24 hours)
-  ALL_BEATS: 72    // Increased from 24 hours to 72 hours for all beats
+  TRENDING: 12,     // Increased from 6 hours to 12 hours for trending beats
+  FEATURED: 24,     // Increased from 12 hours to 24 hours for featured beats
+  WEEKLY: 168,      // Weekly (7 days * 24 hours)
+  ALL_BEATS: 96,    // Increased from 72 hours to 96 hours for all beats
+  PRODUCERS: 48,    // Cache producers list for 48 hours
+  PLAYLISTS: 24     // Cache playlists for 24 hours
 };
 
 // Network timeouts (in milliseconds)
 export const NETWORK_TIMEOUTS = {
-  STANDARD: 60000,  // 60 seconds for standard requests
-  SHORT: 30000,     // 30 seconds for less critical data
-  LONG: 120000      // 2 minutes for initial app load
+  STANDARD: 30000,  // Reduced from 60 seconds to 30 seconds for standard requests
+  SHORT: 15000,     // Reduced from 30 seconds to 15 seconds for less critical data
+  LONG: 60000       // Reduced from 120 seconds to 60 seconds for initial app load
 };
 
 // Utility function to get a cache expiration timestamp
@@ -35,30 +42,133 @@ export const getCacheExpiration = (intervalHours: number): number => {
   return date.getTime();
 };
 
-// Load items from local storage cache
+// Improved load from cache with data validation
 export const loadFromCache = <T>(cacheKey: string): T | null => {
   try {
     const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      console.log(`Loading ${cacheKey} from cache`);
-      return JSON.parse(cached);
+    if (!cached) return null;
+    
+    // Check if the cached data is valid JSON
+    try {
+      const data = JSON.parse(cached);
+      
+      // Basic validation - check if it's an object or array
+      if (data && (typeof data === 'object' || Array.isArray(data))) {
+        console.log(`Loading ${cacheKey} from cache`);
+        return data as T;
+      }
+      
+      // Invalid data structure, clear it
+      localStorage.removeItem(cacheKey);
+      return null;
+    } catch (parseError) {
+      // Invalid JSON, clear it
+      console.error(`Invalid cache data for ${cacheKey}:`, parseError);
+      localStorage.removeItem(cacheKey);
+      return null;
     }
-    return null;
   } catch (error) {
     console.error(`Error loading from cache (${cacheKey}):`, error);
     return null;
   }
 };
 
-// Save items to local storage cache
-export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, durationHours: number): void => {
+// Enhanced save to cache with storage quota management
+export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, durationHours: number): boolean => {
   try {
-    localStorage.setItem(cacheKey, JSON.stringify(data));
-    localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
-    console.log(`Saved ${cacheKey} to cache, expires in ${durationHours} hours`);
+    // Check if data is valid before saving
+    if (data === null || data === undefined) {
+      console.warn(`Not caching ${cacheKey} - data is null or undefined`);
+      return false;
+    }
+    
+    // Convert data to JSON string
+    const jsonData = JSON.stringify(data);
+    
+    // Check if we're approaching storage limits
+    const estimatedSize = jsonData.length * 2; // Rough estimate in bytes
+    if (estimatedSize > 4 * 1024 * 1024) { // 4MB
+      console.warn(`Cache data for ${cacheKey} is very large (${Math.round(estimatedSize/1024/1024)}MB), might hit storage limits`);
+      
+      // If too large, try to clear old caches
+      try {
+        clearOldCaches();
+      } catch (e) {
+        console.error("Error clearing old caches:", e);
+      }
+    }
+    
+    // Try to save the data
+    try {
+      localStorage.setItem(cacheKey, jsonData);
+      localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
+      console.log(`Saved ${cacheKey} to cache, expires in ${durationHours} hours`);
+      return true;
+    } catch (storageError) {
+      // If we hit quota limits, try to free up space and try again
+      console.error(`Storage error for ${cacheKey}:`, storageError);
+      emergencyCacheClear();
+      
+      // Try again after clearing
+      try {
+        localStorage.setItem(cacheKey, jsonData);
+        localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
+        console.log(`Saved ${cacheKey} to cache after emergency clear, expires in ${durationHours} hours`);
+        return true;
+      } catch (secondError) {
+        console.error(`Failed to save ${cacheKey} even after clearing cache:`, secondError);
+        return false;
+      }
+    }
   } catch (error) {
     console.error(`Error saving to cache (${cacheKey}):`, error);
+    return false;
   }
+};
+
+// Clear old and less important caches when approaching storage limits
+const clearOldCaches = (): void => {
+  // Find caches that are expired or less critical
+  const lowPriorityCaches = [
+    { key: CACHE_KEYS.TRENDING_BEATS, expiry: CACHE_KEYS.TRENDING_EXPIRY },
+    { key: CACHE_KEYS.WEEKLY_PICKS, expiry: CACHE_KEYS.WEEKLY_EXPIRY },
+    { key: CACHE_KEYS.PLAYLISTS, expiry: CACHE_KEYS.PLAYLISTS_EXPIRY }
+  ];
+  
+  for (const cache of lowPriorityCaches) {
+    if (checkShouldRefreshCache(cache.expiry, 0)) {
+      // Cache is expired, clear it
+      localStorage.removeItem(cache.key);
+      localStorage.removeItem(cache.expiry);
+      console.log(`Cleared expired cache: ${cache.key}`);
+    }
+  }
+};
+
+// Emergency cache clearing when we hit storage limits
+const emergencyCacheClear = (): void => {
+  console.warn("Emergency cache clearing triggered due to storage limits");
+  
+  // Keep only the most essential caches
+  const keysToKeep = [
+    CACHE_KEYS.ALL_BEATS,
+    CACHE_KEYS.ALL_BEATS_EXPIRY,
+    CACHE_KEYS.USER_FAVORITES,
+    CACHE_KEYS.USER_PURCHASES,
+    'supabase_connection_status',
+    'auth.access_token',
+    'auth.refresh_token',
+  ];
+  
+  // Clear everything except what we want to keep
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && !keysToKeep.includes(key)) {
+      localStorage.removeItem(key);
+    }
+  }
+  
+  console.log("Emergency cache clear completed");
 };
 
 // Check if cache should be refreshed
@@ -70,9 +180,29 @@ export const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours:
   return currentTime > parseInt(expiryTime);
 };
 
-// Check if we're online
+// Check if we're online with improved detection
 export const isOnline = (): boolean => {
-  return navigator.onLine;
+  // Check navigator.onLine as base condition
+  const navigatorOnline = navigator.onLine;
+  
+  // Get cached connection status as backup
+  const cachedStatus = localStorage.getItem('supabase_connection_status');
+  
+  // If navigator says we're offline, trust it
+  if (!navigatorOnline) return false;
+  
+  // If navigator says online but we have a cached failed status from the last 2 minutes, use that
+  const lastCheckTimeStr = localStorage.getItem('last_connection_check');
+  if (cachedStatus === 'disconnected' && lastCheckTimeStr) {
+    const lastCheck = parseInt(lastCheckTimeStr);
+    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+    if (lastCheck > twoMinutesAgo) {
+      return false;
+    }
+  }
+  
+  // Default to navigator status
+  return navigatorOnline;
 };
 
 // Get appropriate timeout based on network conditions
@@ -86,7 +216,7 @@ export const getNetworkTimeout = (): number => {
     } else if (networkConditions === 'medium') {
       return NETWORK_TIMEOUTS.STANDARD;
     } else {
-      return NETWORK_TIMEOUTS.STANDARD; // Default to standard timeout
+      return NETWORK_TIMEOUTS.SHORT;
     }
   } catch {
     return NETWORK_TIMEOUTS.STANDARD;
@@ -110,4 +240,32 @@ export const updateNetworkConditions = (responseTimeMs: number): void => {
   } catch (error) {
     console.error('Error updating network conditions:', error);
   }
+};
+
+// Calculate cache size to monitor usage
+export const calculateCacheSize = (): number => {
+  let totalSize = 0;
+  
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key) {
+        const value = localStorage.getItem(key) || '';
+        totalSize += key.length + value.length;
+      }
+    }
+    
+    return totalSize;
+  } catch (error) {
+    console.error('Error calculating cache size:', error);
+    return 0;
+  }
+};
+
+// Check if we're approaching storage limits
+export const isStorageLimitApproaching = (): boolean => {
+  const totalSize = calculateCacheSize();
+  // Most browsers have a 5MB limit (5 * 1024 * 1024)
+  const warningThreshold = 4 * 1024 * 1024; // 4MB
+  return totalSize > warningThreshold;
 };

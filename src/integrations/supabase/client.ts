@@ -2,56 +2,172 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { toast } from 'sonner';
+import { CACHE_KEYS, updateNetworkConditions, loadFromCache } from '@/utils/beatsCacheUtils';
 
 const SUPABASE_URL = "https://uoezlwkxhbzajdivrlby.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVvZXpsd2t4aGJ6YWpkaXZybGJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI3Mzg5MzAsImV4cCI6MjA1ODMxNDkzMH0.TwIkGiLNiuxTdzbAxv6zBgbK1zIeNkhZ6qeX6OmhWOk";
 
-// Enhanced fetch with retry logic
+// Track ongoing request URLs to prevent duplicate requests
+const ongoingRequests = new Map();
+
+// Enhanced fetch with retry logic, deduplication and adaptive timeouts
 const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  const maxRetries = 3;
-  const baseDelay = 1000; // 1 second initial delay
+  const url = typeof input === 'string' ? input : input.url;
+  const method = init?.method || 'GET';
   
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  // Create a unique key for this request
+  const requestKey = `${method}:${url}:${JSON.stringify(init?.body || '')}`;
+  
+  // Check if this exact request is already in progress
+  if (ongoingRequests.has(requestKey)) {
     try {
-      const startTime = Date.now();
-      const response = await fetch(input, init);
-      const endTime = Date.now();
-      
-      // Track response time for adaptive timeout calculation
-      if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-          const responseTime = endTime - startTime;
-          const networkTimesRaw = localStorage.getItem('network_response_times') || '[]';
-          const networkTimes = JSON.parse(networkTimesRaw);
-          networkTimes.push(responseTime);
-          
-          // Keep only last 10 response times
-          if (networkTimes.length > 10) {
-            networkTimes.shift();
-          }
-          
-          localStorage.setItem('network_response_times', JSON.stringify(networkTimes));
-        } catch (e) {
-          console.error('Error tracking network performance:', e);
-        }
-      }
-      
-      return response;
+      // Return the existing promise to avoid duplicate requests
+      return await ongoingRequests.get(requestKey);
     } catch (err) {
-      console.warn(`Fetch attempt ${attempt + 1} failed:`, err);
-      
-      if (attempt === maxRetries) {
-        throw err; // Retries exhausted, propagate the error
-      }
-      
-      // Exponential backoff with jitter
-      const delay = baseDelay * Math.pow(2, attempt) * (0.5 + Math.random() * 0.5);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      // If the ongoing request fails, we'll try again below
+      ongoingRequests.delete(requestKey);
     }
   }
   
-  // This should never be reached because the last iteration will either return or throw
-  throw new Error('Unexpected fetch retry logic failure');
+  // Define max retries based on request importance
+  // Reduce from 3 retries to 1 for non-critical requests
+  const isReadOperation = method === 'GET' || method === 'OPTIONS';
+  const maxRetries = isReadOperation ? 1 : 2;
+  const baseDelay = 800; // Reduced from 1000ms
+  
+  // Create the fetch promise
+  const fetchPromise = (async () => {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const startTime = Date.now();
+        
+        // Set a reasonable timeout based on request type and network conditions
+        const timeoutDuration = getAdaptiveTimeout(url);
+        
+        // Create a timeout promise
+        const timeoutPromise = new Promise<Response>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`Request timeout after ${timeoutDuration}ms`));
+          }, timeoutDuration);
+        });
+        
+        // Race the fetch against the timeout
+        const response = await Promise.race([
+          fetch(input, init),
+          timeoutPromise
+        ]);
+        
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+        
+        // Track response time for adaptive timeout calculation
+        updateNetworkMetrics(responseTime);
+        
+        // Check for server errors and handle accordingly
+        if (response.status >= 500) {
+          throw new Error(`Server error: ${response.status}`);
+        }
+        
+        return response;
+      } catch (err) {
+        if (attempt === maxRetries) {
+          throw err; // Retries exhausted, propagate the error
+        }
+        
+        // Exponential backoff with less jitter
+        const delay = baseDelay * Math.pow(1.5, attempt) * (0.8 + Math.random() * 0.4);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    throw new Error('Unexpected fetch retry logic failure');
+  })();
+  
+  // Store the promise in the ongoing requests map
+  ongoingRequests.set(requestKey, fetchPromise);
+  
+  try {
+    const response = await fetchPromise;
+    return response;
+  } finally {
+    // Clean up the map after the request is complete
+    ongoingRequests.delete(requestKey);
+  }
+};
+
+// More sophisticated adaptive timeout based on endpoint and previous response times
+const getAdaptiveTimeout = (url: string): number => {
+  // Base timeouts (reduced from previous values)
+  const baseTimeouts = {
+    short: 15000,   // 15s for simple queries
+    standard: 25000, // 25s for standard operations
+    long: 45000     // 45s for complex operations
+  };
+  
+  try {
+    // Check for stored network metrics
+    const networkConditions = localStorage.getItem(CACHE_KEYS.NETWORK_CONDITIONS);
+    
+    // Get response times history
+    const responseTimesRaw = localStorage.getItem('network_response_times');
+    const responseTimes = responseTimesRaw ? JSON.parse(responseTimesRaw) : [];
+    
+    // Calculate average response time if we have history
+    let avgResponseTime = 0;
+    if (responseTimes.length > 0) {
+      avgResponseTime = responseTimes.reduce((sum: number, time: number) => sum + time, 0) / responseTimes.length;
+    }
+    
+    // Adjust timeout based on endpoint complexity and previous performance
+    if (url.includes('beats?select')) {
+      // Complex queries get longer timeout but with intelligent reduction
+      let timeout = baseTimeouts.long;
+      if (avgResponseTime > 0) {
+        // Add a buffer to the average time (2x + 10s)
+        timeout = Math.min(timeout, Math.max(baseTimeouts.standard, avgResponseTime * 2 + 10000));
+      }
+      return timeout;
+    } else if (url.includes('auth')) {
+      // Auth endpoints are critical, give them standard timeout
+      return baseTimeouts.standard;
+    } else {
+      // For other endpoints, use network conditions to determine timeout
+      if (networkConditions === 'slow') {
+        return baseTimeouts.long;
+      } else if (networkConditions === 'medium') {
+        return baseTimeouts.standard;
+      }
+      return baseTimeouts.short;
+    }
+  } catch (e) {
+    // Default to standard timeout on errors
+    return baseTimeouts.standard;
+  }
+};
+
+// Track network performance metrics
+const updateNetworkMetrics = (responseTimeMs: number): void => {
+  try {
+    // Update network conditions classification
+    if (responseTimeMs > 5000) {
+      updateNetworkConditions(responseTimeMs);
+    }
+    
+    // Store last 5 response times for adaptive timeout calculation
+    const responseTimesRaw = localStorage.getItem('network_response_times') || '[]';
+    const responseTimes = JSON.parse(responseTimesRaw);
+    
+    responseTimes.push(responseTimeMs);
+    
+    // Keep only the last 5 response times
+    if (responseTimes.length > 5) {
+      responseTimes.shift();
+    }
+    
+    localStorage.setItem('network_response_times', JSON.stringify(responseTimes));
+  } catch (error) {
+    console.error('Error updating network metrics:', error);
+  }
 };
 
 // Import the supabase client like this:
@@ -62,13 +178,13 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
     autoRefreshToken: true,
     storage: typeof window !== 'undefined' ? localStorage : undefined,
-    detectSessionInUrl: true, // Ensure OAuth redirect handling works
-    flowType: 'pkce', // Use PKCE flow for more secure OAuth
-    debug: process.env.NODE_ENV === 'development' // Enable debug in development
+    detectSessionInUrl: true,
+    flowType: 'pkce'
   },
   global: {
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-Client-Info': 'lovable-beats-app'  // Add app identifier for debugging
     },
     fetch: enhancedFetch
   },
@@ -77,36 +193,68 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
   realtime: {
     params: {
-      eventsPerSecond: 2 // Lower realtime event rate for better performance
+      eventsPerSecond: 1  // Reduced from 2 to 1 to limit realtime connections
     }
   }
 });
 
-// Export a function to check API health
+// Implement request throttling to prevent API hammering
+let connectionCheckInProgress = false;
+let lastConnectionCheck = 0;
+
+// Export a function to check API health with throttling
 export const checkSupabaseConnection = async (): Promise<boolean> => {
+  // Check if we've done this recently or if it's already in progress
+  const now = Date.now();
+  if (connectionCheckInProgress || (now - lastConnectionCheck < 60000)) {
+    // Return cached result if we checked within the last minute
+    const cachedResult = localStorage.getItem('supabase_connection_status');
+    return cachedResult === 'connected';
+  }
+  
+  connectionCheckInProgress = true;
+  
   try {
     const start = Date.now();
-    const { data, error } = await supabase.from('beats').select('id').limit(1).maybeSingle();
-    const end = Date.now();
+    // Try to get from cache first
+    const cachedBeats = loadFromCache(CACHE_KEYS.ALL_BEATS);
     
-    // Store response time for adaptive timeout adjustment
-    const responseTime = end - start;
-    if (typeof window !== 'undefined') {
-      try {
-        if (responseTime > 10000) {
-          toast.warning("Network connection is slow. App may take longer to load.", {
-            duration: 5000,
-            id: "network-slow"
-          });
-        }
-      } catch (e) {
-        console.error('Error tracking network metrics:', e);
+    if (cachedBeats) {
+      // If we have cached data, do a lighter health check
+      const { data, error } = await supabase.from('beats').select('id').limit(1).maybeSingle();
+      const end = Date.now();
+      const isConnected = !error;
+      
+      // Store connection status and update last check time
+      localStorage.setItem('supabase_connection_status', isConnected ? 'connected' : 'disconnected');
+      lastConnectionCheck = now;
+      
+      // Display slow connection warning if needed
+      const responseTime = end - start;
+      if (responseTime > 5000 && isConnected) {
+        toast.warning("Network connection is slow. App may take longer to load.", {
+          duration: 5000,
+          id: "network-slow"
+        });
       }
+      
+      return isConnected;
+    } else {
+      // For first load, we need a more thorough check
+      const { data, error } = await supabase.from('beats').select('id').limit(1).maybeSingle();
+      const end = Date.now();
+      
+      const isConnected = !error;
+      localStorage.setItem('supabase_connection_status', isConnected ? 'connected' : 'disconnected');
+      lastConnectionCheck = now;
+      
+      return isConnected;
     }
-    
-    return !error;
   } catch (e) {
     console.error('Supabase connection check failed:', e);
+    localStorage.setItem('supabase_connection_status', 'disconnected');
     return false;
+  } finally {
+    connectionCheckInProgress = false;
   }
 };
