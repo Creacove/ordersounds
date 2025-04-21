@@ -1,3 +1,4 @@
+
 import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -40,12 +41,15 @@ const ProducerBeats = React.lazy(() => import("./pages/producer/Beats"));
 const Royalties = React.lazy(() => import("./pages/producer/Royalties"));
 const ProtectedProducerRoute = React.lazy(() => import("./components/auth/ProtectedProducerRoute"));
 
+// Configure QueryClient with optimized settings for less API stress
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 0, // Disable retries - user will manually refresh
+      staleTime: 10 * 60 * 1000, // 10 minutes stale time
+      gcTime: 60 * 60 * 1000, // 1 hour garbage collection
+      networkMode: 'online', // Only fetch when online
     },
   },
 });

@@ -18,21 +18,21 @@ export const CACHE_KEYS = {
   USER_PURCHASES: 'user_purchases_cache'
 };
 
-// Cache expiration durations (in hours) - Increased to reduce API calls
+// Cache expiration durations (in hours) - Significantly increased to reduce API calls
 export const CACHE_DURATIONS = {
-  TRENDING: 12,     // Increased from 6 hours to 12 hours for trending beats
-  FEATURED: 24,     // Increased from 12 hours to 24 hours for featured beats
+  TRENDING: 24,     // Increased to 24 hours for trending beats
+  FEATURED: 48,     // Increased to 48 hours for featured beats
   WEEKLY: 168,      // Weekly (7 days * 24 hours)
-  ALL_BEATS: 96,    // Increased from 72 hours to 96 hours for all beats
-  PRODUCERS: 48,    // Cache producers list for 48 hours
-  PLAYLISTS: 24     // Cache playlists for 24 hours
+  ALL_BEATS: 120,   // Increased to 120 hours (5 days) for all beats
+  PRODUCERS: 72,    // Increased to 72 hours (3 days) for producers
+  PLAYLISTS: 48     // Increased to 48 hours (2 days) for playlists
 };
 
 // Network timeouts (in milliseconds)
 export const NETWORK_TIMEOUTS = {
-  STANDARD: 30000,  // Reduced from 60 seconds to 30 seconds for standard requests
-  SHORT: 15000,     // Reduced from 30 seconds to 15 seconds for less critical data
-  LONG: 60000       // Reduced from 120 seconds to 60 seconds for initial app load
+  STANDARD: 30000,  // 30 seconds standard timeout
+  SHORT: 20000,     // 20 seconds for less critical data
+  LONG: 60000       // 60 seconds for initial app load
 };
 
 // Utility function to get a cache expiration timestamp
@@ -87,7 +87,7 @@ export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, dur
     
     // Check if we're approaching storage limits
     const estimatedSize = jsonData.length * 2; // Rough estimate in bytes
-    if (estimatedSize > 4 * 1024 * 1024) { // 4MB
+    if (estimatedSize > 3 * 1024 * 1024) { // 3MB - more conservative limit
       console.warn(`Cache data for ${cacheKey} is very large (${Math.round(estimatedSize/1024/1024)}MB), might hit storage limits`);
       
       // If too large, try to clear old caches
@@ -126,13 +126,14 @@ export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, dur
   }
 };
 
-// Clear old and less important caches when approaching storage limits
+// More aggressive clearing of old caches when approaching storage limits
 const clearOldCaches = (): void => {
   // Find caches that are expired or less critical
   const lowPriorityCaches = [
     { key: CACHE_KEYS.TRENDING_BEATS, expiry: CACHE_KEYS.TRENDING_EXPIRY },
     { key: CACHE_KEYS.WEEKLY_PICKS, expiry: CACHE_KEYS.WEEKLY_EXPIRY },
-    { key: CACHE_KEYS.PLAYLISTS, expiry: CACHE_KEYS.PLAYLISTS_EXPIRY }
+    { key: CACHE_KEYS.PLAYLISTS, expiry: CACHE_KEYS.PLAYLISTS_EXPIRY },
+    { key: CACHE_KEYS.PRODUCERS, expiry: CACHE_KEYS.PRODUCERS_EXPIRY }
   ];
   
   for (const cache of lowPriorityCaches) {
@@ -143,19 +144,29 @@ const clearOldCaches = (): void => {
       console.log(`Cleared expired cache: ${cache.key}`);
     }
   }
+  
+  // Always clear non-essential metadata to free up space
+  const metadataKeys = [
+    'network_response_times',
+    'last_trending_refresh',
+    'supabase_connection_status'
+  ];
+  
+  for (const key of metadataKeys) {
+    localStorage.removeItem(key);
+  }
 };
 
-// Emergency cache clearing when we hit storage limits
+// More aggressive emergency cache clearing
 const emergencyCacheClear = (): void => {
   console.warn("Emergency cache clearing triggered due to storage limits");
   
-  // Keep only the most essential caches
+  // Only keep the absolutely essential caches
   const keysToKeep = [
     CACHE_KEYS.ALL_BEATS,
     CACHE_KEYS.ALL_BEATS_EXPIRY,
     CACHE_KEYS.USER_FAVORITES,
     CACHE_KEYS.USER_PURCHASES,
-    'supabase_connection_status',
     'auth.access_token',
     'auth.refresh_token',
   ];
@@ -207,20 +218,7 @@ export const isOnline = (): boolean => {
 
 // Get appropriate timeout based on network conditions
 export const getNetworkTimeout = (): number => {
-  try {
-    // Check if we have stored information about network conditions
-    const networkConditions = localStorage.getItem(CACHE_KEYS.NETWORK_CONDITIONS);
-    
-    if (networkConditions === 'slow') {
-      return NETWORK_TIMEOUTS.LONG;
-    } else if (networkConditions === 'medium') {
-      return NETWORK_TIMEOUTS.STANDARD;
-    } else {
-      return NETWORK_TIMEOUTS.SHORT;
-    }
-  } catch {
-    return NETWORK_TIMEOUTS.STANDARD;
-  }
+  return NETWORK_TIMEOUTS.STANDARD; // Use a standard 30s timeout for all requests
 };
 
 // Update network conditions based on response time
@@ -266,6 +264,6 @@ export const calculateCacheSize = (): number => {
 export const isStorageLimitApproaching = (): boolean => {
   const totalSize = calculateCacheSize();
   // Most browsers have a 5MB limit (5 * 1024 * 1024)
-  const warningThreshold = 4 * 1024 * 1024; // 4MB
+  const warningThreshold = 3.5 * 1024 * 1024; // 3.5MB - more conservative
   return totalSize > warningThreshold;
 };

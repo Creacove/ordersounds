@@ -1,4 +1,3 @@
-
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -47,9 +46,11 @@ export const fallbackBeats: Beat[] = [
   }
 ];
 
-export const fetchAllBeats = async (): Promise<Beat[]> => {
+// Optimized fetchAllBeats with optional parameters to optimize query size
+export const fetchAllBeats = async (options = { includeDetails: true }): Promise<Beat[]> => {
   try {
-    const { data: beatsData, error: beatsError } = await supabase
+    // Build query based on options to optimize payload size
+    let query = supabase
       .from('beats')
       .select(`
         id,
@@ -61,26 +62,30 @@ export const fetchAllBeats = async (): Promise<Beat[]> => {
         ),
         cover_image,
         audio_preview,
-        audio_file,
+        ${options.includeDetails ? 'audio_file,' : ''}
         basic_license_price_local,
         basic_license_price_diaspora,
+        ${options.includeDetails ? `
         premium_license_price_local,
         premium_license_price_diaspora,
         exclusive_license_price_local,
         exclusive_license_price_diaspora,
         custom_license_price_local,
-        custom_license_price_diaspora,
+        custom_license_price_diaspora,` : ''}
         genre,
         track_type,
         bpm,
         tags,
-        description,
+        ${options.includeDetails ? 'description,' : ''}
         upload_date,
         favorites_count,
         purchase_count,
         status
       `)
       .eq('status', 'published');
+    
+    // Single fetch with no retry logic - we rely on the extended timeout in the enhancedFetch
+    const { data: beatsData, error: beatsError } = await query;
     
     if (beatsError) {
       throw beatsError;

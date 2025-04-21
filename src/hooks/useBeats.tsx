@@ -33,27 +33,39 @@ export function useBeats() {
   const [activeFilters, setActiveFilters] = useState<FilterValues | null>(null);
   const [filteredBeats, setFilteredBeats] = useState<Beat[]>([]);
   const [isOffline, setIsOffline] = useState(!isOnline());
-  const [retryCount, setRetryCount] = useState(0);
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
+  const [fetchInProgress, setFetchInProgress] = useState(false);
 
   // Declare fetchUserFavoritesData and fetchPurchasedBeatsData before referencing them
-  const fetchUserFavoritesData = async () => {
+  const fetchUserFavoritesData = useCallback(async () => {
     if (!user) return;
     
     try {
       const favorites = await fetchUserFavorites(user.id);
       setUserFavorites(favorites);
+      
+      // Cache user favorites for offline use
+      localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(favorites));
     } catch (error) {
       console.error('Error fetching user favorites:', error);
+      
+      // Try to load from cache if available
+      const cachedFavorites = loadFromCache<string[]>(CACHE_KEYS.USER_FAVORITES);
+      if (cachedFavorites) {
+        setUserFavorites(cachedFavorites);
+      }
     }
-  };
+  }, [user]);
 
-  const fetchPurchasedBeatsData = async () => {
+  const fetchPurchasedBeatsData = useCallback(async () => {
     if (!user) return;
     
     try {
       const purchasedIds = await fetchPurchasedBeats(user.id);
       setPurchasedBeats(purchasedIds);
+      
+      // Cache purchased beats for offline use
+      localStorage.setItem(CACHE_KEYS.USER_PURCHASES, JSON.stringify(purchasedIds));
       
       if (purchasedIds.length > 0 && beats.length === 0) {
         const purchasedBeatsDetails = await fetchPurchasedBeatDetails(purchasedIds);
@@ -68,10 +80,16 @@ export function useBeats() {
       }
     } catch (error) {
       console.error('Error fetching purchased beats:', error);
+      
+      // Try to load from cache if available
+      const cachedPurchases = loadFromCache<string[]>(CACHE_KEYS.USER_PURCHASES);
+      if (cachedPurchases) {
+        setPurchasedBeats(cachedPurchases);
+      }
     }
-  };
+  }, [user, beats.length]);
 
-  const checkNetworkAndRetry = async () => {
+  const checkNetworkAndRetry = useCallback(async () => {
     if (!isOnline()) {
       setIsOffline(true);
       loadFallbackData();
@@ -80,9 +98,9 @@ export function useBeats() {
     
     setIsOffline(false);
     return true;
-  };
+  }, []);
   
-  const loadFallbackData = () => {
+  const loadFallbackData = useCallback(() => {
     console.log('Loading fallback data');
     
     const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS) || fallbackBeats;
@@ -96,55 +114,61 @@ export function useBeats() {
     setFeaturedBeat(cachedFeatured);
     setWeeklyPicks(cachedWeekly);
     
-    fallbackBeats.forEach(beat => {
-      console.log('Beat pricing data:', {
-        beatId: beat.id,
-        beatTitle: beat.title,
-        basic_local: beat.basic_license_price_local,
-        basic_diaspora: beat.basic_license_price_diaspora,
-        calculatedLocal: beat.basic_license_price_local || 0,
-        calculatedDiaspora: beat.basic_license_price_diaspora || 0
-      });
-    });
-    
     setIsLoading(false);
     setLoadingError('Could not load beats from server. Using cached or demo content.');
-  };
+    
+    // Try to load user data from cache
+    const cachedFavorites = loadFromCache<string[]>(CACHE_KEYS.USER_FAVORITES);
+    if (cachedFavorites) {
+      setUserFavorites(cachedFavorites);
+    }
+    
+    const cachedPurchases = loadFromCache<string[]>(CACHE_KEYS.USER_PURCHASES);
+    if (cachedPurchases) {
+      setPurchasedBeats(cachedPurchases);
+    }
+  }, []);
 
   const fetchBeats = useCallback(async () => {
+    // Prevent multiple simultaneous fetches
+    if (fetchInProgress) {
+      console.log('Fetch already in progress, skipping duplicate request');
+      return;
+    }
+    
+    setFetchInProgress(true);
     setIsLoading(true);
     setLoadingError(null);
     
     if (!await checkNetworkAndRetry()) {
+      setFetchInProgress(false);
       return;
     }
     
     console.log('Fetching beats from API...');
     
     try {
-      const timeoutPromise = new Promise<null>((_, reject) => {
-        setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
-      });
-      
-      const transformedBeats = await Promise.race([
-        fetchAllBeats(),
-        timeoutPromise
-      ]) as Beat[];
+      // Single fetch with extended timeout - no retry or race here
+      const transformedBeats = await fetchAllBeats();
       
       if (!transformedBeats || transformedBeats.length === 0) {
         console.warn("No beats returned from API, using fallback data");
         loadFallbackData();
+        setFetchInProgress(false);
         return;
       }
       
+      // Save all beats to cache with extended duration
       saveToCache(CACHE_KEYS.ALL_BEATS, transformedBeats, CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
       
       setBeats(transformedBeats);
       
+      // Process trending beats
       const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       if (shouldRefreshTrending) {
         const trending = refreshTrendingBeats(transformedBeats);
         setTrendingBeats(trending);
+        saveToCache(CACHE_KEYS.TRENDING_BEATS, trending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       } else {
         const cachedTrending = loadFromCache<Beat[]>(CACHE_KEYS.TRENDING_BEATS);
         if (cachedTrending) {
@@ -155,10 +179,12 @@ export function useBeats() {
         }
       }
       
+      // Process featured beat
       const shouldRefreshFeatured = checkShouldRefreshCache(CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
       if (shouldRefreshFeatured) {
         const featured = selectFeaturedBeat(transformedBeats);
         setFeaturedBeat(featured);
+        saveToCache(CACHE_KEYS.FEATURED_BEATS, featured, CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
       } else {
         const cachedFeatured = loadFromCache<Beat>(CACHE_KEYS.FEATURED_BEATS);
         if (cachedFeatured) {
@@ -171,10 +197,12 @@ export function useBeats() {
         }
       }
       
+      // Process weekly picks
       const shouldRefreshWeekly = checkShouldRefreshCache(CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
       if (shouldRefreshWeekly) {
         const weekly = refreshWeeklyPicks(transformedBeats);
         setWeeklyPicks(weekly);
+        saveToCache(CACHE_KEYS.WEEKLY_PICKS, weekly, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
       } else {
         const cachedWeekly = loadFromCache<Beat[]>(CACHE_KEYS.WEEKLY_PICKS);
         if (cachedWeekly) {
@@ -185,11 +213,13 @@ export function useBeats() {
         }
       }
       
+      // Sort beats by newest
       const sortedByNew = [...transformedBeats].sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
       setNewBeats(sortedByNew);
       
+      // Apply any active filters
       if (activeFilters) {
         const filtered = applyFilters(transformedBeats, activeFilters);
         setFilteredBeats(filtered);
@@ -199,9 +229,9 @@ export function useBeats() {
       
       setIsLoading(false);
       setLoadingError(null);
-      setRetryCount(0);
       setIsOffline(false);
       
+      // After loading beats, fetch user-specific data
       if (user) {
         await fetchUserFavoritesData();
         await fetchPurchasedBeatsData();
@@ -209,33 +239,29 @@ export function useBeats() {
     } catch (error: any) {
       console.error('Error fetching beats:', error);
       
-      if (retryCount < 3) {
-        setRetryCount(prev => prev + 1);
-        setTimeout(() => fetchBeats(), 1000 * (retryCount + 1));
-        return;
-      }
-      
+      // No retries, just load from cache or fallback data
       loadFallbackData();
       setLoadingError(`Failed to load beats: ${error.message || 'Unknown error'}`);
       
       if (error.message?.includes("timed out")) {
         toast.error('Beat loading timed out. Please check your connection and try again.');
       } else {
-        toast.error('Failed to load beats. Using cached content.');
+        toast.error('Failed to load beats. Using cached content. Click the refresh button to try again.');
       }
+    } finally {
+      setFetchInProgress(false);
     }
-  }, [user, activeFilters, retryCount]);
+  }, [user, activeFilters, checkNetworkAndRetry, loadFallbackData, fetchUserFavoritesData, fetchPurchasedBeatsData]);
 
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
-      fetchBeats();
       toast.success("You're back online!");
     };
     
     const handleOffline = () => {
       setIsOffline(true);
-      toast.error("You're offline. Some features may be limited.");
+      toast.error("You're offline. Using cached content.");
     };
     
     window.addEventListener('online', handleOnline);
@@ -249,20 +275,11 @@ export function useBeats() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [fetchBeats]);
+  }, []);
 
+  // Initial data fetch on component mount
   useEffect(() => {
     fetchBeats();
-    
-    const intervalId = setInterval(() => {
-      const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
-      if (shouldRefresh && beats.length > 0) {
-        const trending = refreshTrendingBeats(beats);
-        setTrendingBeats(trending);
-      }
-    }, 5 * 60 * 1000);
-    
-    return () => clearInterval(intervalId);
   }, [fetchBeats]);
 
   const updateFilters = (newFilters: FilterValues) => {
@@ -300,7 +317,12 @@ export function useBeats() {
       }
       
       try {
+        // Update favorites in the background
         await toggleFavoriteAPI(user.id, beatId, userFavorites);
+        
+        // Update local cache
+        localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(updatedFavorites));
+        
         return !isFav;
       } catch (error) {
         setUserFavorites(userFavorites);
@@ -324,9 +346,18 @@ export function useBeats() {
   };
   
   const getBeatById = async (id: string): Promise<Beat | null> => {
+    // First try to find the beat in local state
     const localBeat = beats.find(beat => beat.id === id);
     if (localBeat) return localBeat;
     
+    // Then try to load from cache
+    const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
+    if (cachedBeats) {
+      const cachedBeat = cachedBeats.find(beat => beat.id === id);
+      if (cachedBeat) return cachedBeat;
+    }
+    
+    // Only fetch from API as last resort
     return fetchBeatById(id);
   };
   
@@ -350,17 +381,7 @@ export function useBeats() {
     loadingError,
     updateFilters,
     clearFilters,
-    fetchBeats,
-    fetchTrendingBeats: async () => {
-      const trending = await fetchTrendingBeats();
-      setTrendingBeats(trending);
-    },
-    fetchPopularBeats: async () => {
-      if (popularBeats.length > 0) return;
-      
-      const popular = await fetchPopularBeats();
-      setPopularBeats(popular);
-    },
+    fetchBeats,  // Primary function to load all beats data
     toggleFavorite,
     isFavorite,
     isPurchased,
@@ -373,6 +394,7 @@ export function useBeats() {
     getBeatById,
     getProducerBeats: (producerId: string) => getProducerBeats(beats, producerId),
     getUserPurchasedBeats,
-    getUserFavoriteBeats
+    getUserFavoriteBeats,
+    fetchInProgress
   };
 }
