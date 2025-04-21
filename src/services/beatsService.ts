@@ -99,8 +99,8 @@ const createBasicBeatsQuery = () => {
     `);
 };
 
-// Function type for query builders to avoid type recursion issues
-type QueryBuilder = typeof supabase.from;
+// Create reusable type that doesn't cause infinite recursion
+type QueryBuilder = ReturnType<typeof createBasicBeatsQuery>;
 
 // Optimized fetchAllBeats with optional parameters to optimize query size
 export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number } = {}): Promise<Beat[]> => {
@@ -199,25 +199,20 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   try {
     // Create a query to get a set of random beats
-    const query = createBasicBeatsQuery()
+    const { data, error } = await createBasicBeatsQuery()
       .eq('status', 'published')
-      .limit(Math.max(limit, 20)); // Fetch more than needed to allow for randomization
-
-    const { data, error } = await query;
+      .limit(limit);
 
     if (error) {
       throw error;
     }
 
     if (data && Array.isArray(data) && data.length > 0) {
-      // Shuffle the beats randomly
+      // Randomize the returned beats
       const shuffled = [...data].sort(() => Math.random() - 0.5);
-      // Take the requested number of beats or all if there are fewer
-      const selectedBeats = shuffled.slice(0, limit);
-      return selectedBeats.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      return shuffled.slice(0, limit).map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
-    // Return empty array if no beats found
     return [];
   } catch (error) {
     console.error('Error fetching random beats:', error);
