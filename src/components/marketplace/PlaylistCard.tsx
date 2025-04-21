@@ -15,14 +15,14 @@ interface PlaylistCardProps {
     cover_image?: string;
     tracks?: number;
     beats?: string[];
-  };
+  } | Playlist;
 }
 
 export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist }) => {
-  const gradientClass = playlist.color || "from-purple-600 to-blue-600";
-  const playlistName = playlist.title || playlist.name || "Unnamed Playlist";
-  const trackCount = playlist.tracks || (playlist.beats ? playlist.beats.length : 0);
-  const coverImage = playlist.image || playlist.cover_image;
+  const gradientClass = (playlist as any).color || "from-purple-600 to-blue-600";
+  const playlistName = (playlist as any).title || (playlist as any).name || "Unnamed Playlist";
+  const trackCount = (playlist as any).tracks || ((playlist as any).beats ? (playlist as any).beats.length : 0);
+  const coverImage = (playlist as any).image || (playlist as any).cover_image;
   
   return (
     <Link to={`/playlist/${playlist.id}`} className="block rounded-lg overflow-hidden group">

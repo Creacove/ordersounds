@@ -73,21 +73,6 @@ const mapSupabaseBeatToBeat = (beat: SupabaseBeat): Beat => {
   };
 };
 
-// Create a basic beats query that we can reuse
-const createBasicBeatsQuery = () => {
-  return supabase.from('beats') as any;
-};
-
-// Create a featured beat query that we can reuse
-const createFeaturedBeatQuery = () => {
-  return supabase.from('beats') as any;
-};
-
-// Optimized query for fetching new beats with minimal data
-const createNewBeatsQuery = () => {
-  return supabase.from('beats') as any;
-};
-
 // Optimized fetchAllBeats with optional parameters to optimize query size
 export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number } = {}): Promise<Beat[]> => {
   try {
@@ -156,12 +141,42 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
 
 export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    const query = createBasicBeatsQuery()
+    const query = supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        audio_file,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        description,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status
+      `)
       .eq('status', 'published')
       .order('favorites_count', { ascending: false });
 
     if (limit > 0) {
-      query.limit(limit);
+      query = query.limit(limit);
     }
 
     const { data, error } = await query;
@@ -184,7 +199,37 @@ export const fetchTrendingBeats = async (limit = 5): Promise<Beat[]> => {
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   try {
     // Get a set of beats ordered by most recent to get a random sampling
-    const { data, error } = await createBasicBeatsQuery()
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        audio_file,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        description,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status
+      `)
       .eq('status', 'published')
       .order('upload_date', { ascending: false })
       .limit(50); // Get a larger pool to select from
@@ -208,7 +253,8 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
 
 export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
   try {
-    const query = createFeaturedBeatQuery()
+    const { data, error } = await supabase
+      .from('beats')
       .select(`
         id,
         title,
@@ -242,8 +288,6 @@ export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
       .order('favorites_count', { ascending: false })
       .limit(1);
 
-    const { data, error } = await query;
-
     if (error) {
       throw error;
     }
@@ -262,20 +306,52 @@ export const fetchFeaturedBeat = async (): Promise<Beat | null> => {
 
 export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    const query = createNewBeatsQuery();
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        audio_file,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        description,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status
+      `)
+      .eq('status', 'published')
+      .order('upload_date', { ascending: false });
 
     if (limit > 0) {
-      query.limit(limit);
-    }
+      const limitedData = data?.slice(0, limit);
+      
+      if (error) {
+        console.error('Error fetching new beats:', error);
+        return [];
+      }
 
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching new beats:', error);
-      return [];
-    }
-
-    if (data && Array.isArray(data) && data.length > 0) {
+      if (limitedData && Array.isArray(limitedData) && limitedData.length > 0) {
+        return limitedData.map(beat => mapSupabaseBeatToBeat(beat as any));
+      }
+    } else if (data) {
       return data.map(beat => mapSupabaseBeatToBeat(beat as any));
     }
     
@@ -288,21 +364,51 @@ export const fetchNewBeats = async (limit = 5): Promise<Beat[]> => {
 
 export const fetchPopularBeats = async (limit = 6): Promise<Beat[]> => {
   try {
-    const query = createBasicBeatsQuery()
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        audio_file,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        description,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status
+      `)
       .eq('status', 'published')
       .order('purchase_count', { ascending: false });
 
     if (limit > 0) {
-      query.limit(limit);
-    }
+      const limitedData = data?.slice(0, limit);
+      
+      if (error) {
+        throw error;
+      }
 
-    const { data, error } = await query;
-
-    if (error) {
-      throw error;
-    }
-
-    if (data && Array.isArray(data) && data.length > 0) {
+      if (limitedData && Array.isArray(limitedData) && limitedData.length > 0) {
+        return limitedData.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      }
+    } else if (data) {
       return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
     }
     
@@ -372,7 +478,39 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
   if (beatIds.length === 0) return [];
   
   try {
-    const { data: beatsData, error: beatsError } = await createBasicBeatsQuery()
+    const { data: beatsData, error: beatsError } = await supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        audio_file,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        key,
+        tags,
+        description,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        plays,
+        status
+      `)
       .in('id', beatIds);
         
     if (beatsError) {
