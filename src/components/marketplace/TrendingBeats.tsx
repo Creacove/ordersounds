@@ -1,42 +1,21 @@
 
-import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Flame } from "lucide-react";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useBeats } from "@/hooks/useBeats";
 import { fetchRandomBeats } from "@/services/beatsService";
-import { Beat } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
 
 export const TrendingBeats = () => {
-  const [beats, setBeats] = useState<Beat[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const { toggleFavorite, isFavorite, isPurchased } = useBeats();
 
-  useEffect(() => {
-    let mounted = true;
-
-    const loadBeats = async () => {
-      try {
-        const randomBeats = await fetchRandomBeats(5);
-        if (mounted) {
-          setBeats(randomBeats);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error('Error loading beats:', error);
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadBeats();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const { data: beats = [], isLoading } = useQuery({
+    queryKey: ['trending-beats'],
+    queryFn: () => fetchRandomBeats(5),
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    cacheTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+  });
 
   if (isLoading) {
     return (
