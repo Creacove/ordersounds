@@ -1,4 +1,3 @@
-
 // Cache keys for localStorage
 export const CACHE_KEYS = {
   TRENDING_BEATS: 'trending_beats_cache',
@@ -16,25 +15,24 @@ export const CACHE_KEYS = {
   PLAYLISTS: 'playlists_cache',
   PLAYLISTS_EXPIRY: 'playlists_expiry',
   USER_FAVORITES: 'user_favorites_cache',
-  USER_PURCHASES: 'user_purchases_cache',
-  LAST_FETCH_TIMESTAMP: 'last_fetch_timestamp'
+  USER_PURCHASES: 'user_purchases_cache'
 };
 
-// Cache expiration durations (in hours) - Further increased to dramatically reduce API calls
+// Cache expiration durations (in hours) - Increased to reduce API calls
 export const CACHE_DURATIONS = {
-  TRENDING: 24,     // Increased from 12 hours to 24 hours for trending beats
-  FEATURED: 48,     // Increased from 24 hours to 48 hours for featured beats
+  TRENDING: 12,     // Increased from 6 hours to 12 hours for trending beats
+  FEATURED: 24,     // Increased from 12 hours to 24 hours for featured beats
   WEEKLY: 168,      // Weekly (7 days * 24 hours)
-  ALL_BEATS: 168,   // Increased from 96 hours to 168 hours (7 days) for all beats
-  PRODUCERS: 72,    // Increased from 48 hours to 72 hours for producers list
-  PLAYLISTS: 48     // Increased from 24 hours to 48 hours for playlists
+  ALL_BEATS: 96,    // Increased from 72 hours to 96 hours for all beats
+  PRODUCERS: 48,    // Cache producers list for 48 hours
+  PLAYLISTS: 24     // Cache playlists for 24 hours
 };
 
-// Network timeouts (in milliseconds) - Greatly increased for reliability
+// Network timeouts (in milliseconds)
 export const NETWORK_TIMEOUTS = {
-  STANDARD: 45000,  // Increased from 30 seconds to 45 seconds
-  SHORT: 30000,     // Increased from 15 seconds to 30 seconds
-  LONG: 60000       // Maintained 60 seconds for initial app load
+  STANDARD: 30000,  // Reduced from 60 seconds to 30 seconds for standard requests
+  SHORT: 15000,     // Reduced from 30 seconds to 15 seconds for less critical data
+  LONG: 60000       // Reduced from 120 seconds to 60 seconds for initial app load
 };
 
 // Utility function to get a cache expiration timestamp
@@ -105,10 +103,6 @@ export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, dur
       localStorage.setItem(cacheKey, jsonData);
       localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
       console.log(`Saved ${cacheKey} to cache, expires in ${durationHours} hours`);
-      
-      // Also save the timestamp of when we last fetched data
-      localStorage.setItem(CACHE_KEYS.LAST_FETCH_TIMESTAMP, String(Date.now()));
-      
       return true;
     } catch (storageError) {
       // If we hit quota limits, try to free up space and try again
@@ -177,32 +171,13 @@ const emergencyCacheClear = (): void => {
   console.log("Emergency cache clear completed");
 };
 
-// Check if cache should be refreshed - now with a forced minimum interval
+// Check if cache should be refreshed
 export const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours: number): boolean => {
   const expiryTime = localStorage.getItem(expiryKey);
   if (!expiryTime) return true;
   
   const currentTime = new Date().getTime();
-  const shouldRefresh = currentTime > parseInt(expiryTime);
-  
-  // If we're asking to refresh, also check if we've made a request recently
-  if (shouldRefresh) {
-    // Get the last fetch timestamp
-    const lastFetchStr = localStorage.getItem(CACHE_KEYS.LAST_FETCH_TIMESTAMP);
-    if (lastFetchStr) {
-      const lastFetch = parseInt(lastFetchStr);
-      const timeSinceLastFetch = currentTime - lastFetch;
-      
-      // If we've made a request in the last 30 minutes, don't make another one
-      const minimumFetchInterval = 30 * 60 * 1000; // 30 minutes
-      if (timeSinceLastFetch < minimumFetchInterval) {
-        console.log(`Not refreshing ${expiryKey} - too soon since last fetch (${Math.round(timeSinceLastFetch/1000/60)} minutes ago)`);
-        return false;
-      }
-    }
-  }
-  
-  return shouldRefresh;
+  return currentTime > parseInt(expiryTime);
 };
 
 // Check if we're online with improved detection
@@ -216,12 +191,12 @@ export const isOnline = (): boolean => {
   // If navigator says we're offline, trust it
   if (!navigatorOnline) return false;
   
-  // If navigator says online but we have a cached failed status from the last 15 minutes, use that
+  // If navigator says online but we have a cached failed status from the last 2 minutes, use that
   const lastCheckTimeStr = localStorage.getItem('last_connection_check');
   if (cachedStatus === 'disconnected' && lastCheckTimeStr) {
     const lastCheck = parseInt(lastCheckTimeStr);
-    const fifteenMinutesAgo = Date.now() - (15 * 60 * 1000); // increased from 2 minutes to 15 minutes
-    if (lastCheck > fifteenMinutesAgo) {
+    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
+    if (lastCheck > twoMinutesAgo) {
       return false;
     }
   }
@@ -293,40 +268,4 @@ export const isStorageLimitApproaching = (): boolean => {
   // Most browsers have a 5MB limit (5 * 1024 * 1024)
   const warningThreshold = 4 * 1024 * 1024; // 4MB
   return totalSize > warningThreshold;
-};
-
-// Get data freshness status
-export const getDataFreshnessStatus = (): 'fresh' | 'stale' | 'expired' => {
-  const allBeatsExpiry = localStorage.getItem(CACHE_KEYS.ALL_BEATS_EXPIRY);
-  
-  if (!allBeatsExpiry) return 'expired';
-  
-  const expiryTime = parseInt(allBeatsExpiry);
-  const currentTime = Date.now();
-  const timeUntilExpiry = expiryTime - currentTime;
-  
-  // If within 24 hours of expiry, consider it stale
-  if (timeUntilExpiry <= 24 * 60 * 60 * 1000) {
-    return 'stale';
-  }
-  
-  return 'fresh';
-};
-
-// NEW: Check if we should force a fresh fetch based on app launch
-export const shouldForceFreshFetchOnLaunch = (): boolean => {
-  // Get the last fetch timestamp
-  const lastFetchStr = localStorage.getItem(CACHE_KEYS.LAST_FETCH_TIMESTAMP);
-  
-  if (!lastFetchStr) {
-    // If we've never fetched, definitely fetch
-    return true;
-  }
-  
-  const lastFetch = parseInt(lastFetchStr);
-  const currentTime = Date.now();
-  const hoursSinceLastFetch = (currentTime - lastFetch) / (1000 * 60 * 60);
-  
-  // If it's been more than 24 hours since our last fetch, do a fresh fetch
-  return hoursSinceLastFetch > 24;
 };
