@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -14,9 +13,8 @@ import {
 } from '@/utils/beatsTrendingUtils';
 import { 
   fetchAllBeats, fetchTrendingBeats, fetchRandomBeats, fetchNewBeats,
-  fetchPopularBeats, fetchUserFavorites, fetchPurchasedBeats,
-  fetchPurchasedBeatDetails, toggleFavoriteAPI, fetchBeatById,
-  getProducerBeats, getUserFavoriteBeats
+  fetchUserFavorites, fetchPurchasedBeats, fetchPurchasedBeatDetails, 
+  toggleFavoriteAPI, fetchBeatById, getProducerBeats, getUserFavoriteBeats
 } from '@/services/beats';
 
 export function useBeats() {

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Play, Pause, Filter, ArrowRight, Sparkles, Flame, Clock, ChevronRight, Headphones, Star, Award, UserCheck, Music, Heart } from "lucide-react";
@@ -29,7 +30,7 @@ import { PlaylistCard } from "@/components/library/PlaylistCard";
 import { toast } from "sonner";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
-import { fetchTrendingBeats, fetchRandomBeats, fetchNewBeats } from "@/services/beatsService";
+import { fetchTrendingBeats, fetchRandomBeats, fetchNewBeats } from "@/services/beats";
 import { TrendingBeats } from "@/components/marketplace/TrendingBeats";
 
 export default function Home() {
