@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -27,106 +28,6 @@ import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
 
 type ViewMode = "grid" | "list" | "table";
 
-// --- Action Bar for Each Row/Beat ---
-const BeatActions = ({
-  beatId,
-  isDraft,
-  onEdit,
-  onDelete,
-  onPublish,
-}: {
-  beatId: string;
-  isDraft?: boolean;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onPublish?: (id: string) => void;
-}) => {
-  // Show modals on button clicks
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [publishOpen, setPublishOpen] = useState(false);
-  return (
-    <div className="flex gap-2 items-center">
-      {/* Edit */}
-      <Button
-        size="icon"
-        variant="outline"
-        className="h-7 w-7 border-0 hover:bg-purple-100"
-        aria-label="Edit"
-        onClick={e => { e.stopPropagation(); onEdit(beatId); }}
-        style={{ color: "#9b87f5", background: "white" }}
-      >
-        <Pencil className="h-3.5 w-3.5" />
-      </Button>
-      {/* Delete (with modal) */}
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogTrigger asChild>
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-7 w-7 border-0 hover:bg-red-100"
-            aria-label="Delete"
-            onClick={e => { e.stopPropagation(); setDeleteOpen(true); }}
-            style={{ color: "#ea384c", background: "white" }}
-          >
-            <Trash className="h-3.5 w-3.5" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this beat?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete this beat? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
-              onClick={() => { onDelete(beatId); setDeleteOpen(false); }}
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {/* Publish (with modal, only if draft) */}
-      {isDraft && onPublish && (
-        <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
-          <AlertDialogTrigger asChild>
-            <Button
-              size="icon"
-              variant="outline"
-              className="h-7 w-7 border-0 hover:bg-green-100"
-              aria-label="Publish"
-              onClick={e => { e.stopPropagation(); setPublishOpen(true); }}
-              style={{ color: "#8B5CF6", background: "white" }}
-            >
-              <Upload className="h-3.5 w-3.5" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Publish this beat?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to publish this beat? It will be visible to all users.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-primary text-white hover:bg-primary/90"
-                onClick={() => { onPublish(beatId); setPublishOpen(false); }}
-              >
-                Publish
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
-    </div>
-  );
-};
-
 export default function ProducerBeats() {
   const { user } = useAuth();
   const { beats, isLoading, isPurchased, isFavorite, fetchBeats } = useBeats();
@@ -137,6 +38,9 @@ export default function ProducerBeats() {
   const [tabValue, setTabValue] = useState<"published" | "drafts">("published");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -164,59 +68,75 @@ export default function ProducerBeats() {
 
   // --- Handler for Delete action ---
   const handleDelete = async (beatId: string) => {
-    if (window.confirm("Are you sure you want to delete this beat? This action cannot be undone.")) {
-      try {
-        setIsDeleting(true);
-        
-        // Delete the beat from the database
-        const { error } = await supabase
-          .from('beats')
-          .delete()
-          .eq('id', beatId);
-        
-        if (error) {
-          throw new Error(error.message);
-        }
-        
-        toast.success('Beat deleted successfully');
-        
-        // Refresh the beats list
-        fetchBeats();
-      } catch (error) {
-        console.error('Error deleting beat:', error);
-        toast.error('Failed to delete beat');
-      } finally {
-        setIsDeleting(false);
-      }
-    }
+    setSelectedBeatId(beatId);
+    setDeleteOpen(true);
   };
 
   // --- Handler for Publish action ---
   const handlePublish = async (beatId: string) => {
-    if (window.confirm("Publish this beat? It will be visible to all users.")) {
-      try {
-        setIsPublishing(true);
-        
-        // Update the beat status to 'published'
-        const { error } = await supabase
-          .from('beats')
-          .update({ status: 'published' })
-          .eq('id', beatId);
-        
-        if (error) {
-          throw new Error(error.message);
-        }
-        
-        toast.success('Beat published successfully');
-        
-        // Refresh the beats list
-        fetchBeats();
-      } catch (error) {
-        console.error('Error publishing beat:', error);
-        toast.error('Failed to publish beat');
-      } finally {
-        setIsPublishing(false);
+    setSelectedBeatId(beatId);
+    setPublishOpen(true);
+  };
+
+  // --- Confirm Delete action ---
+  const confirmDelete = async () => {
+    if (!selectedBeatId) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // Delete the beat from the database
+      const { error } = await supabase
+        .from('beats')
+        .delete()
+        .eq('id', selectedBeatId);
+      
+      if (error) {
+        throw new Error(error.message);
       }
+      
+      toast.success('Beat deleted successfully');
+      
+      // Refresh the beats list
+      fetchBeats();
+    } catch (error) {
+      console.error('Error deleting beat:', error);
+      toast.error('Failed to delete beat');
+    } finally {
+      setIsDeleting(false);
+      setDeleteOpen(false);
+      setSelectedBeatId(null);
+    }
+  };
+
+  // --- Confirm Publish action ---
+  const confirmPublish = async () => {
+    if (!selectedBeatId) return;
+    
+    try {
+      setIsPublishing(true);
+      
+      // Update the beat status to 'published'
+      const { error } = await supabase
+        .from('beats')
+        .update({ status: 'published' })
+        .eq('id', selectedBeatId);
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      toast.success('Beat published successfully');
+      
+      // Refresh the beats list
+      fetchBeats();
+    } catch (error) {
+      console.error('Error publishing beat:', error);
+      toast.error('Failed to publish beat');
+    } finally {
+      setIsPublishing(false);
+      setPublishOpen(false);
+      setSelectedBeatId(null);
     }
   };
 
@@ -262,7 +182,7 @@ export default function ProducerBeats() {
           </Button>
         </div>
         {/* Tabs and view mode selector side by side on desktop, stacked on mobile */}
-        <div className="flex flex-col md:flex-row md:items-end md:gap-6 gap-2 mb-2">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between md:gap-6 gap-2 mb-2">
           <Tabs
             value={tabValue}
             onValueChange={(v) => setTabValue(v as "published" | "drafts")}
@@ -277,7 +197,7 @@ export default function ProducerBeats() {
               </TabsTrigger>
             </TabsList>
             {/* View mode selector */}
-            <div className="hidden md:flex gap-2 ml-3">
+            <div className="hidden md:flex gap-2 ml-auto">
               <Button
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                 size="sm"
@@ -335,14 +255,10 @@ export default function ProducerBeats() {
                             isInCart={isInCart(beat.id)}
                             isPurchased={isPurchased(beat.id)}
                             className="h-full shadow-sm hover:shadow-sm"
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
                           />
-                          <div className="absolute top-1 right-1 z-10 rounded bg-white/70 shadow flex gap-1">
-                            <BeatActions
-                              beatId={beat.id}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                            />
-                          </div>
                         </div>
                       ))}
                     </div>
@@ -356,14 +272,10 @@ export default function ProducerBeats() {
                             isFavorite={isFavorite(beat.id)}
                             isInCart={isInCart(beat.id)}
                             isPurchased={isPurchased(beat.id)}
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
                           />
-                          <div className="absolute right-3 top-1 z-10 flex gap-1">
-                            <BeatActions
-                              beatId={beat.id}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                            />
-                          </div>
                         </div>
                       ))}
                     </div>
@@ -420,11 +332,28 @@ export default function ProducerBeats() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-right align-middle">
-                                <BeatActions
-                                  beatId={beat.id}
-                                  onEdit={handleEdit}
-                                  onDelete={handleDelete}
-                                />
+                                <div className="flex gap-2 items-center justify-end">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-purple-100"
+                                    aria-label="Edit"
+                                    onClick={e => { e.stopPropagation(); handleEdit(beat.id); }}
+                                    style={{ color: "#9b87f5", background: "white" }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-red-100"
+                                    aria-label="Delete"
+                                    onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
+                                    style={{ color: "#ea384c", background: "white" }}
+                                  >
+                                    <Trash className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -464,16 +393,11 @@ export default function ProducerBeats() {
                             isPurchased={isPurchased(beat.id)}
                             className="h-full shadow-sm hover:shadow-sm ring-2 ring-yellow-300"
                             label="DRAFT"
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            onPublish={handlePublish}
                           />
-                          <div className="absolute top-1 right-1 z-10 rounded bg-white/70 shadow flex gap-1">
-                            <BeatActions
-                              beatId={beat.id}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              isDraft={true}
-                              onPublish={handlePublish}
-                            />
-                          </div>
                         </div>
                       ))}
                     </div>
@@ -488,16 +412,11 @@ export default function ProducerBeats() {
                             isInCart={isInCart(beat.id)}
                             isPurchased={isPurchased(beat.id)}
                             statusLabel="DRAFT"
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            onPublish={handlePublish}
                           />
-                          <div className="absolute right-3 top-1 z-10 flex gap-1">
-                            <BeatActions
-                              beatId={beat.id}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                              isDraft={true}
-                              onPublish={handlePublish}
-                            />
-                          </div>
                         </div>
                       ))}
                     </div>
@@ -554,13 +473,38 @@ export default function ProducerBeats() {
                                 </span>
                               </TableCell>
                               <TableCell className="text-right align-middle">
-                                <BeatActions
-                                  beatId={beat.id}
-                                  onEdit={handleEdit}
-                                  onDelete={handleDelete}
-                                  isDraft={true}
-                                  onPublish={handlePublish}
-                                />
+                                <div className="flex gap-2 items-center justify-end">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-green-100"
+                                    aria-label="Publish"
+                                    onClick={e => { e.stopPropagation(); handlePublish(beat.id); }}
+                                    style={{ color: "#8B5CF6", background: "white" }}
+                                  >
+                                    <Upload className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-purple-100"
+                                    aria-label="Edit"
+                                    onClick={e => { e.stopPropagation(); handleEdit(beat.id); }}
+                                    style={{ color: "#9b87f5", background: "white" }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-red-100"
+                                    aria-label="Delete"
+                                    onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
+                                    style={{ color: "#ea384c", background: "white" }}
+                                  >
+                                    <Trash className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -604,6 +548,50 @@ export default function ProducerBeats() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this beat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this beat? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Publish Confirmation Dialog */}
+      <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish this beat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to publish this beat? It will be visible to all users.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary text-white hover:bg-primary/90"
+              onClick={confirmPublish}
+              disabled={isPublishing}
+            >
+              {isPublishing ? 'Publishing...' : 'Publish'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }
