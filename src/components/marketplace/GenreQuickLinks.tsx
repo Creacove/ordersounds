@@ -5,10 +5,10 @@ import { Music } from "lucide-react";
 
 export const GenreQuickLinks = () => {
   const genres = [
-    { name: "Afrobeat", path: "/genre/afrobeat" },
-    { name: "Hip Hop", path: "/genre/hip-hop" },
-    { name: "R&B", path: "/genre/r-and-b" },
-    { name: "Amapiano", path: "/genre/amapiano" }
+    { name: "Afrobeat", path: "/genres?genre=Afrobeat" },
+    { name: "Hip Hop", path: "/genres?genre=Hip Hop" },
+    { name: "R&B", path: "/genres?genre=R&B" },
+    { name: "Amapiano", path: "/genres?genre=Amapiano" }
   ];
 
   return (
