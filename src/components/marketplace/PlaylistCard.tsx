@@ -36,27 +36,28 @@ export const PlaylistCard = ({ playlist, className }: PlaylistCardProps) => {
       );
     }
     
-    // Default image options based on playlist name
-    const imageOptions = [
-      '/placeholder.svg',
-      'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?auto=format&fit=crop&w=400&h=400',
-      'https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=400&h=400',
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=400&h=400',
-      'https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=400&h=400',
-      'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&h=400'
+    // Generate a color based on the playlist ID
+    const colors = [
+      'bg-[#7C5DFA]', // Purple
+      'bg-[#E17055]', // Orange/Coral
+      'bg-[#6BCB77]', // Green
+      'bg-[#D53F8C]', // Pink
+      'bg-[#38B2AC]', // Teal
+      'bg-[#9F7AEA]', // Lavender
+      'bg-[#ED64A6]', // Hot Pink
+      'bg-[#4299E1]'  // Blue
     ];
     
-    // Use playlist id as seed to select a consistent image
     const hash = playlist.id.split('-')[0];
     const charSum = [...hash].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    const imageUrl = imageOptions[charSum % imageOptions.length];
+    const colorClass = colors[charSum % colors.length];
     
     return (
-      <img 
-        src={imageUrl} 
-        alt={playlist.name} 
-        className="h-full w-full object-cover"
-      />
+      <div className={cn("w-full h-full flex items-end p-6", colorClass)}>
+        <h3 className="text-white font-semibold text-xl line-clamp-1">
+          {playlist.name}
+        </h3>
+      </div>
     );
   };
   
@@ -79,13 +80,13 @@ export const PlaylistCard = ({ playlist, className }: PlaylistCardProps) => {
               <Play size={20} />
             </Button>
           </div>
+          <div className="absolute top-2 right-2 bg-black/50 backdrop-blur-sm px-2 py-1 rounded text-xs text-white">
+            {beatCount} {beatCount === 1 ? 'track' : 'tracks'}
+          </div>
         </div>
         
         <CardContent className="p-3">
           <h3 className="font-semibold text-base line-clamp-1">{playlist.name}</h3>
-          <p className="text-sm text-muted-foreground">
-            {beatCount} {beatCount === 1 ? 'beat' : 'beats'}
-          </p>
           <div className={cn(
             "flex items-center mt-1 text-xs", 
             playlist.is_public ? "text-sky-500" : "text-amber-500"
