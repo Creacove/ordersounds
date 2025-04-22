@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -221,7 +220,9 @@ export default function ProducerBeats() {
                             <TableCell className="text-right">{beat.plays || 0}</TableCell>
                             <TableCell className="text-right">{beat.favorites_count}</TableCell>
                             <TableCell className="text-right">{beat.purchase_count}</TableCell>
-                            <TableCell><span className="inline-block px-2 py-0.5 rounded bg-yellow-200 text-yellow-900 text-xs font-semibold">DRAFT</span></TableCell>
+                            <TableCell>
+                              <span className="inline-block px-2 py-0.5 rounded bg-yellow-200 text-yellow-900 text-xs font-semibold">DRAFT</span>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -373,6 +374,3 @@ export default function ProducerBeats() {
     </MainLayout>
   );
 }
-
-// Note: src/pages/producer/Beats.tsx is now getting quite long (~320+ lines).
-// Consider splitting this file into smaller components for maintainability.

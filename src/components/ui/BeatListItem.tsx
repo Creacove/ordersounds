@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -29,6 +28,7 @@ interface BeatListItemProps {
   onRemove?: (beatId: string) => void;
   onToggleFavorite?: (id: string) => void;
   onPlay?: () => void;
+  statusLabel?: string;
 }
 
 export function BeatListItem({
@@ -38,7 +38,8 @@ export function BeatListItem({
   isPurchased = false,
   onRemove,
   onToggleFavorite,
-  onPlay
+  onPlay,
+  statusLabel
 }: BeatListItemProps) {
   const { currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
@@ -53,7 +54,6 @@ export function BeatListItem({
   const handlePlay = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Prevent double clicks
     if (isPlayButtonClicked) return;
     setIsPlayButtonClicked(true);
     
@@ -64,7 +64,6 @@ export function BeatListItem({
       await incrementPlayCount(beat.id);
     }
     
-    // Re-enable after a short delay
     setTimeout(() => {
       setIsPlayButtonClicked(false);
     }, 300);
@@ -183,6 +182,12 @@ export function BeatListItem({
         {isPurchased && (
           <div className="absolute top-1 left-1 bg-green-500/80 text-white text-[10px] px-1 py-0.5 rounded-full">
             Owned
+          </div>
+        )}
+        
+        {statusLabel && (
+          <div className="absolute top-1 left-1 bg-yellow-300/90 text-yellow-900 text-[10px] px-1 py-0.5 rounded-full font-medium">
+            {statusLabel}
           </div>
         )}
       </div>

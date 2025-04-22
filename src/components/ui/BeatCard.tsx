@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -35,6 +36,7 @@ interface BeatCardProps {
   isInCart?: boolean;
   className?: string;
   compact?: boolean;
+  label?: string; // Added label property for status indicators
 }
 
 export function BeatCard({
@@ -47,6 +49,7 @@ export function BeatCard({
   isInCart = false,
   className,
   compact = false,
+  label,
 }: BeatCardProps) {
   const { user, currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
@@ -227,6 +230,11 @@ export function BeatCard({
         {isPurchased && (
           <div className="absolute top-2 left-2 bg-green-500/90 text-white text-xs px-2 py-1 rounded-full">
             Purchased
+          </div>
+        )}
+        {label && (
+          <div className="absolute top-2 left-2 bg-yellow-300 text-yellow-900 text-xs px-2 py-1 rounded-full font-medium">
+            {label}
           </div>
         )}
       </div>
