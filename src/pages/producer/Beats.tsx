@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -6,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Music, LayoutGrid, LayoutList, Table as LucideTable } from "lucide-react";
+import { PlusCircle, Music, LayoutGrid, LayoutList, Table as LucideTable, Pencil, Trash2, Upload } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
