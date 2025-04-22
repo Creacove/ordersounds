@@ -1,14 +1,21 @@
 
 import { Link } from "react-router-dom";
-import { Star, ChevronRight } from "lucide-react";
+import { Star, Play, Heart } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useQuery } from "@tanstack/react-query";
-import { BeatCardCompact } from "./BeatCardCompact";
 import { supabase } from "@/integrations/supabase/client";
 import { mapSupabaseBeatToBeat } from "@/services/beats/utils";
 import { SupabaseBeat } from "@/services/beats/types";
+import { Badge } from "@/components/ui/badge";
+import { usePlayer } from "@/context/PlayerContext";
+import { Button } from "@/components/ui/button";
+import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
+import { PriceTag } from "@/components/ui/PriceTag";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const WeeklyPicks = () => {
+  const { currentBeat, isPlaying, playBeat } = usePlayer();
+  
   const { data: weeklyPicks = [], isLoading } = useQuery({
     queryKey: ['weekly-picks'],
     queryFn: async () => {
@@ -38,7 +45,7 @@ export const WeeklyPicks = () => {
         `)
         .eq('status', 'published')
         .eq('is_weekly_pick', true)
-        .limit(5);
+        .limit(6);
 
       if (error) throw error;
 
@@ -47,28 +54,67 @@ export const WeeklyPicks = () => {
   });
 
   return (
-    <section className="w-full">
-      <div className="flex items-center justify-between mb-6">
-        <SectionTitle 
-          title="Weekly Picks" 
-          icon={<Star className="w-5 h-5 text-purple-500" />}
-          badge="Selected"
-        />
-        <Link to="/weekly" className="flex items-center text-sm text-muted-foreground hover:text-primary">
-          View all <ChevronRight className="w-4 h-4 ml-1" />
-        </Link>
+    <section className="w-full bg-black/95 p-6 rounded-lg">
+      <div className="flex items-center gap-2 mb-6">
+        <h2 className="text-xl font-bold text-white">Weekly Picks</h2>
+        <Badge className="bg-green-600/20 text-green-500 border-0">
+          Selected
+        </Badge>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {Array(5).fill(0).map((_, i) => (
-            <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array(6).fill(0).map((_, i) => (
+            <div key={i} className="flex gap-3 p-3 rounded-lg bg-white/5">
+              <Skeleton className="h-16 w-16 rounded-lg" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-3 w-32 mb-2" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {weeklyPicks.map((beat) => (
-            <BeatCardCompact key={beat.id} beat={beat} />
+            <div key={beat.id} className="flex gap-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group">
+              <div className="relative h-16 w-16 flex-shrink-0">
+                <img
+                  src={beat.cover_image_url || "/placeholder.svg"}
+                  alt={beat.title}
+                  className="h-16 w-16 object-cover rounded-lg"
+                />
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute inset-0 m-auto h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/75"
+                  onClick={() => playBeat(beat)}
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="flex-1 min-w-0">
+                <h3 className="font-medium text-white truncate">{beat.title}</h3>
+                <p className="text-sm text-gray-400 truncate mb-2">{beat.producer_name}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 bg-white/10 px-2 py-0.5 rounded-full">
+                    {beat.genre?.toLowerCase()}
+                  </span>
+                  <PriceTag
+                    localPrice={beat.basic_license_price_local}
+                    diasporaPrice={beat.basic_license_price_diaspora}
+                    size="sm"
+                    className="bg-transparent"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex flex-col justify-between items-end py-1">
+                <ToggleFavoriteButton beatId={beat.id} variant="ghost" size="sm" />
+              </div>
+            </div>
           ))}
         </div>
       )}
