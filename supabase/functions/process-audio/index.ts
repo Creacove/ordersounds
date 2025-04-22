@@ -1,5 +1,4 @@
 
-
 // @ts-nocheck
 // Audio processing edge function for OrderSOUNDS
 // Simply extracts first 30% of audio file for preview
@@ -24,6 +23,7 @@ if (!supabaseUrl || !supabaseServiceRole || !supabaseAnonKey) {
 
 // Create client with service role key for admin access to storage
 const adminClient = createClient(supabaseUrl, supabaseServiceRole);
+// Not used anymore, but kept for compatibility with old code
 const publicClient = createClient(supabaseUrl, supabaseAnonKey);
 
 serve(async (req) => {
@@ -33,33 +33,9 @@ serve(async (req) => {
   }
 
   try {
-    // Get the auth token from the request
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.error("No authorization header found");
-      return new Response(
-        JSON.stringify({ error: "No authorization header", status: "error" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    // Verify the token
-    const token = authHeader.replace("Bearer ", "");
-    const { data: { user }, error: authError } = await publicClient.auth.getUser(token);
-    
-    if (authError || !user) {
-      console.error("Authentication failed:", authError);
-      return new Response(
-        JSON.stringify({ error: "Authentication failed", status: "error", details: authError }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    // --- REMOVE AUTH: ----
+    // Skipping Authorization header and token checks (any user can process audio)
+    // --- END REMOVE AUTH ---
 
     // Parse the request body
     const { fullTrackUrl } = await req.json();

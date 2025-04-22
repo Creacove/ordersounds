@@ -27,12 +27,7 @@ export const uploadFile = async (
   progressCallback?: (progress: number) => void
 ): Promise<string> => {
   try {
-    // Check authentication first
-    const { data: session, error: authError } = await supabase.auth.getSession();
-    if (authError || !session.session) {
-      console.error('Authentication required for file upload:', authError);
-      throw new Error('You must be logged in to upload files');
-    }
+    // Auth check removed – allow uploads for all users
 
     // If this is an image upload (covers or avatars), use the dedicated image upload function
     if (bucket === 'covers' || bucket === 'avatars') {
@@ -56,7 +51,6 @@ export const uploadFile = async (
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
-      // Create a new XMLHttpRequest to manually track upload progress
       return new Promise<string>(async (resolve, reject) => {
         try {
           progressCallback(10); // Start with some initial progress
