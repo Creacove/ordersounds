@@ -5,6 +5,7 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Sparkles, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Playlist } from "@/types";
 
 export const FeaturedPlaylists = () => {
   const { data: playlists } = useQuery({
@@ -15,7 +16,12 @@ export const FeaturedPlaylists = () => {
         .select('*')
         .eq('is_public', true)
         .limit(4);
-      return data || [];
+        
+      // Map the data to match the Playlist type
+      return (data || []).map(playlist => ({
+        ...playlist,
+        created_at: playlist.created_date || new Date().toISOString(),
+      })) as Playlist[];
     }
   });
 
