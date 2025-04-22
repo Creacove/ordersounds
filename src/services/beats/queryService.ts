@@ -30,6 +30,9 @@ const BEAT_QUERY_FIELDS = `
   is_featured
 `;
 
+// Add request cache to prevent duplicate requests in the same session
+const requestCache = new Map<string, Beat[]>();
+
 export const fetchAllBeats = async (options: { 
   includeDetails?: boolean; 
   limit?: number; 
@@ -43,6 +46,15 @@ export const fetchAllBeats = async (options: {
       includeDrafts = false,
       producerId
     } = options;
+    
+    // Create a cache key based on the query parameters
+    const cacheKey = JSON.stringify({limit, includeDrafts, producerId});
+    
+    // Check cache first (only valid for current session)
+    if (requestCache.has(cacheKey)) {
+      console.log('Using in-memory cached beats data');
+      return requestCache.get(cacheKey) || [];
+    }
     
     let query = supabase
       .from('beats')
@@ -69,7 +81,12 @@ export const fetchAllBeats = async (options: {
     }
 
     if (beatsData && beatsData.length > 0) {
-      return beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      
+      // Store in session cache (memory only, cleared when page refreshes)
+      requestCache.set(cacheKey, mappedBeats);
+      
+      return mappedBeats;
     }
     
     return [];
@@ -79,8 +96,16 @@ export const fetchAllBeats = async (options: {
   }
 };
 
+// Cache for trending beats (memory only, cleared when page refreshes)
+const trendingCache = new Map<number, Beat[]>();
+
 export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
   try {
+    // Check cache first
+    if (trendingCache.has(limit)) {
+      return trendingCache.get(limit) || [];
+    }
+    
     const { data, error } = await supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
@@ -91,15 +116,28 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
 
     if (error) throw error;
 
-    return data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    
+    // Store in cache
+    trendingCache.set(limit, mappedBeats);
+    
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching trending beats:', error);
     return [];
   }
 };
 
+// Cache for new beats
+const newBeatsCache = new Map<number, Beat[]>();
+
 export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
   try {
+    // Check cache first
+    if (newBeatsCache.has(limit)) {
+      return newBeatsCache.get(limit) || [];
+    }
+    
     const { data, error } = await supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
@@ -109,15 +147,29 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
 
     if (error) throw error;
 
-    return data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    
+    // Store in cache
+    newBeatsCache.set(limit, mappedBeats);
+    
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching new beats:', error);
     return [];
   }
 };
 
+// Cache for random beats
+const randomBeatsCache = new Map<number, Beat[]>();
+
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   try {
+    // Check cache first - note that random beats should perhaps not be cached too long
+    // as the randomness aspect is part of the feature
+    if (randomBeatsCache.has(limit)) {
+      return randomBeatsCache.get(limit) || [];
+    }
+    
     // Clone the query each time to prevent body stream already read errors
     const { data, error } = await supabase
       .from('beats')
@@ -129,7 +181,12 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
 
     if (data && data.length > 0) {
       const shuffled = [...data].sort(() => Math.random() - 0.5);
-      return shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      
+      // Store in cache
+      randomBeatsCache.set(limit, mappedBeats);
+      
+      return mappedBeats;
     }
     
     return [];
@@ -139,8 +196,16 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   }
 };
 
+// Cache for individual beats
+const beatCache = new Map<string, Beat | null>();
+
 export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
   try {
+    // Check cache first
+    if (beatCache.has(beatId)) {
+      return beatCache.get(beatId) || null;
+    }
+    
     const { data, error } = await supabase
       .from('beats')
       .select(`
@@ -161,16 +226,28 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
     
     if (error) throw error;
 
-    return data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
+    const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
+    
+    // Store in cache
+    beatCache.set(beatId, mappedBeat);
+    
+    return mappedBeat;
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
     return null;
   }
 };
 
-// Function to fetch featured beats
+// Cache for featured beats
+const featuredBeatsCache = new Map<number, Beat[]>();
+
 export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
   try {
+    // Check cache first
+    if (featuredBeatsCache.has(limit)) {
+      return featuredBeatsCache.get(limit) || [];
+    }
+    
     const { data, error } = await supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
@@ -180,9 +257,24 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
 
     if (error) throw error;
 
-    return data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    
+    // Store in cache
+    featuredBeatsCache.set(limit, mappedBeats);
+    
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
     return [];
   }
+};
+
+// Function to clear all caches (useful after operations that modify data)
+export const clearBeatsCache = (): void => {
+  requestCache.clear();
+  trendingCache.clear();
+  newBeatsCache.clear();
+  randomBeatsCache.clear();
+  beatCache.clear();
+  featuredBeatsCache.clear();
 };

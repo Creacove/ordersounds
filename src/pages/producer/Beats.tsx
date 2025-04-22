@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -41,6 +42,7 @@ export default function ProducerBeats() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [dataFetchedRef, setDataFetchedRef] = useState(false);
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -50,12 +52,19 @@ export default function ProducerBeats() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Optimized data fetching - only fetch once
   useEffect(() => {
     const loadBeats = async () => {
-      await fetchBeats();
+      if (!dataFetchedRef) {
+        await fetchBeats();
+        setDataFetchedRef(true);
+      }
     };
-    loadBeats();
-  }, [fetchBeats]);
+    
+    if (user && !dataFetchedRef) {
+      loadBeats();
+    }
+  }, [fetchBeats, user, dataFetchedRef]);
 
   useEffect(() => {
     if (isMobile && viewMode === "table") {
@@ -94,7 +103,12 @@ export default function ProducerBeats() {
         throw new Error(error.message);
       }
       toast.success('Beat deleted successfully');
-      fetchBeats();
+      
+      // Instead of re-fetching, update the local state
+      const updatedBeats = beats.filter(beat => beat.id !== selectedBeatId);
+      // We can't directly modify the useBeats state, so just refresh the page
+      // In a more ideal scenario, we would use a context or Redux to update the state directly
+      window.location.reload();
     } catch (error) {
       console.error('Error deleting beat:', error);
       toast.error('Failed to delete beat');
@@ -117,7 +131,14 @@ export default function ProducerBeats() {
         throw new Error(error.message);
       }
       toast.success('Beat published successfully');
-      fetchBeats();
+      
+      // Update the local state instead of re-fetching
+      const updatedBeats = beats.map(beat => 
+        beat.id === selectedBeatId ? { ...beat, status: 'published' } : beat
+      );
+      // We can't directly modify the useBeats state, so just refresh the page
+      // In a more ideal scenario, we would use a context or Redux to update the state directly
+      window.location.reload();
     } catch (error) {
       console.error('Error publishing beat:', error);
       toast.error('Failed to publish beat');

@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -34,11 +35,19 @@ export function useBeats() {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
   const [fetchInProgress, setFetchInProgress] = useState(false);
+  const [dataFetched, setDataFetched] = useState<boolean>(false);
 
   const fetchUserFavoritesData = useCallback(async () => {
     if (!user) return;
     
     try {
+      // First check from cache
+      const cachedFavorites = loadFromCache<string[]>(CACHE_KEYS.USER_FAVORITES);
+      if (cachedFavorites) {
+        setUserFavorites(cachedFavorites);
+        return;
+      }
+      
       const favorites = await fetchUserFavorites(user.id);
       setUserFavorites(favorites);
       
@@ -60,6 +69,13 @@ export function useBeats() {
     if (!user) return;
     
     try {
+      // First check from cache
+      const cachedPurchases = loadFromCache<string[]>(CACHE_KEYS.USER_PURCHASES);
+      if (cachedPurchases) {
+        setPurchasedBeats(cachedPurchases);
+        return;
+      }
+      
       const purchasedIds = await fetchPurchasedBeats(user.id);
       setPurchasedBeats(purchasedIds);
       
@@ -143,24 +159,46 @@ export function useBeats() {
   }, [trendingBeats.length]);
 
   const fetchBeats = useCallback(async () => {
+    // Avoid duplicate fetch calls
     if (fetchInProgress) {
       console.log('Fetch already in progress, skipping duplicate request');
+      return;
+    }
+    
+    // If we've already fetched data, don't fetch again
+    if (dataFetched && beats.length > 0) {
+      console.log('Data already fetched, using cached beats');
+      setIsLoading(false);
       return;
     }
     
     // Fast path for producer beats: prioritize loading producer's own beats first
     if (user?.role === 'producer') {
       try {
+        // Check if we have cached producer beats
+        const cachedBeats = loadFromCache<Beat[]>(`producer_beats_${user.id}`);
+        if (cachedBeats) {
+          console.log('Using cached producer beats');
+          setBeats(cachedBeats);
+          setIsLoading(false);
+          setDataFetched(true);
+          return;
+        }
+        
         const producerBeatsQuery = await fetchAllBeats({ 
           includeDrafts: true, 
           producerId: user.id, 
-          limit: 20 // Fetch fewer beats initially for faster loading
+          limit: 50 // Fetch more beats for producers to ensure we get all of theirs
         });
         
         if (producerBeatsQuery && producerBeatsQuery.length > 0) {
           setBeats(producerBeatsQuery);
           setIsLoading(false);
-          // Continue fetching remaining beats in background
+          setDataFetched(true);
+          
+          // Cache producer beats
+          localStorage.setItem(`producer_beats_${user.id}`, JSON.stringify(producerBeatsQuery));
+          return;
         }
       } catch (error) {
         console.error('Error fetching producer beats:', error);
@@ -175,6 +213,7 @@ export function useBeats() {
       console.log('Using cached beats data');
       setBeats(cachedBeats);
       setIsLoading(false);
+      setDataFetched(true);
       return;
     }
     
@@ -240,6 +279,7 @@ export function useBeats() {
       
       setLoadingError(null);
       setIsOffline(false);
+      setDataFetched(true);
       
       if (user) {
         await fetchUserFavoritesData();
@@ -266,12 +306,14 @@ export function useBeats() {
   }, [user, activeFilters, checkNetworkAndRetry, handleNoBeatsFound, 
       fetchInitialBeats, fetchUserFavoritesData, fetchPurchasedBeatsData, 
       trendingBeats.length, weeklyPicks.length, featuredBeat, 
-      fetchInProgress]);
+      fetchInProgress, beats.length, dataFetched]);
 
   useEffect(() => {
-    // Initial data fetch
-    fetchInitialBeats();
-    fetchBeats();
+    // Initial data fetch only once
+    if (!dataFetched) {
+      fetchInitialBeats();
+      fetchBeats();
+    }
     
     // Network status handlers
     const handleOnline = () => {
@@ -295,7 +337,7 @@ export function useBeats() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []); // Empty dependency array to run only once on mount
+  }, [dataFetched, fetchInitialBeats, fetchBeats]); // Only depend on dataFetched state to prevent re-fetching
 
   const updateFilters = (newFilters: FilterValues) => {
     setActiveFilters(newFilters);
@@ -383,6 +425,12 @@ export function useBeats() {
     // Get all beats for this producer, including drafts
     return getProducerBeatsService(beats, producerId);
   };
+  
+  // Add a method to force refresh beats data when needed (like after CRUD operations)
+  const forceRefreshBeats = useCallback(async () => {
+    setDataFetched(false); // Reset the data fetched flag
+    await fetchBeats(); // Refetch the beats data
+  }, [fetchBeats]);
 
   return {
     beats,
@@ -410,6 +458,8 @@ export function useBeats() {
     getUserPurchasedBeats,
     getUserFavoriteBeats,
     getProducerBeats,
-    fetchInProgress
+    fetchInProgress,
+    forceRefreshBeats,
+    dataFetched
   };
 }
