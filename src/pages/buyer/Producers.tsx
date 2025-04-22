@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -23,7 +22,7 @@ export default function Producers() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  // Use our centralized producer data hook
+  // Use our centralized producer data hook that now fetches beat counts in a single query
   const { producers, isLoading } = useProducers();
   
   useEffect(() => {
@@ -47,36 +46,30 @@ export default function Producers() {
         
         const followeeIds = follows.map(follow => follow.followee_id);
         
+        // Get producers with beat counts using a single efficient query
         const { data: producersData, error } = await supabase
           .from('users')
-          .select('id, stage_name, full_name, bio, profile_picture, follower_count')
+          .select(`
+            id, 
+            stage_name, 
+            full_name, 
+            bio, 
+            profile_picture, 
+            follower_count,
+            (SELECT count(*) FROM beats WHERE beats.producer_id = users.id) AS beatCount
+          `)
           .eq('role', 'producer')
           .in('id', followeeIds);
           
         if (error) throw error;
         if (!producersData) return [];
         
-        // Get beat counts in parallel
-        const producersWithBeats = await Promise.all(
-          producersData.map(async (producer) => {
-            const { count, error: beatError } = await supabase
-              .from('beats')
-              .select('id', { count: 'exact', head: true })
-              .eq('producer_id', producer.id);
-
-            if (beatError) {
-              console.error('Error getting beat count:', beatError);
-              return { ...producer, beatCount: 0 };
-            }
-
-            return { 
-              ...producer, 
-              beatCount: count || 0
-            };
-          })
-        );
+        // Transform the results to match our Producer interface
+        return producersData.map(producer => ({
+          ...producer,
+          beatCount: producer.beatCount ? parseInt(producer.beatCount) : 0
+        }));
         
-        return producersWithBeats;
       } catch (error) {
         console.error("Error fetching followed producers:", error);
         return [];

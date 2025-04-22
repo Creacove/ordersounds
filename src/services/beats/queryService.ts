@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -34,6 +33,7 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
   try {
     const { includeDetails = true, limit = 0 } = options;
     
+    // Create a new query instance to prevent body stream errors
     let query = supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
@@ -168,4 +168,43 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
   }
 };
 
+// This function helps get beat counts for producers in batches rather than individual requests
+export const getBeatCountsForProducers = async (producerIds: string[]): Promise<Record<string, number>> => {
+  try {
+    if (!producerIds.length) return {};
+    
+    const beatCounts: Record<string, number> = {};
+    
+    // Get beat counts for producers in a single query
+    const { data, error } = await supabase
+      .from('beats')
+      .select('producer_id, count(*)')
+      .in('producer_id', producerIds)
+      .eq('status', 'published')
+      .group('producer_id');
+    
+    if (error) throw error;
+    
+    // Convert result to a lookup map
+    data?.forEach(item => {
+      beatCounts[item.producer_id] = parseInt(item.count);
+    });
+    
+    // Ensure all producer IDs have entries (even if zero)
+    producerIds.forEach(id => {
+      if (beatCounts[id] === undefined) {
+        beatCounts[id] = 0;
+      }
+    });
+    
+    return beatCounts;
+  } catch (error) {
+    console.error('Error getting beat counts for producers:', error);
+    return {};
+  }
+};
 
+// Helper function to get beats by a specific producer directly from the database
+export const getProducerBeats = (beats: Beat[], producerId: string): Beat[] => {
+  return beats.filter(beat => beat.producer_id === producerId);
+};

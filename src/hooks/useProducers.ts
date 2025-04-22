@@ -26,39 +26,35 @@ export function useProducers() {
     queryFn: async () => {
       try {
         console.log("Fetching producers data...");
-        // First, get all producers from the users table
-        const { data: producersData, error } = await supabase
+        
+        // Fetch producers and beat counts in a single query using SQL joins
+        // This reduces multiple separate API calls to just one
+        const { data: producersWithBeats, error } = await supabase
           .from('users')
-          .select('id, stage_name, full_name, bio, profile_picture, follower_count')
+          .select(`
+            id, 
+            stage_name, 
+            full_name, 
+            bio, 
+            profile_picture, 
+            follower_count,
+            (SELECT count(*) FROM beats WHERE beats.producer_id = users.id) AS beatCount
+          `)
           .eq('role', 'producer')
           .order('follower_count', { ascending: false });
 
         if (error) throw error;
-
-        if (!producersData) return []; 
-
-        // For each producer, get their beat count in parallel
-        const producersWithBeats = await Promise.all(
-          producersData.map(async (producer) => {
-            const { count, error: beatError } = await supabase
-              .from('beats')
-              .select('id', { count: 'exact', head: true })
-              .eq('producer_id', producer.id);
-
-            if (beatError) {
-              console.error('Error getting beat count:', beatError);
-              return { ...producer, beatCount: 0 };
-            }
-
-            return { 
-              ...producer, 
-              beatCount: count || 0
-            };
-          })
-        );
         
+        if (!producersWithBeats) return [];
+
         console.log(`Fetched ${producersWithBeats.length} producers`);
-        return producersWithBeats as Producer[];
+        
+        // Transform the results to match our Producer interface
+        return producersWithBeats.map(producer => ({
+          ...producer,
+          beatCount: producer.beatCount ? parseInt(producer.beatCount) : 0
+        })) as Producer[];
+        
       } catch (error) {
         console.error("Error fetching producers:", error);
         return [];
