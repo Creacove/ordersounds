@@ -8,11 +8,15 @@ import { FeaturedPlaylists } from "@/components/marketplace/FeaturedPlaylists";
 import { PremiumSection } from "@/components/marketplace/PremiumSection";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { NewBeats } from "@/components/marketplace/NewBeats";
+import { FeaturedBeat } from "@/components/marketplace/FeaturedBeat";
+import { GenreQuickLinks } from "@/components/marketplace/GenreQuickLinks";
 
 const Home = () => {
   return (
     <MainLayoutWithPlayer activeTab="home">
       <div className="container py-6 space-y-12">
+        <FeaturedBeat />
+        <GenreQuickLinks />
         <TrendingBeats />
         <TopProducers />
         <WeeklyPicks />
