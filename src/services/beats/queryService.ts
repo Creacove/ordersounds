@@ -112,9 +112,11 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
         upload_date,
         favorites_count,
         purchase_count,
-        status
+        status,
+        is_trending
       `)
       .eq('status', 'published')
+      .eq('is_trending', true)
       .order('favorites_count', { ascending: false });
 
     if (limit > 0) {
@@ -161,7 +163,8 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
         upload_date,
         favorites_count,
         purchase_count,
-        status
+        status,
+        is_weekly_pick
       `)
       .eq('status', 'published')
       .order('upload_date', { ascending: false });
