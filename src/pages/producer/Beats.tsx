@@ -29,7 +29,7 @@ type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
-  const { beats, isLoading, isPurchased, isFavorite, fetchBeats } = useBeats();
+  const { beats, isLoading, isPurchased, isFavorite, fetchBeats, forceRefreshBeats } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -61,7 +61,7 @@ export default function ProducerBeats() {
     if (user && !dataFetchedRef) {
       loadBeats();
     }
-  }, [fetchBeats, user]);
+  }, [fetchBeats, user, dataFetchedRef]);
 
   useEffect(() => {
     if (isMobile && viewMode === "table") {
@@ -100,8 +100,7 @@ export default function ProducerBeats() {
         throw new Error(error.message);
       }
       toast.success('Beat deleted successfully');
-      setDataFetchedRef(false);
-      await fetchBeats();
+      await forceRefreshBeats();
     } catch (error) {
       console.error('Error deleting beat:', error);
       toast.error('Failed to delete beat');
@@ -124,8 +123,7 @@ export default function ProducerBeats() {
         throw new Error(error.message);
       }
       toast.success('Beat published successfully');
-      setDataFetchedRef(false);
-      await fetchBeats();
+      await forceRefreshBeats();
     } catch (error) {
       console.error('Error publishing beat:', error);
       toast.error('Failed to publish beat');

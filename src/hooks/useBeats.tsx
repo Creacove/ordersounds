@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -36,6 +35,7 @@ export function useBeats() {
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
   const [fetchInProgress, setFetchInProgress] = useState(false);
   const [dataFetched, setDataFetched] = useState<boolean>(false);
+  const [dataFetchedRef, setDataFetchedRef] = useState<boolean>(false);
 
   const fetchUserFavoritesData = useCallback(async () => {
     if (!user) return;
@@ -428,7 +428,7 @@ export function useBeats() {
   
   // Add a method to force refresh beats data when needed (like after CRUD operations)
   const forceRefreshBeats = useCallback(async () => {
-    setDataFetched(false); // Reset the data fetched flag
+    setDataFetchedRef(false); // Reset the data fetched flag
     await fetchBeats(); // Refetch the beats data
   }, [fetchBeats]);
 
