@@ -15,7 +15,7 @@ import {
   fetchAllBeats, fetchTrendingBeats, fetchRandomBeats, fetchNewBeats,
   fetchUserFavorites, fetchPurchasedBeats, fetchPurchasedBeatDetails, 
   toggleFavoriteAPI, fetchBeatById, getProducerBeats as getProducerBeatsService,
-  getUserFavoriteBeats as getUserFavoriteBeatsService
+  getUserFavoriteBeats as getUserFavoriteBeatsService, clearBeatsCache
 } from '@/services/beats';
 
 export function useBeats() {
@@ -41,7 +41,6 @@ export function useBeats() {
     if (!user) return;
     
     try {
-      // First check from cache
       const cachedFavorites = loadFromCache<string[]>(CACHE_KEYS.USER_FAVORITES);
       if (cachedFavorites) {
         setUserFavorites(cachedFavorites);
@@ -51,7 +50,6 @@ export function useBeats() {
       const favorites = await fetchUserFavorites(user.id);
       setUserFavorites(favorites);
       
-      // Only store small amounts of data in localStorage
       if (favorites.length < 100) {
         localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(favorites));
       }
@@ -69,7 +67,6 @@ export function useBeats() {
     if (!user) return;
     
     try {
-      // First check from cache
       const cachedPurchases = loadFromCache<string[]>(CACHE_KEYS.USER_PURCHASES);
       if (cachedPurchases) {
         setPurchasedBeats(cachedPurchases);
@@ -129,7 +126,6 @@ export function useBeats() {
     if (trendingBeats.length > 0) return; // Skip if we already have trending beats
     
     try {
-      // Limit the initial batch size to improve performance
       const initialBeats = await fetchTrendingBeats(10);
       if (initialBeats && initialBeats.length > 0) {
         setTrendingBeats(initialBeats);
@@ -159,23 +155,19 @@ export function useBeats() {
   }, [trendingBeats.length]);
 
   const fetchBeats = useCallback(async () => {
-    // Avoid duplicate fetch calls
     if (fetchInProgress) {
       console.log('Fetch already in progress, skipping duplicate request');
       return;
     }
     
-    // If we've already fetched data, don't fetch again
     if (dataFetched && beats.length > 0) {
       console.log('Data already fetched, using cached beats');
       setIsLoading(false);
       return;
     }
     
-    // Fast path for producer beats: prioritize loading producer's own beats first
     if (user?.role === 'producer') {
       try {
-        // Check if we have cached producer beats
         const cachedBeats = loadFromCache<Beat[]>(`producer_beats_${user.id}`);
         if (cachedBeats) {
           console.log('Using cached producer beats');
@@ -188,7 +180,7 @@ export function useBeats() {
         const producerBeatsQuery = await fetchAllBeats({ 
           includeDrafts: true, 
           producerId: user.id, 
-          limit: 50 // Fetch more beats for producers to ensure we get all of theirs
+          limit: 50
         });
         
         if (producerBeatsQuery && producerBeatsQuery.length > 0) {
@@ -196,7 +188,6 @@ export function useBeats() {
           setIsLoading(false);
           setDataFetched(true);
           
-          // Cache producer beats
           localStorage.setItem(`producer_beats_${user.id}`, JSON.stringify(producerBeatsQuery));
           return;
         }
@@ -205,7 +196,6 @@ export function useBeats() {
       }
     }
     
-    // Check if we have cached data and it's not expired
     const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
     const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
     
@@ -232,10 +222,9 @@ export function useBeats() {
         await fetchInitialBeats();
       }
       
-      // Include drafts when fetching all beats to make sure producers can see them
       const transformedBeats = await fetchAllBeats({ 
         includeDrafts: true,
-        limit: 50 // Limit initial fetch for better performance
+        limit: 50
       });
       
       if (!transformedBeats || transformedBeats.length === 0) {
@@ -245,12 +234,8 @@ export function useBeats() {
         return;
       }
       
-      // Don't try to cache large datasets anymore, just use memory
-      // This will avoid localStorage quota exceeded errors
-      
       setBeats(transformedBeats);
       
-      // Only refresh trending/featured/weekly if needed
       const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       if (shouldRefreshTrending || trendingBeats.length === 0) {
         setTrendingBeats(refreshTrendingBeats(transformedBeats));
@@ -309,13 +294,11 @@ export function useBeats() {
       fetchInProgress, beats.length, dataFetched]);
 
   useEffect(() => {
-    // Initial data fetch only once
     if (!dataFetched) {
       fetchInitialBeats();
       fetchBeats();
     }
     
-    // Network status handlers
     const handleOnline = () => {
       setIsOffline(false);
       toast.success("You're back online!");
@@ -337,7 +320,7 @@ export function useBeats() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [dataFetched, fetchInitialBeats, fetchBeats]); // Only depend on dataFetched state to prevent re-fetching
+  }, [dataFetched, fetchInitialBeats, fetchBeats]);
 
   const updateFilters = (newFilters: FilterValues) => {
     setActiveFilters(newFilters);
@@ -422,14 +405,13 @@ export function useBeats() {
   };
 
   const getProducerBeats = (producerId: string): Beat[] => {
-    // Get all beats for this producer, including drafts
     return getProducerBeatsService(beats, producerId);
   };
   
-  // Add a method to force refresh beats data when needed (like after CRUD operations)
   const forceRefreshBeats = useCallback(async () => {
-    setDataFetchedRef(false); // Reset the data fetched flag
-    await fetchBeats(); // Refetch the beats data
+    setDataFetchedRef(false);
+    clearBeatsCache();
+    await fetchBeats();
   }, [fetchBeats]);
 
   return {
