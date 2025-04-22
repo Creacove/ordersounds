@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useBeats } from "@/hooks/useBeats";
@@ -20,7 +19,6 @@ export default function Trending() {
     document.title = "Trending Beats | OrderSOUNDS";
   }, []);
 
-  // Function to manually refresh data
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -35,7 +33,6 @@ export default function Trending() {
 
   const loadMoreBeats = () => {
     setIsLoadingMore(true);
-    // Increase the number of displayed beats by 30
     setDisplayCount(prevCount => prevCount + 30);
     setIsLoadingMore(false);
   };
@@ -100,7 +97,7 @@ export default function Trending() {
                   disabled={isLoadingMore}
                   className="gap-2"
                 >
-                  {isLoadingMore ? 'Loading...' : 'Show More Beats'}
+                  {isLoadingMore ? 'Loading...' : 'See More'}
                   {!isLoadingMore && <ChevronDown className="h-4 w-4" />}
                 </Button>
               </div>

@@ -6,15 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronDown, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 export default function New() {
   const { newBeats, isLoading, toggleFavorite, isFavorite, isPurchased, fetchBeats } = useBeats();
   const { isInCart } = useCart();
-  const isMobile = useIsMobile();
   const [displayCount, setDisplayCount] = useState(30);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -43,10 +40,7 @@ export default function New() {
 
   return (
     <MainLayout>
-      <div className={cn(
-        "container py-6 md:py-8",
-        isMobile ? "px-4" : "px-6"
-      )}>
+      <div className="container py-6 md:py-8 px-4 md:px-6">
         <div className="mb-6 flex justify-between items-center">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">New Beats</h1>
@@ -98,7 +92,7 @@ export default function New() {
                   disabled={isLoadingMore}
                   className="gap-2"
                 >
-                  {isLoadingMore ? 'Loading...' : 'Show More Beats'}
+                  {isLoadingMore ? 'Loading...' : 'See More'}
                   {!isLoadingMore && <ChevronDown className="h-4 w-4" />}
                 </Button>
               </div>
