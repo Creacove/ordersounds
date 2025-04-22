@@ -15,3 +15,8 @@ export const getProducerBeats = (beats: Beat[], producerId: string): Beat[] => {
 export const getUserFavoriteBeats = (beats: Beat[], favoriteIds: string[]): Beat[] => {
   return beats.filter(beat => favoriteIds.includes(beat.id));
 };
+
+// Helper to check if beat is published
+export const isBeatPublished = (beat: Beat | null): boolean => {
+  return beat?.status === "published";
+};
