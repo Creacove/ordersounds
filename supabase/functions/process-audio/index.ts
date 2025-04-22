@@ -95,7 +95,7 @@ serve(async (req) => {
     const contentType = getMimeType(fileExt);
     console.log(`Using content type: ${contentType}`);
     
-    // Upload the preview portion to storage
+    // Upload the preview portion to storage - using service role to bypass RLS
     console.log(`Uploading preview file: previews/${outputFileName}`);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('beats')

@@ -40,7 +40,8 @@ export default function UploadBeat() {
     handleCollaboratorChange, handleRemoveCollaborator, handleAddCollaborator,
     handleRemoveTag, handleAddTag,
     handleBeatChange, handleImageUpload, handlePreviewUpload, handleFullTrackUpload,
-    handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl, uploadProgress
+    handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl, uploadProgress,
+    uploadError
   } = useBeatUpload();
   
   const { user } = useAuth();
@@ -443,6 +444,7 @@ export default function UploadBeat() {
                   setPreviewUrl={setPreviewUrl}
                   handlePreviewUpload={handlePreviewUpload}
                   handleStemsUpload={handleStemsUpload}
+                  uploadError={uploadError}
                 />
               </TabsContent>
 

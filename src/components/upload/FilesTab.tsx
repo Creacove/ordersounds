@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw } from "lucide-react";
+import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/hooks/useAudio";
@@ -28,6 +28,7 @@ type FilesTabProps = {
   setPreviewUrl?: React.Dispatch<React.SetStateAction<string | null>>;
   handlePreviewUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleStemsUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadError?: string | null;
 };
 
 export const FilesTab = ({
@@ -49,7 +50,8 @@ export const FilesTab = ({
   previewUrl,
   setPreviewUrl,
   handlePreviewUpload,
-  handleStemsUpload
+  handleStemsUpload,
+  uploadError
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
@@ -511,6 +513,15 @@ export const FilesTab = ({
         {validationError && (
           <Alert variant="destructive" className="mt-4">
             <AlertDescription>{validationError}</AlertDescription>
+          </Alert>
+        )}
+
+        {uploadError && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="ml-2 text-xs">
+              Upload error: {uploadError}. Please make sure you're logged in and have permission to upload files.
+            </AlertDescription>
           </Alert>
         )}
       </div>

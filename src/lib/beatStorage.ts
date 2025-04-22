@@ -89,11 +89,29 @@ export const uploadBeat = async (
   try {
     console.log('Starting beat upload process');
     
+    // Check if user is authenticated
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !sessionData.session) {
+      console.error('Authentication required to upload beat', sessionError);
+      return {
+        success: false,
+        error: 'You must be logged in to upload beats'
+      };
+    }
+    
     // Upload full track file if it's a File object
     let fullTrackUrl: string;
     if (isFile(fullTrackFileOrUrl)) {
       console.log('Uploading full track file');
-      fullTrackUrl = await uploadFile(fullTrackFileOrUrl, 'beats', 'full-tracks');
+      try {
+        fullTrackUrl = await uploadFile(fullTrackFileOrUrl, 'beats', 'full-tracks');
+      } catch (error) {
+        console.error('Failed to upload full track:', error);
+        return {
+          success: false,
+          error: `Failed to upload full track: ${error.message}`
+        };
+      }
     } else {
       fullTrackUrl = fullTrackFileOrUrl.url;
     }
@@ -102,7 +120,15 @@ export const uploadBeat = async (
     let previewTrackUrl: string = previewUrl || '';
     if (previewTrackFile) {
       console.log('Uploading preview track file');
-      previewTrackUrl = await uploadFile(previewTrackFile, 'beats', 'previews');
+      try {
+        previewTrackUrl = await uploadFile(previewTrackFile, 'beats', 'previews');
+      } catch (error) {
+        console.error('Failed to upload preview track:', error);
+        return {
+          success: false,
+          error: `Failed to upload preview track: ${error.message}`
+        };
+      }
     }
     
     // Use the provided cover image (could be URL, base64, or null)
@@ -112,7 +138,15 @@ export const uploadBeat = async (
     let stemsUrl: string | null = null;
     if (stemsFile) {
       console.log('Uploading stems file');
-      stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
+      try {
+        stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
+      } catch (error) {
+        console.error('Failed to upload stems:', error);
+        return {
+          success: false,
+          error: `Failed to upload stems: ${error.message}`
+        };
+      }
     }
     
     // Prepare beat data for database insert
@@ -124,7 +158,6 @@ export const uploadBeat = async (
       bpm: beatData.bpm,
       key: beatData.key || 'C Major',
       producer_id: producerId,
-      // Removed producer_name as it doesn't exist in database schema
       audio_file: fullTrackUrl,
       audio_preview: previewTrackUrl,
       cover_image: coverImageUrl,

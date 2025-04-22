@@ -59,6 +59,7 @@ export const useBeatUpload = () => {
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
     title: "",
@@ -141,14 +142,19 @@ export const useBeatUpload = () => {
       }
       
       setUploadedFile(file);
-      
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
-      
       setPreviewFile(null);
       setPreviewUrl(null);
+      setUploadError(null);
       
       try {
         toast.info("Uploading full track...");
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) {
+          toast.error("You must be logged in to upload files");
+          return;
+        }
 
         const url = await uploadFile(file, 'beats', 'full-tracks', (progress) => {
           console.log(`Upload progress for ${file.name}: ${progress}%`);
@@ -163,7 +169,8 @@ export const useBeatUpload = () => {
         await generatePreview(url);
       } catch (error) {
         console.error("Error uploading file:", error);
-        toast.error("Failed to upload file. Please try again.");
+        setUploadError(error.message || "Failed to upload file");
+        toast.error(error.message || "Failed to upload file. Please try again.");
       }
     }
   };
@@ -173,6 +180,13 @@ export const useBeatUpload = () => {
       setProcessingFiles(true);
       setPreviewUrl(null);
       setPreviewFile(null);
+      
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error("Authentication required to process audio");
+        setProcessingFiles(false);
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('process-audio', {
         body: { 
@@ -234,6 +248,12 @@ export const useBeatUpload = () => {
     try {
       toast.info("Uploading preview...");
       
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error("You must be logged in to upload files");
+        return;
+      }
+      
       const url = await uploadFile(file, 'beats', 'previews', (progress) => {
         console.log(`Preview upload progress: ${progress}%`);
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
@@ -261,13 +281,11 @@ export const useBeatUpload = () => {
         return;
       }
       
-      // Create a preview immediately using FileReader
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target && event.target.result) {
           const base64String = event.target.result.toString();
           setImagePreview(base64String);
-          // Store the base64 string directly
           setImageFile({
             url: base64String
           });
@@ -275,7 +293,6 @@ export const useBeatUpload = () => {
       };
       reader.readAsDataURL(file);
       
-      // No need to upload the image immediately - will be done when the beat is saved
       toast.success("Cover image selected", { id: "image-upload" });
     }
   };
@@ -541,6 +558,7 @@ export const useBeatUpload = () => {
     handleStemsUpload,
     regeneratePreview,
     licenseOptions,
-    uploadedFileUrl
+    uploadedFileUrl,
+    uploadError
   };
 };

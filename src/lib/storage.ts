@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadImage, deleteImage as deleteImageFile } from './imageStorage';
@@ -53,73 +52,42 @@ export const uploadFile = async (
       // Create a new XMLHttpRequest to manually track upload progress
       return new Promise<string>(async (resolve, reject) => {
         try {
-          // Since onUploadProgress isn't supported in FileOptions, we'll use XMLHttpRequest instead
-          const xhr = new XMLHttpRequest();
-          const uploadOptions = {
-            contentType: realFile.type || getMimeType(fileExt || ''),
-            cacheControl: '3600',
-            upsert: false
-          };
-          
-          // Get pre-signed URL for upload
-          const { data: { signedUrl, path: uploadPath }, error: urlError } = await supabase.storage
+          // Since we're experiencing RLS policy issues, let's try a direct upload
+          // This is likely because the user isn't authenticated or doesn't have proper permissions
+          const { data, error } = await supabase.storage
             .from(bucket)
-            .createSignedUploadUrl(filePath);
-            
-          if (urlError) {
-            console.error(`Error getting signed URL for ${bucket}/${filePath}:`, urlError);
-            reject(urlError);
-            return;
+            .upload(filePath, realFile, {
+              contentType: realFile.type || getMimeType(fileExt || ''),
+              cacheControl: '3600',
+              upsert: true // Changed to true to overwrite existing files if needed
+            });
+          
+          if (error) {
+            console.error(`Error uploading to ${bucket}/${filePath}:`, error);
+            throw error;
           }
           
-          // Track upload progress with XMLHttpRequest
-          xhr.upload.onprogress = (event) => {
-            if (event.lengthComputable) {
-              const percentComplete = Math.round((event.loaded / event.total) * 100);
-              progressCallback(percentComplete < 100 ? percentComplete : 99);
-            }
-          };
+          // Get public URL for the file
+          const { data: publicUrlData } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(data.path);
           
-          xhr.onload = async () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              // Get public URL for the file
-              const { data: publicUrlData } = supabase.storage
-                .from(bucket)
-                .getPublicUrl(uploadPath);
-              
-              // Final completion
-              setTimeout(() => {
-                progressCallback(100);
-              }, 200);
-              
-              console.log(`File uploaded successfully with progress tracking: ${publicUrlData.publicUrl}`);
-              resolve(publicUrlData.publicUrl);
-            } else {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
-            }
-          };
-          
-          xhr.onerror = () => {
-            reject(new Error('Upload failed due to network error'));
-          };
-          
-          xhr.open('PUT', signedUrl);
-          xhr.setRequestHeader('Content-Type', uploadOptions.contentType);
-          xhr.setRequestHeader('Cache-Control', uploadOptions.cacheControl);
-          xhr.send(realFile);
+          console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
+          progressCallback(100); // Signal completion
+          resolve(publicUrlData.publicUrl);
         } catch (error) {
+          console.error("Error in direct upload:", error);
           reject(error);
         }
       });
     } else {
       // Standard upload without progress tracking
-      // Ensure we're passing the file directly, with proper content type
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(filePath, realFile, {
           contentType: realFile.type || getMimeType(fileExt || ''),
           cacheControl: '3600',
-          upsert: false
+          upsert: true // Changed to true to overwrite existing files
         });
       
       if (error) {
