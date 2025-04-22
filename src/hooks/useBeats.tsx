@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -33,6 +34,30 @@ export function useBeats() {
   const [isOffline, setIsOffline] = useState(!isOnline());
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
   const [fetchInProgress, setFetchInProgress] = useState(false);
+
+  // Define handleNoBeatsFound BEFORE it's used in any dependency arrays
+  const handleNoBeatsFound = useCallback(() => {
+    console.log('No beats found in the database, showing empty state');
+    
+    setBeats([]);
+    setTrendingBeats([]);
+    setNewBeats([]);
+    setFeaturedBeat(null);
+    setWeeklyPicks([]);
+    
+    setIsLoading(false);
+    setLoadingError('Could not load beats from server.');
+  }, []);
+
+  const checkNetworkAndRetry = useCallback(async () => {
+    if (!isOnline()) {
+      setIsOffline(true);
+      return false;
+    }
+    
+    setIsOffline(false);
+    return true;
+  }, []);
 
   const fetchUserData = useCallback(async () => {
     if (!user) return;
@@ -181,29 +206,6 @@ export function useBeats() {
     };
   }, [fetchBeatsData, fetchInProgress]);
 
-  const checkNetworkAndRetry = useCallback(async () => {
-    if (!isOnline()) {
-      setIsOffline(true);
-      return false;
-    }
-    
-    setIsOffline(false);
-    return true;
-  }, []);
-  
-  const handleNoBeatsFound = useCallback(() => {
-    console.log('No beats found in the database, showing empty state');
-    
-    setBeats([]);
-    setTrendingBeats([]);
-    setNewBeats([]);
-    setFeaturedBeat(null);
-    setWeeklyPicks([]);
-    
-    setIsLoading(false);
-    setLoadingError('Could not load beats from server.');
-  }, []);
-
   const updateFilters = (newFilters: FilterValues) => {
     setActiveFilters(newFilters);
     if (beats.length > 0) {
@@ -282,7 +284,7 @@ export function useBeats() {
     return beats.filter(beat => purchasedBeats.includes(beat.id));
   };
 
-  const getUserFavoriteBeats = (): Beat[] => {
+  const getUserFavoriteBeatsLocal = (): Beat[] => {
     return beats.filter(beat => userFavorites.includes(beat.id));
   };
 
@@ -298,7 +300,7 @@ export function useBeats() {
     loadingError,
     updateFilters,
     clearFilters,
-    fetchBeats,
+    fetchBeats: fetchBeatsData, // Fixed the missing fetchBeats reference
     toggleFavorite,
     isFavorite,
     isPurchased,
@@ -311,7 +313,7 @@ export function useBeats() {
     getBeatById,
     getProducerBeats: (producerId: string) => getProducerBeats(beats, producerId),
     getUserPurchasedBeats,
-    getUserFavoriteBeats,
+    getUserFavoriteBeats: getUserFavoriteBeatsLocal,
     fetchInProgress
   };
 }
