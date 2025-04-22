@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -14,7 +15,8 @@ import {
 import { 
   fetchAllBeats, fetchTrendingBeats, fetchRandomBeats, fetchNewBeats,
   fetchUserFavorites, fetchPurchasedBeats, fetchPurchasedBeatDetails, 
-  toggleFavoriteAPI, fetchBeatById, getProducerBeats, getUserFavoriteBeats
+  toggleFavoriteAPI, fetchBeatById, getProducerBeats as getProducerBeatsService,
+  getUserFavoriteBeats as getUserFavoriteBeatsService
 } from '@/services/beats';
 
 export function useBeats() {
@@ -351,12 +353,12 @@ export function useBeats() {
   };
 
   const getUserFavoriteBeats = (): Beat[] => {
-    return beats.filter(beat => userFavorites.includes(beat.id));
+    return getUserFavoriteBeatsService(beats, userFavorites);
   };
 
   const getProducerBeats = (producerId: string): Beat[] => {
     // Get all beats for this producer, including drafts
-    return beats.filter(beat => beat.producer_id === producerId);
+    return getProducerBeatsService(beats, producerId);
   };
 
   return {
@@ -384,6 +386,7 @@ export function useBeats() {
     getBeatById,
     getUserPurchasedBeats,
     getUserFavoriteBeats,
+    getProducerBeats,
     fetchInProgress
   };
 }

@@ -18,7 +18,7 @@ import { BankDetailsCard } from "@/components/producer/dashboard/BankDetailsCard
 
 export default function ProducerDashboard() {
   const { user, currency } = useAuth();
-  const { getProducerBeats } = useBeats();
+  const { beats, getProducerBeats } = useBeats();
   const { notifications } = useNotifications();
   const navigate = useNavigate();
   const [showBankDetails, setShowBankDetails] = useState(false);
