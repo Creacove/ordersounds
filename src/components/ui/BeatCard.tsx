@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -6,7 +5,7 @@ import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
-import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download } from 'lucide-react';
+import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   DropdownMenu,
@@ -36,7 +35,11 @@ interface BeatCardProps {
   isInCart?: boolean;
   className?: string;
   compact?: boolean;
-  label?: string; // Added label property for status indicators
+  label?: string;
+  isOwner?: boolean;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onPublish?: (id: string) => void;
 }
 
 export function BeatCard({
@@ -50,6 +53,10 @@ export function BeatCard({
   className,
   compact = false,
   label,
+  isOwner = false,
+  onEdit,
+  onDelete,
+  onPublish,
 }: BeatCardProps) {
   const { user, currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
@@ -244,9 +251,7 @@ export function BeatCard({
           <h3 className="font-medium text-sm leading-tight tracking-tight truncate">
             {beat.title}
           </h3>
-          <p className="text-xs text-muted-foreground truncate mb-1.5">
-            {beat.producer_name}
-          </p>
+          <p className="text-xs text-muted-foreground truncate mb-1.5">{beat.producer_name}</p>
           <PriceTag
             localPrice={licensePrice.local}
             diasporaPrice={licensePrice.diaspora}
