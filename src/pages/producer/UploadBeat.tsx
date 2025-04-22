@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +42,7 @@ export default function UploadBeat() {
     handleCollaboratorChange, handleRemoveCollaborator, handleAddCollaborator,
     handleRemoveTag, handleAddTag,
     handleBeatChange, handleImageUpload, handlePreviewUpload, handleFullTrackUpload,
-    handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl, setUploadedFileUrl,
+    handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl,
     uploadProgress,
     uploadError
   } = useBeatUpload();
@@ -93,6 +94,7 @@ export default function UploadBeat() {
         return;
       }
       
+      // Fix: properly update all required properties in the BeatDetails object
       setBeatDetails({
         title: beatData.title || '',
         description: beatData.description || '',
@@ -100,6 +102,10 @@ export default function UploadBeat() {
         trackType: beatData.track_type || '',
         bpm: beatData.bpm || 0,
         key: beatData.key || '',
+        priceLocal: 10000, // Default values
+        priceDiaspora: 25,
+        status: beatData.status as "draft" | "published" || 'draft',
+        licenseType: beatData.license_type?.split(',')[0] || 'basic',
         licenseTerms: beatData.license_terms || '',
         basicLicensePriceLocal: beatData.basic_license_price_local || 0,
         basicLicensePriceDiaspora: beatData.basic_license_price_diaspora || 0,
@@ -121,11 +127,13 @@ export default function UploadBeat() {
       }
       
       if (beatData.audio_file) {
-        setUploadedFileUrl(beatData.audio_file);
-      }
-      
-      if (beatData.audio_preview) {
-        setPreviewUrl(beatData.audio_preview);
+        // Fix: Use setter from hook properly without direct access to setUploadedFileUrl
+        setPreviewUrl(beatData.audio_preview || null);
+        
+        // Set the uploaded audio file URL to be used for the edit
+        if (setUploadedFile) {
+          setUploadedFile({ url: beatData.audio_file });
+        }
       }
       
       if (beatData.cover_image) {

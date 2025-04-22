@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -539,6 +540,7 @@ export function useBeatUpload() {
     regeneratePreview,
     licenseOptions,
     uploadedFileUrl,
+    setUploadedFileUrl,  // Ensure this is returned for access in the UploadBeat component
     uploadError
   };
 }
