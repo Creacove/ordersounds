@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Music, LayoutGrid, LayoutList, Table as LucideTable } from "lucide-react";
+import { PlusCircle, Music, LayoutGrid, LayoutList, Table as LucideTable, Pencil, Trash, Upload, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +24,35 @@ import { useCart } from "@/context/CartContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type ViewMode = "grid" | "list" | "table";
+
+// --- Action Bar for Each Row/Beat ---
+const BeatActions = ({
+  beatId,
+  isDraft,
+  onEdit,
+  onDelete,
+  onPublish,
+}: {
+  beatId: string;
+  isDraft?: boolean;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onPublish?: (id: string) => void;
+}) => (
+  <div className="flex gap-2 items-center">
+    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={e => { e.stopPropagation(); onEdit(beatId); }}>
+      <Pencil className="h-4 w-4 text-blue-600" />
+    </Button>
+    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete" onClick={e => { e.stopPropagation(); onDelete(beatId); }}>
+      <Trash className="h-4 w-4 text-red-600" />
+    </Button>
+    {isDraft && onPublish && (
+      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Publish" onClick={e => { e.stopPropagation(); onPublish(beatId); }}>
+        <Upload className="h-4 w-4 text-green-600" />
+      </Button>
+    )}
+  </div>
+);
 
 export default function ProducerBeats() {
   const { user } = useAuth();
@@ -53,7 +82,28 @@ export default function ProducerBeats() {
   const draftBeats = producerBeats.filter(beat => beat.status === 'draft');
   const publishedBeats = producerBeats.filter(beat => beat.status === 'published');
 
-  // Helper for no beats state
+  // --- Handler Stubs for Actions ---
+  const handleEdit = (beatId: string) => {
+    navigate(`/producer/upload?edit=${beatId}`);
+  };
+  const handleDelete = (beatId: string) => {
+    // TODO: Implement delete logic; for now just confirm and log
+    if (window.confirm("Are you sure you want to delete this beat?")) {
+      // backend call would go here
+      // await deleteBeat(beatId);
+      console.log("Delete beat", beatId);
+    }
+  };
+  const handlePublish = (beatId: string) => {
+    // TODO: Implement publish logic; for now just confirm and log
+    if (window.confirm("Publish this draft beat?")) {
+      // backend call would go here
+      // await publishBeat(beatId);
+      console.log("Publish beat", beatId);
+    }
+  };
+
+  // --- Compact NoBeats Card
   const NoBeatsCard = ({
     title,
     description,
@@ -63,20 +113,15 @@ export default function ProducerBeats() {
     description: string,
     showUpload?: boolean
   }) => (
-    <Card className="border border-dashed bg-muted/30">
-      <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-        <div className="rounded-full bg-primary/10 p-3 mb-4">
-          <Music className="h-6 w-6 text-primary" />
+    <Card className="border border-dashed bg-muted/40">
+      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="rounded-full bg-primary/10 p-4 mb-3">
+          <Music className="h-7 w-7 text-primary" />
         </div>
         <h2 className="heading-responsive-sm mb-2">{title}</h2>
-        <p className="text-sm text-muted-foreground max-w-md mb-5">
-          {description}
-        </p>
+        <p className="text-sm text-muted-foreground max-w-md mb-5">{description}</p>
         {showUpload && (
-          <Button 
-            onClick={() => navigate('/producer/upload')}
-            className="gap-1.5"
-          >
+          <Button onClick={() => navigate('/producer/upload')} className="gap-1.5 rounded px-4" size="sm">
             <PlusCircle className="h-4 w-4" />
             Upload Beat
           </Button>
@@ -87,60 +132,39 @@ export default function ProducerBeats() {
 
   return (
     <MainLayout activeTab="beats">
-      <div
-        className={cn(
-          "container py-6 md:py-8 max-w-full px-2 md:px-4 lg:px-8",
-          isMobile ? "pb-20" : ""
-        )}
-      >
-        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
-          <div className="flex items-center gap-3">
+      <div className={cn("container py-4 md:py-6 max-w-full px-1 md:px-3 lg:px-8", isMobile ? "pb-16" : "")}>
+        {/* Title and Upload Button Compact Row */}
+        <div className="flex flex-wrap md:flex-nowrap items-center justify-between mb-4 gap-y-2 gap-x-3">
+          <div className="flex items-center space-x-3">
             <h1 className="heading-responsive-lg">My Beats</h1>
-            <span className="text-muted-foreground text-sm">
-              {producerBeats.length} {producerBeats.length === 1 ? "beat" : "beats"}
-            </span>
+            <span className="text-muted-foreground text-xs md:text-sm">{producerBeats.length} {producerBeats.length === 1 ? "beat" : "beats"}</span>
           </div>
-          <Button
-            onClick={() => navigate("/producer/upload")}
-            size="sm"
-            className="gap-1.5 flex-shrink-0"
-          >
+          <Button onClick={() => navigate("/producer/upload")} size="sm" className="gap-1.5 flex-shrink-0">
             <PlusCircle className="h-4 w-4" />
             Upload
           </Button>
         </div>
-
-        <div className="mb-3 flex flex-col items-stretch md:flex-row md:items-end md:justify-between gap-2">
+        {/* Tabs and view mode selector side by side on desktop, stacked on mobile */}
+        <div className="flex flex-col md:flex-row md:items-end md:gap-6 gap-2 mb-2">
           <Tabs
             value={tabValue}
-            onValueChange={v => setTabValue(v as "published" | "drafts")}
+            onValueChange={(v) => setTabValue(v as "published" | "drafts")}
             className="w-full"
           >
-            <TabsList className="flex w-full max-w-xs md:max-w-sm mx-auto md:mx-0 mb-2 md:mb-0">
-              <TabsTrigger
-                value="published"
-                className={cn(
-                  "flex-1",
-                  tabValue === "published" ? "shadow" : ""
-                )}
-              >
-                Published ({publishedBeats.length})
+            <TabsList className="max-w-xs w-full flex items-center mx-auto md:mx-0 mb-0">
+              <TabsTrigger value="published" className={cn("flex-1 text-base py-2", tabValue === "published" ? "shadow" : "")}>
+                Published <span className="ml-1 text-xs text-muted-foreground font-normal">({publishedBeats.length})</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="drafts"
-                className={cn(
-                  "flex-1",
-                  tabValue === "drafts" ? "shadow" : ""
-                )}
-              >
-                Drafts ({draftBeats.length})
+              <TabsTrigger value="drafts" className={cn("flex-1 text-base py-2", tabValue === "drafts" ? "shadow" : "")}>
+                Drafts <span className="ml-1 text-xs text-muted-foreground font-normal">({draftBeats.length})</span>
               </TabsTrigger>
             </TabsList>
-            <div className="hidden md:flex gap-2 ml-2">
+            {/* View mode selector */}
+            <div className="hidden md:flex gap-2 ml-3">
               <Button
                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                 size="sm"
-                className="text-xs py-1 px-2.5 h-auto"
+                className="text-xs p-2 h-auto"
                 onClick={() => setViewMode("grid")}
                 aria-label="Grid view"
               >
@@ -150,7 +174,7 @@ export default function ProducerBeats() {
               <Button
                 variant={viewMode === "list" ? "secondary" : "ghost"}
                 size="sm"
-                className="text-xs py-1 px-2.5 h-auto"
+                className="text-xs p-2 h-auto"
                 onClick={() => setViewMode("list")}
                 aria-label="List view"
               >
@@ -161,7 +185,7 @@ export default function ProducerBeats() {
                 <Button
                   variant={viewMode === "table" ? "secondary" : "ghost"}
                   size="sm"
-                  className="text-xs py-1 px-2.5 h-auto"
+                  className="text-xs p-2 h-auto"
                   onClick={() => setViewMode("table")}
                   aria-label="Table view"
                 >
@@ -170,12 +194,10 @@ export default function ProducerBeats() {
                 </Button>
               )}
             </div>
-            <TabsContent
-              value="published"
-              className="mt-4 min-h-[200px] animate-fade-in"
-            >
+            {/* Tab Contents */}
+            <TabsContent value="published" className="mt-4 min-h-[220px] animate-fade-in">
               {isLoading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="flex flex-col gap-2">
                       <Skeleton className="aspect-square w-full rounded-lg" />
@@ -187,29 +209,45 @@ export default function ProducerBeats() {
               ) : publishedBeats.length > 0 ? (
                 <>
                   {viewMode === "grid" && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
                       {publishedBeats.map((beat) => (
-                        <BeatCard
-                          key={beat.id}
-                          beat={beat}
-                          isFavorite={isFavorite(beat.id)}
-                          isInCart={isInCart(beat.id)}
-                          isPurchased={isPurchased(beat.id)}
-                          className="h-full shadow-sm hover:shadow"
-                        />
+                        <div key={beat.id} className="relative group h-full">
+                          <BeatCard
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                            className="h-full shadow-sm hover:shadow-sm"
+                          />
+                          <div className="absolute top-1 right-1 z-10 rounded bg-white/70 shadow flex gap-1">
+                            <BeatActions
+                              beatId={beat.id}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                            />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
                   {viewMode === "list" && (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {publishedBeats.map((beat) => (
-                        <BeatListItem
-                          key={beat.id}
-                          beat={beat}
-                          isFavorite={isFavorite(beat.id)}
-                          isInCart={isInCart(beat.id)}
-                          isPurchased={isPurchased(beat.id)}
-                        />
+                        <div key={beat.id} className="relative group">
+                          <BeatListItem
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                          />
+                          <div className="absolute right-3 top-1 z-10 flex gap-1">
+                            <BeatActions
+                              beatId={beat.id}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                            />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -230,13 +268,14 @@ export default function ProducerBeats() {
                             <TableHead className="text-right">Favorites</TableHead>
                             <TableHead className="text-right">Sales</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {publishedBeats.map((beat) => (
                             <TableRow
                               key={beat.id}
-                              className="cursor-pointer hover:bg-muted/50"
+                              className="cursor-pointer hover:bg-muted/40"
                               onClick={() => navigate(`/beat/${beat.id}`)}
                             >
                               <TableCell className="p-2">
@@ -263,6 +302,13 @@ export default function ProducerBeats() {
                                   PUBLISHED
                                 </span>
                               </TableCell>
+                              <TableCell className="text-right align-middle">
+                                <BeatActions
+                                  beatId={beat.id}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                />
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -277,12 +323,9 @@ export default function ProducerBeats() {
                 />
               )}
             </TabsContent>
-            <TabsContent
-              value="drafts"
-              className="mt-4 min-h-[200px] animate-fade-in"
-            >
+            <TabsContent value="drafts" className="mt-4 min-h-[220px] animate-fade-in">
               {isLoading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="flex flex-col gap-2">
                       <Skeleton className="aspect-square w-full rounded-lg" />
@@ -294,31 +337,51 @@ export default function ProducerBeats() {
               ) : draftBeats.length > 0 ? (
                 <>
                   {viewMode === "grid" && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
                       {draftBeats.map((beat) => (
-                        <BeatCard
-                          key={beat.id}
-                          beat={beat}
-                          isFavorite={isFavorite(beat.id)}
-                          isInCart={isInCart(beat.id)}
-                          isPurchased={isPurchased(beat.id)}
-                          className="h-full shadow-sm hover:shadow ring-2 ring-yellow-300"
-                          label="DRAFT"
-                        />
+                        <div key={beat.id} className="relative group h-full">
+                          <BeatCard
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                            className="h-full shadow-sm hover:shadow-sm ring-2 ring-yellow-300"
+                            label="DRAFT"
+                          />
+                          <div className="absolute top-1 right-1 z-10 rounded bg-white/70 shadow flex gap-1">
+                            <BeatActions
+                              beatId={beat.id}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              isDraft={true}
+                              onPublish={handlePublish}
+                            />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
                   {viewMode === "list" && (
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       {draftBeats.map((beat) => (
-                        <BeatListItem
-                          key={beat.id}
-                          beat={beat}
-                          isFavorite={isFavorite(beat.id)}
-                          isInCart={isInCart(beat.id)}
-                          isPurchased={isPurchased(beat.id)}
-                          statusLabel="DRAFT"
-                        />
+                        <div key={beat.id} className="relative group">
+                          <BeatListItem
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                            statusLabel="DRAFT"
+                          />
+                          <div className="absolute right-3 top-1 z-10 flex gap-1">
+                            <BeatActions
+                              beatId={beat.id}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                              isDraft={true}
+                              onPublish={handlePublish}
+                            />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -339,6 +402,7 @@ export default function ProducerBeats() {
                             <TableHead className="text-right">Favorites</TableHead>
                             <TableHead className="text-right">Sales</TableHead>
                             <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -372,6 +436,15 @@ export default function ProducerBeats() {
                                   DRAFT
                                 </span>
                               </TableCell>
+                              <TableCell className="text-right align-middle">
+                                <BeatActions
+                                  beatId={beat.id}
+                                  onEdit={handleEdit}
+                                  onDelete={handleDelete}
+                                  isDraft={true}
+                                  onPublish={handlePublish}
+                                />
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -389,11 +462,11 @@ export default function ProducerBeats() {
             </TabsContent>
           </Tabs>
           {/* View mode buttons for mobile */}
-          <div className="flex md:hidden gap-2 mb-2">
+          <div className="flex md:hidden gap-2 mt-2">
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
               size="sm"
-              className="text-xs py-1 px-2.5 h-auto"
+              className="text-xs p-2 h-auto"
               onClick={() => setViewMode("grid")}
               aria-label="Grid view"
             >
@@ -403,18 +476,17 @@ export default function ProducerBeats() {
             <Button
               variant={viewMode === "list" ? "secondary" : "ghost"}
               size="sm"
-              className="text-xs py-1 px-2.5 h-auto"
+              className="text-xs p-2 h-auto"
               onClick={() => setViewMode("list")}
               aria-label="List view"
             >
               <LayoutList className="h-4 w-4 mr-1.5" />
               List
             </Button>
-            {/* Table option hidden on mobile */}
+            {/* Table view hidden on mobile */}
           </div>
         </div>
       </div>
     </MainLayout>
   );
 }
-
