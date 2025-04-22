@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -144,7 +145,7 @@ export function useBeats() {
     }
     
     // Check if we have cached data and it's not expired
-    const cachedBeats = loadFromCache(CACHE_KEYS.ALL_BEATS);
+    const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
     const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
     
     if (cachedBeats && !shouldRefresh) {
