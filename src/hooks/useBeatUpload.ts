@@ -150,12 +150,6 @@ export const useBeatUpload = () => {
       try {
         toast.info("Uploading full track...");
 
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) {
-          toast.error("You must be logged in to upload files");
-          return;
-        }
-
         const url = await uploadFile(file, 'beats', 'full-tracks', (progress) => {
           console.log(`Upload progress for ${file.name}: ${progress}%`);
           setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
@@ -164,7 +158,6 @@ export const useBeatUpload = () => {
         setUploadedFileUrl(url);
         toast.success("Full track uploaded");
 
-        // Automatically generate preview once upload completes
         toast.info("Processing audio and generating preview...");
         await generatePreview(url);
       } catch (error) {
@@ -180,13 +173,6 @@ export const useBeatUpload = () => {
       setProcessingFiles(true);
       setPreviewUrl(null);
       setPreviewFile(null);
-      
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast.error("Authentication required to process audio");
-        setProcessingFiles(false);
-        return;
-      }
       
       const { data, error } = await supabase.functions.invoke('process-audio', {
         body: { 
@@ -247,12 +233,6 @@ export const useBeatUpload = () => {
   const uploadPreviewFile = async (file: File) => {
     try {
       toast.info("Uploading preview...");
-      
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast.error("You must be logged in to upload files");
-        return;
-      }
       
       const url = await uploadFile(file, 'beats', 'previews', (progress) => {
         console.log(`Preview upload progress: ${progress}%`);
