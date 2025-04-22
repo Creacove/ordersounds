@@ -27,6 +27,13 @@ export const uploadFile = async (
   progressCallback?: (progress: number) => void
 ): Promise<string> => {
   try {
+    // Check authentication first
+    const { data: session, error: authError } = await supabase.auth.getSession();
+    if (authError || !session.session) {
+      console.error('Authentication required for file upload:', authError);
+      throw new Error('You must be logged in to upload files');
+    }
+
     // If this is an image upload (covers or avatars), use the dedicated image upload function
     if (bucket === 'covers' || bucket === 'avatars') {
       return uploadImage(file, bucket, path, progressCallback);
@@ -52,14 +59,14 @@ export const uploadFile = async (
       // Create a new XMLHttpRequest to manually track upload progress
       return new Promise<string>(async (resolve, reject) => {
         try {
-          // Since we're experiencing RLS policy issues, let's try a direct upload
-          // This is likely because the user isn't authenticated or doesn't have proper permissions
+          progressCallback(10); // Start with some initial progress
+          
           const { data, error } = await supabase.storage
             .from(bucket)
             .upload(filePath, realFile, {
               contentType: realFile.type || getMimeType(fileExt || ''),
               cacheControl: '3600',
-              upsert: true // Changed to true to overwrite existing files if needed
+              upsert: true
             });
           
           if (error) {
@@ -76,7 +83,7 @@ export const uploadFile = async (
           progressCallback(100); // Signal completion
           resolve(publicUrlData.publicUrl);
         } catch (error) {
-          console.error("Error in direct upload:", error);
+          console.error("Error in upload:", error);
           reject(error);
         }
       });
@@ -87,7 +94,7 @@ export const uploadFile = async (
         .upload(filePath, realFile, {
           contentType: realFile.type || getMimeType(fileExt || ''),
           cacheControl: '3600',
-          upsert: true // Changed to true to overwrite existing files
+          upsert: true
         });
       
       if (error) {

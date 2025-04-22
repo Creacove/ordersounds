@@ -1,4 +1,5 @@
 
+
 // @ts-nocheck
 // Audio processing edge function for OrderSOUNDS
 // Simply extracts first 30% of audio file for preview
@@ -21,8 +22,9 @@ if (!supabaseUrl || !supabaseServiceRole || !supabaseAnonKey) {
   console.error("Missing required environment variables");
 }
 
-// Use service role key for admin access to storage
-const supabase = createClient(supabaseUrl, supabaseServiceRole);
+// Create client with service role key for admin access to storage
+const adminClient = createClient(supabaseUrl, supabaseServiceRole);
+const publicClient = createClient(supabaseUrl, supabaseAnonKey);
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -31,6 +33,34 @@ serve(async (req) => {
   }
 
   try {
+    // Get the auth token from the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error("No authorization header found");
+      return new Response(
+        JSON.stringify({ error: "No authorization header", status: "error" }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Verify the token
+    const token = authHeader.replace("Bearer ", "");
+    const { data: { user }, error: authError } = await publicClient.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.error("Authentication failed:", authError);
+      return new Response(
+        JSON.stringify({ error: "Authentication failed", status: "error", details: authError }),
+        {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     // Parse the request body
     const { fullTrackUrl } = await req.json();
 
@@ -97,7 +127,7 @@ serve(async (req) => {
     
     // Upload the preview portion to storage - using service role to bypass RLS
     console.log(`Uploading preview file: previews/${outputFileName}`);
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    const { data: uploadData, error: uploadError } = await adminClient.storage
       .from('beats')
       .upload(`previews/${outputFileName}`, previewArray, {
         contentType: contentType,
@@ -120,7 +150,7 @@ serve(async (req) => {
     }
 
     // Get the public URL of the uploaded preview
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = adminClient.storage
       .from('beats')
       .getPublicUrl(`previews/${outputFileName}`);
         
@@ -167,3 +197,4 @@ function getMimeType(ext) {
   };
   return map[ext.toLowerCase()] || 'application/octet-stream';
 }
+
