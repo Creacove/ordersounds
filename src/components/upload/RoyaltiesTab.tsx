@@ -1,7 +1,4 @@
-
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Info, Plus, X } from "lucide-react";
 import { Collaborator } from "@/hooks/useBeatUpload";
 
@@ -136,35 +133,25 @@ export const RoyaltiesTab = ({
         </div>
       </div>
       
-      <div className="flex flex-col gap-2 w-full sm:flex-row sm:justify-end mt-8">
-        {beatStatus === "draft" ? (
-          <>
-            <Button
-              variant="secondary"
-              type="button"
-              className="w-full sm:w-auto"
-              disabled={isSubmitting}
-              onClick={onUpdate}
-            >
-              Update as Draft
-            </Button>
-            <Button
-              type="button"
-              className="w-full sm:w-auto bg-primary text-white"
-              disabled={isSubmitting}
-              onClick={onPublish}
-            >
-              Publish
-            </Button>
-          </>
-        ) : (
+      <div className="flex flex-col sm:flex-row justify-between items-center mt-8">
+        <Button 
+          variant="outline" 
+          type="button"
+          className="w-full sm:w-auto mb-2 sm:mb-0"
+          disabled={isSubmitting}
+          onClick={onUpdate}
+        >
+          {beatStatus === "draft" ? "Update as Draft" : "Update Beat"}
+        </Button>
+        
+        {beatStatus === "draft" && (
           <Button
             type="button"
             className="w-full sm:w-auto bg-primary text-white"
             disabled={isSubmitting}
-            onClick={onUpdate}
+            onClick={onPublish}
           >
-            Update Beat
+            Publish
           </Button>
         )}
       </div>
