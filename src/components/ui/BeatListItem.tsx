@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart, Download, Pencil, Trash, Upload } from 'lucide-react';
+import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from 'sonner';
@@ -29,10 +29,6 @@ interface BeatListItemProps {
   onToggleFavorite?: (id: string) => void;
   onPlay?: () => void;
   statusLabel?: string;
-  isOwner?: boolean;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onPublish?: (id: string) => void;
 }
 
 export function BeatListItem({
@@ -43,11 +39,7 @@ export function BeatListItem({
   onRemove,
   onToggleFavorite,
   onPlay,
-  statusLabel,
-  isOwner = false,
-  onEdit,
-  onDelete,
-  onPublish
+  statusLabel
 }: BeatListItemProps) {
   const { currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
