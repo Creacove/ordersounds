@@ -88,6 +88,7 @@ export type Database = {
           favorites_count: number | null
           genre: string | null
           id: string
+          is_featured: boolean | null
           is_trending: boolean | null
           is_weekly_pick: boolean | null
           key: string | null
@@ -120,6 +121,7 @@ export type Database = {
           favorites_count?: number | null
           genre?: string | null
           id?: string
+          is_featured?: boolean | null
           is_trending?: boolean | null
           is_weekly_pick?: boolean | null
           key?: string | null
@@ -152,6 +154,7 @@ export type Database = {
           favorites_count?: number | null
           genre?: string | null
           id?: string
+          is_featured?: boolean | null
           is_trending?: boolean | null
           is_weekly_pick?: boolean | null
           key?: string | null
