@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -352,7 +351,7 @@ export default function ProducerBeats() {
                                     onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
                                     style={{ color: "#fff", background: "#ea384c" }}
                                   >
-                                    <Trash className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -503,7 +502,7 @@ export default function ProducerBeats() {
                                     onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
                                     style={{ color: "#fff", background: "#ea384c" }}
                                   >
-                                    <Trash className="h-3.5 w-3.5" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </TableCell>
