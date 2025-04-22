@@ -99,6 +99,7 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
 
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   try {
+    // Clone the query each time to prevent body stream already read errors
     const { data, error } = await supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
@@ -148,7 +149,7 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
   }
 };
 
-// New function to fetch featured beats
+// Function to fetch featured beats
 export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
   try {
     const { data, error } = await supabase
@@ -166,4 +167,5 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
     return [];
   }
 };
+
 

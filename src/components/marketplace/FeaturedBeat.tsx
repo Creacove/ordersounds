@@ -5,13 +5,21 @@ import { Button } from "@/components/ui/button";
 import { fetchFeaturedBeats } from "@/services/beats/queryService";
 
 export const FeaturedBeat = () => {
-  const { data: featuredBeat } = useQuery({
+  const { data: featuredBeat, isLoading } = useQuery({
     queryKey: ['featured-beat'],
     queryFn: async () => {
       const beats = await fetchFeaturedBeats(1);
       return beats[0];
     }
   });
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-[300px] rounded-lg bg-muted/40 animate-pulse mb-8 flex items-center justify-center">
+        <div className="text-muted-foreground">Loading featured beat...</div>
+      </div>
+    );
+  }
 
   if (!featuredBeat) return null;
 
