@@ -19,12 +19,14 @@ import { ScrollToTop } from "@/components/utils/ScrollToTop";
 import { uploadImage } from "@/lib/imageStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { isBeatPublished } from "@/services/beats";
+import { useUploadBeatTabs } from "@/hooks/useUploadBeatTabs";
+import { validateCurrentTab } from "@/utils/uploadBeatValidation";
 
 export default function UploadBeat() {
   const tabOrder = ["details", "licensing", "files", "pricing", "royalties"];
 
   const { 
-    activeTab, setActiveTab,
+    activeTab: activeTabFromHook, setActiveTab: setActiveTabFromHook,
     beatDetails, setBeatDetails,
     uploadedFile, setUploadedFile,
     previewFile, setPreviewFile,
@@ -166,104 +168,27 @@ export default function UploadBeat() {
     }
   };
 
-  const nextTab = () => {
-    const currentIndex = tabOrder.indexOf(activeTab);
-    if (currentIndex < tabOrder.length - 1) {
-      if (validateCurrentTab()) {
-        setActiveTab(tabOrder[currentIndex + 1]);
-      }
-    }
-  };
-
-  const prevTab = () => {
-    const currentIndex = tabOrder.indexOf(activeTab);
-    if (currentIndex > 0) {
-      setActiveTab(tabOrder[currentIndex - 1]);
-    }
-  };
-
-  const validateCurrentTab = () => {
-    const newErrors: { [key: string]: string } = {};
-    
-    if (activeTab === "details") {
-      if (!beatDetails.title) {
-        newErrors.title = "Beat title is required";
-      }
-      if (!beatDetails.genre) {
-        newErrors.genre = "Genre is required";
-      }
-      if (!beatDetails.trackType) {
-        newErrors.trackType = "Track type is required";
-      }
-    } else if (activeTab === "licensing") {
-      if (selectedLicenseTypes.length === 0) {
-        newErrors.licenseType = "At least one license type is required";
-      }
-      if (selectedLicenseTypes.includes('custom') && !beatDetails.licenseTerms) {
-        newErrors.licenseTerms = "Custom license terms are required";
-      }
-    } else if (activeTab === "files") {
-      if (!imageFile) {
-        newErrors.coverImage = "Cover image is required";
-      }
-      if (!uploadedFile && !uploadedFileUrl) {
-        newErrors.fullTrack = "Full track is required";
-      }
-      
-      const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
-                              selectedLicenseTypes.includes('exclusive');
-      
-      if (requiresWavFormat && uploadedFile && isFile(uploadedFile)) {
-        const fileType = uploadedFile.type;
-        const fileName = uploadedFile.name;
-        
-        if (fileType !== "audio/wav" && !fileName.endsWith('.wav')) {
-          newErrors.fullTrack = "Premium and exclusive licenses require WAV format";
-        }
-      }
-    } else if (activeTab === "pricing") {
-      selectedLicenseTypes.forEach(license => {
-        if (license === 'basic' && (!beatDetails.basicLicensePriceLocal || !beatDetails.basicLicensePriceDiaspora)) {
-          newErrors.basicPrice = "Basic license prices are required";
-        }
-        if (license === 'premium' && (!beatDetails.premiumLicensePriceLocal || !beatDetails.premiumLicensePriceDiaspora)) {
-          newErrors.premiumPrice = "Premium license prices are required";
-        }
-        if (license === 'exclusive' && (!beatDetails.exclusiveLicensePriceLocal || !beatDetails.exclusiveLicensePriceDiaspora)) {
-          newErrors.exclusivePrice = "Exclusive license prices are required";
-        }
-        if (license === 'custom' && (!beatDetails.customLicensePriceLocal || !beatDetails.customLicensePriceDiaspora)) {
-          newErrors.customPrice = "Custom license prices are required";
-        }
-      });
-    } else if (activeTab === "royalties") {
-      const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
-      if (totalPercentage !== 100) {
-        newErrors.royalties = "Collaborator percentages must sum to 100%";
-      }
-      
-      collaborators.forEach((c, index) => {
-        if (!c.name) {
-          newErrors[`collaborator_${index}_name`] = "Name is required";
-        }
-        if (!c.role) {
-          newErrors[`collaborator_${index}_role`] = "Role is required";
-        }
-      });
-    }
-    
-    if (Object.keys(newErrors).length > 0) {
-      setValidationErrors(newErrors);
-      
-      const firstError = Object.values(newErrors)[0];
-      toast.error(firstError);
-      
-      return false;
-    }
-    
-    setValidationErrors({});
-    return true;
-  };
+  const {
+    activeTab,
+    setActiveTab,
+    nextTab,
+    prevTab
+  } = useUploadBeatTabs(tabOrder, () =>
+    validateCurrentTab({
+      activeTab: activeTabFromHook,
+      beatDetails,
+      selectedLicenseTypes,
+      imageFile,
+      uploadedFile,
+      uploadedFileUrl,
+      previewFile,
+      previewUrl,
+      stems,
+      collaborators,
+      setValidationErrors,
+      toast
+    })
+  );
 
   const handlePublish = async () => {
     if (!validateForm()) return;
