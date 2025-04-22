@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +18,7 @@ import { useBeatUpload } from "@/hooks/useBeatUpload";
 import { ScrollToTop } from "@/components/utils/ScrollToTop";
 import { uploadImage } from "@/lib/imageStorage";
 import { supabase } from "@/integrations/supabase/client";
+import { isBeatPublished } from "@/services/beats";
 
 export default function UploadBeat() {
   const tabOrder = ["details", "licensing", "files", "pricing", "royalties"];
@@ -94,7 +94,6 @@ export default function UploadBeat() {
         return;
       }
       
-      // Fix: properly update all required properties in the BeatDetails object
       setBeatDetails({
         title: beatData.title || '',
         description: beatData.description || '',
@@ -127,10 +126,8 @@ export default function UploadBeat() {
       }
       
       if (beatData.audio_file) {
-        // Fix: Use setter from hook properly without direct access to setUploadedFileUrl
         setPreviewUrl(beatData.audio_preview || null);
         
-        // Set the uploaded audio file URL to be used for the edit
         if (setUploadedFile) {
           setUploadedFile({ url: beatData.audio_file });
         }
@@ -679,6 +676,10 @@ export default function UploadBeat() {
                     handleRemoveCollaborator={handleRemoveCollaborator}
                     handleCollaboratorChange={handleCollaboratorChange}
                     handleAddCollaborator={handleAddCollaborator}
+                    beatStatus={beatDetails.status}
+                    onUpdate={beatDetails.status === "draft" ? handleSaveDraft : handlePublish}
+                    onPublish={handlePublish}
+                    isSubmitting={isSubmitting}
                   />
                 </TabsContent>
               </CardContent>
@@ -696,30 +697,7 @@ export default function UploadBeat() {
                     <Button onClick={nextTab}>
                       Next
                     </Button>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button variant="outline" onClick={handleSaveDraft} disabled={isSubmitting}>
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Saving...
-                          </>
-                        ) : (
-                          'Save as Draft'
-                        )}
-                      </Button>
-                      <Button onClick={handlePublish} disabled={isSubmitting}>
-                        {isSubmitting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            {isEditMode ? 'Updating...' : 'Publishing...'}
-                          </>
-                        ) : (
-                          isEditMode ? 'Update Beat' : 'Publish Beat'
-                        )}
-                      </Button>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </CardFooter>
             </Tabs>
