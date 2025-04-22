@@ -30,7 +30,7 @@ const formatLaunchDate = (dateString: string) => {
 
 export default function ProducerActivation() {
   const { user } = useAuth();
-  const launchDate = '2025-04-21T00:00:00';
+  const launchDate = '2025-04-25T00:00:00';  // Updated launch date
   const formattedLaunchDate = formatLaunchDate(launchDate);
   
   const [timeLeft, setTimeLeft] = useState(getTimeRemaining(launchDate));
