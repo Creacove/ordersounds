@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,14 +9,24 @@ type RoyaltiesTabProps = {
   handleRemoveCollaborator: (id: number) => void;
   handleCollaboratorChange: (id: number, field: string, value: string | number) => void;
   handleAddCollaborator: () => void;
+  beatStatus?: "draft" | "published";
+  onUpdate?: () => void;
+  onPublish?: () => void;
+  isSubmitting?: boolean;
 };
 
 export const RoyaltiesTab = ({
   collaborators,
   handleRemoveCollaborator,
   handleCollaboratorChange,
-  handleAddCollaborator
+  handleAddCollaborator,
+  beatStatus = "draft",
+  onUpdate,
+  onPublish,
+  isSubmitting = false,
 }: RoyaltiesTabProps) => {
+  const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
+
   return (
     <div className="space-y-4">
       <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
@@ -116,14 +125,47 @@ export const RoyaltiesTab = ({
           <span className="text-sm font-medium">Total Percentage:</span>
           <span 
             className={`font-bold text-base ${
-              collaborators.reduce((sum, c) => sum + c.percentage, 0) === 100 
+              totalPercentage === 100 
                 ? 'text-green-600' 
                 : 'text-red-600'
             }`}
           >
-            {collaborators.reduce((sum, c) => sum + c.percentage, 0)}%
+            {totalPercentage}%
           </span>
         </div>
+      </div>
+      
+      <div className="flex flex-col gap-2 w-full sm:flex-row sm:justify-end mt-8">
+        {beatStatus === "draft" ? (
+          <>
+            <Button
+              variant="secondary"
+              type="button"
+              className="w-full sm:w-auto"
+              disabled={isSubmitting}
+              onClick={onUpdate}
+            >
+              Update as Draft
+            </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-auto bg-primary text-white"
+              disabled={isSubmitting}
+              onClick={onPublish}
+            >
+              Publish
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            className="w-full sm:w-auto bg-primary text-white"
+            disabled={isSubmitting}
+            onClick={onUpdate}
+          >
+            Update
+          </Button>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -24,6 +23,7 @@ import { useCart } from "@/context/CartContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 
 type ViewMode = "grid" | "list" | "table";
 
@@ -40,39 +40,92 @@ const BeatActions = ({
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onPublish?: (id: string) => void;
-}) => (
-  <div className="flex gap-2 items-center">
-    <Button 
-      size="icon" 
-      variant="outline" 
-      className="h-7 w-7 bg-blue-50 hover:bg-blue-100 border-blue-200" 
-      aria-label="Edit" 
-      onClick={e => { e.stopPropagation(); onEdit(beatId); }}
-    >
-      <Pencil className="h-3.5 w-3.5 text-blue-600" />
-    </Button>
-    <Button 
-      size="icon" 
-      variant="outline" 
-      className="h-7 w-7 bg-red-50 hover:bg-red-100 border-red-200" 
-      aria-label="Delete" 
-      onClick={e => { e.stopPropagation(); onDelete(beatId); }}
-    >
-      <Trash className="h-3.5 w-3.5 text-red-600" />
-    </Button>
-    {isDraft && onPublish && (
-      <Button 
-        size="icon" 
-        variant="outline" 
-        className="h-7 w-7 bg-green-50 hover:bg-green-100 border-green-200" 
-        aria-label="Publish" 
-        onClick={e => { e.stopPropagation(); onPublish(beatId); }}
+}) => {
+  // Show modals on button clicks
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  return (
+    <div className="flex gap-2 items-center">
+      {/* Edit */}
+      <Button
+        size="icon"
+        variant="outline"
+        className="h-7 w-7 border-0 hover:bg-purple-100"
+        aria-label="Edit"
+        onClick={e => { e.stopPropagation(); onEdit(beatId); }}
+        style={{ color: "#9b87f5", background: "white" }}
       >
-        <Upload className="h-3.5 w-3.5 text-green-600" />
+        <Pencil className="h-3.5 w-3.5" />
       </Button>
-    )}
-  </div>
-);
+      {/* Delete (with modal) */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogTrigger asChild>
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-7 w-7 border-0 hover:bg-red-100"
+            aria-label="Delete"
+            onClick={e => { e.stopPropagation(); setDeleteOpen(true); }}
+            style={{ color: "#ea384c", background: "white" }}
+          >
+            <Trash className="h-3.5 w-3.5" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this beat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this beat? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => { onDelete(beatId); setDeleteOpen(false); }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {/* Publish (with modal, only if draft) */}
+      {isDraft && onPublish && (
+        <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
+          <AlertDialogTrigger asChild>
+            <Button
+              size="icon"
+              variant="outline"
+              className="h-7 w-7 border-0 hover:bg-green-100"
+              aria-label="Publish"
+              onClick={e => { e.stopPropagation(); setPublishOpen(true); }}
+              style={{ color: "#8B5CF6", background: "white" }}
+            >
+              <Upload className="h-3.5 w-3.5" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Publish this beat?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to publish this beat? It will be visible to all users.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-primary text-white hover:bg-primary/90"
+                onClick={() => { onPublish(beatId); setPublishOpen(false); }}
+              >
+                Publish
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+    </div>
+  );
+};
 
 export default function ProducerBeats() {
   const { user } = useAuth();
