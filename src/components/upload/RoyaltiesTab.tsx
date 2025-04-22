@@ -1,4 +1,6 @@
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Info, Plus, X } from "lucide-react";
 import { Collaborator } from "@/hooks/useBeatUpload";
 
@@ -133,11 +135,11 @@ export const RoyaltiesTab = ({
         </div>
       </div>
       
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-8">
+      <div className="flex items-center justify-between mt-8 space-x-4">
         <Button 
           variant="outline" 
           type="button"
-          className="w-full sm:w-auto mb-2 sm:mb-0"
+          className="w-auto"
           disabled={isSubmitting}
           onClick={onUpdate}
         >
@@ -147,7 +149,7 @@ export const RoyaltiesTab = ({
         {beatStatus === "draft" && (
           <Button
             type="button"
-            className="w-full sm:w-auto bg-primary text-white"
+            className="w-auto bg-primary text-white"
             disabled={isSubmitting}
             onClick={onPublish}
           >
