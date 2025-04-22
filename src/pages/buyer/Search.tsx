@@ -79,13 +79,18 @@ export default function SearchPage() {
     }
 
     const term = searchTerm.toLowerCase().trim();
-    
+
     const filteredResults = beats.filter(beat => {
       const matchTitle = term ? beat.title.toLowerCase().includes(term) : true;
       const matchProducer = term ? beat.producer_name.toLowerCase().includes(term) : true;
+      // --- New: match TAGS as well
+      const matchTags =
+        term && beat.tags && Array.isArray(beat.tags)
+          ? beat.tags.some(tag => (tag || "").toLowerCase().includes(term))
+          : false;
       const matchGenre = selectedGenre ? beat.genre === selectedGenre : true;
-      const textSearch = term ? (matchTitle || matchProducer) : true;
-      
+      const textSearch = term ? (matchTitle || matchProducer || matchTags) : true;
+
       if (activeTab === "beats") return textSearch && matchGenre;
       if (activeTab === "producers") return matchProducer;
       return textSearch && matchGenre;
