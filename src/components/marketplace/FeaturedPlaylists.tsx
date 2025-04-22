@@ -1,0 +1,42 @@
+
+import { Link } from "react-router-dom";
+import { PlaylistCard } from "@/components/library/PlaylistCard";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { Sparkles, ChevronRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+export const FeaturedPlaylists = () => {
+  const { data: playlists } = useQuery({
+    queryKey: ['featured-playlists'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('playlists')
+        .select('*')
+        .eq('is_public', true)
+        .limit(4);
+      return data || [];
+    }
+  });
+
+  return (
+    <section className="w-full">
+      <div className="flex items-center justify-between mb-6">
+        <SectionTitle 
+          title="Featured Playlists" 
+          icon={<Sparkles className="w-5 h-5 text-purple-500" />}
+          badge="Curated"
+        />
+        <Link to="/playlists" className="flex items-center text-sm text-muted-foreground hover:text-primary">
+          View all <ChevronRight className="w-4 h-4 ml-1" />
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {playlists?.map((playlist) => (
+          <PlaylistCard key={playlist.id} playlist={playlist} />
+        ))}
+      </div>
+    </section>
+  );
+};
