@@ -1,99 +1,43 @@
 
-import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Flame } from "lucide-react";
-import { BeatCard } from "@/components/ui/BeatCard";
-import { useBeats } from "@/hooks/useBeats";
-import { fetchTrendingBeats } from "@/services/beats";
-import { Beat } from "@/types";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TrendingUp, ChevronRight } from "lucide-react";
+import { SectionTitle } from "@/components/ui/SectionTitle";
+import { useQuery } from "@tanstack/react-query";
+import { BeatCardCompact } from "./BeatCardCompact";
+import { fetchTrendingBeats } from "@/services/beats/queryService";
 
 export const TrendingBeats = () => {
-  const [beats, setBeats] = useState<Beat[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toggleFavorite, isFavorite, isPurchased } = useBeats();
-
-  useEffect(() => {
-    let mounted = true;
-
-    const loadBeats = async () => {
-      try {
-        const trendingBeats = await fetchTrendingBeats(5);
-        if (mounted) {
-          setBeats(trendingBeats);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error('Error loading beats:', error);
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadBeats();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  if (isLoading) {
-    return (
-      <section className="mb-10">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Trending Beats</h2>
-            <div className="bg-rose-500/10 text-rose-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-              <Flame size={12} />
-              <span>Hot</span>
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex flex-col gap-2">
-              <Skeleton className="aspect-square rounded-lg" />
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="h-4 w-1/2" />
-            </div>
-          ))}
-        </div>
-      </section>
-    );
-  }
-
-  if (beats.length === 0) {
-    return null;
-  }
+  const { data: trendingBeats = [], isLoading } = useQuery({
+    queryKey: ['trending-beats'],
+    queryFn: () => fetchTrendingBeats(5)
+  });
 
   return (
-    <section className="mb-10">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold">Trending Beats</h2>
-          <div className="bg-rose-500/10 text-rose-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-            <Flame size={12} />
-            <span>Hot</span>
-          </div>
-        </div>
-        <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
-          Show all
-          <ArrowRight size={14} />
+    <section className="w-full">
+      <div className="flex items-center justify-between mb-6">
+        <SectionTitle 
+          title="Trending Beats" 
+          icon={<TrendingUp className="w-5 h-5 text-purple-500" />}
+          badge="Hot"
+        />
+        <Link to="/trending" className="flex items-center text-sm text-muted-foreground hover:text-primary">
+          View all <ChevronRight className="w-4 h-4 ml-1" />
         </Link>
       </div>
-      
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {beats.map((beat) => (
-          <BeatCard 
-            key={beat.id} 
-            beat={beat}
-            onToggleFavorite={toggleFavorite}
-            isFavorite={isFavorite(beat.id)}
-            isPurchased={isPurchased(beat.id)}
-          />
-        ))}
-      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {Array(5).fill(0).map((_, i) => (
+            <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          {trendingBeats.map((beat) => (
+            <BeatCardCompact key={beat.id} beat={beat} />
+          ))}
+        </div>
+      )}
     </section>
   );
 };

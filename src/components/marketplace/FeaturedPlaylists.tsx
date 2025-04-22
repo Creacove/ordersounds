@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Playlist } from "@/types";
 
 export const FeaturedPlaylists = () => {
-  const { data: playlists } = useQuery({
+  const { data: playlists = [], isLoading } = useQuery({
     queryKey: ['featured-playlists'],
     queryFn: async () => {
       const { data } = await supabase
@@ -38,11 +38,19 @@ export const FeaturedPlaylists = () => {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {playlists?.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array(4).fill(0).map((_, i) => (
+            <div key={i} className="h-48 rounded-lg bg-muted/40 animate-pulse"></div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {playlists?.map((playlist) => (
+            <PlaylistCard key={playlist.id} playlist={playlist} />
+          ))}
+        </div>
+      )}
     </section>
   );
 };
