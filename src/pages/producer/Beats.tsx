@@ -22,6 +22,8 @@ import {
 } from "@/components/ui/table";
 import { useCart } from "@/context/CartContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type ViewMode = "grid" | "list" | "table";
 
@@ -40,15 +42,33 @@ const BeatActions = ({
   onPublish?: (id: string) => void;
 }) => (
   <div className="flex gap-2 items-center">
-    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit" onClick={e => { e.stopPropagation(); onEdit(beatId); }}>
-      <Pencil className="h-4 w-4 text-blue-600" />
+    <Button 
+      size="icon" 
+      variant="outline" 
+      className="h-7 w-7 bg-blue-50 hover:bg-blue-100 border-blue-200" 
+      aria-label="Edit" 
+      onClick={e => { e.stopPropagation(); onEdit(beatId); }}
+    >
+      <Pencil className="h-3.5 w-3.5 text-blue-600" />
     </Button>
-    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete" onClick={e => { e.stopPropagation(); onDelete(beatId); }}>
-      <Trash className="h-4 w-4 text-red-600" />
+    <Button 
+      size="icon" 
+      variant="outline" 
+      className="h-7 w-7 bg-red-50 hover:bg-red-100 border-red-200" 
+      aria-label="Delete" 
+      onClick={e => { e.stopPropagation(); onDelete(beatId); }}
+    >
+      <Trash className="h-3.5 w-3.5 text-red-600" />
     </Button>
     {isDraft && onPublish && (
-      <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Publish" onClick={e => { e.stopPropagation(); onPublish(beatId); }}>
-        <Upload className="h-4 w-4 text-green-600" />
+      <Button 
+        size="icon" 
+        variant="outline" 
+        className="h-7 w-7 bg-green-50 hover:bg-green-100 border-green-200" 
+        aria-label="Publish" 
+        onClick={e => { e.stopPropagation(); onPublish(beatId); }}
+      >
+        <Upload className="h-3.5 w-3.5 text-green-600" />
       </Button>
     )}
   </div>
@@ -62,6 +82,8 @@ export default function ProducerBeats() {
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
   const [tabValue, setTabValue] = useState<"published" | "drafts">("published");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -82,24 +104,66 @@ export default function ProducerBeats() {
   const draftBeats = producerBeats.filter(beat => beat.status === 'draft');
   const publishedBeats = producerBeats.filter(beat => beat.status === 'published');
 
-  // --- Handler Stubs for Actions ---
+  // --- Handler for Edit action ---
   const handleEdit = (beatId: string) => {
     navigate(`/producer/upload?edit=${beatId}`);
   };
-  const handleDelete = (beatId: string) => {
-    // TODO: Implement delete logic; for now just confirm and log
-    if (window.confirm("Are you sure you want to delete this beat?")) {
-      // backend call would go here
-      // await deleteBeat(beatId);
-      console.log("Delete beat", beatId);
+
+  // --- Handler for Delete action ---
+  const handleDelete = async (beatId: string) => {
+    if (window.confirm("Are you sure you want to delete this beat? This action cannot be undone.")) {
+      try {
+        setIsDeleting(true);
+        
+        // Delete the beat from the database
+        const { error } = await supabase
+          .from('beats')
+          .delete()
+          .eq('id', beatId);
+        
+        if (error) {
+          throw new Error(error.message);
+        }
+        
+        toast.success('Beat deleted successfully');
+        
+        // Refresh the beats list
+        fetchBeats();
+      } catch (error) {
+        console.error('Error deleting beat:', error);
+        toast.error('Failed to delete beat');
+      } finally {
+        setIsDeleting(false);
+      }
     }
   };
-  const handlePublish = (beatId: string) => {
-    // TODO: Implement publish logic; for now just confirm and log
-    if (window.confirm("Publish this draft beat?")) {
-      // backend call would go here
-      // await publishBeat(beatId);
-      console.log("Publish beat", beatId);
+
+  // --- Handler for Publish action ---
+  const handlePublish = async (beatId: string) => {
+    if (window.confirm("Publish this beat? It will be visible to all users.")) {
+      try {
+        setIsPublishing(true);
+        
+        // Update the beat status to 'published'
+        const { error } = await supabase
+          .from('beats')
+          .update({ status: 'published' })
+          .eq('id', beatId);
+        
+        if (error) {
+          throw new Error(error.message);
+        }
+        
+        toast.success('Beat published successfully');
+        
+        // Refresh the beats list
+        fetchBeats();
+      } catch (error) {
+        console.error('Error publishing beat:', error);
+        toast.error('Failed to publish beat');
+      } finally {
+        setIsPublishing(false);
+      }
     }
   };
 

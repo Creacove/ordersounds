@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { uploadBeat } from "@/lib/beatStorage";
 import { FileOrUrl, isFile } from "@/lib/storage";
 import { DetailTab } from "@/components/upload/DetailTab";
@@ -17,6 +17,7 @@ import { RoyaltiesTab } from "@/components/upload/RoyaltiesTab";
 import { useBeatUpload } from "@/hooks/useBeatUpload";
 import { ScrollToTop } from "@/components/utils/ScrollToTop";
 import { uploadImage } from "@/lib/imageStorage";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function UploadBeat() {
   const tabOrder = ["details", "licensing", "files", "pricing", "royalties"];
@@ -33,20 +34,132 @@ export default function UploadBeat() {
     collaborators, setCollaborators,
     isPlaying, setIsPlaying,
     isSubmitting, setIsSubmitting,
-    selectedLicenseTypes, stems, setStems,
+    selectedLicenseTypes, setSelectedLicenseTypes, stems, setStems,
     processingFiles,
     previewUrl, setPreviewUrl,
     validateForm, handleLicenseTypeChange,
     handleCollaboratorChange, handleRemoveCollaborator, handleAddCollaborator,
     handleRemoveTag, handleAddTag,
     handleBeatChange, handleImageUpload, handlePreviewUpload, handleFullTrackUpload,
-    handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl, uploadProgress,
+    handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl, setUploadedFileUrl,
+    uploadProgress,
     uploadError
   } = useBeatUpload();
   
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [beatId, setBeatId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const editBeatId = queryParams.get('edit');
+    
+    if (editBeatId) {
+      setBeatId(editBeatId);
+      setIsEditMode(true);
+      loadBeatDetails(editBeatId);
+    }
+  }, [location]);
+
+  const loadBeatDetails = async (id: string) => {
+    try {
+      setIsLoading(true);
+      
+      const { data: beatData, error } = await supabase
+        .from('beats')
+        .select(`
+          id, title, description, genre, track_type, bpm, key,
+          producer_id, audio_file, audio_preview, cover_image, 
+          tags, status, license_type, license_terms, stems_url,
+          basic_license_price_local, basic_license_price_diaspora,
+          premium_license_price_local, premium_license_price_diaspora,
+          exclusive_license_price_local, exclusive_license_price_diaspora,
+          custom_license_price_local, custom_license_price_diaspora
+        `)
+        .eq('id', id)
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (!beatData) {
+        toast.error("Beat not found");
+        navigate('/producer/beats');
+        return;
+      }
+      
+      setBeatDetails({
+        title: beatData.title || '',
+        description: beatData.description || '',
+        genre: beatData.genre || '',
+        trackType: beatData.track_type || '',
+        bpm: beatData.bpm || 0,
+        key: beatData.key || '',
+        licenseTerms: beatData.license_terms || '',
+        basicLicensePriceLocal: beatData.basic_license_price_local || 0,
+        basicLicensePriceDiaspora: beatData.basic_license_price_diaspora || 0,
+        premiumLicensePriceLocal: beatData.premium_license_price_local || 0,
+        premiumLicensePriceDiaspora: beatData.premium_license_price_diaspora || 0,
+        exclusiveLicensePriceLocal: beatData.exclusive_license_price_local || 0,
+        exclusiveLicensePriceDiaspora: beatData.exclusive_license_price_diaspora || 0,
+        customLicensePriceLocal: beatData.custom_license_price_local || 0,
+        customLicensePriceDiaspora: beatData.custom_license_price_diaspora || 0,
+      });
+      
+      if (beatData.tags && Array.isArray(beatData.tags)) {
+        setTags(beatData.tags);
+      }
+      
+      if (beatData.license_type) {
+        const licenseTypes = beatData.license_type.split(',');
+        setSelectedLicenseTypes(licenseTypes);
+      }
+      
+      if (beatData.audio_file) {
+        setUploadedFileUrl(beatData.audio_file);
+      }
+      
+      if (beatData.audio_preview) {
+        setPreviewUrl(beatData.audio_preview);
+      }
+      
+      if (beatData.cover_image) {
+        setImagePreview(beatData.cover_image);
+        setImageFile({ url: beatData.cover_image });
+      }
+      
+      const { data: royaltyData, error: royaltyError } = await supabase
+        .from('royalty_splits')
+        .select('*')
+        .eq('beat_id', id);
+      
+      if (!royaltyError && royaltyData) {
+        const mappedCollaborators = royaltyData.map((royalty, index) => ({
+          id: index + 1,
+          name: royalty.party_name || '',
+          role: royalty.party_role || '',
+          email: royalty.party_email || '',
+          percentage: royalty.percentage || 0
+        }));
+        
+        if (mappedCollaborators.length > 0) {
+          setCollaborators(mappedCollaborators);
+        }
+      }
+      
+      toast.success("Beat details loaded successfully");
+    } catch (error) {
+      console.error('Error loading beat details:', error);
+      toast.error("Failed to load beat details");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const nextTab = () => {
     const currentIndex = tabOrder.indexOf(activeTab);
@@ -183,7 +296,7 @@ export default function UploadBeat() {
         collaborators[0].email = user.email || '';
       }
       
-      toast.loading("Publishing your beat...", { id: "publishing-beat" });
+      toast.loading(isEditMode ? "Updating your beat..." : "Publishing your beat...", { id: "publishing-beat" });
       
       let coverImageUrl = '';
       if (imageFile) {
@@ -227,21 +340,64 @@ export default function UploadBeat() {
       const previewUrlForUpload = previewUrl || 
         (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
       
-      const result = await uploadBeat(
-        beatData,
-        fullTrackFileOrUrl,
-        finalPreviewFile,
-        null,
-        stemsFile,
-        producerInfo.id,
-        producerInfo.name,
-        collaborators,
-        selectedLicenseTypes,
-        previewUrlForUpload
-      );
+      let result;
+      
+      if (isEditMode && beatId) {
+        beatData.status = "published";
+        
+        const { data: updatedBeat, error: updateError } = await supabase
+          .from('beats')
+          .update(beatData)
+          .eq('id', beatId)
+          .select()
+          .single();
+          
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+        
+        if (collaborators.length > 0) {
+          await supabase
+            .from('royalty_splits')
+            .delete()
+            .eq('beat_id', beatId);
+          
+          const collaboratorInserts = collaborators.map(c => ({
+            beat_id: beatId,
+            party_id: c.id.toString().includes('-') ? c.id.toString() : producerInfo.id,
+            party_name: c.name || producerInfo.name,
+            party_email: c.email || '',
+            party_role: c.role || 'Producer',
+            percentage: c.percentage
+          }));
+          
+          const { error: collabError } = await supabase
+            .from('royalty_splits')
+            .insert(collaboratorInserts);
+            
+          if (collabError) {
+            console.error('Error updating collaborators:', collabError);
+          }
+        }
+        
+        result = { success: true, beatId };
+      } else {
+        result = await uploadBeat(
+          beatData,
+          fullTrackFileOrUrl,
+          finalPreviewFile,
+          null,
+          stemsFile,
+          producerInfo.id,
+          producerInfo.name,
+          collaborators,
+          selectedLicenseTypes,
+          previewUrlForUpload
+        );
+      }
       
       if (result.success) {
-        toast.success("Beat published successfully!", { id: "publishing-beat" });
+        toast.success(isEditMode ? "Beat updated successfully!" : "Beat published successfully!", { id: "publishing-beat" });
         navigate("/producer/beats");
       } else {
         throw new Error(result.error || "Failed to upload beat");
@@ -313,21 +469,64 @@ export default function UploadBeat() {
       const previewUrlForUpload = previewUrl || 
         (previewFile && !isFile(previewFile) && 'url' in previewFile ? previewFile.url : '');
       
-      const result = await uploadBeat(
-        beatData,
-        fullTrackFileOrUrl,
-        finalPreviewFile,
-        null,
-        stemsFile,
-        producerInfo.id,
-        producerInfo.name,
-        collaborators,
-        selectedLicenseTypes,
-        previewUrlForUpload
-      );
+      let result;
+      
+      if (isEditMode && beatId) {
+        beatData.status = "draft";
+        
+        const { data: updatedBeat, error: updateError } = await supabase
+          .from('beats')
+          .update(beatData)
+          .eq('id', beatId)
+          .select()
+          .single();
+          
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+        
+        if (collaborators.length > 0) {
+          await supabase
+            .from('royalty_splits')
+            .delete()
+            .eq('beat_id', beatId);
+          
+          const collaboratorInserts = collaborators.map(c => ({
+            beat_id: beatId,
+            party_id: c.id.toString().includes('-') ? c.id.toString() : producerInfo.id,
+            party_name: c.name || producerInfo.name,
+            party_email: c.email || '',
+            party_role: c.role || 'Producer',
+            percentage: c.percentage
+          }));
+          
+          const { error: collabError } = await supabase
+            .from('royalty_splits')
+            .insert(collaboratorInserts);
+            
+          if (collabError) {
+            console.error('Error updating collaborators:', collabError);
+          }
+        }
+        
+        result = { success: true, beatId };
+      } else {
+        result = await uploadBeat(
+          beatData,
+          fullTrackFileOrUrl,
+          finalPreviewFile,
+          null,
+          stemsFile,
+          producerInfo.id,
+          producerInfo.name,
+          collaborators,
+          selectedLicenseTypes,
+          previewUrlForUpload
+        );
+      }
       
       if (result.success) {
-        toast.success("Beat saved as draft");
+        toast.success(isEditMode ? "Beat draft updated" : "Beat saved as draft");
         navigate("/producer/beats");
       } else {
         throw new Error(result.error || "Failed to save beat");
@@ -361,153 +560,162 @@ export default function UploadBeat() {
       <div className="container py-4 sm:py-8 max-w-full sm:max-w-4xl px-2 sm:px-6">
         <Card className="overflow-hidden">
           <CardHeader className="bg-card p-4 sm:p-6">
-            <CardTitle className="text-xl sm:text-2xl">Upload a New Beat</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl">{isEditMode ? 'Edit Beat' : 'Upload a New Beat'}</CardTitle>
             <CardDescription className="text-sm">
-              Fill in the details below to upload your beat to the marketplace
+              {isEditMode 
+                ? 'Update your beat details and settings' 
+                : 'Fill in the details below to upload your beat to the marketplace'}
             </CardDescription>
           </CardHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="w-full justify-start p-0 bg-transparent border-b rounded-none overflow-x-auto flex-nowrap">
-              <TabsTrigger 
-                value="details" 
-                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
-              >
-                1. Details
-              </TabsTrigger>
-              <TabsTrigger 
-                value="licensing" 
-                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
-              >
-                2. Licensing
-              </TabsTrigger>
-              <TabsTrigger 
-                value="files" 
-                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
-              >
-                3. Files
-              </TabsTrigger>
-              <TabsTrigger 
-                value="pricing" 
-                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
-              >
-                4. Pricing
-              </TabsTrigger>
-              <TabsTrigger 
-                value="royalties" 
-                className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
-              >
-                5. Royalties
-              </TabsTrigger>
-            </TabsList>
+          {isLoading ? (
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading beat details...</span>
+            </div>
+          ) : (
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="w-full justify-start p-0 bg-transparent border-b rounded-none overflow-x-auto flex-nowrap">
+                <TabsTrigger 
+                  value="details" 
+                  className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
+                >
+                  1. Details
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="licensing" 
+                  className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
+                >
+                  2. Licensing
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="files" 
+                  className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
+                >
+                  3. Files
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="pricing" 
+                  className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
+                >
+                  4. Pricing
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="royalties" 
+                  className="rounded-none flex-1 min-w-[6rem] data-[state=active]:border-b-2 data-[state=active]:border-primary text-xs sm:text-sm"
+                >
+                  5. Royalties
+                </TabsTrigger>
+              </TabsList>
 
-            <CardContent className="p-4 sm:p-6">
-              <TabsContent value="details" className="mt-0 animate-fade-in">
-                <DetailTab 
-                  beatDetails={beatDetails}
-                  handleBeatChange={handleBeatChange}
-                  setBeatDetails={setBeatDetails}
-                  tags={tags}
-                  tagInput={tagInput}
-                  setTagInput={setTagInput}
-                  handleAddTag={handleAddTag}
-                  handleRemoveTag={handleRemoveTag}
-                />
-              </TabsContent>
+              <CardContent className="p-4 sm:p-6">
+                <TabsContent value="details" className="mt-0 animate-fade-in">
+                  <DetailTab 
+                    beatDetails={beatDetails}
+                    handleBeatChange={handleBeatChange}
+                    setBeatDetails={setBeatDetails}
+                    tags={tags}
+                    tagInput={tagInput}
+                    setTagInput={setTagInput}
+                    handleAddTag={handleAddTag}
+                    handleRemoveTag={handleRemoveTag}
+                  />
+                </TabsContent>
 
-              <TabsContent value="licensing" className="mt-0 animate-fade-in">
-                <LicensingTab 
-                  beatDetails={beatDetails}
-                  handleBeatChange={handleBeatChange}
-                  licenseOptions={licenseOptions}
-                  handleLicenseTypeChange={handleLicenseTypeChange}
-                  selectedLicenseTypes={selectedLicenseTypes}
-                />
-              </TabsContent>
+                <TabsContent value="licensing" className="mt-0 animate-fade-in">
+                  <LicensingTab 
+                    beatDetails={beatDetails}
+                    handleBeatChange={handleBeatChange}
+                    licenseOptions={licenseOptions}
+                    handleLicenseTypeChange={handleLicenseTypeChange}
+                    selectedLicenseTypes={selectedLicenseTypes}
+                  />
+                </TabsContent>
 
-              <TabsContent value="files" className="mt-0 animate-fade-in">
-                <FilesTab 
-                  imagePreview={imagePreview}
-                  handleImageUpload={handleImageUpload}
-                  uploadedFile={uploadedFile}
-                  setUploadedFile={setUploadedFile}
-                  handleFullTrackUpload={handleFullTrackUpload}
-                  previewFile={previewFile}
-                  setPreviewFile={setPreviewFile}
-                  isPlaying={isPlaying}
-                  setIsPlaying={setIsPlaying}
-                  selectedLicenseTypes={selectedLicenseTypes}
-                  stems={stems}
-                  setStems={setStems}
-                  processingFiles={processingFiles}
-                  uploadProgress={uploadProgress}
-                  regeneratePreview={regeneratePreview}
-                  previewUrl={previewUrl}
-                  setPreviewUrl={setPreviewUrl}
-                  handlePreviewUpload={handlePreviewUpload}
-                  handleStemsUpload={handleStemsUpload}
-                  uploadError={uploadError}
-                />
-              </TabsContent>
+                <TabsContent value="files" className="mt-0 animate-fade-in">
+                  <FilesTab 
+                    imagePreview={imagePreview}
+                    handleImageUpload={handleImageUpload}
+                    uploadedFile={uploadedFile}
+                    setUploadedFile={setUploadedFile}
+                    handleFullTrackUpload={handleFullTrackUpload}
+                    previewFile={previewFile}
+                    setPreviewFile={setPreviewFile}
+                    isPlaying={isPlaying}
+                    setIsPlaying={setIsPlaying}
+                    selectedLicenseTypes={selectedLicenseTypes}
+                    stems={stems}
+                    setStems={setStems}
+                    processingFiles={processingFiles}
+                    uploadProgress={uploadProgress}
+                    regeneratePreview={regeneratePreview}
+                    previewUrl={previewUrl}
+                    setPreviewUrl={setPreviewUrl}
+                    handlePreviewUpload={handlePreviewUpload}
+                    handleStemsUpload={handleStemsUpload}
+                    uploadError={uploadError}
+                  />
+                </TabsContent>
 
-              <TabsContent value="pricing" className="mt-0 animate-fade-in">
-                <PricingTab 
-                  beatDetails={beatDetails}
-                  setBeatDetails={setBeatDetails}
-                  selectedLicenseTypes={selectedLicenseTypes}
-                />
-              </TabsContent>
+                <TabsContent value="pricing" className="mt-0 animate-fade-in">
+                  <PricingTab 
+                    beatDetails={beatDetails}
+                    setBeatDetails={setBeatDetails}
+                    selectedLicenseTypes={selectedLicenseTypes}
+                  />
+                </TabsContent>
 
-              <TabsContent value="royalties" className="mt-0 animate-fade-in">
-                <RoyaltiesTab 
-                  collaborators={collaborators}
-                  handleRemoveCollaborator={handleRemoveCollaborator}
-                  handleCollaboratorChange={handleCollaboratorChange}
-                  handleAddCollaborator={handleAddCollaborator}
-                />
-              </TabsContent>
-            </CardContent>
-            
-            <CardFooter className="flex justify-between p-4 sm:p-6 border-t">
-              <div className="flex gap-2">
-                {activeTab !== "details" && (
-                  <Button variant="outline" onClick={prevTab}>
-                    Previous
-                  </Button>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {activeTab !== "royalties" ? (
-                  <Button onClick={nextTab}>
-                    Next
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleSaveDraft} disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        'Save as Draft'
-                      )}
+                <TabsContent value="royalties" className="mt-0 animate-fade-in">
+                  <RoyaltiesTab 
+                    collaborators={collaborators}
+                    handleRemoveCollaborator={handleRemoveCollaborator}
+                    handleCollaboratorChange={handleCollaboratorChange}
+                    handleAddCollaborator={handleAddCollaborator}
+                  />
+                </TabsContent>
+              </CardContent>
+              
+              <CardFooter className="flex justify-between p-4 sm:p-6 border-t">
+                <div className="flex gap-2">
+                  {activeTab !== "details" && (
+                    <Button variant="outline" onClick={prevTab}>
+                      Previous
                     </Button>
-                    <Button onClick={handlePublish} disabled={isSubmitting}>
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Publishing...
-                        </>
-                      ) : (
-                        'Publish Beat'
-                      )}
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  {activeTab !== "royalties" ? (
+                    <Button onClick={nextTab}>
+                      Next
                     </Button>
-                  </div>
-                )}
-              </div>
-            </CardFooter>
-          </Tabs>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button variant="outline" onClick={handleSaveDraft} disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save as Draft'
+                        )}
+                      </Button>
+                      <Button onClick={handlePublish} disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {isEditMode ? 'Updating...' : 'Publishing...'}
+                          </>
+                        ) : (
+                          isEditMode ? 'Update Beat' : 'Publish Beat'
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CardFooter>
+            </Tabs>
+          )}
         </Card>
       </div>
     </MainLayout>

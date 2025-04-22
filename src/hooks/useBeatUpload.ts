@@ -42,7 +42,7 @@ export type Collaborator = {
   percentage: number;
 };
 
-export const useBeatUpload = () => {
+export function useBeatUpload() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("details");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -541,4 +541,4 @@ export const useBeatUpload = () => {
     uploadedFileUrl,
     uploadError
   };
-};
+}
