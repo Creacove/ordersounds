@@ -1,11 +1,8 @@
 
 import { Playlist } from '@/types';
-import { Card, CardContent } from "@/components/ui/card";
-import { Play, ListMusic } from 'lucide-react';
+import { Card } from "@/components/ui/card";
 import { cn } from '@/lib/utils';
 import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -13,53 +10,45 @@ interface PlaylistCardProps {
 }
 
 export const PlaylistCard = ({ playlist, className }: PlaylistCardProps) => {
-  const isMobile = useIsMobile();
   const beatCount = playlist.beats?.length || 0;
 
-  // Predefined vibrant color palette
-  const colors = [
-    'bg-[#9b87f5]',   // Primary Purple
-    'bg-gradient-to-br from-[#F97316] to-[#FF5733]', // Bright Orange
-    'bg-gradient-to-br from-[#0EA5E9] to-[#38BDF8]', // Ocean Blue
-    'bg-gradient-to-br from-[#D946EF] to-[#EC4899]', // Magenta Pink
-    'bg-gradient-to-br from-[#6E59A5] to-[#8B5CF6]', // Tertiary Purple
+  // Predefined vibrant gradients for playlists
+  const gradients = [
+    'bg-gradient-to-br from-[#9b87f5] to-[#7E69AB]',  // Purple
+    'bg-gradient-to-br from-[#F97316] to-[#FF5733]',  // Orange
+    'bg-gradient-to-br from-[#22C55E] to-[#15803D]',  // Green
+    'bg-gradient-to-br from-[#D946EF] to-[#9333EA]',  // Pink/Purple
   ];
   
-  // Generate a consistent color based on playlist ID
-  const getPlaylistColor = (id: string) => {
+  // Generate a consistent gradient based on playlist ID
+  const getPlaylistGradient = (id: string) => {
     const hash = id.split('-')[0];
     const charSum = [...hash].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-    return colors[charSum % colors.length];
+    return gradients[charSum % gradients.length];
   };
 
   return (
     <Link to={`/playlists/${playlist.id}`}>
       <Card 
         className={cn(
-          "group relative overflow-hidden transition-all duration-300 hover:shadow-md",
-          "rounded-lg h-full flex flex-col bg-card border border-border",
+          "group relative overflow-hidden transition-all duration-300",
+          "aspect-square w-full rounded-2xl",
+          getPlaylistGradient(playlist.id),
           className
         )}
       >
-        <div 
-          className={cn(
-            "relative aspect-square w-full overflow-hidden",
-            getPlaylistColor(playlist.id),
-            "flex items-end p-4 text-white"
-          )}
-        >
-          <div className="relative z-10 w-full">
-            <h3 className="font-semibold text-xl line-clamp-1 mb-1">
-              {playlist.name}
-            </h3>
-            <div className="text-xs opacity-80 flex justify-between items-center">
-              <span>{beatCount} {beatCount === 1 ? 'track' : 'tracks'}</span>
-              <span>{playlist.is_public ? 'Public' : 'Private'}</span>
-            </div>
-          </div>
+        <div className="absolute top-3 right-3">
+          <span className="px-3 py-1 text-xs font-medium text-white bg-white/20 rounded-full backdrop-blur-sm">
+            {beatCount} {beatCount === 1 ? 'track' : 'tracks'}
+          </span>
+        </div>
+        
+        <div className="absolute bottom-0 left-0 right-0 p-4">
+          <h3 className="font-semibold text-xl text-white mb-1 line-clamp-1">
+            {playlist.name}
+          </h3>
         </div>
       </Card>
     </Link>
   );
 }
-

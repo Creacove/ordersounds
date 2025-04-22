@@ -39,13 +39,13 @@ export const FeaturedPlaylists = () => {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {Array(4).fill(0).map((_, i) => (
-            <div key={i} className="h-48 rounded-lg bg-muted/40 animate-pulse"></div>
+            <div key={i} className="aspect-square rounded-2xl bg-muted/40 animate-pulse" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {playlists?.map((playlist) => (
             <PlaylistCard key={playlist.id} playlist={playlist} />
           ))}
