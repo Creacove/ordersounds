@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -136,21 +135,23 @@ export const RoyaltiesTab = ({
         </div>
       </div>
       
-      <div className="flex flex-col sm:flex-row justify-between items-center mt-8">
-        <Button 
-          variant="outline" 
-          type="button"
-          className="w-full sm:w-auto mb-2 sm:mb-0"
-          disabled={isSubmitting}
-          onClick={onUpdate}
-        >
-          {beatStatus === "draft" ? "Update as Draft" : "Update Beat"}
-        </Button>
+      <div className="flex items-center justify-between mt-8">
+        {beatStatus === "draft" && (
+          <Button 
+            variant="outline" 
+            type="button"
+            className="w-auto"
+            disabled={isSubmitting}
+            onClick={onUpdate}
+          >
+            Update as Draft
+          </Button>
+        )}
         
         {beatStatus === "draft" && (
           <Button
             type="button"
-            className="w-full sm:w-auto bg-primary text-white"
+            className="w-auto bg-primary text-white"
             disabled={isSubmitting}
             onClick={onPublish}
           >
