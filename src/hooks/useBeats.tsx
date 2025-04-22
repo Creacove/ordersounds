@@ -106,6 +106,8 @@ export function useBeats() {
   }, []);
 
   const fetchInitialBeats = useCallback(async () => {
+    if (trendingBeats.length > 0) return; // Skip if we already have trending beats
+    
     try {
       const initialBeats = await fetchTrendingBeats(30);
       if (initialBeats && initialBeats.length > 0) {
@@ -133,11 +135,21 @@ export function useBeats() {
       console.error('Error fetching initial beats:', error);
       setIsLoading(false);
     }
-  }, []);
+  }, [trendingBeats.length]);
 
   const fetchBeats = useCallback(async () => {
     if (fetchInProgress) {
       console.log('Fetch already in progress, skipping duplicate request');
+      return;
+    }
+    
+    // Check if we have cached data and it's not expired
+    const cachedBeats = loadFromCache(CACHE_KEYS.ALL_BEATS);
+    const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
+    
+    if (cachedBeats && !shouldRefresh) {
+      console.log('Using cached beats data');
+      setBeats(cachedBeats);
       return;
     }
     
@@ -169,25 +181,23 @@ export function useBeats() {
       
       setBeats(transformedBeats);
       
+      // Only refresh trending/featured/weekly if needed
       const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       if (shouldRefreshTrending || trendingBeats.length === 0) {
         const trending = refreshTrendingBeats(transformedBeats);
         setTrendingBeats(trending);
-        saveToCache(CACHE_KEYS.TRENDING_BEATS, trending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       }
       
       const shouldRefreshFeatured = checkShouldRefreshCache(CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
       if (shouldRefreshFeatured || !featuredBeat) {
         const featured = selectFeaturedBeat(transformedBeats);
         setFeaturedBeat(featured);
-        saveToCache(CACHE_KEYS.FEATURED_BEATS, featured, CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
       }
       
       const shouldRefreshWeekly = checkShouldRefreshCache(CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
       if (shouldRefreshWeekly || weeklyPicks.length === 0) {
         const weekly = refreshWeeklyPicks(transformedBeats);
         setWeeklyPicks(weekly);
-        saveToCache(CACHE_KEYS.WEEKLY_PICKS, weekly, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
       }
       
       const sortedByNew = [...transformedBeats].sort((a, b) => 
@@ -227,13 +237,17 @@ export function useBeats() {
       setFetchInProgress(false);
       setIsLoading(false);
     }
-  }, [user, activeFilters, checkNetworkAndRetry, handleNoBeatsFound, fetchInitialBeats, 
-      fetchUserFavoritesData, fetchPurchasedBeatsData, trendingBeats.length, weeklyPicks.length, featuredBeat]);
+  }, [user, activeFilters, checkNetworkAndRetry, handleNoBeatsFound, 
+      fetchInitialBeats, fetchUserFavoritesData, fetchPurchasedBeatsData, 
+      trendingBeats.length, weeklyPicks.length, featuredBeat, 
+      fetchInProgress]);
 
   useEffect(() => {
+    // Initial data fetch
     fetchInitialBeats();
     fetchBeats();
     
+    // Network status handlers
     const handleOnline = () => {
       setIsOffline(false);
       toast.success("You're back online!");
@@ -255,7 +269,7 @@ export function useBeats() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [fetchBeats, fetchInitialBeats]);
+  }, []); // Empty dependency array to run only once on mount
 
   const updateFilters = (newFilters: FilterValues) => {
     setActiveFilters(newFilters);
