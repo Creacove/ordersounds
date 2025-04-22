@@ -14,6 +14,7 @@ type RoyaltiesTabProps = {
   onUpdate?: () => void;
   onPublish?: () => void;
   isSubmitting?: boolean;
+  isEditMode?: boolean; // NEW: tell if we're editing or creating
 };
 
 export const RoyaltiesTab = ({
@@ -25,8 +26,73 @@ export const RoyaltiesTab = ({
   onUpdate,
   onPublish,
   isSubmitting = false,
+  isEditMode = false, // prop for mode
 }: RoyaltiesTabProps) => {
   const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
+
+  // Logic to determine which buttons to show and their labels
+  let leftButton: React.ReactNode = null;
+  let rightButton: React.ReactNode = null;
+
+  if (!isEditMode) {
+    // Upload new beat (not edit)
+    leftButton = (
+      <Button
+        variant="outline"
+        type="button"
+        disabled={isSubmitting}
+        onClick={onUpdate}
+      >
+        Save as Draft
+      </Button>
+    );
+    rightButton = (
+      <Button
+        type="button"
+        className="bg-primary text-white"
+        disabled={isSubmitting}
+        onClick={onPublish}
+      >
+        Publish
+      </Button>
+    );
+  } else if (beatStatus === "draft") {
+    // Edit, beat is a draft
+    leftButton = (
+      <Button
+        variant="outline"
+        type="button"
+        disabled={isSubmitting}
+        onClick={onUpdate}
+      >
+        Update as Draft
+      </Button>
+    );
+    rightButton = (
+      <Button
+        type="button"
+        className="bg-primary text-white"
+        disabled={isSubmitting}
+        onClick={onPublish}
+      >
+        Publish
+      </Button>
+    );
+  } else if (beatStatus === "published") {
+    // Edit, beat is published
+    leftButton = null;
+    rightButton = (
+      <Button
+        variant="outline"
+        type="button"
+        className="ml-auto"
+        disabled={isSubmitting}
+        onClick={onUpdate}
+      >
+        Update Beat
+      </Button>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -59,7 +125,6 @@ export const RoyaltiesTab = ({
                 </Button>
               )}
             </div>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor={`name-${collaborator.id}`} size="lg">Name</Label>
@@ -84,7 +149,6 @@ export const RoyaltiesTab = ({
                 />
               </div>
             </div>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div>
                 <Label htmlFor={`role-${collaborator.id}`} size="lg">Role</Label>
@@ -111,7 +175,6 @@ export const RoyaltiesTab = ({
             </div>
           </div>
         ))}
-        
         {collaborators.length < 5 && (
           <Button 
             variant="outline" 
@@ -121,7 +184,6 @@ export const RoyaltiesTab = ({
             <Plus className="mr-2 h-4 w-4" /> Add Collaborator
           </Button>
         )}
-        
         <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium">Total Percentage:</span>
           <span 
@@ -135,28 +197,14 @@ export const RoyaltiesTab = ({
           </span>
         </div>
       </div>
-      
       <div className="flex items-center justify-between mt-8 space-x-4">
-        <Button 
-          variant="outline" 
-          type="button"
-          className="w-auto"
-          disabled={isSubmitting}
-          onClick={onUpdate}
-        >
-          {beatStatus === "draft" ? "Update as Draft" : "Update Beat"}
-        </Button>
-        
-        {beatStatus === "draft" && (
-          <Button
-            type="button"
-            className="w-auto bg-primary text-white"
-            disabled={isSubmitting}
-            onClick={onPublish}
-          >
-            Publish
-          </Button>
-        )}
+        {/* Only render left button if present */}
+        <div>
+          {leftButton}
+        </div>
+        <div>
+          {rightButton}
+        </div>
       </div>
     </div>
   );
