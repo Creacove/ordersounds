@@ -676,28 +676,80 @@ export default function UploadBeat() {
                     handleRemoveCollaborator={handleRemoveCollaborator}
                     handleCollaboratorChange={handleCollaboratorChange}
                     handleAddCollaborator={handleAddCollaborator}
-                    beatStatus={beatDetails.status}
-                    onUpdate={beatDetails.status === "draft" ? handleSaveDraft : handlePublish}
-                    onPublish={handlePublish}
-                    isSubmitting={isSubmitting}
                   />
                 </TabsContent>
               </CardContent>
               
-              <CardFooter className="flex justify-between p-4 sm:p-6 border-t">
-                <div className="flex gap-2">
+              <CardFooter className="flex flex-wrap flex-col-reverse sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-t gap-2 sm:gap-4">
+                <div className="flex gap-2 items-center">
                   {activeTab !== "details" && (
                     <Button variant="outline" onClick={prevTab}>
                       Previous
                     </Button>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center ml-auto">
                   {activeTab !== "royalties" ? (
                     <Button onClick={nextTab}>
                       Next
                     </Button>
-                  ) : null}
+                  ) : (
+                    <>
+                      {!isEditMode && (
+                        <>
+                          <Button
+                            variant="outline"
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={handleSaveDraft}
+                          >
+                            Save as Draft
+                          </Button>
+                          <Button
+                            type="button"
+                            className="bg-primary text-white"
+                            disabled={isSubmitting}
+                            onClick={handlePublish}
+                          >
+                            Publish
+                          </Button>
+                        </>
+                      )}
+
+                      {isEditMode && beatDetails.status === "draft" && (
+                        <>
+                          <Button
+                            variant="outline"
+                            type="button"
+                            disabled={isSubmitting}
+                            onClick={handleSaveDraft}
+                          >
+                            Update as Draft
+                          </Button>
+                          <Button
+                            type="button"
+                            className="bg-primary text-white"
+                            disabled={isSubmitting}
+                            onClick={handlePublish}
+                          >
+                            Publish
+                          </Button>
+                        </>
+                      )}
+
+                      {isEditMode && beatDetails.status === "published" && (
+                        <Button
+                          variant="outline"
+                          type="button"
+                          className="ml-auto"
+                          disabled={isSubmitting}
+                          onClick={handlePublish}
+                        >
+                          Update Beat
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </div>
               </CardFooter>
             </Tabs>

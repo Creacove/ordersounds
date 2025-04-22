@@ -14,7 +14,7 @@ type RoyaltiesTabProps = {
   onUpdate?: () => void;
   onPublish?: () => void;
   isSubmitting?: boolean;
-  isEditMode?: boolean; // NEW: tell if we're editing or creating
+  isEditMode?: boolean;
 };
 
 export const RoyaltiesTab = ({
@@ -22,77 +22,9 @@ export const RoyaltiesTab = ({
   handleRemoveCollaborator,
   handleCollaboratorChange,
   handleAddCollaborator,
-  beatStatus = "draft",
-  onUpdate,
-  onPublish,
-  isSubmitting = false,
-  isEditMode = false, // prop for mode
+  // Remove button-business props
 }: RoyaltiesTabProps) => {
   const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
-
-  // Logic to determine which buttons to show and their labels
-  let leftButton: React.ReactNode = null;
-  let rightButton: React.ReactNode = null;
-
-  if (!isEditMode) {
-    // Upload new beat (not edit)
-    leftButton = (
-      <Button
-        variant="outline"
-        type="button"
-        disabled={isSubmitting}
-        onClick={onUpdate}
-      >
-        Save as Draft
-      </Button>
-    );
-    rightButton = (
-      <Button
-        type="button"
-        className="bg-primary text-white"
-        disabled={isSubmitting}
-        onClick={onPublish}
-      >
-        Publish
-      </Button>
-    );
-  } else if (beatStatus === "draft") {
-    // Edit, beat is a draft
-    leftButton = (
-      <Button
-        variant="outline"
-        type="button"
-        disabled={isSubmitting}
-        onClick={onUpdate}
-      >
-        Update as Draft
-      </Button>
-    );
-    rightButton = (
-      <Button
-        type="button"
-        className="bg-primary text-white"
-        disabled={isSubmitting}
-        onClick={onPublish}
-      >
-        Publish
-      </Button>
-    );
-  } else if (beatStatus === "published") {
-    // Edit, beat is published
-    leftButton = null;
-    rightButton = (
-      <Button
-        variant="outline"
-        type="button"
-        className="ml-auto"
-        disabled={isSubmitting}
-        onClick={onUpdate}
-      >
-        Update Beat
-      </Button>
-    );
-  }
 
   return (
     <div className="space-y-4">
@@ -106,7 +38,6 @@ export const RoyaltiesTab = ({
           </p>
         </div>
       </div>
-      
       <div className="space-y-4">
         {collaborators.map((collaborator, index) => (
           <div key={collaborator.id} className="border rounded-lg p-4">
@@ -195,15 +126,6 @@ export const RoyaltiesTab = ({
           >
             {totalPercentage}%
           </span>
-        </div>
-      </div>
-      <div className="flex items-center justify-between mt-8 space-x-4">
-        {/* Only render left button if present */}
-        <div>
-          {leftButton}
-        </div>
-        <div>
-          {rightButton}
         </div>
       </div>
     </div>
