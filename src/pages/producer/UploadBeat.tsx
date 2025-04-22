@@ -680,15 +680,13 @@ export default function UploadBeat() {
                 </TabsContent>
               </CardContent>
               
-              <CardFooter className="flex flex-wrap flex-col-reverse sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-t gap-2 sm:gap-4">
-                <div className="flex gap-2 items-center">
-                  {activeTab !== "details" && (
-                    <Button variant="outline" onClick={prevTab}>
-                      Previous
-                    </Button>
-                  )}
-                </div>
-                <div className="flex gap-2 items-center ml-auto">
+              <CardFooter className="flex flex-row flex-wrap items-center justify-between p-4 sm:p-6 border-t gap-2 sm:gap-4">
+                {activeTab !== "details" && (
+                  <Button variant="outline" onClick={prevTab}>
+                    Previous
+                  </Button>
+                )}
+                <div className="flex flex-row gap-2 items-center ml-auto">
                   {activeTab !== "royalties" ? (
                     <Button onClick={nextTab}>
                       Next
@@ -739,9 +737,8 @@ export default function UploadBeat() {
 
                       {isEditMode && beatDetails.status === "published" && (
                         <Button
-                          variant="outline"
                           type="button"
-                          className="ml-auto"
+                          className="bg-primary text-white"
                           disabled={isSubmitting}
                           onClick={handlePublish}
                         >
