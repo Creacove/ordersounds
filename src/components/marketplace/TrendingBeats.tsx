@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Flame } from "lucide-react";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useBeats } from "@/hooks/useBeats";
-import { fetchRandomBeats } from "@/services/beats";
+import { fetchTrendingBeats } from "@/services/beats";
 import { Beat } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -17,9 +18,9 @@ export const TrendingBeats = () => {
 
     const loadBeats = async () => {
       try {
-        const randomBeats = await fetchRandomBeats(5);
+        const trendingBeats = await fetchTrendingBeats(5);
         if (mounted) {
-          setBeats(randomBeats);
+          setBeats(trendingBeats);
           setIsLoading(false);
         }
       } catch (error) {
@@ -72,27 +73,27 @@ export const TrendingBeats = () => {
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold">Trending Beats</h2>
           <div className="bg-rose-500/10 text-rose-500 text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-              <Flame size={12} />
-              <span>Hot</span>
-            </div>
+            <Flame size={12} />
+            <span>Hot</span>
           </div>
-          <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
-            Show all
-            <ArrowRight size={14} />
-          </Link>
         </div>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {beats.map((beat) => (
-            <BeatCard 
-              key={beat.id} 
-              beat={beat}
-              onToggleFavorite={toggleFavorite}
-              isFavorite={isFavorite(beat.id)}
-              isPurchased={isPurchased(beat.id)}
-            />
-          ))}
-        </div>
-      </section>
-    );
-  };
+        <Link to="/trending" className="text-sm text-primary hover:underline flex items-center gap-1">
+          Show all
+          <ArrowRight size={14} />
+        </Link>
+      </div>
+      
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {beats.map((beat) => (
+          <BeatCard 
+            key={beat.id} 
+            beat={beat}
+            onToggleFavorite={toggleFavorite}
+            isFavorite={isFavorite(beat.id)}
+            isPurchased={isPurchased(beat.id)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+};

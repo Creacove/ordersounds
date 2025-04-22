@@ -4,6 +4,7 @@ import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
 import { mapSupabaseBeatToBeat } from './utils';
 
+// Updated createBasicBeatsQuery to include new fields
 const createBasicBeatsQuery = () => {
   return supabase
     .from('beats')
@@ -26,7 +27,9 @@ const createBasicBeatsQuery = () => {
       upload_date,
       favorites_count,
       purchase_count,
-      status
+      status,
+      is_trending,
+      is_weekly_pick
     `);
 };
 
