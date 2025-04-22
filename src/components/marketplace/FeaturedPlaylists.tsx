@@ -1,6 +1,6 @@
 
 import { Link } from "react-router-dom";
-import { PlaylistCard } from "@/components/library/PlaylistCard";
+import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { Sparkles, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -39,13 +39,13 @@ export const FeaturedPlaylists = () => {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           {Array(4).fill(0).map((_, i) => (
             <div key={i} className="h-48 rounded-lg bg-muted/40 animate-pulse"></div>
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 gap-4">
           {playlists?.map((playlist) => (
             <PlaylistCard key={playlist.id} playlist={playlist} />
           ))}
