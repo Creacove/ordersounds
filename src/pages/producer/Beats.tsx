@@ -45,12 +45,10 @@ export default function ProducerBeats() {
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
-    
     // Set a short timeout to show skeleton loading state
     const timer = setTimeout(() => {
       setInitialLoading(false);
     }, 800);
-    
     return () => clearTimeout(timer);
   }, []);
 
@@ -58,7 +56,6 @@ export default function ProducerBeats() {
     const loadBeats = async () => {
       await fetchBeats();
     };
-    
     loadBeats();
   }, [fetchBeats]);
 
@@ -93,23 +90,16 @@ export default function ProducerBeats() {
   // --- Confirm Delete action ---
   const confirmDelete = async () => {
     if (!selectedBeatId) return;
-    
     try {
       setIsDeleting(true);
-      
-      // Delete the beat from the database
       const { error } = await supabase
         .from('beats')
         .delete()
         .eq('id', selectedBeatId);
-      
       if (error) {
         throw new Error(error.message);
       }
-      
       toast.success('Beat deleted successfully');
-      
-      // Refresh the beats list
       fetchBeats();
     } catch (error) {
       console.error('Error deleting beat:', error);
@@ -124,23 +114,16 @@ export default function ProducerBeats() {
   // --- Confirm Publish action ---
   const confirmPublish = async () => {
     if (!selectedBeatId) return;
-    
     try {
       setIsPublishing(true);
-      
-      // Update the beat status to 'published'
       const { error } = await supabase
         .from('beats')
         .update({ status: 'published' })
         .eq('id', selectedBeatId);
-      
       if (error) {
         throw new Error(error.message);
       }
-      
       toast.success('Beat published successfully');
-      
-      // Refresh the beats list
       fetchBeats();
     } catch (error) {
       console.error('Error publishing beat:', error);
@@ -185,7 +168,7 @@ export default function ProducerBeats() {
   return (
     <MainLayout activeTab="beats">
       <div className={cn("container py-4 md:py-6 max-w-full px-1 md:px-3 lg:px-8", isMobile ? "pb-16" : "")}>
-        {/* Title and Upload Button Compact Row */}
+        {/* Title + Upload + (desktop) View mode controls row */}
         <div className="flex flex-wrap md:flex-nowrap items-center justify-between mb-4 gap-y-2 gap-x-3">
           <div className="flex items-center space-x-3">
             <h1 className="heading-responsive-lg">My Beats</h1>
@@ -195,35 +178,14 @@ export default function ProducerBeats() {
               </span>
             )}
           </div>
-          <Button onClick={() => navigate("/producer/upload")} size="sm" className="gap-1.5 flex-shrink-0">
-            <PlusCircle className="h-4 w-4" />
-            Upload
-          </Button>
-        </div>
-        
-        {/* Tabs and view mode selector side by side on desktop, stacked on mobile */}
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between md:gap-6 gap-2 mb-2">
-          <Tabs
-            value={tabValue}
-            onValueChange={(v) => setTabValue(v as "published" | "drafts")}
-            className="w-full"
-          >
-            <div className="flex justify-between items-center mb-2">
-              <TabsList className="max-w-xs w-full flex items-center ml-0 md:mx-0 mb-0">
-                <TabsTrigger value="published" className={cn("flex-1 text-base py-2", tabValue === "published" ? "shadow" : "")}>
-                  Published <span className="ml-1 text-xs text-muted-foreground font-normal">
-                    {!showSkeleton ? `(${publishedBeats.length})` : "(...)"}
-                  </span>
-                </TabsTrigger>
-                <TabsTrigger value="drafts" className={cn("flex-1 text-base py-2", tabValue === "drafts" ? "shadow" : "")}>
-                  Drafts <span className="ml-1 text-xs text-muted-foreground font-normal">
-                    {!showSkeleton ? `(${draftBeats.length})` : "(...)"}
-                  </span>
-                </TabsTrigger>
-              </TabsList>
-              
-              {/* View mode selector - Moved to the right */}
-              <div className="flex gap-2 ml-auto">
+          <div className="flex flex-row items-center gap-2 w-full md:w-auto justify-end">
+            <Button onClick={() => navigate("/producer/upload")} size="sm" className="gap-1.5 flex-shrink-0">
+              <PlusCircle className="h-4 w-4" />
+              Upload
+            </Button>
+            {/* View mode controls only on desktop */}
+            {!isMobile && (
+              <div className="flex gap-2 ml-4">
                 <Button
                   variant={viewMode === "grid" ? "secondary" : "ghost"}
                   size="sm"
@@ -244,21 +206,42 @@ export default function ProducerBeats() {
                   <LayoutList className="h-4 w-4 mr-1.5" />
                   List
                 </Button>
-                {!isMobile && (
-                  <Button
-                    variant={viewMode === "table" ? "secondary" : "ghost"}
-                    size="sm"
-                    className="text-xs p-2 h-auto"
-                    onClick={() => setViewMode("table")}
-                    aria-label="Table view"
-                  >
-                    <LucideTable className="h-4 w-4 mr-1.5" />
-                    Table
-                  </Button>
-                )}
+                <Button
+                  variant={viewMode === "table" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="text-xs p-2 h-auto"
+                  onClick={() => setViewMode("table")}
+                  aria-label="Table view"
+                >
+                  <LucideTable className="h-4 w-4 mr-1.5" />
+                  Table
+                </Button>
               </div>
+            )}
+          </div>
+        </div>
+
+        {/* Tabs, but no view mode selector here */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between md:gap-6 gap-2 mb-2">
+          <Tabs
+            value={tabValue}
+            onValueChange={(v) => setTabValue(v as "published" | "drafts")}
+            className="w-full"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <TabsList className="max-w-xs w-full flex items-center ml-0 md:mx-0 mb-0">
+                <TabsTrigger value="published" className={cn("flex-1 text-base py-2", tabValue === "published" ? "shadow" : "")}>
+                  Published <span className="ml-1 text-xs text-muted-foreground font-normal">
+                    {!showSkeleton ? `(${publishedBeats.length})` : "(...)"}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="drafts" className={cn("flex-1 text-base py-2", tabValue === "drafts" ? "shadow" : "")}>
+                  Drafts <span className="ml-1 text-xs text-muted-foreground font-normal">
+                    {!showSkeleton ? `(${draftBeats.length})` : "(...)"}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
             </div>
-            
             {/* Tab Contents */}
             <TabsContent value="published" className="mt-4 min-h-[220px] animate-fade-in">
               {showSkeleton ? (
@@ -367,7 +350,7 @@ export default function ProducerBeats() {
                                     className="h-7 w-7 border-0 hover:bg-purple-100"
                                     aria-label="Edit"
                                     onClick={e => { e.stopPropagation(); handleEdit(beat.id); }}
-                                    style={{ color: "#9b87f5", background: "white" }}
+                                    style={{ color: "#fff", background: "#9b87f5" }}
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
@@ -377,7 +360,7 @@ export default function ProducerBeats() {
                                     className="h-7 w-7 border-0 hover:bg-red-100"
                                     aria-label="Delete"
                                     onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
-                                    style={{ color: "#ea384c", background: "white" }}
+                                    style={{ color: "#fff", background: "#ea384c" }}
                                   >
                                     <Trash className="h-3.5 w-3.5" />
                                   </Button>
@@ -397,7 +380,6 @@ export default function ProducerBeats() {
                 />
               )}
             </TabsContent>
-            
             <TabsContent value="drafts" className="mt-4 min-h-[220px] animate-fade-in">
               {isLoading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
@@ -509,7 +491,7 @@ export default function ProducerBeats() {
                                     className="h-7 w-7 border-0 hover:bg-green-100"
                                     aria-label="Publish"
                                     onClick={e => { e.stopPropagation(); handlePublish(beat.id); }}
-                                    style={{ color: "#8B5CF6", background: "white" }}
+                                    style={{ color: "#fff", background: "#8B5CF6" }}
                                   >
                                     <Upload className="h-3.5 w-3.5" />
                                   </Button>
@@ -519,7 +501,7 @@ export default function ProducerBeats() {
                                     className="h-7 w-7 border-0 hover:bg-purple-100"
                                     aria-label="Edit"
                                     onClick={e => { e.stopPropagation(); handleEdit(beat.id); }}
-                                    style={{ color: "#9b87f5", background: "white" }}
+                                    style={{ color: "#fff", background: "#9b87f5" }}
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
                                   </Button>
@@ -529,7 +511,7 @@ export default function ProducerBeats() {
                                     className="h-7 w-7 border-0 hover:bg-red-100"
                                     aria-label="Delete"
                                     onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
-                                    style={{ color: "#ea384c", background: "white" }}
+                                    style={{ color: "#fff", background: "#ea384c" }}
                                   >
                                     <Trash className="h-3.5 w-3.5" />
                                   </Button>
@@ -600,3 +582,4 @@ export default function ProducerBeats() {
     </MainLayout>
   );
 }
+
