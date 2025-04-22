@@ -149,10 +149,6 @@ export default function UploadBeat() {
 
   const handlePublish = async () => {
     if (!validateForm()) return;
-    if (!user) {
-      toast.error("You must be logged in to publish a beat");
-      return;
-    }
     
     setIsSubmitting(true);
     
@@ -177,7 +173,12 @@ export default function UploadBeat() {
         return;
       }
 
-      if (collaborators[0].id === 1) {
+      const producerInfo = {
+        id: user?.id || 'anonymous-producer',
+        name: user?.name || 'Anonymous Producer'
+      };
+      
+      if (user && collaborators[0].id === 1) {
         collaborators[0].name = user.name || 'Producer';
         collaborators[0].email = user.email || '';
       }
@@ -232,8 +233,8 @@ export default function UploadBeat() {
         finalPreviewFile,
         null,
         stemsFile,
-        user.id,
-        user.producer_name || user.name,
+        producerInfo.id,
+        producerInfo.name,
         collaborators,
         selectedLicenseTypes,
         previewUrlForUpload
@@ -255,10 +256,6 @@ export default function UploadBeat() {
 
   const handleSaveDraft = async () => {
     if (!validateForm()) return;
-    if (!user) {
-      toast.error("You must be logged in to save a beat");
-      return;
-    }
     
     setIsSubmitting(true);
     
@@ -268,6 +265,11 @@ export default function UploadBeat() {
         setActiveTab("files");
         return;
       }
+      
+      const producerInfo = {
+        id: user?.id || 'anonymous-producer',
+        name: user?.name || 'Anonymous Producer'
+      };
       
       let coverImageUrl = '';
       if (imageFile) {
@@ -317,8 +319,8 @@ export default function UploadBeat() {
         finalPreviewFile,
         null,
         stemsFile,
-        user.id,
-        user.producer_name || user.name,
+        producerInfo.id,
+        producerInfo.name,
         collaborators,
         selectedLicenseTypes,
         previewUrlForUpload

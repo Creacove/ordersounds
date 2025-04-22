@@ -89,15 +89,7 @@ export const uploadBeat = async (
   try {
     console.log('Starting beat upload process');
     
-    // Check if user is authenticated
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !sessionData.session) {
-      console.error('Authentication required to upload beat', sessionError);
-      return {
-        success: false,
-        error: 'You must be logged in to upload beats'
-      };
-    }
+    // Authentication check removed - allow anyone to upload beats
     
     // Upload full track file if it's a File object
     let fullTrackUrl: string;
