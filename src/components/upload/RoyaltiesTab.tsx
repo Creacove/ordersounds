@@ -135,18 +135,16 @@ export const RoyaltiesTab = ({
         </div>
       </div>
       
-      <div className="flex items-center justify-between mt-8">
-        {beatStatus === "draft" && (
-          <Button 
-            variant="outline" 
-            type="button"
-            className="w-auto"
-            disabled={isSubmitting}
-            onClick={onUpdate}
-          >
-            Update as Draft
-          </Button>
-        )}
+      <div className="flex items-center justify-between mt-8 space-x-4">
+        <Button 
+          variant="outline" 
+          type="button"
+          className="w-auto"
+          disabled={isSubmitting}
+          onClick={onUpdate}
+        >
+          {beatStatus === "draft" ? "Update as Draft" : "Update Beat"}
+        </Button>
         
         {beatStatus === "draft" && (
           <Button
