@@ -23,14 +23,13 @@ import { useCart } from "@/context/CartContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { clearBeatsCache } from "@/services/beats";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 
 type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
-  const { beats, isLoading, isPurchased, isFavorite, fetchBeats, forceRefreshBeats } = useBeats();
+  const { beats, isLoading, isPurchased, isFavorite, fetchBeats } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -43,7 +42,6 @@ export default function ProducerBeats() {
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [dataFetchedRef, setDataFetchedRef] = useState(false);
-  const [localBeats, setLocalBeats] = useState<typeof beats>([]);
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -63,11 +61,7 @@ export default function ProducerBeats() {
     if (user && !dataFetchedRef) {
       loadBeats();
     }
-  }, [fetchBeats, user, dataFetchedRef]);
-
-  useEffect(() => {
-    setLocalBeats(beats);
-  }, [beats]);
+  }, [fetchBeats, user]);
 
   useEffect(() => {
     if (isMobile && viewMode === "table") {
@@ -76,8 +70,7 @@ export default function ProducerBeats() {
   }, [isMobile, viewMode]);
 
   const producerId = user ? user.id : 'anonymous-producer';
-  
-  const producerBeats = localBeats.filter(beat => beat.producer_id === producerId);
+  const producerBeats = beats.filter(beat => beat.producer_id === producerId);
   const draftBeats = producerBeats.filter(beat => beat.status === 'draft');
   const publishedBeats = producerBeats.filter(beat => beat.status === 'published');
 
@@ -97,30 +90,21 @@ export default function ProducerBeats() {
 
   const confirmDelete = async () => {
     if (!selectedBeatId) return;
-    
     try {
       setIsDeleting(true);
-      
-      setLocalBeats(prevBeats => prevBeats.filter(beat => beat.id !== selectedBeatId));
-      
       const { error } = await supabase
         .from('beats')
         .delete()
         .eq('id', selectedBeatId);
-        
       if (error) {
         throw new Error(error.message);
       }
-      
-      clearBeatsCache();
       toast.success('Beat deleted successfully');
-      
-      await forceRefreshBeats();
-      
+      setDataFetchedRef(false);
+      await fetchBeats();
     } catch (error) {
       console.error('Error deleting beat:', error);
       toast.error('Failed to delete beat');
-      await forceRefreshBeats();
     } finally {
       setIsDeleting(false);
       setDeleteOpen(false);
@@ -130,36 +114,21 @@ export default function ProducerBeats() {
 
   const confirmPublish = async () => {
     if (!selectedBeatId) return;
-    
     try {
       setIsPublishing(true);
-      
-      setLocalBeats(prevBeats => 
-        prevBeats.map(beat => 
-          beat.id === selectedBeatId 
-            ? {...beat, status: 'published'} 
-            : beat
-        )
-      );
-      
       const { error } = await supabase
         .from('beats')
         .update({ status: 'published' })
         .eq('id', selectedBeatId);
-        
       if (error) {
         throw new Error(error.message);
       }
-      
-      clearBeatsCache();
       toast.success('Beat published successfully');
-      
-      await forceRefreshBeats();
-      
+      setDataFetchedRef(false);
+      await fetchBeats();
     } catch (error) {
       console.error('Error publishing beat:', error);
       toast.error('Failed to publish beat');
-      await forceRefreshBeats();
     } finally {
       setIsPublishing(false);
       setPublishOpen(false);
@@ -193,7 +162,7 @@ export default function ProducerBeats() {
     </Card>
   );
 
-  const showSkeleton = initialLoading || (isLoading && localBeats.length === 0);
+  const showSkeleton = initialLoading || (isLoading && beats.length === 0);
 
   return (
     <MainLayout activeTab="beats">
