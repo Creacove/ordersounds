@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -43,7 +42,10 @@ export function useBeats() {
       const favorites = await fetchUserFavorites(user.id);
       setUserFavorites(favorites);
       
-      localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(favorites));
+      // Only store small amounts of data in localStorage
+      if (favorites.length < 100) {
+        localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(favorites));
+      }
     } catch (error) {
       console.error('Error fetching user favorites:', error);
       
@@ -111,17 +113,18 @@ export function useBeats() {
     if (trendingBeats.length > 0) return; // Skip if we already have trending beats
     
     try {
-      const initialBeats = await fetchTrendingBeats(30);
+      // Limit the initial batch size to improve performance
+      const initialBeats = await fetchTrendingBeats(10);
       if (initialBeats && initialBeats.length > 0) {
         setTrendingBeats(initialBeats);
       }
       
-      const initialNewBeats = await fetchNewBeats(30); 
+      const initialNewBeats = await fetchNewBeats(10); 
       if (initialNewBeats && initialNewBeats.length > 0) {
         setNewBeats(initialNewBeats);
       }
       
-      const initialWeeklyPicks = await fetchRandomBeats(6);
+      const initialWeeklyPicks = await fetchRandomBeats(4);
       if (initialWeeklyPicks && initialWeeklyPicks.length > 0) {
         setWeeklyPicks(initialWeeklyPicks);
       }
@@ -145,6 +148,25 @@ export function useBeats() {
       return;
     }
     
+    // Fast path for producer beats: prioritize loading producer's own beats first
+    if (user?.role === 'producer') {
+      try {
+        const producerBeatsQuery = await fetchAllBeats({ 
+          includeDrafts: true, 
+          producerId: user.id, 
+          limit: 20 // Fetch fewer beats initially for faster loading
+        });
+        
+        if (producerBeatsQuery && producerBeatsQuery.length > 0) {
+          setBeats(producerBeatsQuery);
+          setIsLoading(false);
+          // Continue fetching remaining beats in background
+        }
+      } catch (error) {
+        console.error('Error fetching producer beats:', error);
+      }
+    }
+    
     // Check if we have cached data and it's not expired
     const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
     const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
@@ -152,6 +174,7 @@ export function useBeats() {
     if (cachedBeats && !shouldRefresh) {
       console.log('Using cached beats data');
       setBeats(cachedBeats);
+      setIsLoading(false);
       return;
     }
     
@@ -171,7 +194,10 @@ export function useBeats() {
       }
       
       // Include drafts when fetching all beats to make sure producers can see them
-      const transformedBeats = await fetchAllBeats({ includeDrafts: true });
+      const transformedBeats = await fetchAllBeats({ 
+        includeDrafts: true,
+        limit: 50 // Limit initial fetch for better performance
+      });
       
       if (!transformedBeats || transformedBeats.length === 0) {
         console.warn("No beats returned from API");
@@ -180,27 +206,25 @@ export function useBeats() {
         return;
       }
       
-      saveToCache(CACHE_KEYS.ALL_BEATS, transformedBeats, CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
+      // Don't try to cache large datasets anymore, just use memory
+      // This will avoid localStorage quota exceeded errors
       
       setBeats(transformedBeats);
       
       // Only refresh trending/featured/weekly if needed
       const shouldRefreshTrending = checkShouldRefreshCache(CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
       if (shouldRefreshTrending || trendingBeats.length === 0) {
-        const trending = refreshTrendingBeats(transformedBeats);
-        setTrendingBeats(trending);
+        setTrendingBeats(refreshTrendingBeats(transformedBeats));
       }
       
       const shouldRefreshFeatured = checkShouldRefreshCache(CACHE_KEYS.FEATURED_EXPIRY, CACHE_DURATIONS.FEATURED);
       if (shouldRefreshFeatured || !featuredBeat) {
-        const featured = selectFeaturedBeat(transformedBeats);
-        setFeaturedBeat(featured);
+        setFeaturedBeat(selectFeaturedBeat(transformedBeats));
       }
       
       const shouldRefreshWeekly = checkShouldRefreshCache(CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
       if (shouldRefreshWeekly || weeklyPicks.length === 0) {
-        const weekly = refreshWeeklyPicks(transformedBeats);
-        setWeeklyPicks(weekly);
+        setWeeklyPicks(refreshWeeklyPicks(transformedBeats));
       }
       
       const sortedByNew = [...transformedBeats].sort((a, b) => 
@@ -209,8 +233,7 @@ export function useBeats() {
       setNewBeats(sortedByNew.slice(0, 5));
       
       if (activeFilters) {
-        const filtered = applyFilters(transformedBeats, activeFilters);
-        setFilteredBeats(filtered);
+        setFilteredBeats(applyFilters(transformedBeats, activeFilters));
       } else {
         setFilteredBeats(transformedBeats);
       }

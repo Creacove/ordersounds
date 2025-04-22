@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
@@ -41,13 +41,25 @@ export default function ProducerBeats() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
+    
+    // Set a short timeout to show skeleton loading state
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 800);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    fetchBeats();
+    const loadBeats = async () => {
+      await fetchBeats();
+    };
+    
+    loadBeats();
   }, [fetchBeats]);
 
   useEffect(() => {
@@ -62,21 +74,21 @@ export default function ProducerBeats() {
   const publishedBeats = producerBeats.filter(beat => beat.status === 'published');
 
   // --- Handler for Edit action ---
-  const handleEdit = (beatId: string) => {
+  const handleEdit = useCallback((beatId: string) => {
     navigate(`/producer/upload?edit=${beatId}`);
-  };
+  }, [navigate]);
 
   // --- Handler for Delete action ---
-  const handleDelete = async (beatId: string) => {
+  const handleDelete = useCallback((beatId: string) => {
     setSelectedBeatId(beatId);
     setDeleteOpen(true);
-  };
+  }, []);
 
   // --- Handler for Publish action ---
-  const handlePublish = async (beatId: string) => {
+  const handlePublish = useCallback((beatId: string) => {
     setSelectedBeatId(beatId);
     setPublishOpen(true);
-  };
+  }, []);
 
   // --- Confirm Delete action ---
   const confirmDelete = async () => {
@@ -167,6 +179,9 @@ export default function ProducerBeats() {
     </Card>
   );
 
+  // Display skeleton loading only during initial loading
+  const showSkeleton = initialLoading || (isLoading && beats.length === 0);
+
   return (
     <MainLayout activeTab="beats">
       <div className={cn("container py-4 md:py-6 max-w-full px-1 md:px-3 lg:px-8", isMobile ? "pb-16" : "")}>
@@ -174,13 +189,18 @@ export default function ProducerBeats() {
         <div className="flex flex-wrap md:flex-nowrap items-center justify-between mb-4 gap-y-2 gap-x-3">
           <div className="flex items-center space-x-3">
             <h1 className="heading-responsive-lg">My Beats</h1>
-            <span className="text-muted-foreground text-xs md:text-sm">{producerBeats.length} {producerBeats.length === 1 ? "beat" : "beats"}</span>
+            {!showSkeleton && (
+              <span className="text-muted-foreground text-xs md:text-sm">
+                {producerBeats.length} {producerBeats.length === 1 ? "beat" : "beats"}
+              </span>
+            )}
           </div>
           <Button onClick={() => navigate("/producer/upload")} size="sm" className="gap-1.5 flex-shrink-0">
             <PlusCircle className="h-4 w-4" />
             Upload
           </Button>
         </div>
+        
         {/* Tabs and view mode selector side by side on desktop, stacked on mobile */}
         <div className="flex flex-col md:flex-row md:items-end md:justify-between md:gap-6 gap-2 mb-2">
           <Tabs
@@ -188,52 +208,60 @@ export default function ProducerBeats() {
             onValueChange={(v) => setTabValue(v as "published" | "drafts")}
             className="w-full"
           >
-            <TabsList className="max-w-xs w-full flex items-center mx-auto md:mx-0 mb-0">
-              <TabsTrigger value="published" className={cn("flex-1 text-base py-2", tabValue === "published" ? "shadow" : "")}>
-                Published <span className="ml-1 text-xs text-muted-foreground font-normal">({publishedBeats.length})</span>
-              </TabsTrigger>
-              <TabsTrigger value="drafts" className={cn("flex-1 text-base py-2", tabValue === "drafts" ? "shadow" : "")}>
-                Drafts <span className="ml-1 text-xs text-muted-foreground font-normal">({draftBeats.length})</span>
-              </TabsTrigger>
-            </TabsList>
-            {/* View mode selector */}
-            <div className="hidden md:flex gap-2 ml-auto">
-              <Button
-                variant={viewMode === "grid" ? "secondary" : "ghost"}
-                size="sm"
-                className="text-xs p-2 h-auto"
-                onClick={() => setViewMode("grid")}
-                aria-label="Grid view"
-              >
-                <LayoutGrid className="h-4 w-4 mr-1.5" />
-                Grid
-              </Button>
-              <Button
-                variant={viewMode === "list" ? "secondary" : "ghost"}
-                size="sm"
-                className="text-xs p-2 h-auto"
-                onClick={() => setViewMode("list")}
-                aria-label="List view"
-              >
-                <LayoutList className="h-4 w-4 mr-1.5" />
-                List
-              </Button>
-              {!isMobile && (
+            <div className="flex justify-between items-center mb-2">
+              <TabsList className="max-w-xs w-full flex items-center ml-0 md:mx-0 mb-0">
+                <TabsTrigger value="published" className={cn("flex-1 text-base py-2", tabValue === "published" ? "shadow" : "")}>
+                  Published <span className="ml-1 text-xs text-muted-foreground font-normal">
+                    {!showSkeleton ? `(${publishedBeats.length})` : "(...)"}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="drafts" className={cn("flex-1 text-base py-2", tabValue === "drafts" ? "shadow" : "")}>
+                  Drafts <span className="ml-1 text-xs text-muted-foreground font-normal">
+                    {!showSkeleton ? `(${draftBeats.length})` : "(...)"}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+              
+              {/* View mode selector - Moved to the right */}
+              <div className="flex gap-2 ml-auto">
                 <Button
-                  variant={viewMode === "table" ? "secondary" : "ghost"}
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
                   size="sm"
                   className="text-xs p-2 h-auto"
-                  onClick={() => setViewMode("table")}
-                  aria-label="Table view"
+                  onClick={() => setViewMode("grid")}
+                  aria-label="Grid view"
                 >
-                  <LucideTable className="h-4 w-4 mr-1.5" />
-                  Table
+                  <LayoutGrid className="h-4 w-4 mr-1.5" />
+                  Grid
                 </Button>
-              )}
+                <Button
+                  variant={viewMode === "list" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="text-xs p-2 h-auto"
+                  onClick={() => setViewMode("list")}
+                  aria-label="List view"
+                >
+                  <LayoutList className="h-4 w-4 mr-1.5" />
+                  List
+                </Button>
+                {!isMobile && (
+                  <Button
+                    variant={viewMode === "table" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="text-xs p-2 h-auto"
+                    onClick={() => setViewMode("table")}
+                    aria-label="Table view"
+                  >
+                    <LucideTable className="h-4 w-4 mr-1.5" />
+                    Table
+                  </Button>
+                )}
+              </div>
             </div>
+            
             {/* Tab Contents */}
             <TabsContent value="published" className="mt-4 min-h-[220px] animate-fade-in">
-              {isLoading ? (
+              {showSkeleton ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="flex flex-col gap-2">
@@ -369,6 +397,7 @@ export default function ProducerBeats() {
                 />
               )}
             </TabsContent>
+            
             <TabsContent value="drafts" className="mt-4 min-h-[220px] animate-fade-in">
               {isLoading ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
@@ -522,30 +551,6 @@ export default function ProducerBeats() {
               )}
             </TabsContent>
           </Tabs>
-          {/* View mode buttons for mobile */}
-          <div className="flex md:hidden gap-2 mt-2">
-            <Button
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="sm"
-              className="text-xs p-2 h-auto"
-              onClick={() => setViewMode("grid")}
-              aria-label="Grid view"
-            >
-              <LayoutGrid className="h-4 w-4 mr-1.5" />
-              Grid
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="sm"
-              className="text-xs p-2 h-auto"
-              onClick={() => setViewMode("list")}
-              aria-label="List view"
-            >
-              <LayoutList className="h-4 w-4 mr-1.5" />
-              List
-            </Button>
-            {/* Table view hidden on mobile */}
-          </div>
         </div>
       </div>
 

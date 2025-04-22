@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -29,9 +30,19 @@ const BEAT_QUERY_FIELDS = `
   is_featured
 `;
 
-export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number; includeDrafts?: boolean } = {}): Promise<Beat[]> => {
+export const fetchAllBeats = async (options: { 
+  includeDetails?: boolean; 
+  limit?: number; 
+  includeDrafts?: boolean;
+  producerId?: string;
+} = {}): Promise<Beat[]> => {
   try {
-    const { includeDetails = true, limit = 0, includeDrafts = false } = options;
+    const { 
+      includeDetails = true, 
+      limit = 0, 
+      includeDrafts = false,
+      producerId
+    } = options;
     
     let query = supabase
       .from('beats')
@@ -40,6 +51,11 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
     // Only filter by published status if we're not including drafts
     if (!includeDrafts) {
       query = query.eq('status', 'published');
+    }
+    
+    // If producerId is provided, filter beats by that producer
+    if (producerId) {
+      query = query.eq('producer_id', producerId);
     }
     
     if (limit > 0) {
