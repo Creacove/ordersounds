@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -30,14 +29,18 @@ const BEAT_QUERY_FIELDS = `
   is_featured
 `;
 
-export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number } = {}): Promise<Beat[]> => {
+export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?: number; includeDrafts?: boolean } = {}): Promise<Beat[]> => {
   try {
-    const { includeDetails = true, limit = 0 } = options;
+    const { includeDetails = true, limit = 0, includeDrafts = false } = options;
     
     let query = supabase
       .from('beats')
-      .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published');
+      .select(BEAT_QUERY_FIELDS);
+    
+    // Only filter by published status if we're not including drafts
+    if (!includeDrafts) {
+      query = query.eq('status', 'published');
+    }
     
     if (limit > 0) {
       query = query.limit(limit);
@@ -167,5 +170,3 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
     return [];
   }
 };
-
-

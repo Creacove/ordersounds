@@ -1,4 +1,3 @@
-
 import { Beat } from '@/types';
 
 export * from './types';
@@ -8,6 +7,7 @@ export * from './userService';
 
 // Helper functions that don't need database access
 export const getProducerBeats = (beats: Beat[], producerId: string): Beat[] => {
+  // Include all beats for the producer, both published and drafts
   return beats.filter(beat => beat.producer_id === producerId);
 };
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -169,7 +168,8 @@ export function useBeats() {
         await fetchInitialBeats();
       }
       
-      const transformedBeats = await fetchAllBeats();
+      // Include drafts when fetching all beats to make sure producers can see them
+      const transformedBeats = await fetchAllBeats({ includeDrafts: true });
       
       if (!transformedBeats || transformedBeats.length === 0) {
         console.warn("No beats returned from API");
@@ -354,6 +354,11 @@ export function useBeats() {
     return beats.filter(beat => userFavorites.includes(beat.id));
   };
 
+  const getProducerBeats = (producerId: string): Beat[] => {
+    // Get all beats for this producer, including drafts
+    return beats.filter(beat => beat.producer_id === producerId);
+  };
+
   return {
     beats,
     filteredBeats,
@@ -377,7 +382,6 @@ export function useBeats() {
     isOffline,
     activeFilters,
     getBeatById,
-    getProducerBeats: (producerId: string) => getProducerBeats(beats, producerId),
     getUserPurchasedBeats,
     getUserFavoriteBeats,
     fetchInProgress
