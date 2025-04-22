@@ -4,7 +4,7 @@ import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
 import { mapSupabaseBeatToBeat } from './utils';
 
-// Updated createBasicBeatsQuery to include new fields
+// Updated createBasicBeatsQuery to include new fields but simplified to avoid deep recursion
 const createBasicBeatsQuery = () => {
   return supabase
     .from('beats')
@@ -94,7 +94,8 @@ export const fetchAllBeats = async (options: { includeDetails?: boolean; limit?:
 
 export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
   try {
-    const query = supabase
+    // We'll directly use the query here instead of the recursion-prone helper
+    const { data, error } = await supabase
       .from('beats')
       .select(`
         id,
@@ -120,13 +121,8 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
       `)
       .eq('status', 'published')
       .eq('is_trending', true)
-      .order('favorites_count', { ascending: false });
-
-    if (limit > 0) {
-      query.limit(limit);
-    }
-
-    const { data, error } = await query;
+      .order('favorites_count', { ascending: false })
+      .limit(limit);
 
     if (error) {
       throw error;
@@ -195,7 +191,32 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
 
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    const { data, error } = await createBasicBeatsQuery()
+    // Replacing createBasicBeatsQuery with direct query to avoid the recursion issue
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        producer_id,
+        users (
+          full_name,
+          stage_name
+        ),
+        cover_image,
+        audio_preview,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        genre,
+        track_type,
+        bpm,
+        tags,
+        upload_date,
+        favorites_count,
+        purchase_count,
+        status,
+        is_trending,
+        is_weekly_pick
+      `)
       .eq('status', 'published')
       .limit(limit);
 
