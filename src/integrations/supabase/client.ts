@@ -42,7 +42,7 @@ const enhancedFetch = async (input: RequestInfo | URL, init?: RequestInit): Prom
       const startTime = Date.now();
       
       // Set extended timeout for storage uploads (5 minutes for storage, 60s for other requests)
-      const isStorageUpload = url.includes('/upload') && url.includes('/storage/');
+      const isStorageUpload = url.includes('/storage/') && (url.includes('/upload') || url.includes('/stems'));
       const timeoutDuration = isStorageUpload ? 300000 : 60000; // 5 minutes for storage uploads, 60s for others
       
       // Create a timeout promise

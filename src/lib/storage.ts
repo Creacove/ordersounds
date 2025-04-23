@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadImage, deleteImage as deleteImageFile } from './imageStorage';
@@ -56,13 +57,14 @@ export const uploadFile = async (
     const isLargeFile = realFile.size > 50 * 1024 * 1024; // Over 50MB
     const isStems = path === 'stems';
 
-    // Extended timeout for large files
-    const uploadTimeoutMs = isLargeFile ? 300000 : 60000; // 5 minutes for large files, 60s for others
+    // Extended timeout for large files - 5 minutes for large files, especially stems
+    // For stems we're using 5 minutes (300000ms) instead of the default 60s
+    const uploadTimeoutMs = (isLargeFile || isStems) ? 300000 : 60000; 
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
       // For large stems files, we'll use manual chunking
-      if (isLargeFile && isStems) {
+      if ((isLargeFile && isStems) || realFile.size > 100 * 1024 * 1024) {
         return uploadLargeFileManually(realFile, bucket, filePath, contentType, progressCallback, uploadTimeoutMs);
       }
       
