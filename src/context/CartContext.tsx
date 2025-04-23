@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { getLicensePrice } from '@/utils/licenseUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
 
 interface CartItem {
   beat: Beat & { selected_license?: string };
@@ -235,4 +236,8 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       {children}
     </CartContext.Provider>
   );
+
+  
+
+  
 };
