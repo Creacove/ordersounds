@@ -6,7 +6,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { WaveFile } from "https://esm.sh/wavefile@14.0.0";
+import { WaveFile } from "https://esm.sh/wavefile@11.0.0";
 
 // CORS headers for browser requests
 const corsHeaders = {
