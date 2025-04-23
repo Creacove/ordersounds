@@ -189,9 +189,23 @@ export function useBeatUpload() {
       
       if (error) {
         console.error("Error processing audio:", error);
-        toast.error(error.message || "Failed to process audio. Please try again.");
-        setProcessingFiles(false);
-        return;
+        toast.error("Server preview generation failed. Trying client-side generation...");
+        
+        if (uploadedFile && isFile(uploadedFile)) {
+          try {
+            const previewBlob = await createMp3Preview(uploadedFile);
+            const previewObjectUrl = URL.createObjectURL(previewBlob);
+            setPreviewUrl(previewObjectUrl);
+            toast.success("Preview generated locally");
+            setProcessingFiles(false);
+            return;
+          } catch (clientError) {
+            console.error("Client-side preview generation failed:", clientError);
+            throw new Error("Failed to generate preview");
+          }
+        } else {
+          throw new Error("No file available for preview generation");
+        }
       }
 
       if (data && data.previewUrl) {
@@ -212,7 +226,7 @@ export function useBeatUpload() {
             const previewBlob = await createMp3Preview(uploadedFile);
             const previewObjectUrl = URL.createObjectURL(previewBlob);
             setPreviewUrl(previewObjectUrl);
-            console.log("Client-side preview generation successful");
+            toast.success("Preview generated locally");
           } catch (clientError) {
             console.error("Client-side preview generation failed:", clientError);
           }

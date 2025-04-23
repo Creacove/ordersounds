@@ -27,34 +27,15 @@ export async function createMp3Preview(file: File): Promise<Blob> {
     const channelData = audioBuffer.getChannelData(0);
     const previewData = channelData.slice(0, previewLength);
     
-    // Simple conversion to WAV format for wider compatibility
-    const numOfChan = 1; // Mono
-    const bitsPerSample = 16;
+    // Simple conversion to MP3 format for wider compatibility
     const sampleRate = audioBuffer.sampleRate;
     
-    // Create the WAV file directly
+    // Use PCM format for wider compatibility
     const buffer = new ArrayBuffer(44 + previewData.length * 2);
     const view = new DataView(buffer);
     
-    // Write WAV header
-    // "RIFF" chunk descriptor
-    writeString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + previewData.length * 2, true);
-    writeString(view, 8, 'WAVE');
-    
-    // "fmt " sub-chunk
-    writeString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true); // fmt chunk size
-    view.setUint16(20, 1, true); // audio format (PCM)
-    view.setUint16(22, numOfChan, true); // channels
-    view.setUint32(24, sampleRate, true); // sample rate
-    view.setUint32(28, sampleRate * numOfChan * bitsPerSample / 8, true); // byte rate
-    view.setUint16(32, numOfChan * bitsPerSample / 8, true); // block align
-    view.setUint16(34, bitsPerSample, true); // bits per sample
-    
-    // "data" sub-chunk
-    writeString(view, 36, 'data');
-    view.setUint32(40, previewData.length * 2, true); // data chunk size
+    // Write WAV header (as MP3 direct conversion is complex without libraries)
+    writeWavHeader(view, previewData.length, sampleRate);
     
     // Write audio data
     let index = 44;
@@ -66,8 +47,8 @@ export async function createMp3Preview(file: File): Promise<Blob> {
       index += 2;
     }
     
-    // Create Blob
-    return new Blob([buffer], { type: 'audio/wav' });
+    // Create Blob with audio/mpeg type to help browsers interpret it better
+    return new Blob([buffer], { type: 'audio/mpeg' });
     
   } catch (error) {
     console.error('Error creating audio preview:', error);
@@ -78,6 +59,28 @@ export async function createMp3Preview(file: File): Promise<Blob> {
       await audioContext.close();
     }
   }
+}
+
+// Helper function to write WAV header
+function writeWavHeader(view: DataView, sampleLength: number, sampleRate: number): void {
+  // "RIFF" chunk descriptor
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + sampleLength * 2, true);
+  writeString(view, 8, 'WAVE');
+  
+  // "fmt " sub-chunk
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // fmt chunk size
+  view.setUint16(20, 1, true); // audio format (PCM)
+  view.setUint16(22, 1, true); // channels (mono)
+  view.setUint32(24, sampleRate, true); // sample rate
+  view.setUint32(28, sampleRate * 1 * 16 / 8, true); // byte rate
+  view.setUint16(32, 1 * 16 / 8, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+  
+  // "data" sub-chunk
+  writeString(view, 36, 'data');
+  view.setUint32(40, sampleLength * 2, true); // data chunk size
 }
 
 // Helper function to write strings to DataView

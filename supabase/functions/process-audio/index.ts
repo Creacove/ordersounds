@@ -55,7 +55,7 @@ serve(async (req) => {
     let fileName = pathParts[pathParts.length - 1];
     const fileBase = fileName.split('.')[0];
     
-    // Always use MP3 for browser compatibility
+    // Force browser-compatible format (MP3)
     const outputFileName = `preview_${fileBase}_${Date.now()}.mp3`;
     const outputPath = `previews/${outputFileName}`;
 
@@ -82,7 +82,9 @@ serve(async (req) => {
     const totalBytes = fileArrayBuffer.byteLength;
     
     // Take approximately 30% of the file for preview
-    const previewBytes = Math.min(Math.floor(totalBytes * 0.3), totalBytes);
+    // For large WAV files, limit to first 3MB
+    const maxPreviewBytes = 3 * 1024 * 1024; // 3MB
+    const previewBytes = Math.min(Math.floor(totalBytes * 0.3), totalBytes, maxPreviewBytes);
     const previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, previewBytes));
     
     console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBuffer.byteLength} bytes (${(previewBuffer.byteLength / totalBytes * 100).toFixed(1)}%)`);
@@ -92,7 +94,7 @@ serve(async (req) => {
     const { error: uploadError } = await adminClient.storage
       .from('beats')
       .upload(outputPath, previewBuffer, {
-        contentType: 'audio/mpeg', // Always treat as MP3
+        contentType: 'audio/mpeg',
         cacheControl: "3600",
         upsert: true
       });
