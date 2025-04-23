@@ -6,17 +6,13 @@ import lamejs from 'lamejs';
  * Takes the first 30% of the audio and converts it to MP3 at 128kbps
  */
 export async function createMp3Preview(file: File): Promise<Blob> {
-  // Define the AudioContext type with the webkit prefix for TypeScript
-  interface AudioContextType {
-    new (): AudioContext;
+  // Create audio context with proper cross-browser support
+  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContext) {
+    throw new Error('Web Audio API not supported in this browser');
   }
   
-  // Create audio context with proper type definition
-  const AudioContextClass: AudioContextType = 
-    (window.AudioContext as AudioContextType) || 
-    ((window as any).webkitAudioContext as AudioContextType);
-  
-  const audioContext = new AudioContextClass();
+  const audioContext = new AudioContext();
   
   try {
     // Read file as ArrayBuffer
@@ -86,11 +82,3 @@ export async function createMp3Preview(file: File): Promise<Blob> {
     }
   }
 }
-
-// Example usage:
-/*
-const preview = await createMp3Preview(file);
-const previewFile = new File([preview], 'preview.mp3', { type: 'audio/mp3' });
-
-// The previewFile can now be uploaded to Supabase
-*/

@@ -1,4 +1,3 @@
-
 // @ts-nocheck
 // Audio processing edge function for OrderSOUNDS
 // Extracts first 30% of audio file for preview and converts to MP3 for browser compatibility
@@ -60,10 +59,10 @@ serve(async (req) => {
     // Check if the file is a WAV file
     const isWav = fileName.toLowerCase().endsWith('.wav') || fullTrackUrl.toLowerCase().includes('wav');
     
-    // Set output file name and content type based on whether it's WAV or MP3
-    const outputExtension = "mp3"; // Always use MP3 for browser compatibility
+    // Always use MP3 for browser compatibility
+    const outputExtension = "mp3";
     const outputFileName = `preview_${fileBase}_${Date.now()}.${outputExtension}`;
-    const outputContentType = 'audio/mpeg'; // Always use MP3 content type for better browser support
+    const outputContentType = 'audio/mpeg';
     
     console.log(`Extracted file name: ${fileName}, Output: ${outputFileName}, isWav: ${isWav}`);
     
@@ -76,7 +75,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: `Failed to download audio file: ${audioResponse.statusText}`,
-          details: `Status code: ${audioResponse.status}`,
           status: "error" 
         }),
         {
@@ -99,47 +97,15 @@ serve(async (req) => {
     // But don't exceed the original file size
     const finalPreviewBytes = Math.min(desiredPreviewBytes, totalBytes);
     
-    let previewBuffer;
-    let outputPath;
-    
-    if (isWav) {
-      console.log("Processing WAV file with WaveFile library");
-      
-      // Take the preview segment from the file
-      const previewSlice = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
-      
-      try {
-        // Process the WAV file to ensure it's a valid WAV after slicing
-        const wav = new WaveFile(previewSlice);
-        wav.chunkSize = previewSlice.byteLength - 8;
-        wav.data.chunkSize = previewSlice.byteLength - 44;
-        const fixedWav = wav.toBuffer();
-        
-        // Set the output path and fix header
-        outputPath = `previews/${outputFileName}`;
-        previewBuffer = fixedWav;
-        
-        console.log(`WAV file processed successfully, size: ${fixedWav.byteLength} bytes`);
-      } catch (wavError) {
-        console.error("Error processing WAV file:", wavError);
-        
-        // Fallback to raw slice if WaveFile processing fails
-        console.log("Falling back to raw slice method");
-        previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
-        outputPath = `previews/${outputFileName}`;
-      }
-    } else {
-      // For MP3 files, just take a raw slice
-      previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
-      outputPath = `previews/${outputFileName}`;
-    }
+    // For simplicity, take a raw slice of the file rather than trying to process WAV headers
+    const previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
+    const outputPath = `previews/${outputFileName}`;
     
     console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBuffer.byteLength} bytes (${(previewBuffer.byteLength / totalBytes * 100).toFixed(1)}%)`);
-    console.log(`Using content type: ${outputContentType} for preview`);
     
     // Upload the preview to storage - using service role to bypass RLS
     console.log(`Uploading preview file: ${outputPath}`);
-    const { data: uploadData, error: uploadError } = await adminClient.storage
+    const { error: uploadError } = await adminClient.storage
       .from('beats')
       .upload(outputPath, previewBuffer, {
         contentType: outputContentType,
@@ -171,26 +137,11 @@ serve(async (req) => {
         
     console.log("Preview uploaded successfully:", cacheBustedUrl);
     
-    // Set Cache-Control headers on the preview file for better browser caching behavior
-    await adminClient.storage
-      .from('beats')
-      .update(outputPath, previewBuffer, {
-        contentType: outputContentType,
-        cacheControl: "public, max-age=3600",
-        upsert: true
-      });
-    
     // Return the preview URL directly in the response
     return new Response(
       JSON.stringify({
         success: true,
         previewUrl: cacheBustedUrl,
-        path: outputPath,
-        previewBytes: previewBuffer.byteLength,
-        totalBytes: totalBytes,
-        previewRatio: (previewBuffer.byteLength / totalBytes * 100).toFixed(1) + '%',
-        contentType: outputContentType,
-        isWav: isWav,
         status: "success"
       }),
       {
