@@ -6,6 +6,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
+import { WaveFile } from "https://esm.sh/wavefile@14.0.0";
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -56,10 +57,15 @@ serve(async (req) => {
     let fileName = pathParts[pathParts.length - 1];
     const fileBase = fileName.split('.')[0];
     
-    // Always generate MP3 previews regardless of source format for better browser compatibility
-    const outputFileName = `preview_${fileBase}_${Date.now()}.mp3`;
+    // Check if the file is a WAV file
+    const isWav = fileName.toLowerCase().endsWith('.wav') || fullTrackUrl.toLowerCase().includes('wav');
     
-    console.log(`Extracted file name: ${fileName}, Output: ${outputFileName}`);
+    // Set output file name and content type based on whether it's WAV or MP3
+    const outputExtension = "mp3"; // Always use MP3 for browser compatibility
+    const outputFileName = `preview_${fileBase}_${Date.now()}.${outputExtension}`;
+    const outputContentType = 'audio/mpeg'; // Always use MP3 content type for better browser support
+    
+    console.log(`Extracted file name: ${fileName}, Output: ${outputFileName}, isWav: ${isWav}`);
     
     // Download the full file data
     console.log(`Downloading audio from: ${fullTrackUrl}`);
@@ -88,36 +94,55 @@ serve(async (req) => {
     // Take either 30% of the file or at least 500KB to ensure we have enough audio data
     const minPreviewBytes = 500 * 1024; // 500KB minimum
     const thirtyPercent = Math.floor(totalBytes * 0.3);
-    const previewBytes = Math.max(thirtyPercent, minPreviewBytes);
+    const desiredPreviewBytes = Math.max(thirtyPercent, minPreviewBytes);
     
     // But don't exceed the original file size
-    const finalPreviewBytes = Math.min(previewBytes, totalBytes);
+    const finalPreviewBytes = Math.min(desiredPreviewBytes, totalBytes);
     
-    // Take the preview segment from the file
-    const previewBuffer = fileArrayBuffer.slice(0, finalPreviewBytes);
+    let previewBuffer;
+    let outputPath;
     
-    // Convert ArrayBuffer to Uint8Array for Supabase upload
-    const previewArray = new Uint8Array(previewBuffer);
-    
-    console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewArray.byteLength} bytes (${(previewArray.byteLength / totalBytes * 100).toFixed(1)}%)`);
-    
-    // For WAV files, we need to ensure the resulting preview file can be properly played
-    // The simplest way is to explicitly set the MP3 content type and ensure the file has the .mp3 extension
-    const isWav = fileName.toLowerCase().endsWith('.wav') || fullTrackUrl.toLowerCase().includes('wav');
     if (isWav) {
-      console.log("WAV file detected - ensuring proper MP3 conversion");
+      console.log("Processing WAV file with WaveFile library");
+      
+      // Take the preview segment from the file
+      const previewSlice = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
+      
+      try {
+        // Process the WAV file to ensure it's a valid WAV after slicing
+        const wav = new WaveFile(previewSlice);
+        wav.chunkSize = previewSlice.byteLength - 8;
+        wav.data.chunkSize = previewSlice.byteLength - 44;
+        const fixedWav = wav.toBuffer();
+        
+        // Set the output path and fix header
+        outputPath = `previews/${outputFileName}`;
+        previewBuffer = fixedWav;
+        
+        console.log(`WAV file processed successfully, size: ${fixedWav.byteLength} bytes`);
+      } catch (wavError) {
+        console.error("Error processing WAV file:", wavError);
+        
+        // Fallback to raw slice if WaveFile processing fails
+        console.log("Falling back to raw slice method");
+        previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
+        outputPath = `previews/${outputFileName}`;
+      }
+    } else {
+      // For MP3 files, just take a raw slice
+      previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
+      outputPath = `previews/${outputFileName}`;
     }
     
-    // Always use MP3 for previews for browser compatibility
-    const contentType = 'audio/mpeg';
-    console.log(`Using content type: ${contentType} for preview`);
+    console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBuffer.byteLength} bytes (${(previewBuffer.byteLength / totalBytes * 100).toFixed(1)}%)`);
+    console.log(`Using content type: ${outputContentType} for preview`);
     
-    // Upload the preview portion to storage - using service role to bypass RLS
-    console.log(`Uploading preview file: previews/${outputFileName}`);
+    // Upload the preview to storage - using service role to bypass RLS
+    console.log(`Uploading preview file: ${outputPath}`);
     const { data: uploadData, error: uploadError } = await adminClient.storage
       .from('beats')
-      .upload(`previews/${outputFileName}`, previewArray, {
-        contentType: contentType,
+      .upload(outputPath, previewBuffer, {
+        contentType: outputContentType,
         cacheControl: "3600",
         upsert: true
       });
@@ -139,7 +164,7 @@ serve(async (req) => {
     // Get the public URL of the uploaded preview
     const { data: publicUrlData } = adminClient.storage
       .from('beats')
-      .getPublicUrl(`previews/${outputFileName}`);
+      .getPublicUrl(outputPath);
     
     // Add cache-busting parameter to the URL to prevent browser caching issues
     const cacheBustedUrl = `${publicUrlData.publicUrl}?cb=${Date.now()}`;
@@ -149,8 +174,8 @@ serve(async (req) => {
     // Set Cache-Control headers on the preview file for better browser caching behavior
     await adminClient.storage
       .from('beats')
-      .update(`previews/${outputFileName}`, previewArray, {
-        contentType: contentType,
+      .update(outputPath, previewBuffer, {
+        contentType: outputContentType,
         cacheControl: "public, max-age=3600",
         upsert: true
       });
@@ -160,11 +185,12 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         previewUrl: cacheBustedUrl,
-        path: `previews/${outputFileName}`,
-        previewBytes: previewArray.byteLength,
+        path: outputPath,
+        previewBytes: previewBuffer.byteLength,
         totalBytes: totalBytes,
-        previewRatio: (previewArray.byteLength / totalBytes * 100).toFixed(1) + '%',
-        contentType: contentType,
+        previewRatio: (previewBuffer.byteLength / totalBytes * 100).toFixed(1) + '%',
+        contentType: outputContentType,
+        isWav: isWav,
         status: "success"
       }),
       {
