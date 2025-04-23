@@ -33,10 +33,6 @@ serve(async (req) => {
   }
 
   try {
-    // --- REMOVE AUTH: ----
-    // Skipping Authorization header and token checks (any user can process audio)
-    // --- END REMOVE AUTH ---
-
     // Parse the request body
     const { fullTrackUrl } = await req.json();
 

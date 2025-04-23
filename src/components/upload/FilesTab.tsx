@@ -30,6 +30,7 @@ type FilesTabProps = {
   handleStemsUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploadError?: string | null;
   stemsUrl?: string | null;
+  uploadedFileUrl?: string;
 };
 
 export const FilesTab = ({
@@ -53,14 +54,14 @@ export const FilesTab = ({
   handlePreviewUpload,
   handleStemsUpload,
   uploadError,
-  stemsUrl
+  stemsUrl,
+  uploadedFileUrl
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
   
-  // Get the preview URL from either the provided URL or create an object URL for a File
   const previewObjectUrl = previewFile && isFile(previewFile) 
     ? URL.createObjectURL(previewFile) 
     : '';
@@ -76,14 +77,12 @@ export const FilesTab = ({
     reload: reloadAudio
   } = useAudio(audioPreviewUrl);
   
-  // Determine if we have stems data (either as a File or URL)
   const hasStemsData = stems !== null || stemsUrl !== null && stemsUrl !== undefined;
-  
+
   useEffect(() => {
     setIsPlaying(isAudioPlaying);
   }, [isAudioPlaying, setIsPlaying]);
 
-  // Log audio duration for debugging
   useEffect(() => {
     if (audioIsReady && audioPreviewUrl) {
       console.log(`Audio preview ready - Duration: ${audioDuration}s, URL: ${audioPreviewUrl}`);
@@ -96,7 +95,6 @@ export const FilesTab = ({
     }
   }, [uploadedFile, uploadProgress]);
 
-  // Clean up object URLs when component unmounts
   useEffect(() => {
     return () => {
       if (previewObjectUrl) {
@@ -134,6 +132,23 @@ export const FilesTab = ({
       setValidationError(null);
     }
   }, [uploadedFile, requiresWavFormat]);
+
+  const handleRetryAudioPreview = () => {
+    if (audioError) {
+      console.log("Attempting to retry audio preview...");
+      
+      if (reloadAudio) {
+        console.log("Using reloadAudio method");
+        reloadAudio();
+      } else if (regeneratePreview && (uploadedFileUrl || (uploadedFile && !isFile(uploadedFile)))) {
+        console.log("Using regeneratePreview with existing upload URL");
+        regeneratePreview();
+      } else {
+        console.log("No retry method available");
+        toast.error("Unable to reload preview. Please try re-uploading your track.");
+      }
+    }
+  };
 
   const handleFullTrackUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -262,36 +277,23 @@ export const FilesTab = ({
     setStems(null);
   };
 
-  // Extract file name from stems URL for display
   const getStemsFileName = () => {
     if (stems && isFile(stems)) {
       return stems.name;
     } else if (stemsUrl) {
-      // Try to extract filename from URL
       const urlParts = stemsUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
-      // Remove any query params
       return fileName.split('?')[0] || "stems.zip";
     }
     return "stems.zip";
   };
 
-  // Format duration in MM:SS format
   const formatDuration = (seconds: number): string => {
     if (!seconds || isNaN(seconds) || seconds <= 0) return "0:00";
     
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Add a function to retry audio loading if it failed
-  const handleRetryAudioPreview = () => {
-    if (reloadAudio) {
-      reloadAudio();
-    } else if (regeneratePreview && uploadedFileUrl) {
-      regeneratePreview();
-    }
   };
 
   return (
@@ -416,7 +418,7 @@ export const FilesTab = ({
                     <button
                       className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${audioError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
                       onClick={audioError ? handleRetryAudioPreview : toggleAudioPlay}
-                      disabled={!audioPreviewUrl}
+                      disabled={!audioPreviewUrl || audioError}
                     >
                       {audioError ? <RefreshCw size={14} /> : 
                         isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}

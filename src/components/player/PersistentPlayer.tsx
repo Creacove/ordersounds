@@ -24,7 +24,7 @@ export function PersistentPlayer() {
     clearQueue,
     nextTrack,
     previousTrack,
-    error
+    error = false // Default to false if not provided by context
   } = usePlayer();
   
   const isMobile = useIsMobile();
