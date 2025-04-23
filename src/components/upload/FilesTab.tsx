@@ -58,6 +58,7 @@ export const FilesTab = ({
   uploadedFileUrl
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
@@ -103,6 +104,23 @@ export const FilesTab = ({
     };
   }, [previewObjectUrl]);
 
+  useEffect(() => {
+    if (audioError && previewUrl && retryCount < 3) {
+      const timer = setTimeout(() => {
+        console.log(`Auto-retrying preview load (${retryCount + 1}/3) with cache-busting...`);
+        if (setPreviewUrl) {
+          const cacheBuster = `cb=${Date.now()}`;
+          const urlBase = previewUrl.split('?')[0];
+          const newUrl = `${urlBase}?${cacheBuster}`;
+          setPreviewUrl(newUrl);
+          setRetryCount(prev => prev + 1);
+        }
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [audioError, previewUrl, retryCount, setPreviewUrl]);
+
   const getAcceptedAudioTypes = () => {
     if (requiresWavFormat) {
       return "audio/wav";
@@ -135,17 +153,17 @@ export const FilesTab = ({
 
   const handleRetryAudioPreview = () => {
     if (audioError) {
-      console.log("Attempting to retry audio preview...");
+      console.log("Manually retrying audio preview...");
+      setRetryCount(0);
       
       if (reloadAudio) {
-        console.log("Using reloadAudio method");
         reloadAudio();
-      } else if (regeneratePreview && (uploadedFileUrl || (uploadedFile && !isFile(uploadedFile)))) {
+      }
+      
+      if (regeneratePreview && (uploadedFileUrl || (uploadedFile && !isFile(uploadedFile)))) {
         console.log("Using regeneratePreview with existing upload URL");
+        toast.info("Regenerating preview, please wait...");
         regeneratePreview();
-      } else {
-        console.log("No retry method available");
-        toast.error("Unable to reload preview. Please try re-uploading your track.");
       }
     }
   };
@@ -163,6 +181,9 @@ export const FilesTab = ({
         setValidationError("WAV format required for premium/exclusive licenses");
         return;
       }
+      
+      setRetryCount(0);
+      setValidationError(null);
       
       handleFullTrackUpload(e);
     }
@@ -418,9 +439,9 @@ export const FilesTab = ({
                     <button
                       className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${audioError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
                       onClick={audioError ? handleRetryAudioPreview : toggleAudioPlay}
-                      disabled={!audioPreviewUrl || audioError}
+                      disabled={!audioPreviewUrl}
                     >
-                      {audioError ? <RefreshCw size={14} /> : 
+                      {audioError ? <RefreshCw size={14} className="animate-spin" /> : 
                         isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
@@ -430,7 +451,11 @@ export const FilesTab = ({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {audioError ? (
-                          <span className="text-destructive">Failed to load audio. Click to retry.</span>
+                          <span className="text-destructive flex items-center">
+                            <AlertTriangle size={12} className="mr-1" />
+                            Failed to load audio. Click to retry.
+                            {retryCount > 0 && ` (${retryCount}/3)`}
+                          </span>
                         ) : previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
                           audioPreviewUrl && audioIsReady && audioDuration > 0 ? 
@@ -449,6 +474,7 @@ export const FilesTab = ({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
+                          setRetryCount(0);
                           regeneratePreview();
                         }}
                         className="mr-1"
@@ -524,6 +550,14 @@ export const FilesTab = ({
                 <p className="text-xs text-muted-foreground mt-2 italic">
                   Preview generation can take up to 30 seconds. Please be patient.
                 </p>
+              )}
+              {audioError && (
+                <Alert variant="destructive" className="mt-2 py-2">
+                  <AlertDescription className="text-xs">
+                    Preview may not work properly in this browser with WAV files. 
+                    Try uploading an MP3 file instead or use a different browser.
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
 

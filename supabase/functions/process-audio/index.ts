@@ -1,11 +1,10 @@
+
 // @ts-nocheck
 // Audio processing edge function for OrderSOUNDS
 // Extracts first 30% of audio file for preview and converts to MP3 for browser compatibility
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
-import { WaveFile } from "https://esm.sh/wavefile@11.0.0";
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -56,16 +55,10 @@ serve(async (req) => {
     let fileName = pathParts[pathParts.length - 1];
     const fileBase = fileName.split('.')[0];
     
-    // Check if the file is a WAV file
-    const isWav = fileName.toLowerCase().endsWith('.wav') || fullTrackUrl.toLowerCase().includes('wav');
-    
     // Always use MP3 for browser compatibility
-    const outputExtension = "mp3";
-    const outputFileName = `preview_${fileBase}_${Date.now()}.${outputExtension}`;
-    const outputContentType = 'audio/mpeg';
-    
-    console.log(`Extracted file name: ${fileName}, Output: ${outputFileName}, isWav: ${isWav}`);
-    
+    const outputFileName = `preview_${fileBase}_${Date.now()}.mp3`;
+    const outputPath = `previews/${outputFileName}`;
+
     // Download the full file data
     console.log(`Downloading audio from: ${fullTrackUrl}`);
     const audioResponse = await fetch(fullTrackUrl);
@@ -84,31 +77,22 @@ serve(async (req) => {
       );
     }
 
-    // Get the file content
+    // Get the file content as an array buffer
     const fileArrayBuffer = await audioResponse.arrayBuffer();
     const totalBytes = fileArrayBuffer.byteLength;
     
-    // Make sure we're generating a preview that's not too small
-    // Take either 30% of the file or at least 500KB to ensure we have enough audio data
-    const minPreviewBytes = 500 * 1024; // 500KB minimum
-    const thirtyPercent = Math.floor(totalBytes * 0.3);
-    const desiredPreviewBytes = Math.max(thirtyPercent, minPreviewBytes);
-    
-    // But don't exceed the original file size
-    const finalPreviewBytes = Math.min(desiredPreviewBytes, totalBytes);
-    
-    // For simplicity, take a raw slice of the file rather than trying to process WAV headers
-    const previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, finalPreviewBytes));
-    const outputPath = `previews/${outputFileName}`;
+    // Take approximately 30% of the file for preview
+    const previewBytes = Math.min(Math.floor(totalBytes * 0.3), totalBytes);
+    const previewBuffer = new Uint8Array(fileArrayBuffer.slice(0, previewBytes));
     
     console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewBuffer.byteLength} bytes (${(previewBuffer.byteLength / totalBytes * 100).toFixed(1)}%)`);
     
-    // Upload the preview to storage - using service role to bypass RLS
+    // Upload the preview to storage using service role to bypass RLS
     console.log(`Uploading preview file: ${outputPath}`);
     const { error: uploadError } = await adminClient.storage
       .from('beats')
       .upload(outputPath, previewBuffer, {
-        contentType: outputContentType,
+        contentType: 'audio/mpeg', // Always treat as MP3
         cacheControl: "3600",
         upsert: true
       });
@@ -134,7 +118,7 @@ serve(async (req) => {
     
     // Add cache-busting parameter to the URL to prevent browser caching issues
     const cacheBustedUrl = `${publicUrlData.publicUrl}?cb=${Date.now()}`;
-        
+    
     console.log("Preview uploaded successfully:", cacheBustedUrl);
     
     // Return the preview URL directly in the response

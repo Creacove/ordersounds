@@ -135,8 +135,8 @@ export function useBeatUpload() {
       }
       
       const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
-                                selectedLicenseTypes.includes('exclusive');
-                                
+                              selectedLicenseTypes.includes('exclusive');
+                              
       if (requiresWavFormat && file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
         toast.error("Premium and exclusive licenses require WAV format");
         return;
@@ -175,9 +175,13 @@ export function useBeatUpload() {
       setPreviewUrl(null);
       setPreviewFile(null);
       
+      const timestampedUrl = fileUrl.includes('?') 
+        ? `${fileUrl}&t=${Date.now()}` 
+        : `${fileUrl}?t=${Date.now()}`;
+      
       const { data, error } = await supabase.functions.invoke('process-audio', {
         body: { 
-          fullTrackUrl: fileUrl,
+          fullTrackUrl: timestampedUrl,
           requiresWav: selectedLicenseTypes.includes('premium') || selectedLicenseTypes.includes('exclusive')
         }
       });
@@ -200,6 +204,18 @@ export function useBeatUpload() {
       } else {
         console.error("No preview URL returned from processing:", data);
         toast.error("Failed to generate audio preview");
+        
+        if (uploadedFile && isFile(uploadedFile)) {
+          toast.info("Trying client-side preview generation...");
+          try {
+            const previewBlob = await createMp3Preview(uploadedFile);
+            const previewObjectUrl = URL.createObjectURL(previewBlob);
+            setPreviewUrl(previewObjectUrl);
+            console.log("Client-side preview generation successful");
+          } catch (clientError) {
+            console.error("Client-side preview generation failed:", clientError);
+          }
+        }
       }
       
       setProcessingFiles(false);

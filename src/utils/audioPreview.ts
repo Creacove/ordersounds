@@ -1,13 +1,12 @@
 
-import lamejs from 'lamejs';
-
 /**
  * Creates an MP3 preview from an audio file (WAV or MP3)
- * Takes the first 30% of the audio and converts it to MP3 at 128kbps
+ * This is a fallback method if the server-side processing fails
  */
 export async function createMp3Preview(file: File): Promise<Blob> {
-  // Create audio context with proper cross-browser support
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+  // Create audio context with explicit type assertion for cross-browser compatibility
+  const AudioContext = window.AudioContext || (window as any).webkitAudioContext as typeof AudioContext;
+  
   if (!AudioContext) {
     throw new Error('Web Audio API not supported in this browser');
   }
@@ -28,57 +27,62 @@ export async function createMp3Preview(file: File): Promise<Blob> {
     const channelData = audioBuffer.getChannelData(0);
     const previewData = channelData.slice(0, previewLength);
     
-    // Convert float32 samples to int16 samples for MP3 encoding
-    const samples = new Int16Array(previewData.length);
+    // Simple conversion to WAV format for wider compatibility
+    const numOfChan = 1; // Mono
+    const bitsPerSample = 16;
+    const sampleRate = audioBuffer.sampleRate;
+    
+    // Create the WAV file directly
+    const buffer = new ArrayBuffer(44 + previewData.length * 2);
+    const view = new DataView(buffer);
+    
+    // Write WAV header
+    // "RIFF" chunk descriptor
+    writeString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + previewData.length * 2, true);
+    writeString(view, 8, 'WAVE');
+    
+    // "fmt " sub-chunk
+    writeString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true); // fmt chunk size
+    view.setUint16(20, 1, true); // audio format (PCM)
+    view.setUint16(22, numOfChan, true); // channels
+    view.setUint32(24, sampleRate, true); // sample rate
+    view.setUint32(28, sampleRate * numOfChan * bitsPerSample / 8, true); // byte rate
+    view.setUint16(32, numOfChan * bitsPerSample / 8, true); // block align
+    view.setUint16(34, bitsPerSample, true); // bits per sample
+    
+    // "data" sub-chunk
+    writeString(view, 36, 'data');
+    view.setUint32(40, previewData.length * 2, true); // data chunk size
+    
+    // Write audio data
+    let index = 44;
     for (let i = 0; i < previewData.length; i++) {
       // Convert float32 to int16
       const sample = Math.max(-1, Math.min(1, previewData[i]));
-      samples[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+      view.setInt16(index, value, true);
+      index += 2;
     }
     
-    // Initialize MP3 encoder
-    const mp3encoder = new lamejs.Mp3Encoder(1, // Mono
-                                           audioBuffer.sampleRate,
-                                           128); // 128kbps
-    
-    // Encode samples to MP3 (process in chunks to avoid memory issues)
-    const chunkSize = 1152; // Must be multiple of 576 for MP3
-    const chunks = [];
-    
-    for (let i = 0; i < samples.length; i += chunkSize) {
-      const chunk = samples.slice(i, i + chunkSize);
-      const mp3buf = mp3encoder.encodeBuffer(chunk);
-      if (mp3buf.length > 0) {
-        chunks.push(mp3buf);
-      }
-    }
-    
-    // Get the last frames and flush the encoder
-    const lastMp3buf = mp3encoder.flush();
-    if (lastMp3buf.length > 0) {
-      chunks.push(lastMp3buf);
-    }
-    
-    // Combine all chunks into a single Uint8Array
-    const totalLength = chunks.reduce((total, chunk) => total + chunk.length, 0);
-    const mp3Data = new Uint8Array(totalLength);
-    let offset = 0;
-    
-    for (const chunk of chunks) {
-      mp3Data.set(chunk, offset);
-      offset += chunk.length;
-    }
-    
-    // Create MP3 blob
-    return new Blob([mp3Data], { type: 'audio/mp3' });
+    // Create Blob
+    return new Blob([buffer], { type: 'audio/wav' });
     
   } catch (error) {
-    console.error('Error creating MP3 preview:', error);
+    console.error('Error creating audio preview:', error);
     throw error;
   } finally {
     // Clean up audio context
     if (audioContext.state !== 'closed') {
       await audioContext.close();
     }
+  }
+}
+
+// Helper function to write strings to DataView
+function writeString(view: DataView, offset: number, string: string): void {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
