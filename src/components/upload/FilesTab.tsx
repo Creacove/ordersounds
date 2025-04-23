@@ -61,6 +61,7 @@ export const FilesTab = ({
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
   
+  // Get the preview URL from either the provided URL or create an object URL for a File
   const previewObjectUrl = previewFile && isFile(previewFile) 
     ? URL.createObjectURL(previewFile) 
     : '';
@@ -70,7 +71,8 @@ export const FilesTab = ({
   const { 
     playing: isAudioPlaying, 
     togglePlay: toggleAudioPlay,
-    duration: audioDuration
+    duration: audioDuration,
+    isReady: audioIsReady
   } = useAudio(audioPreviewUrl);
   
   // Determine if we have stems data (either as a File or URL)
@@ -80,11 +82,27 @@ export const FilesTab = ({
     setIsPlaying(isAudioPlaying);
   }, [isAudioPlaying, setIsPlaying]);
 
+  // Log audio duration for debugging
+  useEffect(() => {
+    if (audioIsReady && audioPreviewUrl) {
+      console.log(`Audio preview ready - Duration: ${audioDuration}s, URL: ${audioPreviewUrl}`);
+    }
+  }, [audioDuration, audioIsReady, audioPreviewUrl]);
+
   useEffect(() => {
     if (uploadedFile && isFile(uploadedFile) && uploadProgress[uploadedFile.name] !== undefined) {
       console.log(`Progress update for ${uploadedFile.name}: ${uploadProgress[uploadedFile.name]}%`);
     }
   }, [uploadedFile, uploadProgress]);
+
+  // Clean up object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+      }
+    };
+  }, [previewObjectUrl]);
 
   const getAcceptedAudioTypes = () => {
     if (requiresWavFormat) {
@@ -257,6 +275,15 @@ export const FilesTab = ({
     return "stems.zip";
   };
 
+  // Format duration in MM:SS format
+  const formatDuration = (seconds: number): string => {
+    if (!seconds || isNaN(seconds) || seconds <= 0) return "0:00";
+    
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 mb-24 sm:mb-16">
       <div>
@@ -378,7 +405,7 @@ export const FilesTab = ({
                     <button
                       className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
                       onClick={toggleAudioPlay}
-                      disabled={!audioPreviewUrl}
+                      disabled={!audioPreviewUrl || !audioIsReady}
                     >
                       {isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
@@ -389,8 +416,9 @@ export const FilesTab = ({
                       <p className="text-xs text-muted-foreground">
                         {previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
-                          audioPreviewUrl ? `Preview ready (${Math.round(audioDuration)}s)` : 
-                          "Loading preview..."}
+                          audioPreviewUrl && audioIsReady ? 
+                            `Preview ready (${formatDuration(audioDuration)})` : 
+                            "Loading preview..."}
                       </p>
                       
                       {previewFile && isFile(previewFile) && 

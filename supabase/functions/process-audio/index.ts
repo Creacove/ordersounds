@@ -88,14 +88,22 @@ serve(async (req) => {
     const fileArrayBuffer = await audioResponse.arrayBuffer();
     const totalBytes = fileArrayBuffer.byteLength;
     
-    // Take only the first 30% of the file for the preview
-    const previewBytes = Math.floor(totalBytes * 0.3);
-    const previewBuffer = fileArrayBuffer.slice(0, previewBytes);
+    // Make sure we're generating a preview that's not too small
+    // Take either 30% of the file or at least 500KB to ensure we have enough audio data
+    const minPreviewBytes = 500 * 1024; // 500KB minimum
+    const thirtyPercent = Math.floor(totalBytes * 0.3);
+    const previewBytes = Math.max(thirtyPercent, minPreviewBytes);
+    
+    // But don't exceed the original file size
+    const finalPreviewBytes = Math.min(previewBytes, totalBytes);
+    
+    // Take the preview segment from the file
+    const previewBuffer = fileArrayBuffer.slice(0, finalPreviewBytes);
     
     // Convert ArrayBuffer to Uint8Array for Supabase upload
     const previewArray = new Uint8Array(previewBuffer);
     
-    console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewArray.byteLength} bytes`);
+    console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewArray.byteLength} bytes (${(previewArray.byteLength / totalBytes * 100).toFixed(1)}%)`);
     
     // Get MIME type
     const contentType = getMimeType(fileExt);
@@ -138,6 +146,9 @@ serve(async (req) => {
         success: true,
         previewUrl: publicUrlData.publicUrl,
         path: `previews/${outputFileName}`,
+        previewBytes: previewArray.byteLength,
+        totalBytes: totalBytes,
+        previewRatio: (previewArray.byteLength / totalBytes * 100).toFixed(1) + '%',
         status: "success"
       }),
       {
