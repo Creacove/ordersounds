@@ -15,7 +15,8 @@ import {
   fetchAllBeats, fetchTrendingBeats, fetchRandomBeats, fetchNewBeats,
   fetchUserFavorites, fetchPurchasedBeats, fetchPurchasedBeatDetails, 
   toggleFavoriteAPI, fetchBeatById, getProducerBeats as getProducerBeatsService,
-  getUserFavoriteBeats as getUserFavoriteBeatsService
+  getUserFavoriteBeats as getUserFavoriteBeatsService,
+  clearBeatsCache
 } from '@/services/beats';
 
 export function useBeats() {
@@ -153,13 +154,13 @@ export function useBeats() {
     }
   }, [trendingBeats.length]);
 
-  const fetchBeats = useCallback(async () => {
+  const fetchBeats = useCallback(async (options?: { skipCache?: boolean }) => {
     if (fetchInProgress) {
       console.log('Fetch already in progress, skipping duplicate request');
       return;
     }
     
-    if (dataFetched && beats.length > 0) {
+    if (dataFetched && beats.length > 0 && !options?.skipCache) {
       console.log('Data already fetched, using cached beats');
       setIsLoading(false);
       return;
@@ -167,19 +168,26 @@ export function useBeats() {
     
     if (user?.role === 'producer') {
       try {
-        const cachedBeats = loadFromCache<Beat[]>(`producer_beats_${user.id}`);
-        if (cachedBeats) {
-          console.log('Using cached producer beats');
-          setBeats(cachedBeats);
-          setIsLoading(false);
-          setDataFetched(true);
-          return;
+        const skipCache = options?.skipCache === true;
+        
+        if (!skipCache) {
+          const cachedBeats = loadFromCache<Beat[]>(`producer_beats_${user.id}`);
+          if (cachedBeats) {
+            console.log('Using cached producer beats');
+            setBeats(cachedBeats);
+            setIsLoading(false);
+            setDataFetched(true);
+            return;
+          }
+        } else {
+          console.log('Bypassing producer beats cache as requested');
         }
         
         const producerBeatsQuery = await fetchAllBeats({ 
           includeDrafts: true, 
           producerId: user.id, 
-          limit: 50
+          limit: 50,
+          skipCache: skipCache
         });
         
         if (producerBeatsQuery && producerBeatsQuery.length > 0) {
@@ -187,7 +195,9 @@ export function useBeats() {
           setIsLoading(false);
           setDataFetched(true);
           
-          localStorage.setItem(`producer_beats_${user.id}`, JSON.stringify(producerBeatsQuery));
+          if (!skipCache) {
+            localStorage.setItem(`producer_beats_${user.id}`, JSON.stringify(producerBeatsQuery));
+          }
           return;
         }
       } catch (error) {
@@ -195,9 +205,9 @@ export function useBeats() {
       }
     }
     
-    const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
-    const shouldRefresh = checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
+    const shouldRefresh = options?.skipCache || checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
     
+    const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
     if (cachedBeats && !shouldRefresh) {
       console.log('Using cached beats data');
       setBeats(cachedBeats);
@@ -291,6 +301,22 @@ export function useBeats() {
       fetchInitialBeats, fetchUserFavoritesData, fetchPurchasedBeatsData, 
       trendingBeats.length, weeklyPicks.length, featuredBeat, 
       fetchInProgress, beats.length, dataFetched]);
+
+  const forceRefreshBeats = useCallback(async () => {
+    console.log("Force refreshing beats data...");
+    
+    if (user?.role === 'producer') {
+      localStorage.removeItem(`producer_beats_${user.id}`);
+    }
+    
+    clearBeatsCache();
+    
+    setDataFetched(false);
+    
+    await fetchBeats({ skipCache: true });
+    
+    console.log("Beats data refreshed");
+  }, [fetchBeats, user]);
 
   useEffect(() => {
     if (!dataFetched) {
@@ -407,11 +433,6 @@ export function useBeats() {
     return getProducerBeatsService(beats, producerId);
   };
   
-  const forceRefreshBeats = useCallback(async () => {
-    setDataFetched(false);
-    await fetchBeats();
-  }, [fetchBeats]);
-
   return {
     beats,
     filteredBeats,

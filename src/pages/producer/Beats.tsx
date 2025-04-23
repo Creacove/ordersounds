@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -29,7 +30,7 @@ type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
-  const { beats, isLoading, isPurchased, isFavorite, fetchBeats } = useBeats();
+  const { beats, isLoading, isPurchased, isFavorite, fetchBeats, forceRefreshBeats } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -51,17 +52,18 @@ export default function ProducerBeats() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Force refresh beats data when the component mounts
   useEffect(() => {
     const loadBeats = async () => {
-      if (!dataFetchedRef) {
-        await fetchBeats();
-        setDataFetchedRef(true);
-      }
+      console.log("Forcing a fresh beats data fetch on page load");
+      await forceRefreshBeats();
+      setDataFetchedRef(true);
     };
-    if (user && !dataFetchedRef) {
+    
+    if (user) {
       loadBeats();
     }
-  }, [fetchBeats, user]);
+  }, [user, forceRefreshBeats]);
 
   useEffect(() => {
     if (isMobile && viewMode === "table") {
@@ -99,9 +101,10 @@ export default function ProducerBeats() {
       if (error) {
         throw new Error(error.message);
       }
+      
       toast.success('Beat deleted successfully');
-      setDataFetchedRef(false);
-      await fetchBeats();
+      // Force refresh the beats data after deletion
+      await forceRefreshBeats();
     } catch (error) {
       console.error('Error deleting beat:', error);
       toast.error('Failed to delete beat');
@@ -123,9 +126,10 @@ export default function ProducerBeats() {
       if (error) {
         throw new Error(error.message);
       }
+      
       toast.success('Beat published successfully');
-      setDataFetchedRef(false);
-      await fetchBeats();
+      // Force refresh the beats data after publishing
+      await forceRefreshBeats();
     } catch (error) {
       console.error('Error publishing beat:', error);
       toast.error('Failed to publish beat');

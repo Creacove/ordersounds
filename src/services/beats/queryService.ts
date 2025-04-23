@@ -38,23 +38,27 @@ export const fetchAllBeats = async (options: {
   limit?: number; 
   includeDrafts?: boolean;
   producerId?: string;
+  skipCache?: boolean;
 } = {}): Promise<Beat[]> => {
   try {
     const { 
       includeDetails = true, 
       limit = 0, 
       includeDrafts = false,
-      producerId
+      producerId,
+      skipCache = false
     } = options;
     
     // Create a cache key based on the query parameters
     const cacheKey = JSON.stringify({limit, includeDrafts, producerId});
     
-    // Check cache first (only valid for current session)
-    if (requestCache.has(cacheKey)) {
+    // Check cache first (only valid for current session) - unless skipCache is true
+    if (!skipCache && requestCache.has(cacheKey)) {
       console.log('Using in-memory cached beats data');
       return requestCache.get(cacheKey) || [];
     }
+    
+    console.log(skipCache ? 'Bypassing cache and fetching fresh data' : 'Cache miss, fetching from database');
     
     let query = supabase
       .from('beats')
@@ -271,6 +275,7 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
 
 // Function to clear all caches (useful after operations that modify data)
 export const clearBeatsCache = (): void => {
+  console.log('Clearing all beats caches');
   requestCache.clear();
   trendingCache.clear();
   newBeatsCache.clear();

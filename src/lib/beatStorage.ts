@@ -1,9 +1,11 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { FileOrUrl, isFile, uploadFile } from './storage';
 import { uploadImage } from './imageStorage';
 import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 import { Collaborator } from '@/hooks/useBeatUpload';
+import { clearBeatsCache } from '@/services/beats';
 
 interface BeatUploadResult {
   success: boolean;
@@ -208,6 +210,12 @@ export const uploadBeat = async (
         // Don't throw here, just log the error
       }
     }
+    
+    // Clear the beats cache after successful upload to ensure fresh data
+    clearBeatsCache();
+    
+    // Also clear producer-specific cache
+    localStorage.removeItem(`producer_beats_${producerId}`);
     
     return {
       success: true,
