@@ -60,8 +60,10 @@ serve(async (req) => {
     // Determine the file path based on URL structure
     let fileName = pathParts[pathParts.length - 1];
     const fileBase = fileName.split('.')[0];
-    const fileExt = fileName.split('.').pop() || 'mp3';
-    const outputFileName = `preview_${fileBase}_${Date.now()}.${fileExt}`;
+    const fileExt = fileName.split('.').pop()?.toLowerCase() || 'mp3';
+    
+    // For better browser compatibility, always generate MP3 previews regardless of source format
+    const outputFileName = `preview_${fileBase}_${Date.now()}.mp3`;
     
     console.log(`Extracted file name: ${fileName}, Output: ${outputFileName}`);
     
@@ -105,9 +107,9 @@ serve(async (req) => {
     
     console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewArray.byteLength} bytes (${(previewArray.byteLength / totalBytes * 100).toFixed(1)}%)`);
     
-    // Get MIME type
-    const contentType = getMimeType(fileExt);
-    console.log(`Using content type: ${contentType}`);
+    // Get MIME type - always use MP3 for previews for browser compatibility
+    const contentType = 'audio/mpeg';
+    console.log(`Using content type: ${contentType} for preview`);
     
     // Upload the preview portion to storage - using service role to bypass RLS
     console.log(`Uploading preview file: previews/${outputFileName}`);

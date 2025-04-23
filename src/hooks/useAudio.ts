@@ -26,6 +26,8 @@ export const useAudio = (url: string) => {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<number | null>(null);
+  const retryCountRef = useRef<number>(0);
+  const maxRetries = 3;
   
   // For debugging
   useEffect(() => {
@@ -43,8 +45,29 @@ export const useAudio = (url: string) => {
 
   // Set up audio element when URL changes
   useEffect(() => {
-    const audio = new Audio(url);
-    audioRef.current = audio;
+    if (!url) {
+      setState(prev => ({
+        ...prev,
+        url: '',
+        playing: false,
+        actuallyPlaying: false,
+        duration: 0,
+        currentTime: 0,
+        error: false,
+        isReady: false,
+        readyState: undefined
+      }));
+      
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      
+      return;
+    }
+
+    console.log(`Creating new audio element for: ${url}`);
+    retryCountRef.current = 0;
     
     // Reset state when URL changes
     setState(prev => ({
@@ -59,19 +82,27 @@ export const useAudio = (url: string) => {
       readyState: undefined
     }));
     
-    if (!url) {
-      return () => {
-        // Clean up
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current = null;
-        }
-      };
-    }
-
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.preload = "auto"; // Ensure we preload the audio
+    
     const setError = () => {
-      setState(prev => ({ ...prev, error: true, playing: false }));
       console.error("Audio error occurred");
+      
+      // Only retry a few times to prevent infinite loops
+      if (retryCountRef.current < maxRetries) {
+        retryCountRef.current += 1;
+        console.log(`Retry attempt ${retryCountRef.current} of ${maxRetries}`);
+        
+        // Try again in 1 second
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.load();
+          }
+        }, 1000);
+      } else {
+        setState(prev => ({ ...prev, error: true, playing: false }));
+      }
     };
 
     const setDuration = () => {
@@ -90,9 +121,13 @@ export const useAudio = (url: string) => {
         ...prev, 
         isReady: true,
         readyState: audio.readyState,
-        duration: audio.duration || prev.duration
+        duration: audio.duration || prev.duration,
+        error: false // Clear any previous errors
       }));
       console.log(`Audio can play, duration: ${audio.duration}s, readyState: ${audio.readyState}`);
+      
+      // If we previously got an error but now can play, reset the error state
+      retryCountRef.current = 0;
     };
     
     const onLoadedMetadata = () => {
@@ -106,7 +141,7 @@ export const useAudio = (url: string) => {
     };
     
     const onPlaying = () => {
-      setState(prev => ({ ...prev, actuallyPlaying: true }));
+      setState(prev => ({ ...prev, actuallyPlaying: true, error: false }));
     };
     
     const onPause = () => {
@@ -164,12 +199,27 @@ export const useAudio = (url: string) => {
     
     // Handle play/pause
     if (state.playing && audioRef.current.paused) {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.error('Audio play error:', error);
-          setState(prev => ({ ...prev, playing: false, error: true }));
-        });
+      // Only try to play if the audio is ready
+      if (audioRef.current.readyState >= 2) {
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.error('Audio play error:', error);
+            setState(prev => ({ ...prev, playing: false, error: true }));
+          });
+        }
+      } else {
+        // If not ready yet, wait until it is
+        const onCanPlayStart = () => {
+          if (audioRef.current && state.playing) {
+            audioRef.current.play().catch(error => {
+              console.error('Delayed play error:', error);
+              setState(prev => ({ ...prev, playing: false, error: true }));
+            });
+            audioRef.current.removeEventListener('canplay', onCanPlayStart);
+          }
+        };
+        audioRef.current.addEventListener('canplay', onCanPlayStart);
       }
     } else if (!state.playing && !audioRef.current.paused) {
       audioRef.current.pause();
@@ -211,15 +261,29 @@ export const useAudio = (url: string) => {
     }
   };
 
+  // Reload audio - useful if there was an error
+  const reload = () => {
+    if (audioRef.current && url) {
+      setState(prev => ({
+        ...prev,
+        error: false,
+        isReady: false
+      }));
+      audioRef.current.load();
+    }
+  };
+
   return {
     playing: state.playing,
     actuallyPlaying: state.actuallyPlaying,
     togglePlay,
     seek,
     stop,
+    reload,
     duration: state.duration,
     currentTime: state.currentTime,
     error: state.error,
-    isReady: state.isReady
+    isReady: state.isReady,
+    url
   };
 };

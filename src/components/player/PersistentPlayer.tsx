@@ -23,7 +23,8 @@ export function PersistentPlayer() {
     removeFromQueue,
     clearQueue,
     nextTrack,
-    previousTrack
+    previousTrack,
+    error
   } = usePlayer();
   
   const isMobile = useIsMobile();
@@ -35,6 +36,8 @@ export function PersistentPlayer() {
 
   // Handle clicking on the top progress bar
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (error || duration <= 0) return; // Don't allow seeking if there's an error
+    
     const container = e.currentTarget;
     const rect = container.getBoundingClientRect();
     const clickPosition = e.clientX - rect.left;
@@ -52,23 +55,32 @@ export function PersistentPlayer() {
     )}>
       {/* Spotify-like progress bar at the very top of the player */}
       <div 
-        className="w-full h-1 bg-muted relative cursor-pointer"
+        className={cn(
+          "w-full h-1 bg-muted relative cursor-pointer",
+          error ? "bg-destructive/30" : "bg-muted"
+        )}
         onClick={handleProgressBarClick}
       >
         <div 
-          className="h-full bg-primary transition-all"
-          style={{ width: `${progressPercentage}%` }}
+          className={cn(
+            "h-full transition-all",
+            error ? "bg-destructive" : "bg-primary"
+          )}
+          style={{ width: `${error ? 100 : progressPercentage}%`, opacity: error ? 0.3 : 1 }}
         />
         {/* Make the input cover the entire area for better touch targets */}
-        <input 
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={currentTime}
-          onChange={(e) => seek(parseFloat(e.target.value))}
-          className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
-          style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile
-        />
+        {!error && (
+          <input 
+            type="range"
+            min={0}
+            max={duration || 0}
+            value={currentTime}
+            onChange={(e) => seek(parseFloat(e.target.value))}
+            className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
+            style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile
+            disabled={duration <= 0}
+          />
+        )}
       </div>
       
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center gap-4">
@@ -111,12 +123,12 @@ export function PersistentPlayer() {
           )}
           
           <Button 
-            variant="default" 
+            variant={error ? "destructive" : "default"}
             size="icon" 
-            className="h-10 w-10 rounded-full bg-primary" 
+            className="h-10 w-10 rounded-full" 
             onClick={togglePlayPause}
           >
-            {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+            {isPlaying && !error ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
           </Button>
           
           {!isMobile && (
@@ -139,6 +151,7 @@ export function PersistentPlayer() {
               duration={duration} 
               seek={seek} 
               isMobile={isMobile} 
+              error={error}
             />
             <VolumeControl volume={volume} setVolume={setVolume} />
             

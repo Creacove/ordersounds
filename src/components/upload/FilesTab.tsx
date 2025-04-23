@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +71,9 @@ export const FilesTab = ({
     playing: isAudioPlaying, 
     togglePlay: toggleAudioPlay,
     duration: audioDuration,
-    isReady: audioIsReady
+    isReady: audioIsReady,
+    error: audioError,
+    reload: reloadAudio
   } = useAudio(audioPreviewUrl);
   
   // Determine if we have stems data (either as a File or URL)
@@ -284,6 +285,15 @@ export const FilesTab = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Add a function to retry audio loading if it failed
+  const handleRetryAudioPreview = () => {
+    if (reloadAudio) {
+      reloadAudio();
+    } else if (regeneratePreview && uploadedFileUrl) {
+      regeneratePreview();
+    }
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 mb-24 sm:mb-16">
       <div>
@@ -398,25 +408,30 @@ export const FilesTab = ({
               <div 
                 className={`border rounded-lg p-3 flex items-center gap-3
                   ${previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted"} 
+                  ${audioError ? "border-destructive/50 bg-destructive/5" : ""}
                   transition-colors`}
               >
                 {(previewFile || previewUrl) ? (
                   <>
                     <button
-                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
-                      onClick={toggleAudioPlay}
-                      disabled={!audioPreviewUrl || !audioIsReady}
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${audioError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
+                      onClick={audioError ? handleRetryAudioPreview : toggleAudioPlay}
+                      disabled={!audioPreviewUrl}
                     >
-                      {isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
+                      {audioError ? <RefreshCw size={14} /> : 
+                        isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
-                        {previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
+                        {audioError ? "Error loading preview" : 
+                          previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {previewFile && isFile(previewFile) ? 
+                        {audioError ? (
+                          <span className="text-destructive">Failed to load audio. Click to retry.</span>
+                        ) : previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
-                          audioPreviewUrl && audioIsReady ? 
+                          audioPreviewUrl && audioIsReady && audioDuration > 0 ? 
                             `Preview ready (${formatDuration(audioDuration)})` : 
                             "Loading preview..."}
                       </p>
@@ -428,7 +443,7 @@ export const FilesTab = ({
                     </div>
                     {regeneratePreview && (
                       <Button 
-                        variant="outline"
+                        variant={audioError ? "destructive" : "outline"}
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
