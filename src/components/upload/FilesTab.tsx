@@ -148,7 +148,8 @@ export const FilesTab = ({
         return;
       }
       
-      console.log("Stem file selected:", file.name, "type:", file.type);
+      console.log("Stem file selected:", file.name, "type:", file.type, "size:", (file.size / (1024 * 1024)).toFixed(2) + "MB");
+      toast.info(`Starting upload of ${(file.size / (1024 * 1024)).toFixed(2)}MB stems file. This may take several minutes for large files.`);
       setStems(file);
       setValidationError(null);
       
@@ -193,6 +194,10 @@ export const FilesTab = ({
       statusMessage = "Upload complete";
     } else if (safeValue > 0 && safeValue < 100) {
       statusMessage = `Uploading: ${safeValue}%`;
+      
+      if (file.size > 50 * 1024 * 1024) {
+        statusMessage += ` (${(file.size / (1024 * 1024) * (safeValue / 100)).toFixed(1)}/${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+      }
     }
     
     return (
@@ -491,6 +496,7 @@ export const FilesTab = ({
                       <div className="flex-1">
                         <p className="text-xs sm:text-sm font-medium">Upload stems</p>
                         <p className="text-xs text-muted-foreground">ZIP file, max 250MB</p>
+                        <p className="text-xs text-muted-foreground mt-1">For large files, allow time for upload to complete</p>
                       </div>
                       <Button 
                         variant="outline" 
@@ -526,7 +532,7 @@ export const FilesTab = ({
           <Alert variant="destructive" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="ml-2 text-xs">
-              Upload error: {uploadError}. Please make sure you're logged in and have permission to upload files.
+              Upload error: {uploadError}. Please try again or use a smaller file.
             </AlertDescription>
           </Alert>
         )}
