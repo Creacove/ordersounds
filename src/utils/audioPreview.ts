@@ -6,12 +6,17 @@ import lamejs from 'lamejs';
  * Takes the first 30% of the audio and converts it to MP3 at 128kbps
  */
 export async function createMp3Preview(file: File): Promise<Blob> {
-  // Create audio context with type assertion and safer fallback
-  const audioContext = new (
-    (window as any).AudioContext || 
-    (window as any).webkitAudioContext || 
-    AudioContext
-  )();
+  // Define the AudioContext type with the webkit prefix for TypeScript
+  interface AudioContextType {
+    new (): AudioContext;
+  }
+  
+  // Create audio context with proper type definition
+  const AudioContextClass: AudioContextType = 
+    (window.AudioContext as AudioContextType) || 
+    ((window as any).webkitAudioContext as AudioContextType);
+  
+  const audioContext = new AudioContextClass();
   
   try {
     // Read file as ArrayBuffer
