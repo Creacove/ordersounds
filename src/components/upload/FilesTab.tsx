@@ -29,6 +29,7 @@ type FilesTabProps = {
   handlePreviewUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleStemsUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   uploadError?: string | null;
+  stemsUrl?: string | null;
 };
 
 export const FilesTab = ({
@@ -51,7 +52,8 @@ export const FilesTab = ({
   setPreviewUrl,
   handlePreviewUpload,
   handleStemsUpload,
-  uploadError
+  uploadError,
+  stemsUrl
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
@@ -463,18 +465,20 @@ export const FilesTab = ({
                 <h4 className="text-sm font-medium mb-1">Stems (Optional for Exclusive)</h4>
                 <div 
                   className={`border rounded-lg p-3 flex items-center gap-3 ${
-                    stems ? "bg-primary/5 border-primary/30" : "border-muted"
+                    stems || stemsUrl ? "bg-primary/5 border-primary/30" : "border-muted"
                   } transition-colors`}
                 >
-                  {stems ? (
+                  {stems || stemsUrl ? (
                     <>
                       <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                       <div className="flex-1 overflow-hidden">
                         <p className="text-xs sm:text-sm font-medium truncate">
-                          {isFile(stems) ? stems.name : "Stems.zip"}
+                          {isFile(stems) ? stems.name : stemsUrl ? "Stems (uploaded)" : "Stems.zip"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {isFile(stems) ? `${(stems.size / (1024 * 1024)).toFixed(2)} MB` : ""}
+                          {isFile(stems) ? 
+                            `${(stems.size / (1024 * 1024)).toFixed(2)} MB` : 
+                            stemsUrl ? "Upload complete" : ""}
                         </p>
                         
                         {isFile(stems) && uploadProgress[stems.name] !== undefined && (

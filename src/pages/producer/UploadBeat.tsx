@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,7 +47,8 @@ export default function UploadBeat() {
     handleBeatChange, handleImageUpload, handlePreviewUpload, handleFullTrackUpload,
     handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl,
     uploadProgress,
-    uploadError
+    uploadError,
+    stemsUrl // Add the stemsUrl from the hook
   } = useBeatUpload();
   
   const { user } = useAuth();
@@ -260,7 +262,8 @@ export default function UploadBeat() {
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
       
-      const stemsFile = stems && isFile(stems) ? stems : null;
+      // Check if we already have a stems URL, if not and stems is a file, set to null to avoid re-upload
+      const stemsFile = (stems && isFile(stems) && !stemsUrl) ? stems : null;
       
       let finalPreviewFile: File | null = null;
       if (previewFile && isFile(previewFile)) {
@@ -274,6 +277,11 @@ export default function UploadBeat() {
       
       if (isEditMode && beatId) {
         beatData.status = "published";
+        
+        // Include the stems URL if available
+        if (stemsUrl) {
+          beatData['stems_url'] = stemsUrl;
+        }
         
         const { data: updatedBeat, error: updateError } = await supabase
           .from('beats')
@@ -322,7 +330,8 @@ export default function UploadBeat() {
           producerInfo.name,
           collaborators,
           selectedLicenseTypes,
-          previewUrlForUpload
+          previewUrlForUpload,
+          stemsUrl // Pass the stemsUrl to uploadBeat function
         );
       }
       
@@ -389,7 +398,8 @@ export default function UploadBeat() {
       
       const fullTrackFileOrUrl: FileOrUrl = uploadedFile || { url: uploadedFileUrl };
       
-      const stemsFile = stems && isFile(stems) ? stems : null;
+      // Check if we already have a stems URL, if not and stems is a file, set to null to avoid re-upload
+      const stemsFile = (stems && isFile(stems) && !stemsUrl) ? stems : null;
       
       let finalPreviewFile: File | null = null;
       if (previewFile && isFile(previewFile)) {
@@ -403,6 +413,11 @@ export default function UploadBeat() {
       
       if (isEditMode && beatId) {
         beatData.status = "draft";
+        
+        // Include the stems URL if available
+        if (stemsUrl) {
+          beatData['stems_url'] = stemsUrl;
+        }
         
         const { data: updatedBeat, error: updateError } = await supabase
           .from('beats')
@@ -451,7 +466,8 @@ export default function UploadBeat() {
           producerInfo.name,
           collaborators,
           selectedLicenseTypes,
-          previewUrlForUpload
+          previewUrlForUpload,
+          stemsUrl // Pass the stemsUrl to uploadBeat function
         );
       }
       

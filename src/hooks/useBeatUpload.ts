@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -58,6 +59,7 @@ export function useBeatUpload() {
   const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [stemsUrl, setStemsUrl] = useState<string | null>(null);  // New state to store stems URL
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
 
@@ -473,7 +475,7 @@ export function useBeatUpload() {
       const file = e.target.files[0];
       
       if (file.size > 250 * 1024 * 1024) {
-        toast.error("Stems file must be less than 250MB");
+        toast.error("File must be less than 250MB");
         return;
       }
       
@@ -485,6 +487,7 @@ export function useBeatUpload() {
       
       setStems(file);
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+      setStemsUrl(null); // Reset stems URL when a new file is selected
       
       try {
         toast.info("Uploading stems...");
@@ -497,6 +500,7 @@ export function useBeatUpload() {
         });
         
         console.log("Stems upload completed, URL:", url);
+        setStemsUrl(url); // Store the URL of the uploaded stems
         toast.success("Stems uploaded successfully");
       } catch (error) {
         console.error("Error uploading stems:", error);
@@ -515,6 +519,7 @@ export function useBeatUpload() {
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });
       
+      setStemsUrl(url); // Store the URL
       toast.success("Stems uploaded");
       return url;
     } catch (error) {
@@ -558,6 +563,8 @@ export function useBeatUpload() {
     uploadedFileUrl,
     setUploadedFileUrl,
     uploadError,
-    uploadStemsFile
+    uploadStemsFile,
+    stemsUrl, // Export the stems URL
+    setStemsUrl // Export the setter for stems URL
   };
 }

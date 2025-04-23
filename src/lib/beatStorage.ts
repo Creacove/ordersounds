@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { FileOrUrl, isFile, uploadFile } from './storage';
 import { uploadImage } from './imageStorage';
@@ -31,7 +30,8 @@ type UploadBeatData = {
   status: 'draft' | 'published';
   license_type: string;
   license_terms?: string;
-  cover_image?: string; // Added to accept direct cover image URL or base64
+  cover_image?: string;
+  stems_url?: string;
 };
 
 /**
@@ -55,7 +55,6 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
     
     if (!data) return [];
     
-    // Map database fields to RoyaltySplit interface
     return data.map(item => ({
       id: item.id,
       beat_id: item.beat_id,
@@ -84,12 +83,11 @@ export const uploadBeat = async (
   producerName: string,
   collaborators: Collaborator[],
   selectedLicenseTypes: string[],
-  previewUrl?: string
+  previewUrl?: string,
+  stemsUrl?: string | null
 ): Promise<BeatUploadResult> => {
   try {
     console.log('Starting beat upload process');
-    
-    // Authentication check removed - allow anyone to upload beats
     
     // Upload full track file if it's a File object
     let fullTrackUrl: string;
@@ -126,12 +124,12 @@ export const uploadBeat = async (
     // Use the provided cover image (could be URL, base64, or null)
     let coverImageUrl: string = beatData.cover_image || '';
     
-    // Upload stems if provided
-    let stemsUrl: string | null = null;
-    if (stemsFile) {
+    // Use existing stems URL if provided, otherwise upload stems if provided
+    let finalStemsUrl: string | null = stemsUrl || null;
+    if (!finalStemsUrl && stemsFile) {
       console.log('Uploading stems file');
       try {
-        stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
+        finalStemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
       } catch (error) {
         console.error('Failed to upload stems:', error);
         return {
@@ -166,7 +164,7 @@ export const uploadBeat = async (
       exclusive_license_price_diaspora: beatData.exclusive_license_price_diaspora || 0,
       custom_license_price_local: beatData.custom_license_price_local || 0,
       custom_license_price_diaspora: beatData.custom_license_price_diaspora || 0,
-      stems_url: stemsUrl, // Use stems_url instead of stems to match DB schema
+      stems_url: finalStemsUrl,
     };
     
     console.log('Inserting beat into database');
