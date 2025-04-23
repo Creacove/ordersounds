@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +47,7 @@ export default function UploadBeat() {
     handleStemsUpload, regeneratePreview, licenseOptions, uploadedFileUrl,
     uploadProgress,
     uploadError,
-    stemsUrl // Add the stemsUrl from the hook
+    stemsUrl
   } = useBeatUpload();
   
   const { user } = useAuth();
@@ -58,6 +57,7 @@ export default function UploadBeat() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [beatId, setBeatId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [localStemsUrl, setLocalStemsUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
@@ -96,6 +96,13 @@ export default function UploadBeat() {
         toast.error("Beat not found");
         navigate('/producer/beats');
         return;
+      }
+      
+      if (beatData.stems_url) {
+        setLocalStemsUrl(beatData.stems_url);
+        if (setStems && beatData.stems_url) {
+          setStems({ url: beatData.stems_url });
+        }
       }
       
       setBeatDetails({
@@ -331,7 +338,7 @@ export default function UploadBeat() {
           collaborators,
           selectedLicenseTypes,
           previewUrlForUpload,
-          stemsUrl // Pass the stemsUrl to uploadBeat function
+          stemsUrl
         );
       }
       
@@ -467,7 +474,7 @@ export default function UploadBeat() {
           collaborators,
           selectedLicenseTypes,
           previewUrlForUpload,
-          stemsUrl // Pass the stemsUrl to uploadBeat function
+          stemsUrl
         );
       }
       
@@ -600,6 +607,7 @@ export default function UploadBeat() {
                     handlePreviewUpload={handlePreviewUpload}
                     handleStemsUpload={handleStemsUpload}
                     uploadError={uploadError}
+                    stemsUrl={localStemsUrl || stemsUrl}
                   />
                 </TabsContent>
 

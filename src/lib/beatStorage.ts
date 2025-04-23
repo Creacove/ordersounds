@@ -126,7 +126,7 @@ export const uploadBeat = async (
     // Use the provided cover image (could be URL, base64, or null)
     let coverImageUrl: string = beatData.cover_image || '';
     
-    // Use existing stems URL if provided, otherwise upload stems if provided
+    // Handle stems: Use existing URL if provided, otherwise upload new file if provided
     let finalStemsUrl: string | null = stemsUrl || null;
     if (!finalStemsUrl && stemsFile) {
       console.log('Uploading stems file');
@@ -144,7 +144,7 @@ export const uploadBeat = async (
     // Prepare beat data for database insert
     const beatInsertData = {
       title: beatData.title,
-      description: beatData.description || '',
+      description: beatData.description || "",
       genre: beatData.genre,
       track_type: beatData.track_type,
       bpm: beatData.bpm,

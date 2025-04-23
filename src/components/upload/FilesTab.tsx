@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,9 @@ export const FilesTab = ({
     togglePlay: toggleAudioPlay,
     duration: audioDuration
   } = useAudio(audioPreviewUrl);
+  
+  // Determine if we have stems data (either as a File or URL)
+  const hasStemsData = stems !== null || stemsUrl !== null && stemsUrl !== undefined;
   
   useEffect(() => {
     setIsPlaying(isAudioPlaying);
@@ -233,6 +237,24 @@ export const FilesTab = ({
     if (setPreviewUrl) {
       setPreviewUrl(null);
     }
+  };
+
+  const handleStemsClear = () => {
+    setStems(null);
+  };
+
+  // Extract file name from stems URL for display
+  const getStemsFileName = () => {
+    if (stems && isFile(stems)) {
+      return stems.name;
+    } else if (stemsUrl) {
+      // Try to extract filename from URL
+      const urlParts = stemsUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      // Remove any query params
+      return fileName.split('?')[0] || "stems.zip";
+    }
+    return "stems.zip";
   };
 
   return (
@@ -465,20 +487,18 @@ export const FilesTab = ({
                 <h4 className="text-sm font-medium mb-1">Stems (Optional for Exclusive)</h4>
                 <div 
                   className={`border rounded-lg p-3 flex items-center gap-3 ${
-                    stems || stemsUrl ? "bg-primary/5 border-primary/30" : "border-muted"
+                    hasStemsData ? "bg-primary/5 border-primary/30" : "border-muted"
                   } transition-colors`}
                 >
-                  {stems || stemsUrl ? (
+                  {hasStemsData ? (
                     <>
                       <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                       <div className="flex-1 overflow-hidden">
                         <p className="text-xs sm:text-sm font-medium truncate">
-                          {isFile(stems) ? stems.name : stemsUrl ? "Stems (uploaded)" : "Stems.zip"}
+                          {getStemsFileName()}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {isFile(stems) ? 
-                            `${(stems.size / (1024 * 1024)).toFixed(2)} MB` : 
-                            stemsUrl ? "Upload complete" : ""}
+                          {isFile(stems) ? `${(stems.size / (1024 * 1024)).toFixed(2)} MB` : stemsUrl ? "Stems file uploaded" : ""}
                         </p>
                         
                         {isFile(stems) && uploadProgress[stems.name] !== undefined && (
@@ -490,7 +510,7 @@ export const FilesTab = ({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setStems(null);
+                          handleStemsClear();
                         }}
                       >
                         <X size={16} />
