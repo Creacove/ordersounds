@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -77,7 +76,9 @@ export const fetchAllBeats = async (options: {
     
     // Check if we already have a pending request for this exact query to prevent 
     // "body stream already read" errors when multiple components request the same data
-    const requestKey = `GET:${supabase.getUrl()}/rest/v1/beats?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:""`;
+    // Use a URL without getUrl() which doesn't exist on the client
+    const baseUrl = supabase.from('beats').url.toString();
+    const requestKey = `GET:${baseUrl}?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:""`;
     const pendingRequests = new Map<string, Promise<any>>();
     
     if (pendingRequests.has(requestKey)) {
@@ -104,7 +105,8 @@ export const fetchAllBeats = async (options: {
     }
     
     // Store this request in the pending map
-    const requestPromise = query.then(({ data: beatsData, error: beatsError }) => {
+    // Fix: Convert the PromiseLike to a full Promise with Promise.resolve()
+    const requestPromise = Promise.resolve(query.then(({ data: beatsData, error: beatsError }) => {
       // Remove from pending requests map when done
       pendingRequests.delete(requestKey);
       
@@ -122,7 +124,7 @@ export const fetchAllBeats = async (options: {
       }
       
       return [];
-    });
+    }));
     
     pendingRequests.set(requestKey, requestPromise);
     return requestPromise;
