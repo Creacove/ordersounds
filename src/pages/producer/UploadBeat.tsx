@@ -625,7 +625,9 @@ export default function UploadBeat() {
                             type="button"
                             disabled={isSubmitting}
                             onClick={handleSaveDraft}
+                            className="flex items-center"
                           >
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Save as Draft
                           </Button>
                           <Button
@@ -646,7 +648,9 @@ export default function UploadBeat() {
                             type="button"
                             disabled={isSubmitting}
                             onClick={handleSaveDraft}
+                            className="flex items-center"
                           >
+                            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Update as Draft
                           </Button>
                           <Button
