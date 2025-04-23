@@ -23,8 +23,6 @@ if (!supabaseUrl || !supabaseServiceRole || !supabaseAnonKey) {
 
 // Create client with service role key for admin access to storage
 const adminClient = createClient(supabaseUrl, supabaseServiceRole);
-// Not used anymore, but kept for compatibility with old code
-const publicClient = createClient(supabaseUrl, supabaseAnonKey);
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -56,7 +54,6 @@ serve(async (req) => {
     // Determine the file path based on URL structure
     let fileName = pathParts[pathParts.length - 1];
     const fileBase = fileName.split('.')[0];
-    const fileExt = fileName.split('.').pop()?.toLowerCase() || 'mp3';
     
     // For better browser compatibility, always generate MP3 previews regardless of source format
     const outputFileName = `preview_${fileBase}_${Date.now()}.mp3`;
@@ -103,7 +100,7 @@ serve(async (req) => {
     
     console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewArray.byteLength} bytes (${(previewArray.byteLength / totalBytes * 100).toFixed(1)}%)`);
     
-    // Get MIME type - always use MP3 for previews for browser compatibility
+    // Always use MP3 for previews for browser compatibility
     const contentType = 'audio/mpeg';
     console.log(`Using content type: ${contentType} for preview`);
     
@@ -138,6 +135,15 @@ serve(async (req) => {
         
     console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
     
+    // Set Cache-Control headers on the preview file for better browser caching behavior
+    await adminClient.storage
+      .from('beats')
+      .update(`previews/${outputFileName}`, previewArray, {
+        contentType: contentType,
+        cacheControl: "public, max-age=3600",
+        upsert: true
+      });
+    
     // Return the preview URL directly in the response
     return new Response(
       JSON.stringify({
@@ -170,37 +176,3 @@ serve(async (req) => {
     );
   }
 });
-
-/**
- * Get MIME type from file extension
- * @param ext File extension
- * @returns MIME type string
- */
-function getMimeType(ext: string): string {
-  const map: {[key: string]: string} = {
-    // Images
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    png: 'image/png',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    svg: 'image/svg+xml',
-    
-    // Audio
-    mp3: 'audio/mpeg',
-    wav: 'audio/wav',
-    m4a: 'audio/mp4',
-    aac: 'audio/aac',
-    ogg: 'audio/ogg',
-    
-    // Archives
-    zip: 'application/zip',
-    
-    // Documents
-    pdf: 'application/pdf',
-    doc: 'application/msword',
-    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  };
-  
-  return map[ext.toLowerCase()] || 'application/octet-stream';
-}

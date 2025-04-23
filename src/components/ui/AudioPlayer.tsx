@@ -1,15 +1,16 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AudioPlayerProps {
   src: string;
   className?: string;
   compact?: boolean;
+  onError?: () => void;
 }
 
-export function AudioPlayer({ src, className, compact = false }: AudioPlayerProps) {
+export function AudioPlayer({ src, className, compact = false, onError }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [actuallyPlaying, setActuallyPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -19,6 +20,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -27,6 +29,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     const setAudioData = () => {
       setDuration(audio.duration);
       setIsLoading(false);
+      setHasError(false); // Reset error state on successful load
     };
 
     const setAudioTime = () => {
@@ -41,6 +44,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     const handlePlaying = () => {
       setActuallyPlaying(true);
       setIsPlaying(true);
+      setHasError(false);
     };
     
     const handlePause = () => {
@@ -61,6 +65,22 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
       setHasError(true);
       setIsPlaying(false);
       setActuallyPlaying(false);
+      
+      if (onError) {
+        onError();
+      }
+      
+      // Auto retry a few times
+      if (retryCount < 2 && src) {
+        setRetryCount(prev => prev + 1);
+        console.log(`Auto-retrying audio load (${retryCount + 1}/3)...`);
+        setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.load();
+            audioRef.current.play().catch(console.error);
+          }
+        }, 1000);
+      }
     };
     
     const handleLoadStart = () => {
@@ -70,6 +90,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
 
     const handleCanPlay = () => {
       setIsLoading(false);
+      setHasError(false);
     };
 
     // Events
@@ -92,7 +113,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
     };
-  }, []);
+  }, [retryCount, onError]);
 
   // Update source when src prop changes
   useEffect(() => {
@@ -105,6 +126,7 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
       setIsPlaying(false);
       setActuallyPlaying(false);
       setHasError(false);
+      setRetryCount(0);
       
       audio.src = src;
       audio.load();
@@ -120,11 +142,15 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
             setHasError(true);
             setIsPlaying(false);
             setActuallyPlaying(false);
+            
+            if (onError) {
+              onError();
+            }
           });
         }
       }
     }
-  }, [src, isPlaying]);
+  }, [src, isPlaying, onError]);
 
   const togglePlay = () => {
     const audio = audioRef.current;
@@ -132,8 +158,20 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     
     if (hasError) {
       // Try to reload the audio if there was an error
+      setRetryCount(0);
       audio.load();
       setHasError(false);
+      setIsLoading(true);
+      
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().catch(() => {
+            setHasError(true);
+            setIsLoading(false);
+          });
+        }
+      }, 500);
+      return;
     }
 
     if (isPlaying) {
@@ -154,6 +192,10 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
           setHasError(true);
           setIsPlaying(false);
           setActuallyPlaying(false);
+          
+          if (onError) {
+            onError();
+          }
         });
       }
     }
@@ -198,6 +240,28 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const handleRetry = () => {
+    if (!audioRef.current || !src) return;
+    
+    setRetryCount(0);
+    setHasError(false);
+    setIsLoading(true);
+    
+    // Force reload by creating a cache-busting URL
+    const cacheBuster = `${src}${src.includes('?') ? '&' : '?'}cb=${Date.now()}`;
+    audioRef.current.src = cacheBuster;
+    audioRef.current.load();
+    
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => {
+          setHasError(true);
+          setIsLoading(false);
+        });
+      }
+    }, 500);
+  };
+
   if (compact) {
     return (
       <div className={cn("flex items-center gap-2", className)}>
@@ -207,21 +271,28 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
             "flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105",
             isLoading && "opacity-70"
           )}
-          onClick={togglePlay}
-          disabled={isLoading}
+          onClick={hasError ? handleRetry : togglePlay}
+          disabled={isLoading && !hasError}
         >
           {isLoading ? (
             <div className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
-          ) : actuallyPlaying ? <Pause size={16} /> : <Play size={16} />}
+          ) : hasError ? (
+            <RefreshCw size={14} />
+          ) : actuallyPlaying ? (
+            <Pause size={16} />
+          ) : (
+            <Play size={16} />
+          )}
         </button>
         <div className="w-full max-w-[100px]">
           <input
             type="range"
-            className="audio-progress w-full"
+            className={cn("audio-progress w-full", hasError && "opacity-50")}
             min={0}
             max={duration || 0}
             value={currentTime}
             onChange={handleProgress}
+            disabled={hasError}
           />
         </div>
       </div>
@@ -236,14 +307,21 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
         <button 
           className={cn(
             "flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105",
-            (isLoading || hasError) && "opacity-70"
+            (isLoading || hasError) && "opacity-70",
+            hasError && "bg-destructive hover:bg-destructive/90"
           )}
-          onClick={togglePlay}
-          disabled={isLoading}
+          onClick={hasError ? handleRetry : togglePlay}
+          disabled={isLoading && !hasError}
         >
           {isLoading ? (
             <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-          ) : actuallyPlaying ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
+          ) : hasError ? (
+            <RefreshCw size={18} />
+          ) : actuallyPlaying ? (
+            <Pause size={20} />
+          ) : (
+            <Play size={20} className="ml-0.5" />
+          )}
         </button>
         
         <div className="text-xs font-medium text-muted-foreground w-14 text-right">
@@ -253,11 +331,12 @@ export function AudioPlayer({ src, className, compact = false }: AudioPlayerProp
         <div className="flex-grow">
           <input
             type="range"
-            className="audio-progress w-full"
+            className={cn("audio-progress w-full", hasError && "opacity-50")}
             min={0}
             max={duration || 0}
             value={currentTime}
             onChange={handleProgress}
+            disabled={hasError}
           />
         </div>
         
