@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, FileOrUrl, isFile } from "@/lib/storage";
 import { uploadImage } from "@/lib/imageStorage";
+import { createMp3Preview } from "@/utils/audioPreview";
 
 export type LicenseOption = {
   value: string;
