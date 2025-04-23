@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
 import { mapSupabaseBeatToBeat } from './utils';
+import { CACHE_KEYS } from '@/utils/beatsCacheUtils';
 
 // Helper to get the basic beats query fields
 const BEAT_QUERY_FIELDS = `
@@ -317,8 +318,21 @@ export const clearBeatsCache = (): void => {
   beatCache.clear();
   featuredBeatsCache.clear();
   
-  // Also notify other components that cache has been cleared
+  // Clear localStorage for producer beats
   try {
+    // Find and clear all producer_beats_* items from localStorage
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('producer_beats_')) {
+        localStorage.removeItem(key);
+      }
+    });
+    
+    // Also clear other cache keys
+    localStorage.removeItem(CACHE_KEYS.ALL_BEATS);
+    localStorage.removeItem(CACHE_KEYS.ALL_BEATS_EXPIRY);
+    localStorage.removeItem(CACHE_KEYS.USER_FAVORITES);
+    
+    // Also notify other components that cache has been cleared
     sessionStorage.setItem('beats_needs_refresh', 'true');
     
     // Dispatch storage event to notify other tabs

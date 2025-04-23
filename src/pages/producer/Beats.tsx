@@ -25,6 +25,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { clearBeatsCache } from "@/services/beats";
 
 type ViewMode = "grid" | "list" | "table";
 
@@ -129,21 +130,39 @@ export default function ProducerBeats() {
 
   const confirmDelete = async () => {
     if (!selectedBeatId) return;
+    
     try {
       setIsDeleting(true);
       const { error } = await supabase
         .from('beats')
         .delete()
         .eq('id', selectedBeatId);
+        
       if (error) {
         throw new Error(error.message);
       }
       
-      toast.success('Beat deleted successfully');
-      // Force refresh the beats data after deletion
-      await forceRefreshBeats();
+      // Clear cache immediately
+      clearBeatsCache();
+      
       // Set flag for other components/tabs
       sessionStorage.setItem('beats_needs_refresh', 'true');
+      
+      toast.success('Beat deleted successfully');
+      
+      // Force refresh the beats data after deletion
+      await forceRefreshBeats();
+      
+      // Dispatch storage event to notify other tabs
+      try {
+        const event = new StorageEvent('storage', {
+          key: 'beats_needs_refresh',
+          newValue: 'true'
+        });
+        window.dispatchEvent(event);
+      } catch (e) {
+        console.error('Error dispatching storage event:', e);
+      }
     } catch (error) {
       console.error('Error deleting beat:', error);
       toast.error('Failed to delete beat');
@@ -156,21 +175,39 @@ export default function ProducerBeats() {
 
   const confirmPublish = async () => {
     if (!selectedBeatId) return;
+    
     try {
       setIsPublishing(true);
       const { error } = await supabase
         .from('beats')
         .update({ status: 'published' })
         .eq('id', selectedBeatId);
+        
       if (error) {
         throw new Error(error.message);
       }
       
-      toast.success('Beat published successfully');
-      // Force refresh the beats data after publishing
-      await forceRefreshBeats();
+      // Clear cache immediately
+      clearBeatsCache();
+      
       // Set flag for other components/tabs
       sessionStorage.setItem('beats_needs_refresh', 'true');
+      
+      toast.success('Beat published successfully');
+      
+      // Force refresh the beats data after publishing
+      await forceRefreshBeats();
+      
+      // Dispatch storage event to notify other tabs
+      try {
+        const event = new StorageEvent('storage', {
+          key: 'beats_needs_refresh',
+          newValue: 'true'
+        });
+        window.dispatchEvent(event);
+      } catch (e) {
+        console.error('Error dispatching storage event:', e);
+      }
     } catch (error) {
       console.error('Error publishing beat:', error);
       toast.error('Failed to publish beat');
