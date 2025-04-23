@@ -312,7 +312,6 @@ export function useBeats() {
     clearBeatsCache();
     
     setDataFetched(false);
-    setBeats([]);  // Clear current beats to prevent showing stale data
     
     await fetchBeats({ skipCache: true });
     
@@ -434,31 +433,6 @@ export function useBeats() {
     return getProducerBeatsService(beats, producerId);
   };
   
-  useEffect(() => {
-    const handleStorageEvent = (event: StorageEvent) => {
-      if (event.key === 'beats_needs_refresh' && event.newValue === 'true') {
-        console.log("Refresh triggered from another tab/component");
-        forceRefreshBeats();
-        sessionStorage.removeItem('beats_needs_refresh');
-      }
-    };
-    
-    const handleCustomEvent = (event: Event) => {
-      if (event instanceof StorageEvent && event.key === 'beats_needs_refresh') {
-        console.log("Refresh triggered from same window component");
-        forceRefreshBeats();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageEvent);
-    window.addEventListener('storage', handleCustomEvent);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageEvent);
-      window.removeEventListener('storage', handleCustomEvent);
-    };
-  }, [forceRefreshBeats]);
-
   return {
     beats,
     filteredBeats,

@@ -1,9 +1,7 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
 import { mapSupabaseBeatToBeat } from './utils';
-import { CACHE_KEYS } from '@/utils/beatsCacheUtils';
 
 // Helper to get the basic beats query fields
 const BEAT_QUERY_FIELDS = `
@@ -42,9 +40,6 @@ const isCacheValid = (timestamp: number): boolean => {
   return Date.now() - timestamp < MAX_CACHE_AGE;
 }
 
-// Track ongoing requests to prevent duplicate requests and body stream errors
-const pendingRequests = new Map<string, Promise<any>>();
-
 export const fetchAllBeats = async (options: { 
   includeDetails?: boolean; 
   limit?: number; 
@@ -81,9 +76,10 @@ export const fetchAllBeats = async (options: {
     
     // Check if we already have a pending request for this exact query to prevent 
     // "body stream already read" errors when multiple components request the same data
-    // Fix: Use supabase.from('beats').url.toString() instead of getUrl() which doesn't exist
+    // Use a URL without getUrl() which doesn't exist on the client
     const baseUrl = supabase.from('beats').url.toString();
     const requestKey = `GET:${baseUrl}?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:""`;
+    const pendingRequests = new Map<string, Promise<any>>();
     
     if (pendingRequests.has(requestKey)) {
       console.log('Duplicate request prevented:', requestKey);
@@ -148,37 +144,22 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
       return trendingCache.get(limit) || [];
     }
     
-    const requestKey = `trending:${limit}`;
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .eq('is_trending', true)
+      .order('favorites_count', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
     
-    if (pendingRequests.has(requestKey)) {
-      console.log('Duplicate trending request prevented:', requestKey);
-      return pendingRequests.get(requestKey) as Promise<Beat[]>;
-    }
+    // Store in cache
+    trendingCache.set(limit, mappedBeats);
     
-    const requestPromise = Promise.resolve(
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .eq('is_trending', true)
-        .order('favorites_count', { ascending: false })
-        .limit(limit)
-        .then(({ data, error }) => {
-          pendingRequests.delete(requestKey);
-          
-          if (error) throw error;
-          
-          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-          
-          // Store in cache
-          trendingCache.set(limit, mappedBeats);
-          
-          return mappedBeats;
-        })
-    );
-    
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching trending beats:', error);
     return [];
@@ -195,36 +176,21 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
       return newBeatsCache.get(limit) || [];
     }
     
-    const requestKey = `new:${limit}`;
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .order('upload_date', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
     
-    if (pendingRequests.has(requestKey)) {
-      console.log('Duplicate new beats request prevented:', requestKey);
-      return pendingRequests.get(requestKey) as Promise<Beat[]>;
-    }
+    // Store in cache
+    newBeatsCache.set(limit, mappedBeats);
     
-    const requestPromise = Promise.resolve(
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .order('upload_date', { ascending: false })
-        .limit(limit)
-        .then(({ data, error }) => {
-          pendingRequests.delete(requestKey);
-          
-          if (error) throw error;
-          
-          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-          
-          // Store in cache
-          newBeatsCache.set(limit, mappedBeats);
-          
-          return mappedBeats;
-        })
-    );
-    
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching new beats:', error);
     return [];
@@ -242,40 +208,26 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
       return randomBeatsCache.get(limit) || [];
     }
     
-    const requestKey = `random:${limit}`;
-    
-    if (pendingRequests.has(requestKey)) {
-      console.log('Duplicate random beats request prevented:', requestKey);
-      return pendingRequests.get(requestKey) as Promise<Beat[]>;
+    // Clone the query each time to prevent body stream already read errors
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .limit(limit);
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      const shuffled = [...data].sort(() => Math.random() - 0.5);
+      const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      
+      // Store in cache
+      randomBeatsCache.set(limit, mappedBeats);
+      
+      return mappedBeats;
     }
     
-    const requestPromise = Promise.resolve(
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .limit(limit)
-        .then(({ data, error }) => {
-          pendingRequests.delete(requestKey);
-          
-          if (error) throw error;
-          
-          if (data && data.length > 0) {
-            const shuffled = [...data].sort(() => Math.random() - 0.5);
-            const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-            
-            // Store in cache
-            randomBeatsCache.set(limit, mappedBeats);
-            
-            return mappedBeats;
-          }
-          
-          return [];
-        })
-    );
-    
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
+    return [];
   } catch (error) {
     console.error('Error fetching random beats:', error);
     return [];
@@ -292,47 +244,32 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
       return beatCache.get(beatId) || null;
     }
     
-    const requestKey = `beat:${beatId}`;
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        ${BEAT_QUERY_FIELDS},
+        audio_file,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        key,
+        description,
+        plays
+      `)
+      .eq('id', beatId)
+      .single();
     
-    if (pendingRequests.has(requestKey)) {
-      console.log('Duplicate beat request prevented:', requestKey);
-      return pendingRequests.get(requestKey) as Promise<Beat | null>;
-    }
+    if (error) throw error;
+
+    const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
     
-    const requestPromise = Promise.resolve(
-      supabase
-        .from('beats')
-        .select(`
-          ${BEAT_QUERY_FIELDS},
-          audio_file,
-          premium_license_price_local,
-          premium_license_price_diaspora,
-          exclusive_license_price_local,
-          exclusive_license_price_diaspora,
-          custom_license_price_local,
-          custom_license_price_diaspora,
-          key,
-          description,
-          plays
-        `)
-        .eq('id', beatId)
-        .single()
-        .then(({ data, error }) => {
-          pendingRequests.delete(requestKey);
-          
-          if (error) throw error;
-          
-          const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
-          
-          // Store in cache
-          beatCache.set(beatId, mappedBeat);
-          
-          return mappedBeat;
-        })
-    );
+    // Store in cache
+    beatCache.set(beatId, mappedBeat);
     
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
+    return mappedBeat;
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
     return null;
@@ -349,36 +286,21 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
       return featuredBeatsCache.get(limit) || [];
     }
     
-    const requestKey = `featured:${limit}`;
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .eq('is_featured', true)
+      .limit(limit);
+
+    if (error) throw error;
+
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
     
-    if (pendingRequests.has(requestKey)) {
-      console.log('Duplicate featured beats request prevented:', requestKey);
-      return pendingRequests.get(requestKey) as Promise<Beat[]>;
-    }
+    // Store in cache
+    featuredBeatsCache.set(limit, mappedBeats);
     
-    const requestPromise = Promise.resolve(
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .eq('is_featured', true)
-        .limit(limit)
-        .then(({ data, error }) => {
-          pendingRequests.delete(requestKey);
-          
-          if (error) throw error;
-          
-          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-          
-          // Store in cache
-          featuredBeatsCache.set(limit, mappedBeats);
-          
-          return mappedBeats;
-        })
-    );
-    
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
     return [];
@@ -394,23 +316,9 @@ export const clearBeatsCache = (): void => {
   randomBeatsCache.clear();
   beatCache.clear();
   featuredBeatsCache.clear();
-  pendingRequests.clear(); // Also clear pending requests to prevent stale data
   
-  // Clear localStorage for producer beats
+  // Also notify other components that cache has been cleared
   try {
-    // Find and clear all producer_beats_* items from localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('producer_beats_')) {
-        localStorage.removeItem(key);
-      }
-    });
-    
-    // Also clear other cache keys
-    localStorage.removeItem(CACHE_KEYS.ALL_BEATS);
-    localStorage.removeItem(CACHE_KEYS.ALL_BEATS_EXPIRY);
-    localStorage.removeItem(CACHE_KEYS.USER_FAVORITES);
-    
-    // Also notify other components that cache has been cleared
     sessionStorage.setItem('beats_needs_refresh', 'true');
     
     // Dispatch storage event to notify other tabs
