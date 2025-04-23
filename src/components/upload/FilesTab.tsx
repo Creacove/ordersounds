@@ -149,7 +149,9 @@ export const FilesTab = ({
       }
       
       console.log("Stem file selected:", file.name, "type:", file.type, "size:", (file.size / (1024 * 1024)).toFixed(2) + "MB");
-      toast.info(`Starting upload of ${(file.size / (1024 * 1024)).toFixed(2)}MB stems file. This may take several minutes for large files.`);
+      toast.info(`Starting upload of ${(file.size / (1024 * 1024)).toFixed(2)}MB stems file. This may take several minutes for large files.`, {
+        duration: 8000
+      });
       setStems(file);
       setValidationError(null);
       
