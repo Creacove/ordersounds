@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 
 type AudioState = {
@@ -71,6 +72,9 @@ export function useAudio(url: string) {
     audio.crossOrigin = "anonymous";
     audio.preload = "auto"; // Force preloading for better experience
     
+    // Add cache-busting to URL if not already present
+    const cacheBustUrl = url.includes('?') ? url : `${url}?cb=${Date.now()}`;
+    
     // Set error handling first to catch any loading errors
     audio.onerror = (e) => {
       console.error("Audio error occurred");
@@ -88,7 +92,7 @@ export function useAudio(url: string) {
         setTimeout(() => {
           if (audioRef.current) {
             // Add cache busting to URL
-            const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`;
+            const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}-${nextAttempt}`;
             audioRef.current.src = cacheBustUrl;
             audioRef.current.load();
           }
@@ -146,7 +150,7 @@ export function useAudio(url: string) {
     };
 
     // Set the URL and load the audio
-    audio.src = url;
+    audio.src = cacheBustUrl;
     audio.load();
     
     // Store the audio element in the ref
@@ -226,7 +230,7 @@ export function useAudio(url: string) {
     setRetryAttempt(0);
     
     // Add cache busting to URL
-    const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`;
+    const cacheBustUrl = `${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}-reload`;
     audioRef.current.src = cacheBustUrl;
     audioRef.current.load();
     

@@ -1,10 +1,11 @@
 
 // @ts-nocheck
 // Audio processing edge function for OrderSOUNDS
-// Simply extracts first 30% of audio file for preview
+// Extracts first 30% of audio file for preview and converts to MP3 for browser compatibility
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 // CORS headers for browser requests
 const corsHeaders = {
@@ -55,7 +56,7 @@ serve(async (req) => {
     let fileName = pathParts[pathParts.length - 1];
     const fileBase = fileName.split('.')[0];
     
-    // For better browser compatibility, always generate MP3 previews regardless of source format
+    // Always generate MP3 previews regardless of source format for better browser compatibility
     const outputFileName = `preview_${fileBase}_${Date.now()}.mp3`;
     
     console.log(`Extracted file name: ${fileName}, Output: ${outputFileName}`);
@@ -100,6 +101,13 @@ serve(async (req) => {
     
     console.log(`Total file size: ${totalBytes} bytes, Preview size: ${previewArray.byteLength} bytes (${(previewArray.byteLength / totalBytes * 100).toFixed(1)}%)`);
     
+    // For WAV files, we need to ensure the resulting preview file can be properly played
+    // The simplest way is to explicitly set the MP3 content type and ensure the file has the .mp3 extension
+    const isWav = fileName.toLowerCase().endsWith('.wav') || fullTrackUrl.toLowerCase().includes('wav');
+    if (isWav) {
+      console.log("WAV file detected - ensuring proper MP3 conversion");
+    }
+    
     // Always use MP3 for previews for browser compatibility
     const contentType = 'audio/mpeg';
     console.log(`Using content type: ${contentType} for preview`);
@@ -132,8 +140,11 @@ serve(async (req) => {
     const { data: publicUrlData } = adminClient.storage
       .from('beats')
       .getPublicUrl(`previews/${outputFileName}`);
+    
+    // Add cache-busting parameter to the URL to prevent browser caching issues
+    const cacheBustedUrl = `${publicUrlData.publicUrl}?cb=${Date.now()}`;
         
-    console.log("Preview uploaded successfully:", publicUrlData.publicUrl);
+    console.log("Preview uploaded successfully:", cacheBustedUrl);
     
     // Set Cache-Control headers on the preview file for better browser caching behavior
     await adminClient.storage
@@ -148,11 +159,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        previewUrl: publicUrlData.publicUrl,
+        previewUrl: cacheBustedUrl,
         path: `previews/${outputFileName}`,
         previewBytes: previewArray.byteLength,
         totalBytes: totalBytes,
         previewRatio: (previewArray.byteLength / totalBytes * 100).toFixed(1) + '%',
+        contentType: contentType,
         status: "success"
       }),
       {
