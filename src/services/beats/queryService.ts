@@ -31,7 +31,15 @@ const BEAT_QUERY_FIELDS = `
 `;
 
 // Add request cache to prevent duplicate requests in the same session
-const requestCache = new Map<string, Beat[]>();
+const requestCache = new Map<string, { data: Beat[], timestamp: number }>();
+
+// Maximum age for cached results in milliseconds (5 minutes)
+const MAX_CACHE_AGE = 5 * 60 * 1000; 
+
+// Function to check if cache is still valid
+const isCacheValid = (timestamp: number): boolean => {
+  return Date.now() - timestamp < MAX_CACHE_AGE;
+}
 
 export const fetchAllBeats = async (options: { 
   includeDetails?: boolean; 
@@ -52,13 +60,30 @@ export const fetchAllBeats = async (options: {
     // Create a cache key based on the query parameters
     const cacheKey = JSON.stringify({limit, includeDrafts, producerId});
     
-    // Check cache first (only valid for current session) - unless skipCache is true
+    // Check in-memory cache first (only valid for current session) - unless skipCache is true
     if (!skipCache && requestCache.has(cacheKey)) {
-      console.log('Using in-memory cached beats data');
-      return requestCache.get(cacheKey) || [];
+      const cached = requestCache.get(cacheKey)!;
+      
+      // Only use cache if it's not too old
+      if (isCacheValid(cached.timestamp)) {
+        console.log('Using in-memory cached beats data (age:', Date.now() - cached.timestamp, 'ms)');
+        return cached.data;
+      } else {
+        console.log('Cache expired, fetching fresh data');
+      }
     }
     
     console.log(skipCache ? 'Bypassing cache and fetching fresh data' : 'Cache miss, fetching from database');
+    
+    // Check if we already have a pending request for this exact query to prevent 
+    // "body stream already read" errors when multiple components request the same data
+    const requestKey = `GET:${supabase.getUrl()}/rest/v1/beats?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:""`;
+    const pendingRequests = new Map<string, Promise<any>>();
+    
+    if (pendingRequests.has(requestKey)) {
+      console.log('Duplicate request prevented:', requestKey);
+      return pendingRequests.get(requestKey) as Promise<Beat[]>;
+    }
     
     let query = supabase
       .from('beats')
@@ -78,22 +103,29 @@ export const fetchAllBeats = async (options: {
       query = query.limit(limit);
     }
     
-    const { data: beatsData, error: beatsError } = await query;
-    
-    if (beatsError) {
-      throw beatsError;
-    }
+    // Store this request in the pending map
+    const requestPromise = query.then(({ data: beatsData, error: beatsError }) => {
+      // Remove from pending requests map when done
+      pendingRequests.delete(requestKey);
+      
+      if (beatsError) {
+        throw beatsError;
+      }
 
-    if (beatsData && beatsData.length > 0) {
-      const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+      if (beatsData && beatsData.length > 0) {
+        const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+        
+        // Store in session cache with timestamp (memory only, cleared when page refreshes)
+        requestCache.set(cacheKey, { data: mappedBeats, timestamp: Date.now() });
+        
+        return mappedBeats;
+      }
       
-      // Store in session cache (memory only, cleared when page refreshes)
-      requestCache.set(cacheKey, mappedBeats);
-      
-      return mappedBeats;
-    }
+      return [];
+    });
     
-    return [];
+    pendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching all beats:', error);
     return [];
@@ -282,4 +314,20 @@ export const clearBeatsCache = (): void => {
   randomBeatsCache.clear();
   beatCache.clear();
   featuredBeatsCache.clear();
+  
+  // Also notify other components that cache has been cleared
+  try {
+    sessionStorage.setItem('beats_needs_refresh', 'true');
+    
+    // Dispatch storage event to notify other tabs
+    if (window.dispatchEvent) {
+      const event = new StorageEvent('storage', {
+        key: 'beats_needs_refresh',
+        newValue: 'true'
+      });
+      window.dispatchEvent(event);
+    }
+  } catch (e) {
+    console.error('Could not set refresh notification:', e);
+  }
 };

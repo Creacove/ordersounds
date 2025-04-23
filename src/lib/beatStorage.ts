@@ -217,6 +217,18 @@ export const uploadBeat = async (
     // Also clear producer-specific cache
     localStorage.removeItem(`producer_beats_${producerId}`);
     
+    // Set the refresh flag for other components/tabs to know data was updated
+    sessionStorage.setItem('beats_needs_refresh', 'true');
+    
+    // Dispatch storage event to notify other tabs
+    if (window.dispatchEvent) {
+      const event = new StorageEvent('storage', {
+        key: 'beats_needs_refresh',
+        newValue: 'true'
+      });
+      window.dispatchEvent(event);
+    }
+    
     return {
       success: true,
       beatId

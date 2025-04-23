@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
@@ -43,6 +43,20 @@ export default function ProducerBeats() {
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [dataFetchedRef, setDataFetchedRef] = useState(false);
+  const hasInitialLoadBeenTriggered = useRef(false);
+  
+  // Check for refresh flags in sessionStorage
+  const checkForRefreshFlags = useCallback(() => {
+    const needsRefresh = sessionStorage.getItem('beats_needs_refresh');
+    if (needsRefresh === 'true') {
+      console.log("Found refresh flag in sessionStorage, refreshing beats");
+      forceRefreshBeats();
+      // Clear the flag after refresh
+      sessionStorage.removeItem('beats_needs_refresh');
+      return true;
+    }
+    return false;
+  }, [forceRefreshBeats]);
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
@@ -52,18 +66,41 @@ export default function ProducerBeats() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Force refresh beats data when the component mounts
+  // Load beats data only once when component mounts or when user changes
   useEffect(() => {
     const loadBeats = async () => {
-      console.log("Forcing a fresh beats data fetch on page load");
-      await forceRefreshBeats();
+      if (hasInitialLoadBeenTriggered.current) return;
+      
+      console.log("Initial beats data fetch on page load");
+      const hasRefreshed = checkForRefreshFlags();
+      
+      // Only force refresh if no refresh flag was found
+      if (!hasRefreshed && user) {
+        await forceRefreshBeats();
+      }
+      
       setDataFetchedRef(true);
+      hasInitialLoadBeenTriggered.current = true;
     };
     
     if (user) {
       loadBeats();
     }
-  }, [user, forceRefreshBeats]);
+  }, [user, forceRefreshBeats, checkForRefreshFlags]);
+  
+  // Listen for storage events to detect changes from other tabs/windows
+  useEffect(() => {
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key === 'beats_needs_refresh' && event.newValue === 'true') {
+        console.log("Refresh triggered from another tab/component");
+        forceRefreshBeats();
+        sessionStorage.removeItem('beats_needs_refresh');
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageEvent);
+    return () => window.removeEventListener('storage', handleStorageEvent);
+  }, [forceRefreshBeats]);
 
   useEffect(() => {
     if (isMobile && viewMode === "table") {
@@ -105,6 +142,8 @@ export default function ProducerBeats() {
       toast.success('Beat deleted successfully');
       // Force refresh the beats data after deletion
       await forceRefreshBeats();
+      // Set flag for other components/tabs
+      sessionStorage.setItem('beats_needs_refresh', 'true');
     } catch (error) {
       console.error('Error deleting beat:', error);
       toast.error('Failed to delete beat');
@@ -130,6 +169,8 @@ export default function ProducerBeats() {
       toast.success('Beat published successfully');
       // Force refresh the beats data after publishing
       await forceRefreshBeats();
+      // Set flag for other components/tabs
+      sessionStorage.setItem('beats_needs_refresh', 'true');
     } catch (error) {
       console.error('Error publishing beat:', error);
       toast.error('Failed to publish beat');
