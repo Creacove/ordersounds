@@ -129,26 +129,32 @@ export const FilesTab = ({
   };
 
   const handleStemsUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (handleStemsUpload) {
-      handleStemsUpload(e);
-      return;
-    }
-    
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
       if (file.size > 250 * 1024 * 1024) {
         setValidationError("Stems file must be less than 250MB");
+        toast.error("Stems file must be less than 250MB");
         return;
       }
       
-      if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
+      const isZip = file.type === "application/zip" || 
+                    file.type === "application/x-zip-compressed" || 
+                    file.name.endsWith('.zip');
+                    
+      if (!isZip) {
         setValidationError("Stems file must be a ZIP archive");
+        toast.error("Stems file must be a ZIP archive");
         return;
       }
       
+      console.log("Stem file selected:", file.name, "type:", file.type);
       setStems(file);
       setValidationError(null);
+      
+      if (handleStemsUpload) {
+        handleStemsUpload(e);
+      }
     }
   };
 

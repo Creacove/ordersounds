@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadImage, deleteImage as deleteImageFile } from './imageStorage';
@@ -49,6 +50,10 @@ export const uploadFile = async (
     
     console.log(`Uploading file ${realFile.name} (${realFile.type}) to ${bucket}/${filePath}`);
     
+    // Determine the content type from the file or extension
+    const contentType = realFile.type || getMimeType(fileExt || '');
+    console.log(`Using content type: ${contentType}`);
+    
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
       return new Promise<string>(async (resolve, reject) => {
@@ -58,7 +63,7 @@ export const uploadFile = async (
           const { data, error } = await supabase.storage
             .from(bucket)
             .upload(filePath, realFile, {
-              contentType: realFile.type || getMimeType(fileExt || ''),
+              contentType: contentType,
               cacheControl: '3600',
               upsert: true
             });
@@ -86,7 +91,7 @@ export const uploadFile = async (
       const { data, error } = await supabase.storage
         .from(bucket)
         .upload(filePath, realFile, {
-          contentType: realFile.type || getMimeType(fileExt || ''),
+          contentType: contentType,
           cacheControl: '3600',
           upsert: true
         });

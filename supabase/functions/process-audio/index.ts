@@ -162,15 +162,36 @@ serve(async (req) => {
   }
 });
 
-// Helper function to get MIME type from file extension
-function getMimeType(ext) {
-  const map = {
+/**
+ * Get MIME type from file extension
+ * @param ext File extension
+ * @returns MIME type string
+ */
+function getMimeType(ext: string): string {
+  const map: {[key: string]: string} = {
+    // Images
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    
+    // Audio
     mp3: 'audio/mpeg',
     wav: 'audio/wav',
     m4a: 'audio/mp4',
     aac: 'audio/aac',
-    ogg: 'audio/ogg'
+    ogg: 'audio/ogg',
+    
+    // Archives
+    zip: 'application/zip',
+    
+    // Documents
+    pdf: 'application/pdf',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   };
+  
   return map[ext.toLowerCase()] || 'application/octet-stream';
 }
-

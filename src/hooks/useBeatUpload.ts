@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -478,7 +477,8 @@ export function useBeatUpload() {
         return;
       }
       
-      if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
+      if (file.type !== "application/zip" && !file.name.endsWith('.zip') && 
+          file.type !== "application/x-zip-compressed") {
         toast.error("Stems file must be a ZIP archive");
         return;
       }
@@ -486,7 +486,23 @@ export function useBeatUpload() {
       setStems(file);
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       
-      uploadStemsFile(file);
+      try {
+        toast.info("Uploading stems...");
+        
+        console.log("Starting upload for stems file:", file.name, "type:", file.type);
+        
+        const url = await uploadFile(file, 'beats', 'stems', (progress) => {
+          console.log(`Stems upload progress: ${progress}%`);
+          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+        });
+        
+        console.log("Stems upload completed, URL:", url);
+        toast.success("Stems uploaded successfully");
+      } catch (error) {
+        console.error("Error uploading stems:", error);
+        setUploadError(error.message || "Failed to upload stems");
+        toast.error("Failed to upload stems. Please try again.");
+      }
     }
   };
   
@@ -540,7 +556,8 @@ export function useBeatUpload() {
     regeneratePreview,
     licenseOptions,
     uploadedFileUrl,
-    setUploadedFileUrl,  // Ensure this is returned for access in the UploadBeat component
-    uploadError
+    setUploadedFileUrl,
+    uploadError,
+    uploadStemsFile
   };
 }
