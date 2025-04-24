@@ -250,7 +250,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       price: price,
       thumbnail_url: item.beat.cover_image_url || '', // Updated to match Beat type
       quantity: 1,
-      producer_wallet: item.beat.producer?.wallet_address || '' // Updated to handle undefined
+      producer_wallet: item.beat.producer?.wallet_address || '' // Update to use optional chaining
     };
   });
 

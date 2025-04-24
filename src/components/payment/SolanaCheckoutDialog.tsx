@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useSolanaPayment } from "@/hooks/useSolanaPayment";
 import { toast } from "sonner";
@@ -84,9 +85,11 @@ export const SolanaCheckoutDialog = ({
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          user_id: userData.user.id,
-          total_amount: totalPrice,
-          status: 'completed' // Initialize as completed, we'll delete if payments fail
+          buyer_id: userData.user.id, // Use buyer_id instead of user_id
+          total_price: totalPrice,
+          status: 'completed', // Initialize as completed, we'll delete if payments fail
+          currency_used: 'USD', // For Solana payments
+          payment_method: 'Solana'
         })
         .select()
         .single();

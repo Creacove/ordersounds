@@ -1,136 +1,58 @@
 
-import { RefreshCw, Loader2, X, Info } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
 
-interface PaystackDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  totalAmount: number;
-  validationError: string | null;
+export interface PaystackDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   isProcessing: boolean;
   isValidating: boolean;
-  onPaymentStart: () => void;
-  onRefreshCart: () => void;
-  forceCancel?: () => void;
-  paymentStarted?: boolean;
+  validationError: string | null;
+  amount: number;
 }
 
 export function PaystackDialog({
-  isOpen,
-  onClose,
-  totalAmount,
-  validationError,
+  open,
+  onOpenChange,
   isProcessing,
   isValidating,
-  onPaymentStart,
-  onRefreshCart,
-  forceCancel,
-  paymentStarted
+  validationError,
+  amount
 }: PaystackDialogProps) {
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md p-4 max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="mb-2">
-          <DialogTitle className="text-xl">Complete Your Purchase</DialogTitle>
-          <DialogDescription>
-            {paymentStarted ? 
-              "Payment window is opening. If you don't see it, please check if it's been blocked by your browser." :
-              "You'll be redirected to Paystack's secure payment platform to complete this transaction."}
-          </DialogDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Payment Processing</DialogTitle>
         </DialogHeader>
-        
-        <div className="p-4 bg-muted/30 rounded-md mb-4">
-          <p className="text-sm font-medium">Total Amount</p>
-          <p className="text-2xl font-bold">₦{totalAmount.toLocaleString()}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            <span className="bg-green-100 text-green-800 px-1.5 py-0.5 rounded-sm font-medium">Test Mode</span>
-          </p>
-        </div>
-        
-        {validationError && (
-          <div className="p-3 border border-destructive/50 bg-destructive/10 rounded-md mb-4">
-            <p className="text-sm font-medium text-destructive">{validationError}</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="mt-2 w-full"
-              onClick={onRefreshCart}
-              disabled={isValidating}
-            >
-              {isValidating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" /> 
-                  Refresh Cart
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-        
-        {paymentStarted && (
-          <Alert className="mb-4">
-            <Info className="h-4 w-4" />
-            <AlertDescription className="text-xs">
-              In test mode, use any of these cards: <code>408 4084 0840 8408</code> with any future date and CVV. Use <code>123456</code> for OTP when prompted.
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <div className="flex flex-col gap-3 mt-2">
-          <Button 
-            onClick={onPaymentStart}
-            disabled={isProcessing || isValidating || validationError !== null || paymentStarted}
-            className="w-full py-6 text-base"
-            size="lg"
-          >
-            {isProcessing ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Processing...
-              </>
-            ) : paymentStarted ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Opening payment window...
-              </>
-            ) : isValidating ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Validating...
-              </>
-            ) : (
-              'Proceed to Payment'
-            )}
-          </Button>
-          
-          {(isProcessing || paymentStarted) && forceCancel && (
-            <Button 
-              variant="destructive" 
-              onClick={forceCancel}
-              className="w-full py-2 text-sm"
-              size="sm"
-            >
-              <X size={16} className="mr-2" />
-              Cancel Payment
-            </Button>
+        <div className="py-6">
+          {isValidating && (
+            <div className="flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              <p className="text-center text-sm">Validating your order...</p>
+            </div>
           )}
-          
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            disabled={isProcessing && !forceCancel}
-            className="w-full py-5 text-base"
-            size="lg"
-          >
-            Back
-          </Button>
+
+          {validationError && (
+            <div className="p-4 rounded-md bg-red-50 border border-red-200">
+              <p className="text-red-700">{validationError}</p>
+            </div>
+          )}
+
+          {isProcessing && !validationError && (
+            <div className="flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              <p className="text-center text-sm">Processing payment of ₦{amount.toLocaleString()}...</p>
+              <p className="text-center text-xs text-muted-foreground">
+                You will be redirected to the payment gateway.
+              </p>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
