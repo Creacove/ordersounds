@@ -20,12 +20,12 @@ export const CACHE_KEYS = {
 
 // Cache expiration durations (in hours) - Significantly increased to reduce API calls
 export const CACHE_DURATIONS = {
-  TRENDING: 24,     // Increased to 24 hours for trending beats
-  FEATURED: 48,     // Increased to 48 hours for featured beats
+  TRENDING: 24,     // 24 hours for trending beats
+  FEATURED: 48,     // 48 hours for featured beats
   WEEKLY: 168,      // Weekly (7 days * 24 hours)
-  ALL_BEATS: 120,   // Increased to 120 hours (5 days) for all beats
-  PRODUCERS: 72,    // Increased to 72 hours (3 days) for producers
-  PLAYLISTS: 48     // Increased to 48 hours (2 days) for playlists
+  ALL_BEATS: 120,   // 120 hours (5 days) for all beats
+  PRODUCERS: 72,    // 72 hours (3 days) for producers
+  PLAYLISTS: 48     // 48 hours (2 days) for playlists
 };
 
 // Network timeouts (in milliseconds)
@@ -34,6 +34,9 @@ export const NETWORK_TIMEOUTS = {
   SHORT: 20000,     // 20 seconds for less critical data
   LONG: 60000       // 60 seconds for initial app load
 };
+
+// Maximum cache size in bytes (4MB is safe for localStorage)
+const MAX_CACHE_SIZE = 4 * 1024 * 1024;
 
 // Utility function to get a cache expiration timestamp
 export const getCacheExpiration = (intervalHours: number): number => {
@@ -83,19 +86,57 @@ export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, dur
     }
     
     // Convert data to JSON string
-    const jsonData = JSON.stringify(data);
+    let jsonData: string;
     
-    // Check if we're approaching storage limits
+    try {
+      jsonData = JSON.stringify(data);
+    } catch (stringifyError) {
+      console.error(`Failed to stringify data for ${cacheKey}:`, stringifyError);
+      return false;
+    }
+    
+    // Check if the data is too large
     const estimatedSize = jsonData.length * 2; // Rough estimate in bytes
-    if (estimatedSize > 3 * 1024 * 1024) { // 3MB - more conservative limit
-      console.warn(`Cache data for ${cacheKey} is very large (${Math.round(estimatedSize/1024/1024)}MB), might hit storage limits`);
+    if (estimatedSize > MAX_CACHE_SIZE) {
+      console.warn(`Cache data for ${cacheKey} is too large (${Math.round(estimatedSize/1024/1024)}MB). Will attempt to reduce.`);
       
-      // If too large, try to clear old caches
-      try {
-        clearOldCaches();
-      } catch (e) {
-        console.error("Error clearing old caches:", e);
+      // If it's an array, try to reduce its size
+      if (Array.isArray(data)) {
+        const originalLength = (data as any[]).length;
+        let reducedData: any[];
+        
+        if (originalLength > 50) {
+          reducedData = (data as any[]).slice(0, 50);
+          console.log(`Reduced array size from ${originalLength} to 50 items for ${cacheKey}`);
+          
+          try {
+            jsonData = JSON.stringify(reducedData);
+            
+            // If still too large, reduce further
+            if (jsonData.length * 2 > MAX_CACHE_SIZE) {
+              reducedData = reducedData.slice(0, 20);
+              jsonData = JSON.stringify(reducedData);
+              console.log(`Further reduced array size to 20 items for ${cacheKey}`);
+            }
+          } catch (e) {
+            console.error(`Failed to stringify reduced data for ${cacheKey}:`, e);
+            return false;
+          }
+        } else {
+          // If the array is already small but data still too large, skip caching
+          console.warn(`Cannot reduce array size further for ${cacheKey}, skipping cache`);
+          return false;
+        }
+      } else {
+        // Non-array data that's too large, skip caching
+        console.warn(`Data for ${cacheKey} is too large and cannot be reduced, skipping cache`);
+        return false;
       }
+    }
+    
+    // Before saving, check total localStorage usage
+    if (isStorageLimitApproaching()) {
+      clearOldCaches();
     }
     
     // Try to save the data
@@ -163,8 +204,6 @@ const emergencyCacheClear = (): void => {
   
   // Only keep the absolutely essential caches
   const keysToKeep = [
-    CACHE_KEYS.ALL_BEATS,
-    CACHE_KEYS.ALL_BEATS_EXPIRY,
     CACHE_KEYS.USER_FAVORITES,
     CACHE_KEYS.USER_PURCHASES,
     'auth.access_token',
@@ -172,12 +211,16 @@ const emergencyCacheClear = (): void => {
   ];
   
   // Clear everything except what we want to keep
+  const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key && !keysToKeep.includes(key)) {
-      localStorage.removeItem(key);
+      keysToRemove.push(key);
     }
   }
+  
+  // Remove the keys (in a separate loop to avoid issues with changing length during iteration)
+  keysToRemove.forEach(key => localStorage.removeItem(key));
   
   console.log("Emergency cache clear completed");
 };
