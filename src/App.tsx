@@ -1,131 +1,148 @@
 
-import React from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import { ScrollToTop } from "./components/utils/ScrollToTop";
+import { Toaster } from "@/components/ui/sonner";
+import { CartProvider } from "./context/CartContext";
+import { PlayerProvider } from "./context/PlayerContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import { CartProvider } from "@/context/CartContext";
-import { PlayerProvider } from "@/context/PlayerContext";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { ScrollToTop } from "@/components/utils/ScrollToTop";
+import { SolanaWalletProvider } from "./components/wallets/SolanaWalletProvider";
 
-// Direct imports instead of lazy loading
-import Home from "./pages/buyer/Home";
+// Import pages
+import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import ResetPassword from "./pages/auth/ResetPassword";
-import AuthCallback from "./pages/auth/Callback";
+import Callback from "./pages/auth/Callback";
 import ProducerActivation from "./pages/auth/ProducerActivation";
-import Library from "./pages/buyer/Library";
-import Trending from "./pages/buyer/Trending";
-import New from "./pages/buyer/New";
-import Playlists from "./pages/buyer/Playlists";
-import Genres from "./pages/buyer/Genres";
-import Producers from "./pages/buyer/Producers";
-import Charts from "./pages/buyer/Charts";
-import Orders from "./pages/buyer/Orders";
 import Cart from "./pages/buyer/Cart";
-import Search from "./pages/buyer/Search";
-import Settings from "./pages/user/Settings";
-import ProducerSettings from "./pages/producer/Settings";
-import Contact from "./pages/Contact";
-import BuyerProfile from "./pages/buyer/BuyerProfile";
-import ProducerProfile from "./pages/producer/ProducerProfile";
+import Home from "./pages/buyer/Home";
+import UserSettings from "./pages/user/Settings";
 import BeatDetail from "./pages/buyer/BeatDetail";
-import ProducerDashboard from "./pages/producer/Dashboard";
+import Orders from "./pages/buyer/Orders";
+import Library from "./pages/buyer/Library";
+import Playlists from "./pages/buyer/Playlists";
+import LibraryIndex from "./pages/buyer/LibraryIndex";
+import ProducerProfile from "./pages/producer/ProducerProfile";
+import BuyerProfile from "./pages/buyer/BuyerProfile";
+import Contact from "./pages/Contact";
+import New from "./pages/buyer/New";
+import Trending from "./pages/buyer/Trending";
+import Genres from "./pages/buyer/Genres";
+import Charts from "./pages/buyer/Charts";
+import Collections from "./pages/buyer/Collections";
+import Producers from "./pages/buyer/Producers";
+import Search from "./pages/buyer/Search";
+
+// Producer Routes
+import Dashboard from "./pages/producer/Dashboard";
+import ProducerSettings from "./pages/producer/Settings";
 import UploadBeat from "./pages/producer/UploadBeat";
-import ProducerBeats from "./pages/producer/Beats";
+import Beats from "./pages/producer/Beats";
 import Royalties from "./pages/producer/Royalties";
-import ProtectedProducerRoute from "./components/auth/ProtectedProducerRoute";
+import { ProtectedProducerRoute } from "./components/auth/ProtectedProducerRoute";
+import PaymentAdmin from "./pages/admin/PaymentAdmin";
+import PaymentAdminRoute from "./pages/admin/PaymentAdminRoute";
 
-// Configure QueryClient with optimized settings for less API stress
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 0, // Disable retries - user will manually refresh
-      staleTime: 10 * 60 * 1000, // 10 minutes stale time
-      gcTime: 60 * 60 * 1000, // 1 hour garbage collection
-      networkMode: 'online', // Only fetch when online
-    },
-  },
-});
+// Create a client
+const queryClient = new QueryClient();
 
-// Helper component for dynamic redirect
-const PlaylistRedirect = () => {
-  const location = useLocation();
-  const playlistId = location.pathname.split("/").pop();
-  return <Navigate to={`/playlists/${playlistId}`} replace />;
-};
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <TooltipProvider>
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <SolanaWalletProvider>
         <AuthProvider>
-          <CartProvider>
-            <PlayerProvider>
-              <SidebarProvider>
-                <ScrollToTop />
-                <Toaster />
-                <Sonner position="top-right" expand={true} closeButton={true} />
-                <Routes>
-                  {/* Public Routes */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/trending" element={<Trending />} />
-                  <Route path="/new" element={<New />} />
-                  <Route path="/playlists" element={<Playlists />} />
-                  <Route path="/playlists/:playlistId" element={<Playlists />} />
-                  <Route path="/playlist/:playlistId" element={<PlaylistRedirect />} />
-                  <Route path="/genres" element={<Genres />} />
-                  <Route path="/producers" element={<Producers />} />
-                  <Route path="/charts" element={<Charts />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/contact" element={<Contact />} />
-                  <Route path="/cart" element={<Cart />} />
-                  <Route path="/beat/:beatId" element={<BeatDetail />} />
+          <PlayerProvider>
+            <CartProvider>
+              <ScrollToTop />
+              <Routes>
+                {/* Public routes */}
+                <Route path="/" element={<Index />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<Signup />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/callback" element={<Callback />} />
+                <Route path="/activate-producer" element={<ProducerActivation />} />
 
-                  {/* Profile Routes */}
-                  <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
-                  <Route path="/producer/:producerId" element={<ProducerProfile />} />
+                {/* Buyer routes */}
+                <Route path="/home" element={<Home />} />
+                <Route path="/cart" element={<Cart />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/settings" element={<UserSettings />} />
+                <Route path="/beat/:id" element={<BeatDetail />} />
+                <Route path="/library" element={<Library />}>
+                  <Route index element={<LibraryIndex />} />
+                  <Route path="playlists" element={<Playlists />} />
+                  <Route path="playlists/:id" element={<Playlists />} />
+                </Route>
+                <Route path="/new" element={<New />} />
+                <Route path="/trending" element={<Trending />} />
+                <Route path="/genres/:genre?" element={<Genres />} />
+                <Route path="/charts" element={<Charts />} />
+                <Route path="/collections" element={<Collections />} />
+                <Route path="/producers" element={<Producers />} />
+                <Route path="/search" element={<Search />} />
+                <Route path="/producer/:id" element={<ProducerProfile />} />
+                <Route path="/profile/:id" element={<BuyerProfile />} />
+                <Route path="/contact" element={<Contact />} />
 
-                  {/* Auth Routes */}
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<Signup />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/producer-activation" element={<ProducerActivation />} />
+                {/* Producer routes */}
+                <Route
+                  path="/producer/dashboard"
+                  element={
+                    <ProtectedProducerRoute>
+                      <Dashboard />
+                    </ProtectedProducerRoute>
+                  }
+                />
+                <Route
+                  path="/producer/settings"
+                  element={
+                    <ProtectedProducerRoute>
+                      <ProducerSettings />
+                    </ProtectedProducerRoute>
+                  }
+                />
+                <Route
+                  path="/producer/upload"
+                  element={
+                    <ProtectedProducerRoute>
+                      <UploadBeat />
+                    </ProtectedProducerRoute>
+                  }
+                />
+                <Route
+                  path="/producer/beats"
+                  element={
+                    <ProtectedProducerRoute>
+                      <Beats />
+                    </ProtectedProducerRoute>
+                  }
+                />
+                <Route
+                  path="/producer/royalties"
+                  element={
+                    <ProtectedProducerRoute>
+                      <Royalties />
+                    </ProtectedProducerRoute>
+                  }
+                />
+                
+                {/* Admin routes */}
+                <Route path="/admin/payments" element={<PaymentAdminRoute><PaymentAdmin /></PaymentAdminRoute>} />
 
-                  {/* Library Routes */}
-                  <Route path="/library" element={<Library />} />
-                  <Route path="/buyer/library" element={<Navigate to="/library" replace />} />
-                  <Route path="/favorites" element={<Library />} />
-                  <Route path="/purchased" element={<Navigate to="/library" replace />} />
-                  <Route path="/my-playlists" element={<Library />} />
-                  <Route path="/my-playlists/:playlistId" element={<Library />} />
-                  <Route path="/orders" element={<Orders />} />
-
-                  {/* Producer Routes */}
-                  <Route path="/producer/dashboard" element={<ProtectedProducerRoute><ProducerDashboard /></ProtectedProducerRoute>} />
-                  <Route path="/producer/upload" element={<ProtectedProducerRoute><UploadBeat /></ProtectedProducerRoute>} />
-                  <Route path="/producer/beats" element={<ProtectedProducerRoute><ProducerBeats /></ProtectedProducerRoute>} />
-                  <Route path="/producer/royalties" element={<ProtectedProducerRoute><Royalties /></ProtectedProducerRoute>} />
-                  <Route path="/producer/settings" element={<ProtectedProducerRoute><ProducerSettings /></ProtectedProducerRoute>} />
-
-                  {/* Catch-all Route */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </SidebarProvider>
-            </PlayerProvider>
-          </CartProvider>
+                {/* Fallbacks */}
+                <Route path="/404" element={<NotFound />} />
+                <Route path="*" element={<Navigate to="/404" replace />} />
+              </Routes>
+              <Toaster position="top-center" />
+            </CartProvider>
+          </PlayerProvider>
         </AuthProvider>
-      </TooltipProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
-);
+      </SolanaWalletProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

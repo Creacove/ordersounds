@@ -59,7 +59,7 @@ export const SolanaCheckoutDialog = ({
     });
     
     return Object.entries(groupedItems).map(([wallet, data]) => ({
-      creatorWallet: wallet,
+      producerWallet: wallet,
       items: data.items,
       total: data.total
     }));
