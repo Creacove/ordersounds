@@ -1,29 +1,22 @@
 
-import { fetchAllBeats, fetchTrendingBeats, fetchNewBeats, fetchRandomBeats, fetchFeaturedBeats, fetchBeatById, clearBeatsCache } from './queryService';
-import { toggleFavoriteAPI, fetchUserFavorites, fetchPurchasedBeats, fetchPurchasedBeatDetails } from './userService';
-import { getProducerBeats, getUserFavoriteBeats } from './filterService';
+import { Beat } from '@/types';
 
-/**
- * Checks if a beat is published
- * @param status The beat status
- * @returns Boolean indicating if the beat is published
- */
-export const isBeatPublished = (status: string | undefined): boolean => {
-  return status === 'published';
+export * from './types';
+export * from './utils';
+export * from './queryService';
+export * from './userService';
+
+// Helper functions that don't need database access
+export const getProducerBeats = (beats: Beat[], producerId: string): Beat[] => {
+  // Include all beats for the producer, both published and drafts
+  return beats.filter(beat => beat.producer_id === producerId);
 };
 
-export {
-  fetchAllBeats,
-  fetchTrendingBeats,
-  fetchNewBeats,
-  fetchRandomBeats,
-  fetchFeaturedBeats,
-  clearBeatsCache,
-  fetchBeatById,
-  toggleFavoriteAPI,
-  fetchUserFavorites,
-  fetchPurchasedBeats,
-  fetchPurchasedBeatDetails,
-  getProducerBeats,
-  getUserFavoriteBeats
+export const getUserFavoriteBeats = (beats: Beat[], favoriteIds: string[]): Beat[] => {
+  return beats.filter(beat => favoriteIds.includes(beat.id));
+};
+
+// Helper to check if beat is published
+export const isBeatPublished = (beat: Beat | null): boolean => {
+  return beat?.status === "published";
 };

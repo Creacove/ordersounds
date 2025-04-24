@@ -44,14 +44,16 @@ export function PaystackCheckout({
 
   return (
     <PaystackDialog
-      open={isOpen}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
+      isOpen={isOpen}
+      onClose={onClose}
+      totalAmount={totalAmount}
+      validationError={validationError}
       isProcessing={isProcessing}
       isValidating={isValidating}
-      validationError={validationError}
-      amount={totalAmount}
+      onPaymentStart={handlePaymentStart}
+      onRefreshCart={handleRefreshCart}
+      forceCancel={forceCancel}
+      paymentStarted={paymentStarted}
     />
   );
 }

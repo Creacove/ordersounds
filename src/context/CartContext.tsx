@@ -1,11 +1,9 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
 import { getLicensePrice } from '@/utils/licenseUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
 
 interface CartItem {
   beat: Beat & { selected_license?: string };
@@ -24,9 +22,6 @@ interface CartContextType {
   itemCount: number;
   refreshCart: () => Promise<void>;
   toggleCartItem: (beat: Beat, licenseType: string) => void;
-  openSolanaCheckout: () => void;
-  closeSolanaCheckout: () => void;
-  isSolanaCheckoutOpen: boolean;
 }
 
 const CartContext = createContext<CartContextType>({
@@ -40,10 +35,7 @@ const CartContext = createContext<CartContextType>({
   getCartItemCount: () => 0,
   itemCount: 0,
   refreshCart: async () => {},
-  toggleCartItem: () => {},
-  openSolanaCheckout: () => {},
-  closeSolanaCheckout: () => {},
-  isSolanaCheckoutOpen: false
+  toggleCartItem: () => {}
 });
 
 export const useCart = () => useContext(CartContext);
@@ -53,7 +45,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const { user, currency } = useAuth();
   const [totalAmount, setTotalAmount] = useState(0);
   const [itemCount, setItemCount] = useState(0);
-  const [isSolanaCheckoutOpen, setIsSolanaCheckoutOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -225,35 +216,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
-  const openSolanaCheckout = () => {
-    setIsSolanaCheckoutOpen(true);
-  };
-
-  const closeSolanaCheckout = () => {
-    setIsSolanaCheckoutOpen(false);
-  };
-
-  const handleCheckoutSuccess = () => {
-    clearCart();
-    closeSolanaCheckout();
-    toast.success("Payment successful!");
-  };
-
-  // Convert cart items to the format needed for SolanaCheckoutDialog
-  const solanaCartItems = cartItems.map(item => {
-    const licenseType = item.beat.selected_license || 'basic';
-    const price = getLicensePrice(item.beat, licenseType, currency === 'USD');
-    
-    return {
-      id: item.beat.id,
-      title: item.beat.title,
-      price: price,
-      thumbnail_url: item.beat.cover_image_url || '', // Updated to match Beat type
-      quantity: 1,
-      producer_wallet: item.beat.producer?.wallet_address || '' // Update to use optional chaining
-    };
-  });
-
   const contextValue = {
     cartItems,
     addToCart,
@@ -265,22 +227,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     isInCart,
     getCartItemCount,
     itemCount,
-    toggleCartItem,
-    openSolanaCheckout,
-    closeSolanaCheckout,
-    isSolanaCheckoutOpen
+    toggleCartItem
   };
 
   return (
     <CartContext.Provider value={contextValue}>
       {children}
-      
-      <SolanaCheckoutDialog
-        open={isSolanaCheckoutOpen}
-        onOpenChange={setIsSolanaCheckoutOpen}
-        cartItems={solanaCartItems}
-        onCheckoutSuccess={handleCheckoutSuccess}
-      />
     </CartContext.Provider>
   );
 };

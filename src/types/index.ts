@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -31,8 +30,6 @@ export interface User {
   status?: 'active' | 'inactive';
   // Add music_interests field
   music_interests?: string[];
-  // Add wallet_address field
-  wallet_address?: string;
 }
 
 export interface Beat {
@@ -71,13 +68,11 @@ export interface Beat {
   producer?: {
     full_name?: string;
     stage_name?: string;
-    wallet_address?: string; // Add wallet_address to the producer data
   };
   // For backward compatibility with existing code
   users?: {
     full_name?: string;
     stage_name?: string;
-    wallet_address?: string; // Add wallet_address to users data
   };
 }
 

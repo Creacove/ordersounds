@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -22,7 +21,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getLicensePrice, getAvailableLicenseTypes } from '@/utils/licenseUtils';
 import { supabase } from '@/integrations/supabase/client';
-import { fetchBeatById } from '@/services/beats';
 
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
@@ -45,32 +43,17 @@ const BeatDetail = () => {
     queryKey: ['beat', beatId],
     queryFn: async () => {
       if (!beatId) throw new Error('Beat ID is required');
+      const result = await getBeatById(beatId);
+      if (!result) throw new Error('Beat not found');
       
-      try {
-        // Try to get the beat from the useBeats hook first
-        let result = await getBeatById(beatId);
-        
-        // If that fails, try direct fetch as a fallback
-        if (!result) {
-          console.log('Beat not found in cache, fetching directly from API');
-          result = await fetchBeatById(beatId);
-        }
-        
-        if (!result) throw new Error('Beat not found');
-        
-        setPlayCount(result.plays || 0);
-        setFavoritesCount(result.favorites_count || 0);
-        setPurchaseCount(result.purchase_count || 0);
-        setLocalBeat(result);
-        
-        return result;
-      } catch (err) {
-        console.error('Error fetching beat:', err);
-        throw new Error('Beat not found');
-      }
+      setPlayCount(result.plays || 0);
+      setFavoritesCount(result.favorites_count || 0);
+      setPurchaseCount(result.purchase_count || 0);
+      setLocalBeat(result); // Set the local beat state
+      
+      return result;
     },
     enabled: !!beatId,
-    retry: 2
   });
 
   useEffect(() => {
@@ -233,8 +216,7 @@ const BeatDetail = () => {
           <div className="space-y-6">
             <h1 className="text-3xl font-bold">Beat Not Found</h1>
             <p className="text-muted-foreground">Sorry, we couldn't find the beat you're looking for.</p>
-            <Button onClick={() => navigate('/')}>Return Home</Button>
-            <Button variant="outline" onClick={() => navigate('/trending')}>Browse Beats</Button>
+            <Button onClick={() => navigate('/trending')}>Browse Beats</Button>
           </div>
         </div>
       </MainLayoutWithPlayer>
