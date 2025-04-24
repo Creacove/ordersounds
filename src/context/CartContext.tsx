@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -20,6 +19,7 @@ type LightweightBeat = {
   exclusive_license_price_local?: number;
   exclusive_license_price_diaspora?: number;
   selected_license?: string;
+  genre?: string;
 };
 
 interface CartItem {
@@ -71,7 +71,8 @@ const createLightweightBeat = (beat: Beat & { selected_license?: string }): Ligh
     premium_license_price_diaspora: beat.premium_license_price_diaspora,
     exclusive_license_price_local: beat.exclusive_license_price_local,
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
-    selected_license: beat.selected_license || 'basic'
+    selected_license: beat.selected_license || 'basic',
+    genre: beat.genre
   };
 };
 
