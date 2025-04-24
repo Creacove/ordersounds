@@ -13,6 +13,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Home from '@/pages/buyer/Home';
 import Login from '@/pages/auth/Login';
 import Signup from '@/pages/auth/Signup';
+import Callback from '@/pages/auth/Callback';
 import BeatDetail from '@/pages/buyer/BeatDetail';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import ProtectedProducerRoute from '@/components/auth/ProtectedProducerRoute';
@@ -48,6 +49,7 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/beat/:id" element={<BeatDetail />} />
+                  <Route path="/auth/callback" element={<Callback />} />
 
                   {/* Protected Routes */}
                   <Route 
@@ -65,6 +67,14 @@ function App() {
                     element={
                       <ProtectedProducerRoute>
                         <UploadBeat />
+                      </ProtectedProducerRoute>
+                    } 
+                  />
+                  <Route 
+                    path="/producer/dashboard" 
+                    element={
+                      <ProtectedProducerRoute>
+                        <ProducerDashboard />
                       </ProtectedProducerRoute>
                     } 
                   />
