@@ -20,7 +20,7 @@ export function PaymentHandler({ totalAmount, onSuccess, splitCode, producerId, 
   const { user, currency } = useAuth();
   const { openSolanaCheckout } = useCart();
   const [isPaystackDialogOpen, setIsPaystackDialogOpen] = useState(false);
-  const { isWalletConnected } = useWallet();
+  const wallet = useWallet();
 
   // Initialize Paystack checkout
   const {
@@ -83,7 +83,7 @@ export function PaymentHandler({ totalAmount, onSuccess, splitCode, producerId, 
               Pay with Solana (${totalAmount.toLocaleString()})
             </Button>
             
-            {!isWalletConnected && (
+            {!wallet.connected && (
               <div className="flex justify-center">
                 <WalletConnectButton />
               </div>

@@ -10,7 +10,7 @@ import {
   import { toast } from 'sonner';
   
   // Platform wallet address to receive fees
-  const PLATFORM_WALLET = new PublicKey(5mLF6mwykxMXeb24KvMpi5aPXVgJbTPKAmk1pVzMHW8Q); 
+  const PLATFORM_WALLET = new PublicKey("5mLF6mwykxMXeb24KvMpi5aPXVgJbTPKAmk1pVzMHW8Q"); 
   const PLATFORM_FEE_PERCENTAGE = 0.1; // 10%
   
   /**
@@ -145,4 +145,3 @@ import {
       return false;
     }
   };
-  
