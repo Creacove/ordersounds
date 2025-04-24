@@ -307,6 +307,44 @@ export type Database = {
           },
         ]
       }
+      order_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_id: string
+          price: number
+          product_id: string
+          quantity: number
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_id: string
+          price: number
+          product_id: string
+          quantity?: number
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_id?: string
+          price?: number
+          product_id?: string
+          quantity?: number
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           buyer_id: string
@@ -319,6 +357,7 @@ export type Database = {
           split_code: string | null
           status: string | null
           total_price: number
+          transaction_signatures: string[] | null
         }
         Insert: {
           buyer_id: string
@@ -331,6 +370,7 @@ export type Database = {
           split_code?: string | null
           status?: string | null
           total_price: number
+          transaction_signatures?: string[] | null
         }
         Update: {
           buyer_id?: string
@@ -343,6 +383,7 @@ export type Database = {
           split_code?: string | null
           status?: string | null
           total_price?: number
+          transaction_signatures?: string[] | null
         }
         Relationships: [
           {
@@ -631,6 +672,7 @@ export type Database = {
           storefront_url: string | null
           stripe_id: string | null
           verified_account_name: string | null
+          wallet_address: string | null
         }
         Insert: {
           account_number?: string | null
@@ -659,6 +701,7 @@ export type Database = {
           storefront_url?: string | null
           stripe_id?: string | null
           verified_account_name?: string | null
+          wallet_address?: string | null
         }
         Update: {
           account_number?: string | null
@@ -687,6 +730,7 @@ export type Database = {
           storefront_url?: string | null
           stripe_id?: string | null
           verified_account_name?: string | null
+          wallet_address?: string | null
         }
         Relationships: []
       }
@@ -748,6 +792,7 @@ export type Database = {
           storefront_url: string | null
           stripe_id: string | null
           verified_account_name: string | null
+          wallet_address: string | null
         }[]
       }
       get_user_favorites: {

@@ -3,7 +3,12 @@ import { useMemo } from 'react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter, SolflareWalletAdapter, BackpackWalletAdapter, TorusWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { 
+  PhantomWalletAdapter, 
+  SolflareWalletAdapter, 
+  BackpackWalletAdapter, 
+  TorusWalletAdapter 
+} from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 
 // Import wallet adapter CSS
@@ -20,8 +25,8 @@ export function SolanaWalletProvider({ children }: SolanaWalletProviderProps) {
   // You can also provide a custom RPC endpoint
   const endpoint = useMemo(() => {
     // Use custom RPC URL from .env if available, otherwise use default
-    if (import.meta.env.SOLANA_RPC_URL) {
-      return import.meta.env.SOLANA_RPC_URL;
+    if (import.meta.env.VITE_SOLANA_RPC_URL) {
+      return import.meta.env.VITE_SOLANA_RPC_URL;
     }
     return clusterApiUrl(network);
   }, [network]);

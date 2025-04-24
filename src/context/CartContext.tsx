@@ -248,9 +248,9 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       id: item.beat.id,
       title: item.beat.title,
       price: price,
-      thumbnail_url: item.beat.cover_image || '',
+      thumbnail_url: item.beat.cover_image_url || '', // Updated to match Beat type
       quantity: 1,
-      producer_wallet: item.beat.producer_wallet_address // This field needs to exist on the beat object
+      producer_wallet: item.beat.producer?.wallet_address || '' // Updated to handle undefined
     };
   });
 
