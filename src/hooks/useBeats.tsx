@@ -409,16 +409,28 @@ export function useBeats() {
   };
   
   const getBeatById = async (id: string): Promise<Beat | null> => {
-    const localBeat = beats.find(beat => beat.id === id);
-    if (localBeat) return localBeat;
-    
-    const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
-    if (cachedBeats) {
-      const cachedBeat = cachedBeats.find(beat => beat.id === id);
-      if (cachedBeat) return cachedBeat;
+    try {
+      const localBeat = beats.find(beat => beat.id === id);
+      if (localBeat) {
+        console.log('Beat found in local state:', id);
+        return localBeat;
+      }
+      
+      const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
+      if (cachedBeats) {
+        const cachedBeat = cachedBeats.find(beat => beat.id === id);
+        if (cachedBeat) {
+          console.log('Beat found in cache:', id);
+          return cachedBeat;
+        }
+      }
+      
+      console.log('Fetching beat from API:', id);
+      return fetchBeatById(id);
+    } catch (error) {
+      console.error(`Error fetching beat ${id}:`, error);
+      return null;
     }
-    
-    return fetchBeatById(id);
   };
   
   const getUserPurchasedBeats = (): Beat[] => {
