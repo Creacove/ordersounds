@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -63,6 +62,7 @@ export function useBeatUpload() {
   const [stemsUrl, setStemsUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [stemsUploadError, setStemsUploadError] = useState<string | null>(null);
 
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
     title: "",
@@ -551,9 +551,10 @@ export function useBeatUpload() {
       setStems(file);
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
       setStemsUrl(null);
+      setStemsUploadError(null);
       
       try {
-        toast.info("Uploading stems...");
+        toast.info("Uploading stems...", { id: "stems-upload" });
         
         console.log("Starting upload for stems file:", file.name, "type:", file.type);
         
@@ -564,18 +565,18 @@ export function useBeatUpload() {
         
         console.log("Stems upload completed, URL:", url);
         setStemsUrl(url);
-        toast.success("Stems uploaded successfully");
+        toast.success("Stems uploaded successfully", { id: "stems-upload" });
       } catch (error) {
         console.error("Error uploading stems:", error);
-        setUploadError(error.message || "Failed to upload stems");
-        toast.error("Failed to upload stems. Please try again.");
+        setStemsUploadError(error.message || "Failed to upload stems");
+        toast.error("Failed to upload stems. Please try again.", { id: "stems-upload" });
       }
     }
   };
   
   const uploadStemsFile = async (file: File) => {
     try {
-      toast.info("Uploading stems...");
+      toast.info("Uploading stems...", { id: "stems-upload" });
       
       const url = await uploadFile(file, 'beats', 'stems', (progress) => {
         console.log(`Stems upload progress: ${progress}%`);
@@ -583,11 +584,12 @@ export function useBeatUpload() {
       });
       
       setStemsUrl(url);
-      toast.success("Stems uploaded");
+      toast.success("Stems uploaded", { id: "stems-upload" });
       return url;
     } catch (error) {
       console.error("Error uploading stems:", error);
-      toast.error("Failed to upload stems. Please try again.");
+      setStemsUploadError(error.message || "Failed to upload stems");
+      toast.error("Failed to upload stems. Please try again.", { id: "stems-upload" });
       throw error;
     }
   };
@@ -628,6 +630,8 @@ export function useBeatUpload() {
     uploadError,
     uploadStemsFile,
     stemsUrl,
-    setStemsUrl
+    setStemsUrl,
+    stemsUploadError,
+    setStemsUploadError
   };
 }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +62,7 @@ export const FilesTab = ({
   const [retryCount, setRetryCount] = useState(0);
   const [previewLoadingTimeout, setPreviewLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [previewLoadingFailed, setPreviewLoadingFailed] = useState(false);
+  const [stemUploadError, setStemUploadError] = useState<string | null>(null);
   
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
@@ -102,7 +102,6 @@ export const FilesTab = ({
     }
   }, [audioDuration, audioIsReady, audioPreviewUrl, previewLoadingTimeout]);
 
-  // Set a timeout for preview loading
   useEffect(() => {
     if (processingFiles && !audioIsReady && !audioError && !previewLoadingFailed) {
       const timeoutId = setTimeout(() => {
@@ -118,7 +117,6 @@ export const FilesTab = ({
     }
   }, [processingFiles, audioIsReady, audioError, previewLoadingFailed]);
 
-  // Handle audio error
   useEffect(() => {
     if (audioError) {
       setPreviewLoadingFailed(true);
@@ -137,6 +135,22 @@ export const FilesTab = ({
       console.log(`Progress update for ${uploadedFile.name}: ${uploadProgress[uploadedFile.name]}%`);
     }
   }, [uploadedFile, uploadProgress]);
+
+  useEffect(() => {
+    if (stems && isFile(stems) && uploadProgress[stems.name] !== undefined) {
+      console.log(`Stems progress update for ${stems.name}: ${uploadProgress[stems.name]}%`);
+    }
+  }, [stems, uploadProgress]);
+
+  useEffect(() => {
+    if (uploadError && uploadedFile && previewUrl) {
+      if (uploadError.includes('stem') || 
+          (stems && isFile(stems) && uploadError.includes(stems.name))) {
+        setStemUploadError(uploadError);
+        return;
+      }
+    }
+  }, [uploadError, uploadedFile, previewUrl, stems]);
 
   useEffect(() => {
     return () => {
@@ -202,7 +216,7 @@ export const FilesTab = ({
       const file = e.target.files[0];
       
       if (file.size > 250 * 1024 * 1024) {
-        setValidationError("Stems file must be less than 250MB");
+        setStemUploadError("Stems file must be less than 250MB");
         toast.error("Stems file must be less than 250MB");
         return;
       }
@@ -212,17 +226,18 @@ export const FilesTab = ({
                     file.name.endsWith('.zip');
                     
       if (!isZip) {
-        setValidationError("Stems file must be a ZIP archive");
+        setStemUploadError("Stems file must be a ZIP archive");
         toast.error("Stems file must be a ZIP archive");
         return;
       }
       
       console.log("Stem file selected:", file.name, "type:", file.type, "size:", (file.size / (1024 * 1024)).toFixed(2) + "MB");
       toast.info(`Starting upload of ${(file.size / (1024 * 1024)).toFixed(2)}MB stems file. This may take several minutes for large files.`, {
-        duration: 8000
+        duration: 8000,
+        id: "stems-upload-start"
       });
       setStems(file);
-      setValidationError(null);
+      setStemUploadError(null);
       
       if (handleStemsUpload) {
         handleStemsUpload(e);
@@ -269,7 +284,9 @@ export const FilesTab = ({
       statusMessage = `Uploading: ${safeValue}%`;
       
       if (file.size > 50 * 1024 * 1024) {
-        statusMessage += ` (${(file.size / (1024 * 1024) * (safeValue / 100)).toFixed(1)}/${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+        const uploadedMB = (file.size / (1024 * 1024) * (safeValue / 100)).toFixed(1);
+        const totalMB = (file.size / (1024 * 1024)).toFixed(1);
+        statusMessage += ` (${uploadedMB}/${totalMB} MB)`;
       }
     }
     
@@ -604,11 +621,11 @@ export const FilesTab = ({
                 <div 
                   className={`border rounded-lg p-3 flex items-center gap-3 ${
                     hasStemsData ? "bg-primary/5 border-primary/30" : "border-muted"
-                  } transition-colors`}
+                  } ${stemUploadError ? "border-destructive/50" : ""} transition-colors`}
                 >
                   {hasStemsData ? (
                     <>
-                      <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                      <FileUp className={`h-6 w-6 sm:h-8 sm:w-8 ${stemUploadError ? "text-destructive" : "text-primary"}`} />
                       <div className="flex-1 overflow-hidden">
                         <p className="text-xs sm:text-sm font-medium truncate">
                           {getStemsFileName()}
@@ -627,6 +644,7 @@ export const FilesTab = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           handleStemsClear();
+                          setStemUploadError(null);
                         }}
                       >
                         <X size={16} />
@@ -659,6 +677,14 @@ export const FilesTab = ({
                     </>
                   )}
                 </div>
+                {stemUploadError && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="ml-2 text-xs">
+                      Stems upload error: {stemUploadError}
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
           </div>
@@ -670,7 +696,7 @@ export const FilesTab = ({
           </Alert>
         )}
 
-        {uploadError && !previewLoadingFailed && (
+        {uploadError && !stemUploadError && (
           <Alert variant="destructive" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="ml-2 text-xs">
