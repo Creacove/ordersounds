@@ -64,7 +64,10 @@ serve(async (req) => {
 
     // Download the full file data
     console.log(`Downloading audio from: ${fullTrackUrl}`);
-    const audioResponse = await fetch(fullTrackUrl);
+    const audioResponse = await fetch(fullTrackUrl, {
+      // Add timeout of 2 minutes for large files
+      signal: AbortSignal.timeout(120000)
+    });
     if (!audioResponse.ok) {
       console.error(`Download failed with status: ${audioResponse.status}`);
       return new Response(JSON.stringify({
