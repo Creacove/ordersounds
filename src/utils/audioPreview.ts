@@ -37,17 +37,9 @@ export async function createMp3Preview(file: File): Promise<Blob> {
       previewData = audioBuffer.getChannelData(0).slice(0, previewLength);
     }
     
-    // If it's a WAV file, create WAV format - better browser support
-    const isWav = file.type === 'audio/wav' || file.name.endsWith('.wav');
-    if (isWav) {
-      // Create WAV file structure
-      const wavBuffer = createWavFile(previewData, audioBuffer.sampleRate);
-      return new Blob([wavBuffer], { type: 'audio/wav' });
-    } else {
-      // Create WAV file structure (for MP3 input too - simpler than converting to MP3)
-      const wavBuffer = createWavFile(previewData, audioBuffer.sampleRate);
-      return new Blob([wavBuffer], { type: 'audio/wav' });
-    }
+    // Create WAV file structure (better browser support than MP3 conversion)
+    const wavBuffer = createWavFile(previewData, audioBuffer.sampleRate);
+    return new Blob([wavBuffer], { type: 'audio/wav' });
   } catch (error) {
     console.error('Error creating audio preview:', error);
     throw error;
