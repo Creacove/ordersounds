@@ -11,10 +11,9 @@ interface MainLayoutWithPlayerProps {
   activeTab?: string;
   currentPath?: string;
   hideSidebar?: boolean;
-  hideTopbar?: boolean;
 }
 
-export function MainLayoutWithPlayer({ children, activeTab, currentPath, hideSidebar, hideTopbar }: MainLayoutWithPlayerProps) {
+export function MainLayoutWithPlayer({ children, activeTab, currentPath, hideSidebar }: MainLayoutWithPlayerProps) {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
@@ -43,9 +42,7 @@ export function MainLayoutWithPlayer({ children, activeTab, currentPath, hideSid
         />
       )}
       <div className={`flex flex-col flex-1 w-full transition-all duration-300 ${!isMobile && !hideSidebar ? (isCollapsed ? "md:ml-[80px]" : "md:ml-[240px]") : ""}`}>
-        {!hideTopbar && (
-          <Topbar sidebarVisible={!isMobile && sidebarVisible && !hideSidebar} />
-        )}
+        <Topbar sidebarVisible={!isMobile && sidebarVisible && !hideSidebar} />
         <main className={`flex-1 w-full ${hasPlayer ? (isMobile ? 'pb-36' : 'pb-28') : (isMobile ? 'pb-20' : 'pb-8')}`}>
           <div className="w-full max-w-full flex flex-col overflow-hidden">
             {children}

@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
 const ProtectedProducerRoute = ({ children }: { children: ReactNode }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isProducerInactive } = useAuth();
 
   // Show loading state if auth is still being checked
   if (isLoading) {
@@ -20,6 +20,11 @@ const ProtectedProducerRoute = ({ children }: { children: ReactNode }) => {
     return <Navigate to="/login" replace />;
   }
 
+  // Redirect to activation page if producer is inactive
+  if (isProducerInactive) {
+    return <Navigate to="/producer-activation" replace />;
+  }
+
   // Redirect to home if not a producer
   if (user.role !== 'producer') {
     return <Navigate to="/" replace />;
@@ -28,4 +33,5 @@ const ProtectedProducerRoute = ({ children }: { children: ReactNode }) => {
   return <>{children}</>;
 };
 
+// Add default export to fix TypeScript error
 export default ProtectedProducerRoute;

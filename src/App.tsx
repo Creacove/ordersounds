@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -17,6 +18,7 @@ import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import ResetPassword from "./pages/auth/ResetPassword";
 import AuthCallback from "./pages/auth/Callback";
+import ProducerActivation from "./pages/auth/ProducerActivation";
 import Library from "./pages/buyer/Library";
 import Trending from "./pages/buyer/Trending";
 import New from "./pages/buyer/New";
@@ -96,7 +98,7 @@ const App = () => (
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/settings" element={<Settings />} />
-                  
+                  <Route path="/producer-activation" element={<ProducerActivation />} />
 
                   {/* Library Routes */}
                   <Route path="/library" element={<Library />} />

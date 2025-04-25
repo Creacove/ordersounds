@@ -88,7 +88,7 @@ export default function Signup() {
   };
 
   return (
-    <MainLayout hideSidebar hideTopbar>
+    <MainLayout hideSidebar>
       <div className="container relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
         <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
           <div className="absolute inset-0 bg-zinc-900">
