@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,7 +20,6 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -113,7 +113,6 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       setIsPlaying(false);
       setActuallyPlaying(false);
       setHasError(false);
-      setRetryCount(0);
       
       audio.src = src;
       audio.load();
@@ -145,16 +144,20 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
     
     if (hasError) {
       // Try to reload the audio if there was an error
-      setRetryCount(0);
       audio.load();
       setHasError(false);
       setIsLoading(true);
       
       setTimeout(() => {
         if (audioRef.current) {
-          audioRef.current.play().catch(() => {
+          audioRef.current.play().catch((error) => {
+            console.error("Error playing audio after retry:", error);
             setHasError(true);
             setIsLoading(false);
+            
+            if (onError) {
+              onError();
+            }
           });
         }
       }, 500);
@@ -227,28 +230,6 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const handleRetry = () => {
-    if (!audioRef.current || !src) return;
-    
-    setRetryCount(0);
-    setHasError(false);
-    setIsLoading(true);
-    
-    // Force reload by creating a cache-busting URL
-    const cacheBuster = `${src}${src.includes('?') ? '&' : '?'}cb=${Date.now()}`;
-    audioRef.current.src = cacheBuster;
-    audioRef.current.load();
-    
-    setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {
-          setHasError(true);
-          setIsLoading(false);
-        });
-      }
-    }, 500);
-  };
-
   if (compact) {
     return (
       <div className={cn("flex items-center gap-2", className)}>
@@ -298,7 +279,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             (isLoading || hasError) && "opacity-70",
             hasError && "bg-destructive hover:bg-destructive/90"
           )}
-          onClick={hasError ? handleRetry : togglePlay}
+          onClick={togglePlay}
           disabled={isLoading && !hasError}
         >
           {isLoading ? (

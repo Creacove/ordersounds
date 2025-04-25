@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,9 @@ export const FilesTab = ({
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [previewLoadingTimeout, setPreviewLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [previewLoadingFailed, setPreviewLoadingFailed] = useState(false);
+  
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
@@ -88,8 +92,45 @@ export const FilesTab = ({
   useEffect(() => {
     if (audioIsReady && audioPreviewUrl) {
       console.log(`Audio preview ready - Duration: ${audioDuration}s, URL: ${audioPreviewUrl}`);
+      setPreviewLoadingFailed(false);
+      
+      // Clear any existing timeout when preview is ready
+      if (previewLoadingTimeout) {
+        clearTimeout(previewLoadingTimeout);
+        setPreviewLoadingTimeout(null);
+      }
     }
-  }, [audioDuration, audioIsReady, audioPreviewUrl]);
+  }, [audioDuration, audioIsReady, audioPreviewUrl, previewLoadingTimeout]);
+
+  // Set a timeout for preview loading
+  useEffect(() => {
+    if (processingFiles && !audioIsReady && !audioError && !previewLoadingFailed) {
+      const timeoutId = setTimeout(() => {
+        setPreviewLoadingFailed(true);
+        console.log("Preview generation timed out after 30 seconds");
+      }, 30000); // 30 seconds timeout
+      
+      setPreviewLoadingTimeout(timeoutId);
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [processingFiles, audioIsReady, audioError, previewLoadingFailed]);
+
+  // Handle audio error
+  useEffect(() => {
+    if (audioError) {
+      setPreviewLoadingFailed(true);
+      console.log("Audio preview error detected:", audioError);
+      
+      // Clear any existing timeout when there's an error
+      if (previewLoadingTimeout) {
+        clearTimeout(previewLoadingTimeout);
+        setPreviewLoadingTimeout(null);
+      }
+    }
+  }, [audioError, previewLoadingTimeout]);
 
   useEffect(() => {
     if (uploadedFile && isFile(uploadedFile) && uploadProgress[uploadedFile.name] !== undefined) {
@@ -192,11 +233,13 @@ export const FilesTab = ({
   const handlePreviewUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (handlePreviewUpload) {
       handlePreviewUpload(e);
+      setPreviewLoadingFailed(false);
       return;
     }
     
     if (e.target.files && e.target.files[0]) {
       setPreviewFile(e.target.files[0]);
+      setPreviewLoadingFailed(false);
     }
   };
 
@@ -259,6 +302,7 @@ export const FilesTab = ({
     if (setPreviewUrl) {
       setPreviewUrl(null);
     }
+    setPreviewLoadingFailed(false);
   };
 
   const handleStemsClear = () => {
@@ -399,30 +443,30 @@ export const FilesTab = ({
                 className={cn(
                   "border rounded-lg p-3 flex items-center gap-3",
                   previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted",
-                  uploadError ? "border-destructive/50 bg-destructive/5" : "",
+                  (uploadError || previewLoadingFailed || audioError) ? "border-destructive/50 bg-destructive/5" : "",
                   "transition-colors"
                 )}
               >
                 {(previewFile || previewUrl) ? (
                   <>
                     <button
-                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${uploadError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${(uploadError || previewLoadingFailed || audioError) ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
                       onClick={toggleAudioPlay}
-                      disabled={!audioPreviewUrl}
+                      disabled={!audioPreviewUrl || audioError || previewLoadingFailed}
                     >
-                      {uploadError ? <RefreshCw size={14} className="animate-spin" /> : 
+                      {(uploadError || previewLoadingFailed || audioError) ? <AlertTriangle size={14} /> : 
                         isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
-                        {uploadError ? "Error loading preview" : 
+                        {(uploadError || previewLoadingFailed || audioError) ? "Preview failed to load" : 
                           previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {uploadError ? (
+                        {(uploadError || previewLoadingFailed || audioError) ? (
                           <span className="text-destructive flex items-center">
                             <AlertTriangle size={12} className="mr-1" />
-                            Failed to load preview. Please upload a preview manually.
+                            Failed to generate preview. Please upload manually.
                           </span>
                         ) : previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
@@ -436,9 +480,9 @@ export const FilesTab = ({
                         renderProgressBar(previewFile, uploadProgress[previewFile.name])
                       )}
                     </div>
-                    {regeneratePreview && (
+                    {regeneratePreview && !previewLoadingFailed && !audioError && !uploadError && (
                       <Button 
-                        variant={uploadError ? "destructive" : "outline"}
+                        variant="outline"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -454,6 +498,26 @@ export const FilesTab = ({
                         )}
                       </Button>
                     )}
+                    
+                    {(uploadError || previewLoadingFailed || audioError) && (
+                      <Button 
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => document.getElementById("previewTrack")?.click()}
+                        className="mr-1 px-2 sm:px-3"
+                      >
+                        <span className="hidden sm:inline">Upload Preview</span>
+                        <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
+                      </Button>
+                    )}
+                    <input 
+                      id="previewTrack" 
+                      type="file" 
+                      className="hidden" 
+                      accept="audio/mpeg"
+                      onChange={handlePreviewUploadInternal}
+                    />
+                    
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -473,7 +537,7 @@ export const FilesTab = ({
                         {processingFiles ? "Generating preview..." : "Upload or generate preview"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {processingFiles ? (
+                        {processingFiles && !previewLoadingFailed ? (
                           <span className="flex items-center">
                             <span className="w-3 h-3 mr-2 rounded-full border-2 border-t-transparent border-primary animate-spin inline-block"></span>
                             Processing audio...
@@ -482,14 +546,14 @@ export const FilesTab = ({
                           "Automatic preview generation available, or upload a 30-second MP3"
                         )}
                       </p>
-                      {uploadError && !processingFiles && (
+                      {(uploadError || previewLoadingFailed) && !processingFiles && (
                         <p className="text-xs text-destructive mt-1 flex items-center gap-1">
                           <AlertTriangle size={12} />
-                          Automatic preview failed. Please upload a preview manually.
+                          Preview generation failed. Please upload a preview manually.
                         </p>
                       )}
                     </div>
-                    {processingFiles ? (
+                    {processingFiles && !previewLoadingFailed ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -501,7 +565,7 @@ export const FilesTab = ({
                     ) : (
                       <>
                         <Button 
-                          variant={uploadError ? "destructive" : "outline"}
+                          variant={(uploadError || previewLoadingFailed) ? "destructive" : "outline"}
                           size="sm"
                           onClick={() => document.getElementById("previewTrack")?.click()}
                           className="px-2 sm:px-3"
@@ -521,9 +585,15 @@ export const FilesTab = ({
                   </>
                 )}
               </div>
-              {processingFiles && (
+              {processingFiles && !previewLoadingFailed && (
                 <p className="text-xs text-muted-foreground mt-2 italic">
                   Preview generation can take up to 30 seconds. Please be patient or upload manually.
+                </p>
+              )}
+              {previewLoadingFailed && (
+                <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  Automatic preview generation failed. Please upload a 30-second MP3 manually.
                 </p>
               )}
             </div>
@@ -600,7 +670,7 @@ export const FilesTab = ({
           </Alert>
         )}
 
-        {uploadError && (
+        {uploadError && !previewLoadingFailed && (
           <Alert variant="destructive" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="ml-2 text-xs">
