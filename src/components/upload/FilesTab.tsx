@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -453,8 +454,7 @@ export const FilesTab = ({
                         {audioError ? (
                           <span className="text-destructive flex items-center">
                             <AlertTriangle size={12} className="mr-1" />
-                            Failed to load audio. Click to retry.
-                            {retryCount > 0 && ` (${retryCount}/3)`}
+                            Failed to load preview. Click to retry.
                           </span>
                         ) : previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
@@ -551,14 +551,6 @@ export const FilesTab = ({
                   Preview generation can take up to 30 seconds. Please be patient.
                 </p>
               )}
-              {audioError && (
-                <Alert variant="destructive" className="mt-2 py-2">
-                  <AlertDescription className="text-xs">
-                    Preview may not work properly in this browser with WAV files. 
-                    Try uploading an MP3 file instead or use a different browser.
-                  </AlertDescription>
-                </Alert>
-              )}
             </div>
 
             {hasExclusiveLicense && (
@@ -637,7 +629,7 @@ export const FilesTab = ({
           <Alert variant="destructive" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="ml-2 text-xs">
-              Upload error: {uploadError}. Please try again or use a smaller file.
+              Upload error: {uploadError}
             </AlertDescription>
           </Alert>
         )}
