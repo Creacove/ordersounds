@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAudio } from '@/hooks/useAudio';
@@ -10,7 +11,6 @@ interface PlayerContextType {
   currentTime: number;
   duration: number;
   queue: Beat[];
-  error?: boolean;
   playBeat: (beat: Beat | null) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   setVolume: (volume: number) => void;
@@ -34,7 +34,6 @@ const PlayerContext = createContext<PlayerContextType>({
   currentTime: 0,
   duration: 0,
   queue: [],
-  error: false,
   playBeat: () => {},
   setIsPlaying: () => {},
   setVolume: () => {},
@@ -55,7 +54,7 @@ export const usePlayer = () => useContext(PlayerContext);
 export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentBeat, setCurrentBeat] = useState<Beat | null>(null);
-  const [volume, setVolume] = useState(0.7);
+  const [volume, setVolume] = useState(0.7); // Higher default volume for better audibility
   const [progress, setProgress] = useState(0);
   const [queue, setQueue] = useState<Beat[]>([]);
   const [previousBeats, setPreviousBeats] = useState<Beat[]>([]);
@@ -73,16 +72,20 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     error
   } = useAudio(audioUrl);
   
+  // Handle audio errors silently
   useEffect(() => {
     if (error && currentBeat) {
+      // Just log the error, don't show toast
       console.error("Audio playback error for beat:", currentBeat?.title);
     }
   }, [error, currentBeat]);
   
+  // Use the actual playing state from useAudio
   useEffect(() => {
     setIsPlaying(playing);
   }, [playing]);
   
+  // Set volume for audio element
   useEffect(() => {
     const audioElements = document.querySelectorAll('audio');
     audioElements.forEach(audio => {
@@ -109,28 +112,35 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     console.log("playBeat called with:", beat?.title);
     if (beat === null) {
       setIsPlaying(false);
-      stop();
+      stop(); // Use stop instead of togglePlay to ensure complete reset
       setCurrentBeat(null);
       return;
     }
 
+    // If we're switching to a different beat
     if (!currentBeat || currentBeat.id !== beat.id) {
+      // If something is currently playing, stop it first
       if (isPlaying) {
         console.log("Stopping current audio before playing new beat");
-        stop();
+        stop(); // Stop the current audio immediately
       }
       
+      // Save current beat to history if it exists
       if (currentBeat) {
         setPreviousBeats(prev => [...prev, currentBeat]);
       }
       
+      // Update to the new beat
       console.log("Setting new beat:", beat.title);
       setCurrentBeat(beat);
       
+      // Force it to play immediately without waiting for state updates
+      // Use requestAnimationFrame for better timing
       requestAnimationFrame(() => {
         togglePlay();
       });
     } else {
+      // Same beat, just toggle play/pause
       console.log("Same beat, toggling play/pause");
       togglePlayPause();
     }
@@ -174,6 +184,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(nextBeat);
       setQueue(newQueue);
       
+      // Force playback of the next track
       requestAnimationFrame(() => togglePlay());
     }
   };
@@ -190,6 +201,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(prevBeat);
       setPreviousBeats(newPreviousBeats);
       
+      // Force playback of the previous track
       requestAnimationFrame(() => togglePlay());
     }
   };
@@ -203,7 +215,6 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       currentTime,
       duration,
       queue,
-      error,
       playBeat,
       setIsPlaying,
       setVolume,

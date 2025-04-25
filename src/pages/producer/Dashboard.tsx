@@ -18,7 +18,7 @@ import { BankDetailsCard } from "@/components/producer/dashboard/BankDetailsCard
 
 export default function ProducerDashboard() {
   const { user, currency } = useAuth();
-  const { beats, getProducerBeats } = useBeats();
+  const { getProducerBeats } = useBeats();
   const { notifications } = useNotifications();
   const navigate = useNavigate();
   const [showBankDetails, setShowBankDetails] = useState(false);
@@ -26,9 +26,8 @@ export default function ProducerDashboard() {
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
   const [stats, setStats] = useState(null);
   const [isLoadingStats, setIsLoadingStats] = useState(true);
-  
-  // Remove the refreshTrigger state that was causing continuous refreshes
-  
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   // Fetch producer data including bank details and subaccount info
   useEffect(() => {
     const fetchProducerData = async () => {
@@ -63,7 +62,7 @@ export default function ProducerDashboard() {
     };
 
     fetchProducerData();
-  }, [user]); // Only dependency is user, no refresh trigger
+  }, [user, refreshTrigger]);
 
   // Fetch producer analytics data
   useEffect(() => {
@@ -82,9 +81,16 @@ export default function ProducerDashboard() {
     };
 
     fetchStats();
-  }, [user]); // Only dependency is user, no refresh trigger
+  }, [user, refreshTrigger]);
 
-  // Remove the interval that was causing periodic refreshes
+  // Get producer beats and refresh data periodically
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setRefreshTrigger((prev) => prev + 1);
+    }, 60000); // Refresh data every minute
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const producerBeats = user ? getProducerBeats(user.id) : [];
 
@@ -100,22 +106,8 @@ export default function ProducerDashboard() {
 
   const handleBankDetailsSubmitted = () => {
     setShowBankDetails(false);
-    // Instead of using refreshTrigger, directly fetch the data we need
-    if (user) {
-      // Fetch producer data again after bank details are submitted
-      supabase
-        .from("users")
-        .select(
-          "bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code"
-        )
-        .eq("id", user.id)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setProducerData(data);
-          }
-        });
-    }
+    // Refresh producer data
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   return (
