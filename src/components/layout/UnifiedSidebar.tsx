@@ -1,4 +1,5 @@
 
+import React from 'react';
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -68,7 +69,7 @@ export function UnifiedSidebar({
               <img 
                 src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
                 alt="OrderSOUNDS" 
-                className="h-24 w-auto" // Significantly increased height from h-12 to h-24
+                className="h-12 w-auto object-contain" // Reduced back to h-12 and added object-contain
               />
             )}
           </div>

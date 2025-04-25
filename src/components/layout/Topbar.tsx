@@ -101,13 +101,13 @@ export function Topbar({ sidebarVisible = false }) {
                 <img 
                   src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
                   alt="OrderSOUNDS" 
-                  className="h-8 w-auto"
+                  className="h-8 w-auto object-contain"
                 />
               ) : (
                 <img 
                   src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
                   alt="OrderSOUNDS" 
-                  className="h-12 w-auto"
+                  className="h-12 w-auto object-contain"
                 />
               )}
             </Link>
