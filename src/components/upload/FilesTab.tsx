@@ -232,7 +232,7 @@ export const FilesTab = ({
       }
       
       console.log("Stem file selected:", file.name, "type:", file.type, "size:", (file.size / (1024 * 1024)).toFixed(2) + "MB");
-      toast.info(`Starting upload of ${(file.size / (1024 * 1024)).toFixed(2)}MB stems file. This may take several minutes for large files.`, {
+      toast.info("Uploading stems...", {
         duration: 8000,
         id: "stems-upload-start"
       });
@@ -275,19 +275,11 @@ export const FilesTab = ({
     
     const safeValue = Math.min(100, Math.max(0, progressValue));
     
-    let statusMessage = `Uploading: ${safeValue}%`;
+    let statusMessage = "Uploading...";
     if (safeValue === 0) {
       statusMessage = "Preparing upload...";
     } else if (safeValue === 100) {
       statusMessage = "Upload complete";
-    } else if (safeValue > 0 && safeValue < 100) {
-      statusMessage = `Uploading: ${safeValue}%`;
-      
-      if (file.size > 50 * 1024 * 1024) {
-        const uploadedMB = (file.size / (1024 * 1024) * (safeValue / 100)).toFixed(1);
-        const totalMB = (file.size / (1024 * 1024)).toFixed(1);
-        statusMessage += ` (${uploadedMB}/${totalMB} MB)`;
-      }
     }
     
     return (
