@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
 import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
@@ -24,7 +24,8 @@ export function PersistentPlayer() {
     clearQueue,
     nextTrack,
     previousTrack,
-    error = false // Default to false if not provided by context
+    error = false, // Default to false if not provided by context
+    reload
   } = usePlayer();
   
   const isMobile = useIsMobile();
@@ -126,7 +127,7 @@ export function PersistentPlayer() {
             variant={error ? "destructive" : "default"}
             size="icon" 
             className="h-10 w-10 rounded-full" 
-            onClick={togglePlayPause}
+            onClick={error && reload ? reload : togglePlayPause}
           >
             {isPlaying && !error ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
           </Button>
@@ -152,6 +153,7 @@ export function PersistentPlayer() {
               seek={seek} 
               isMobile={isMobile} 
               error={error}
+              onRetry={reload}
             />
             <VolumeControl volume={volume} setVolume={setVolume} />
             

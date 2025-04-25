@@ -16,12 +16,15 @@ export async function createMp3Preview(file: File): Promise<Blob> {
   try {
     // Read file as ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
+    console.log(`Processing ${file.name}, size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
     
     // Decode audio data
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log(`Audio decoded successfully. Duration: ${audioBuffer.duration}s, Sample rate: ${audioBuffer.sampleRate}`);
     
     // Calculate preview length (30% of total)
     const previewLength = Math.floor(audioBuffer.length * 0.3);
+    console.log(`Creating preview with ${previewLength} samples (30% of original)`);
     
     // Get audio data (combine channels for stereo files)
     let previewData: Float32Array;
@@ -33,13 +36,17 @@ export async function createMp3Preview(file: File): Promise<Blob> {
       for (let i = 0; i < previewLength; i++) {
         previewData[i] = (channel1[i] + channel2[i]) / 2;
       }
+      console.log("Mixed stereo channels to mono for preview");
     } else {
       previewData = audioBuffer.getChannelData(0).slice(0, previewLength);
+      console.log("Using mono channel for preview");
     }
     
     // Create WAV file structure (better browser support than MP3 conversion)
     const wavBuffer = createWavFile(previewData, audioBuffer.sampleRate);
-    return new Blob([wavBuffer], { type: 'audio/wav' });
+    const previewBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+    console.log(`Preview created successfully, size: ${(previewBlob.size / 1024 / 1024).toFixed(2)} MB`);
+    return previewBlob;
   } catch (error) {
     console.error('Error creating audio preview:', error);
     throw error;

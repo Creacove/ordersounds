@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAudio } from '@/hooks/useAudio';
@@ -24,6 +25,7 @@ interface PlayerContextType {
   clearQueue: () => void;
   nextTrack: () => void;
   previousTrack: () => void;
+  reload?: () => void;
 }
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -48,6 +50,7 @@ const PlayerContext = createContext<PlayerContextType>({
   clearQueue: () => {},
   nextTrack: () => {},
   previousTrack: () => {},
+  reload: () => {},
 });
 
 export const usePlayer = () => useContext(PlayerContext);
@@ -70,7 +73,8 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     togglePlay, 
     seek,
     stop,
-    error
+    error,
+    reload
   } = useAudio(audioUrl);
   
   useEffect(() => {
@@ -216,7 +220,8 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       removeFromQueue,
       clearQueue,
       nextTrack,
-      previousTrack
+      previousTrack,
+      reload
     }}>
       {children}
     </PlayerContext.Provider>
