@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -301,6 +300,13 @@ export default function Login() {
         <div className="lg:p-8 flex items-center justify-center w-full min-h-[calc(100vh-4rem)]">
           <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-background/95 backdrop-blur-sm border border-border/20 shadow-xl animate-fade-in relative z-10">
             <CardHeader className="space-y-1">
+              <div className="flex items-center justify-center mb-4 lg:hidden">
+                <img 
+                  src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
+                  alt="OrderSOUNDS"
+                  className="h-8 w-auto"
+                />
+              </div>
               <CardTitle className="text-2xl font-bold tracking-tight text-center">
                 {showForgotPassword ? "Reset Password" : recoveryMode ? "Session Recovery" : "Welcome back"}
               </CardTitle>
