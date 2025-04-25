@@ -75,7 +75,7 @@ export function Topbar({ sidebarVisible = false }) {
     toast.success(`Currency changed to ${newCurrency === 'USD' ? 'US Dollar' : 'Nigerian Naira'}`);
   };
 
-  const showLogo = isMobile || !sidebarVisible;
+  const showLogo = true;
 
   const getSettingsPath = () => {
     if (location.pathname.startsWith('/producer')) {
@@ -95,15 +95,13 @@ export function Topbar({ sidebarVisible = false }) {
     >
       <div className="container mx-auto px-2 xs:px-4 sm:px-6 flex items-center justify-between h-16 py-2">
         <div className="flex items-center gap-2">          
-          {showLogo && (
-            <Link to="/" className="flex items-center gap-2 pointer-events-none">
-              <img 
-                src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
-                alt="OrderSOUNDS"
-                className="h-36 w-auto"
-              />
-            </Link>
-          )}
+          <Link to="/" className="flex items-center gap-2">
+            <img 
+              src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
+              alt="OrderSOUNDS"
+              className="h-36 w-auto"
+            />
+          </Link>
         </div>
         
         <div className="flex items-center gap-3">

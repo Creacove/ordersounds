@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,8 @@ export function UnifiedSidebar({
         "bg-[#0e0e0e] text-white",
         isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
         isCollapsed ? "w-[80px]" : "w-[240px]",
-        isMobile ? "shadow-lg" : ""
+        isMobile ? "shadow-lg" : "",
+        "mt-16" // Add top margin to prevent topbar overlap
       )}>
         <div className="flex items-center justify-end p-3 border-b border-[#272727]">
           <div className="flex items-center gap-2">
