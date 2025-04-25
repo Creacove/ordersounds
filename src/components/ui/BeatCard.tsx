@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
@@ -6,7 +5,7 @@ import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
-import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash2, Upload } from 'lucide-react';
+import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   DropdownMenu,
@@ -36,11 +35,6 @@ interface BeatCardProps {
   isInCart?: boolean;
   className?: string;
   compact?: boolean;
-  label?: string; // Added label property for status indicators
-  isProducerOwned?: boolean;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onPublish?: (id: string) => void;
 }
 
 export function BeatCard({
@@ -53,11 +47,6 @@ export function BeatCard({
   isInCart = false,
   className,
   compact = false,
-  label,
-  isProducerOwned = false,
-  onEdit,
-  onDelete,
-  onPublish
 }: BeatCardProps) {
   const { user, currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
@@ -192,30 +181,6 @@ export function BeatCard({
     }
   };
 
-  const handleEdit = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onEdit) {
-      onEdit(beat.id);
-    }
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onDelete) {
-      onDelete(beat.id);
-    }
-  };
-
-  const handlePublish = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (onPublish) {
-      onPublish(beat.id);
-    }
-  };
-
   const licensePrice = {
     local: getLicensePrice(beat, 'basic', false),
     diaspora: getLicensePrice(beat, 'basic', true)
@@ -264,11 +229,6 @@ export function BeatCard({
             Purchased
           </div>
         )}
-        {label && (
-          <div className="absolute top-2 left-2 bg-yellow-300 text-yellow-900 text-xs px-2 py-1 rounded-full font-medium">
-            {label}
-          </div>
-        )}
       </div>
 
       <div className="flex flex-col p-3 space-y-2">
@@ -293,166 +253,128 @@ export function BeatCard({
         </div>
         
         <div className="flex items-center gap-1.5 pt-1">
-          {isProducerOwned ? (
-            <>
-              {beat.status === 'draft' && onPublish && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handlePublish}
-                  className="h-7 w-7 rounded-lg bg-primary/20 text-white hover:bg-primary/30"
-                >
-                  <Upload size={14} className="text-white" />
-                </Button>
-              )}
-              {onEdit && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleEdit}
-                  className="h-7 w-7 rounded-lg bg-purple-500/20 text-white hover:bg-purple-500/30"
-                >
-                  <Pencil size={14} className="text-white" />
-                </Button>
-              )}
-              {onDelete && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleDelete}
-                  className="h-7 w-7 rounded-lg bg-red-500/20 text-white hover:bg-red-500/30"
-                >
-                  <Trash2 size={14} className="text-white" />
-                </Button>
-              )}
-              <div className="flex-1"></div>
-            </>
-          ) : (
-            <>
-              {!isPurchased && !inCart && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={(e) => handleAddToCart(e)}
-                  className="h-7 w-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                  title="Add to Cart"
-                >
-                  <ShoppingCart size={14} />
-                </Button>
-              )}
-
-              {inCart && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={goToCart}
-                  className="h-7 w-7 rounded-lg bg-primary/20 text-primary hover:bg-primary/30"
-                  title="Go to Cart"
-                >
-                  <ShoppingCart size={14} />
-                </Button>
-              )}
-
-              {isPurchased && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={downloadBeat}
-                  className="h-7 w-7 rounded-lg bg-green-500/20 text-green-600 hover:bg-green-500/30"
-                  title="Download Beat"
-                >
-                  <Download size={14} />
-                </Button>
-              )}
-
-              {user && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleToggleFavorite}
-                  aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                  className={cn(
-                    "h-7 w-7 rounded-lg transition-colors",
-                    isFavorite
-                      ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
-                      : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                  )}
-                  title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-                >
-                  <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
-                </Button>
-              )}
-            </>
+          {!isPurchased && !inCart && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => handleAddToCart(e)}
+              className="h-7 w-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90"
+              title="Add to Cart"
+            >
+              <ShoppingCart size={14} />
+            </Button>
           )}
-          
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
+
+          {inCart && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={goToCart}
+              className="h-7 w-7 rounded-lg bg-primary/20 text-primary hover:bg-primary/30"
+              title="Go to Cart"
+            >
+              <ShoppingCart size={14} />
+            </Button>
+          )}
+
+          {isPurchased && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={downloadBeat}
+              className="h-7 w-7 rounded-lg bg-green-500/20 text-green-600 hover:bg-green-500/30"
+              title="Download Beat"
+            >
+              <Download size={14} />
+            </Button>
+          )}
+
+          {user && (
+            <>
+              <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90 ml-auto"
-                aria-label="More options"
-                title="More options"
+                onClick={handleToggleFavorite}
+                aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+                className={cn(
+                  "h-7 w-7 rounded-lg transition-colors",
+                  isFavorite
+                    ? "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                )}
+                title={isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
-                <MoreVertical size={14} />
+                <Heart size={14} fill={isFavorite ? "currentColor" : "none"} />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer text-xs">
-                Add to queue
-              </DropdownMenuItem>
-              {!isProducerOwned && user && (
-                <DropdownMenuSub onOpenChange={loadPlaylists}>
-                  <DropdownMenuSubTrigger className="flex items-center cursor-pointer text-xs">
-                    <Plus className="mr-2 h-3 w-3" />
-                    <span>Add to Playlist</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                      {loadingPlaylists ? (
-                        <DropdownMenuItem disabled className="text-xs">
-                          Loading playlists...
-                        </DropdownMenuItem>
-                      ) : playlists.length === 0 ? (
-                        <DropdownMenuItem disabled className="text-xs">
-                          No playlists found
-                        </DropdownMenuItem>
-                      ) : (
-                        playlists.map(playlist => (
-                          <DropdownMenuItem
-                            key={playlist.id}
-                            onClick={() => handleAddToPlaylist(playlist.id)}
-                            className="cursor-pointer text-xs"
-                          >
-                            {playlist.name}
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90 ml-auto"
+                    aria-label="More options"
+                    title="More options"
+                  >
+                    <MoreVertical size={14} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={handleAddToQueue} className="cursor-pointer text-xs">
+                    Add to queue
+                  </DropdownMenuItem>
+                  <DropdownMenuSub onOpenChange={loadPlaylists}>
+                    <DropdownMenuSubTrigger className="flex items-center cursor-pointer text-xs">
+                      <Plus className="mr-2 h-3 w-3" />
+                      <span>Add to Playlist</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {loadingPlaylists ? (
+                          <DropdownMenuItem disabled className="text-xs">
+                            Loading playlists...
                           </DropdownMenuItem>
-                        ))
-                      )}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handlePlay} className="cursor-pointer text-xs">
-                {isCurrentlyPlaying ? "Pause" : "Play"}
-              </DropdownMenuItem>
-              {isPurchased && (
-                <DropdownMenuItem onClick={downloadBeat} className="cursor-pointer text-xs">
-                  Download Beat
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  goToBeatDetail();
-                }} 
-                className="cursor-pointer text-xs"
-              >
-                View Details
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                        ) : playlists.length === 0 ? (
+                          <DropdownMenuItem disabled className="text-xs">
+                            No playlists found
+                          </DropdownMenuItem>
+                        ) : (
+                          playlists.map(playlist => (
+                            <DropdownMenuItem
+                              key={playlist.id}
+                              onClick={() => handleAddToPlaylist(playlist.id)}
+                              className="cursor-pointer text-xs"
+                            >
+                              {playlist.name}
+                            </DropdownMenuItem>
+                          ))
+                        )}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handlePlay} className="cursor-pointer text-xs">
+                    {isCurrentlyPlaying ? "Pause" : "Play"}
+                  </DropdownMenuItem>
+                  {isPurchased && (
+                    <DropdownMenuItem onClick={downloadBeat} className="cursor-pointer text-xs">
+                      Download Beat
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      goToBeatDetail();
+                    }} 
+                    className="cursor-pointer text-xs"
+                  >
+                    View Details
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
         </div>
       </div>
     </div>

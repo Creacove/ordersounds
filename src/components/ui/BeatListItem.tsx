@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
 import { useCart } from '@/context/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart, Download, Pencil, Upload } from 'lucide-react';
+import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from 'sonner';
@@ -29,11 +29,6 @@ interface BeatListItemProps {
   onRemove?: (beatId: string) => void;
   onToggleFavorite?: (id: string) => void;
   onPlay?: () => void;
-  statusLabel?: string;
-  isProducerOwned?: boolean;
-  onEdit?: (id: string) => void;
-  onDelete?: (id: string) => void;
-  onPublish?: (id: string) => void;
 }
 
 export function BeatListItem({
@@ -43,12 +38,7 @@ export function BeatListItem({
   isPurchased = false,
   onRemove,
   onToggleFavorite,
-  onPlay,
-  statusLabel,
-  isProducerOwned = false,
-  onEdit,
-  onDelete,
-  onPublish
+  onPlay
 }: BeatListItemProps) {
   const { currency } = useAuth();
   const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
@@ -63,6 +53,7 @@ export function BeatListItem({
   const handlePlay = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // Prevent double clicks
     if (isPlayButtonClicked) return;
     setIsPlayButtonClicked(true);
     
@@ -73,6 +64,7 @@ export function BeatListItem({
       await incrementPlayCount(beat.id);
     }
     
+    // Re-enable after a short delay
     setTimeout(() => {
       setIsPlayButtonClicked(false);
     }, 300);
@@ -123,27 +115,6 @@ export function BeatListItem({
     if (onToggleFavorite) {
       onToggleFavorite(beat.id);
       toast.success(isFavorite ? 'Removed from favorites' : 'Added to favorites');
-    }
-  };
-
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onEdit) {
-      onEdit(beat.id);
-    }
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onDelete) {
-      onDelete(beat.id);
-    }
-  };
-
-  const handlePublish = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onPublish) {
-      onPublish(beat.id);
     }
   };
 
@@ -214,12 +185,6 @@ export function BeatListItem({
             Owned
           </div>
         )}
-        
-        {statusLabel && (
-          <div className="absolute top-1 left-1 bg-yellow-300/90 text-yellow-900 text-[10px] px-1 py-0.5 rounded-full font-medium">
-            {statusLabel}
-          </div>
-        )}
       </div>
       
       <div className="flex-1 min-w-0">
@@ -253,104 +218,65 @@ export function BeatListItem({
       </div>
       
       <div className="flex items-center justify-between sm:justify-end w-full sm:w-auto gap-2 mt-2 sm:mt-0">
-        {isProducerOwned ? (
-          <>
-            {beat.status === 'draft' && onPublish && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handlePublish}
-                className="rounded-full bg-primary/20 text-white hover:bg-primary/30"
-              >
-                <Upload size={18} className="text-white" />
-              </Button>
-            )}
-            
-            {onEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleEdit}
-                className="rounded-full bg-purple-500/20 text-white hover:bg-purple-500/30"
-              >
-                <Pencil size={18} className="text-white" />
-              </Button>
-            )}
-            
-            {onDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDelete}
-                className="rounded-full bg-red-500/20 text-white hover:bg-red-500/30"
-              >
-                <Trash2 size={18} className="text-white" />
-              </Button>
-            )}
-          </>
-        ) : (
-          <>
-            {!isInCart && !isPurchased && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleAddToCart}
-                className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
-              >
-                <ShoppingCart size={18} />
-              </Button>
-            )}
-            
-            {isInCart && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate('/cart');
-                }}
-                className="rounded-full bg-primary/20 text-primary hover:bg-primary/30"
-              >
-                <ShoppingCart size={18} />
-              </Button>
-            )}
-            
-            {isPurchased && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={downloadBeat}
-                className="rounded-full bg-green-500/20 text-green-600 hover:bg-green-500/30"
-              >
-                <Download size={18} />
-              </Button>
-            )}
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleToggleFavorite}
-              className={cn(
-                "rounded-full",
-                isFavorite 
-                  ? "text-purple-500 bg-purple-500/10 hover:bg-purple-500/20" 
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
-              <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
-            </Button>
-            
-            {isInCart && onRemove && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRemove}
-                className="rounded-full text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-              >
-                <Trash2 size={18} />
-              </Button>
-            )}
-          </>
+        {!isInCart && !isPurchased && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleAddToCart}
+            className="rounded-full text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <ShoppingCart size={18} />
+          </Button>
+        )}
+        
+        {isInCart && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('/cart');
+            }}
+            className="rounded-full bg-primary/20 text-primary hover:bg-primary/30"
+          >
+            <ShoppingCart size={18} />
+          </Button>
+        )}
+        
+        {isPurchased && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={downloadBeat}
+            className="rounded-full bg-green-500/20 text-green-600 hover:bg-green-500/30"
+          >
+            <Download size={18} />
+          </Button>
+        )}
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleToggleFavorite}
+          className={cn(
+            "rounded-full",
+            isFavorite 
+              ? "text-purple-500 bg-purple-500/10 hover:bg-purple-500/20" 
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          )}
+        >
+          <Heart size={18} fill={isFavorite ? "currentColor" : "none"} />
+        </Button>
+        
+        {isInCart && onRemove && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRemove}
+            className="rounded-full text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+          >
+            <Trash2 size={18} />
+          </Button>
         )}
         
         <DropdownMenu>

@@ -22,31 +22,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { getLicensePrice, getAvailableLicenseTypes } from '@/utils/licenseUtils';
 import { supabase } from '@/integrations/supabase/client';
 
-const createLightweightBeat = (beat) => {
-  return {
-    id: beat.id,
-    title: beat.title,
-    producer_id: beat.producer_id,
-    producer_name: beat.producer_name,
-    cover_image_url: beat.cover_image_url,
-    preview_url: beat.preview_url,
-    full_track_url: beat.full_track_url,
-    genre: beat.genre,
-    track_type: beat.track_type,
-    bpm: beat.bpm,
-    favorites_count: beat.favorites_count,
-    purchase_count: beat.purchase_count,
-    status: beat.status,
-    basic_license_price_local: beat.basic_license_price_local,
-    basic_license_price_diaspora: beat.basic_license_price_diaspora,
-    premium_license_price_local: beat.premium_license_price_local,
-    premium_license_price_diaspora: beat.premium_license_price_diaspora,
-    exclusive_license_price_local: beat.exclusive_license_price_local,
-    exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
-    selected_license: beat.selected_license || 'basic'
-  };
-};
-
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
   const { getBeatById, toggleFavorite, isFavorite, isPurchased, beats } = useBeats();
@@ -196,10 +171,12 @@ const BeatDetail = () => {
       return;
     }
 
-    const lightweightBeat = createLightweightBeat(beat);
-    lightweightBeat.selected_license = licenseType;
+    const beatWithLicense = {
+      ...beat,
+      selected_license: licenseType
+    };
     
-    addToCart(lightweightBeat as any);
+    addToCart(beatWithLicense);
     toast.success(`Added "${beat.title}" (${licenseType} license) to cart`);
   };
 

@@ -3,26 +3,7 @@ import { Beat } from '@/types';
 import { saveToCache } from './beatsCacheUtils';
 import { CACHE_KEYS, CACHE_DURATIONS } from './beatsCacheUtils';
 
-// Create a lightweight beat object for caching to reduce storage size
-const createLightweightBeatForCache = (beat: Beat): Partial<Beat> => {
-  return {
-    id: beat.id,
-    title: beat.title,
-    producer_id: beat.producer_id,
-    producer_name: beat.producer_name,
-    cover_image_url: beat.cover_image_url,
-    preview_url: beat.preview_url,
-    genre: beat.genre,
-    bpm: beat.bpm,
-    favorites_count: beat.favorites_count,
-    purchase_count: beat.purchase_count,
-    basic_license_price_local: beat.basic_license_price_local,
-    basic_license_price_diaspora: beat.basic_license_price_diaspora,
-    // Omit large fields and less essential data
-  };
-};
-
-// Function to refresh trending beats with cache updates - limit to fewer beats to save storage
+// Function to refresh trending beats with cache updates
 export const refreshTrendingBeats = (allBeats: Beat[]): Beat[] => {
   console.log('Refreshing trending beats - hourly refresh');
 
@@ -53,19 +34,10 @@ export const refreshTrendingBeats = (allBeats: Beat[]): Beat[] => {
     return scoreA - scoreB;
   });
 
-  // Reduce from 30 to 15 to save storage space
-  const trending = sortedByTrending.slice(0, 15);
-  
-  // Create lightweight versions for cache storage
-  const lightweightTrending = trending.map(createLightweightBeatForCache);
+  const trending = sortedByTrending.slice(0, 30);
 
-  try {
-    saveToCache(CACHE_KEYS.TRENDING_BEATS, lightweightTrending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
-    localStorage.setItem(CACHE_KEYS.LAST_TRENDING_REFRESH, new Date().toISOString());
-  } catch (error) {
-    console.error("Failed to save trending beats to cache:", error);
-    // Continue without caching if localStorage fails
-  }
+  saveToCache(CACHE_KEYS.TRENDING_BEATS, trending, CACHE_KEYS.TRENDING_EXPIRY, CACHE_DURATIONS.TRENDING);
+  localStorage.setItem(CACHE_KEYS.LAST_TRENDING_REFRESH, new Date().toISOString());
 
   return trending;
 };
@@ -76,19 +48,9 @@ export const refreshWeeklyPicks = (allBeats: Beat[]): Beat[] => {
   }
 
   const shuffled = [...allBeats].sort(() => 0.5 - Math.random());
-  // Reduced from 8 to 6 to save storage
-  const picks = shuffled.slice(0, 6);
+  const picks = shuffled.slice(0, 8);
   
-  // Create lightweight versions for cache storage
-  const lightweightPicks = picks.map(createLightweightBeatForCache);
-  
-  try {
-    saveToCache(CACHE_KEYS.WEEKLY_PICKS, lightweightPicks, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
-  } catch (error) {
-    console.error("Failed to save weekly picks to cache:", error);
-    // Continue without caching if localStorage fails
-  }
-  
+  saveToCache(CACHE_KEYS.WEEKLY_PICKS, picks, CACHE_KEYS.WEEKLY_EXPIRY, CACHE_DURATIONS.WEEKLY);
   return picks;
 };
 
