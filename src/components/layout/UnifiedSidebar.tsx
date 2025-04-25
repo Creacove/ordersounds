@@ -1,7 +1,6 @@
-
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, Headphones, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
 import { useProducers } from "@/hooks/useProducers";
@@ -31,17 +30,14 @@ export function UnifiedSidebar({
   const { prefetchProducers } = useProducers();
   const [prefetchedSections, setPrefetchedSections] = useState<Set<string>>(new Set());
   
-  // Function to prefetch data when hovering menu items
   const handleMenuHover = (title: string) => {
     const sectionKey = title.toLowerCase();
     
-    // Only prefetch if we haven't already for this section
     if (!prefetchedSections.has(sectionKey)) {
       console.log(`Prefetching data for ${title} section`);
       
       if (sectionKey === "producers") {
         prefetchProducers();
-        // Add to the set of prefetched sections
         setPrefetchedSections(prev => new Set([...prev, sectionKey]));
       }
     }
@@ -49,7 +45,6 @@ export function UnifiedSidebar({
 
   return (
     <>
-      {/* Only show overlay on mobile and only when sidebar is open */}
       {isMobile && isOpen && (
         <div 
           className="fixed inset-0 bg-black/70 z-40"
@@ -68,15 +63,15 @@ export function UnifiedSidebar({
       >
         <div className="flex items-center justify-between p-4 border-b border-[#272727]">
           <div className="flex items-center gap-2">
-            <Headphones size={24} className="text-purple-600" />
             {!isCollapsed && (
-              <span className="font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text text-xl">
-                OrderSOUNDS
-              </span>
+              <img 
+                src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
+                alt="OrderSOUNDS" 
+                className="h-8"
+              />
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Only show close button on mobile */}
             {isMobile && (
               <Button 
                 variant="ghost" 
@@ -100,7 +95,6 @@ export function UnifiedSidebar({
               )}
               <nav className="flex flex-col gap-1">
                 {section.items.map((item: any, idx: number) => {
-                  // For items with onClick (like Sign Out), they shouldn't be "active"
                   if (item.onClick) {
                     return (
                       <button
@@ -161,7 +155,6 @@ export function UnifiedSidebar({
           ))}
         </div>
 
-        {/* Only show the collapse toggle on desktop */}
         {!isMobile && (
           <div className="flex items-center justify-center p-4 border-t border-[#272727]">
             <Button
