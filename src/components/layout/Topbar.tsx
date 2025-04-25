@@ -107,11 +107,11 @@ export function Topbar({ sidebarVisible = false }) {
         <div className="flex items-center gap-2">          
           {showLogo && (
             <Link to="/" className="flex items-center gap-2">
-              <img 
-                src="/lovable-uploads/527d98e3-e7fa-4ff8-9145-438f4f6d7437.png" 
-                alt="OrderSOUNDS"
-                className="h-10" 
-              />
+              <Headphones size={isMobile ? 20 : 24} className="text-purple-600" />
+              <span className={cn(
+                "font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text",
+                isMobile ? "text-lg" : "text-xl"
+              )}>OrderSOUNDS</span>
             </Link>
           )}
         </div>
