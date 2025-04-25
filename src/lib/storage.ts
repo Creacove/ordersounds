@@ -85,7 +85,9 @@ export const uploadFile = async (
           
           // Set up XMLHttpRequest for tracking upload progress
           const xhr = new XMLHttpRequest();
-          const uploadUrl = `${supabase.storageUrl}/object/${bucket}/${filePath}`;
+          // Construct the upload URL manually
+          const baseUrl = supabase.storage._url;
+          const uploadUrl = `${baseUrl}/object/${bucket}/${filePath}`;
           
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -129,9 +131,14 @@ export const uploadFile = async (
           xhr.timeout = uploadTimeoutMs;
           xhr.open("POST", uploadUrl, true);
           
-          // Set required headers
-          xhr.setRequestHeader("Authorization", `Bearer ${supabase.auth.session()?.access_token}`);
-          xhr.setRequestHeader("apikey", supabase.supabaseKey);
+          // Set required headers - Use the Supabase auth getter methods
+          const { data: { session } } = await supabase.auth.getSession();
+          const apiKey = supabase._supabaseKey;
+          
+          if (session?.access_token) {
+            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+          }
+          xhr.setRequestHeader("apikey", apiKey);
           xhr.setRequestHeader("Content-Type", contentType);
           xhr.setRequestHeader("Cache-Control", "3600");
           xhr.setRequestHeader("x-upsert", "true");
@@ -208,11 +215,13 @@ async function uploadLargeFileManually(
       // For files that fit in a single chunk, use standard upload
       console.log("File size allows for single upload");
       
-      return new Promise<string>((resolve, reject) => {
+      return new Promise<string>(async (resolve, reject) => {
         try {
           // Set up XMLHttpRequest for tracking upload progress
           const xhr = new XMLHttpRequest();
-          const uploadUrl = `${supabase.storageUrl}/object/${bucket}/${filePath}`;
+          // Construct the upload URL manually
+          const baseUrl = supabase.storage._url;
+          const uploadUrl = `${baseUrl}/object/${bucket}/${filePath}`;
           
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -256,9 +265,14 @@ async function uploadLargeFileManually(
           xhr.timeout = timeoutMs;
           xhr.open("POST", uploadUrl, true);
           
-          // Set required headers
-          xhr.setRequestHeader("Authorization", `Bearer ${supabase.auth.session()?.access_token}`);
-          xhr.setRequestHeader("apikey", supabase.supabaseKey);
+          // Set required headers - Use the Supabase auth getter methods
+          const { data: { session } } = await supabase.auth.getSession();
+          const apiKey = supabase._supabaseKey;
+          
+          if (session?.access_token) {
+            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+          }
+          xhr.setRequestHeader("apikey", apiKey);
           xhr.setRequestHeader("Content-Type", contentType);
           xhr.setRequestHeader("Cache-Control", "3600");
           xhr.setRequestHeader("x-upsert", "true");
@@ -292,10 +306,12 @@ async function uploadLargeFileManually(
       const partPath = `${filePath}.part${i}`;
       
       // Upload this chunk as its own file
-      const uploadPromise = new Promise<{ path: string; size: number }>((resolve, reject) => {
+      const uploadPromise = new Promise<{ path: string; size: number }>(async (resolve, reject) => {
         try {
           const xhr = new XMLHttpRequest();
-          const uploadUrl = `${supabase.storageUrl}/object/${bucket}/${partPath}`;
+          // Construct the upload URL manually
+          const baseUrl = supabase.storage._url;
+          const uploadUrl = `${baseUrl}/object/${bucket}/${partPath}`;
           
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -334,9 +350,14 @@ async function uploadLargeFileManually(
           xhr.timeout = timeoutMs / chunks; // Divide timeout among chunks
           xhr.open("POST", uploadUrl, true);
           
-          // Set required headers
-          xhr.setRequestHeader("Authorization", `Bearer ${supabase.auth.session()?.access_token}`);
-          xhr.setRequestHeader("apikey", supabase.supabaseKey);
+          // Set required headers - Use the Supabase auth getter methods
+          const { data: { session } } = await supabase.auth.getSession();
+          const apiKey = supabase._supabaseKey;
+          
+          if (session?.access_token) {
+            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+          }
+          xhr.setRequestHeader("apikey", apiKey);
           xhr.setRequestHeader("Content-Type", "application/octet-stream"); // Use binary for parts
           xhr.setRequestHeader("Cache-Control", "3600");
           xhr.setRequestHeader("x-upsert", "true");
