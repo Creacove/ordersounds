@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/hooks/useAudio";
 import { toast } from "sonner";
 import { FileOrUrl, isFile } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 
 type FilesTabProps = {
   imagePreview: string | null;
@@ -104,23 +105,6 @@ export const FilesTab = ({
     };
   }, [previewObjectUrl]);
 
-  useEffect(() => {
-    if (audioError && previewUrl && retryCount < 3) {
-      const timer = setTimeout(() => {
-        console.log(`Auto-retrying preview load (${retryCount + 1}/3) with cache-busting...`);
-        if (setPreviewUrl) {
-          const cacheBuster = `cb=${Date.now()}`;
-          const urlBase = previewUrl.split('?')[0];
-          const newUrl = `${urlBase}?${cacheBuster}`;
-          setPreviewUrl(newUrl);
-          setRetryCount(prev => prev + 1);
-        }
-      }, 1500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [audioError, previewUrl, retryCount, setPreviewUrl]);
-
   const getAcceptedAudioTypes = () => {
     if (requiresWavFormat) {
       return "audio/wav";
@@ -150,23 +134,6 @@ export const FilesTab = ({
       setValidationError(null);
     }
   }, [uploadedFile, requiresWavFormat]);
-
-  const handleRetryAudioPreview = () => {
-    if (audioError) {
-      console.log("Manually retrying audio preview...");
-      setRetryCount(0);
-      
-      if (reloadAudio) {
-        reloadAudio();
-      }
-      
-      if (regeneratePreview && (uploadedFileUrl || (uploadedFile && !isFile(uploadedFile)))) {
-        console.log("Using regeneratePreview with existing upload URL");
-        toast.info("Regenerating preview, please wait...");
-        regeneratePreview();
-      }
-    }
-  };
 
   const handleFullTrackUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -429,31 +396,33 @@ export const FilesTab = ({
             <div>
               <h4 className="text-sm font-medium mb-1">Preview Track</h4>
               <div 
-                className={`border rounded-lg p-3 flex items-center gap-3
-                  ${previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted"} 
-                  ${audioError ? "border-destructive/50 bg-destructive/5" : ""}
-                  transition-colors`}
+                className={cn(
+                  "border rounded-lg p-3 flex items-center gap-3",
+                  previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted",
+                  uploadError ? "border-destructive/50 bg-destructive/5" : "",
+                  "transition-colors"
+                )}
               >
                 {(previewFile || previewUrl) ? (
                   <>
                     <button
-                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${audioError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
-                      onClick={audioError ? handleRetryAudioPreview : toggleAudioPlay}
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${uploadError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
+                      onClick={toggleAudioPlay}
                       disabled={!audioPreviewUrl}
                     >
-                      {audioError ? <RefreshCw size={14} className="animate-spin" /> : 
+                      {uploadError ? <RefreshCw size={14} className="animate-spin" /> : 
                         isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
-                        {audioError ? "Error loading preview" : 
+                        {uploadError ? "Error loading preview" : 
                           previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {audioError ? (
+                        {uploadError ? (
                           <span className="text-destructive flex items-center">
                             <AlertTriangle size={12} className="mr-1" />
-                            Failed to load preview. Click to retry.
+                            Failed to load preview. Please upload a preview manually.
                           </span>
                         ) : previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
@@ -469,11 +438,10 @@ export const FilesTab = ({
                     </div>
                     {regeneratePreview && (
                       <Button 
-                        variant={audioError ? "destructive" : "outline"}
+                        variant={uploadError ? "destructive" : "outline"}
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setRetryCount(0);
                           regeneratePreview();
                         }}
                         className="mr-1"
