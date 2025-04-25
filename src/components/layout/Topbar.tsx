@@ -1,4 +1,41 @@
-// [imports remain unchanged]
+import { useState, useEffect } from "react"; 
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { 
+  Search, 
+  Bell, 
+  User,
+  Menu,
+  X,
+  LogOut,
+  Settings,
+  Heart,
+  Music2,
+  MessageSquare,
+  ChevronDown,
+  Flame,
+  Headphones,
+  BookOpen,
+  ShoppingCart,
+  DollarSign,
+  RefreshCw
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { toast } from "sonner";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
 export function Topbar({ sidebarVisible = false }) {
   const { user, logout, currency, setCurrency } = useAuth();
@@ -10,12 +47,12 @@ export function Topbar({ sidebarVisible = false }) {
   const [isScrolled, setIsScrolled] = useState(false);
   
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
-  const isInProducerView = location.pathname.startsWith('/producer');
   
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 10);
     };
+    
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -24,7 +61,7 @@ export function Topbar({ sidebarVisible = false }) {
     await logout();
     navigate("/login");
   };
-
+  
   const getInitials = (name: string) => {
     if (!name) return "U";
     return name.split(" ").map((n) => n[0]).join("").toUpperCase();
@@ -32,6 +69,7 @@ export function Topbar({ sidebarVisible = false }) {
   
   const toggleCurrency = (newCurrency: 'USD' | 'NGN') => {
     if (newCurrency === currency) return;
+    
     setCurrency(newCurrency);
     localStorage.setItem('preferred_currency', newCurrency);
     toast.success(`Currency changed to ${newCurrency === 'USD' ? 'US Dollar' : 'Nigerian Naira'}`);
@@ -40,11 +78,13 @@ export function Topbar({ sidebarVisible = false }) {
   const showLogo = isMobile || !sidebarVisible;
 
   const getSettingsPath = () => {
-    if (isInProducerView) {
+    if (location.pathname.startsWith('/producer')) {
       return "/producer/settings";
     }
     return "/settings";
   };
+
+  const isInProducerView = location.pathname.startsWith('/producer');
 
   return (
     <header 
@@ -68,7 +108,6 @@ export function Topbar({ sidebarVisible = false }) {
         <div className="flex items-center gap-3">
           {(!isAuthPage || user) && (
             <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
-              {/* USD */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -83,8 +122,6 @@ export function Topbar({ sidebarVisible = false }) {
                 <DollarSign size={isMobile ? 12 : 14} className="stroke-[2.5px]" />
                 <span className={isMobile ? "sr-only" : "inline"}>USD</span>
               </Button>
-
-              {/* NGN */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -104,9 +141,8 @@ export function Topbar({ sidebarVisible = false }) {
               </Button>
             </div>
           )}
-
-          {/* 👇 Cart should only show if user is buyer, not mobile, not producer view */}
-          {user && user.role === 'buyer' && !isMobile && !isInProducerView && !isAuthPage && (
+          
+          {user && user.role === 'buyer' && !isMobile && !isAuthPage && (
             <Button
               variant="ghost"
               size="icon"
@@ -126,8 +162,10 @@ export function Topbar({ sidebarVisible = false }) {
             </Button>
           )}
           
-          {user && !isAuthPage && <NotificationCenter />}
-
+          {user && !isAuthPage && (
+            <NotificationCenter />
+          )}
+          
           {(!isAuthPage || user) && (
             <Button
               variant="ghost"
@@ -139,8 +177,7 @@ export function Topbar({ sidebarVisible = false }) {
               <span className="sr-only">Search</span>
             </Button>
           )}
-
-          {/* 👇 Avatar or Sign In */}
+          
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
