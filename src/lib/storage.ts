@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
 import { uploadImage, deleteImage as deleteImageFile } from './imageStorage';
@@ -85,9 +84,11 @@ export const uploadFile = async (
           
           // Set up XMLHttpRequest for tracking upload progress
           const xhr = new XMLHttpRequest();
-          // Construct the upload URL manually
-          const baseUrl = supabase.storage._url;
-          const uploadUrl = `${baseUrl}/object/${bucket}/${filePath}`;
+          
+          // Construct the upload URL manually - use the URL from the storage endpoint
+          const { data } = await supabase.storage.from(bucket).getPublicUrl('dummy');
+          const baseUrl = new URL(data.publicUrl).origin;
+          const uploadUrl = `${baseUrl}/storage/v1/object/${bucket}/${filePath}`;
           
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -133,7 +134,12 @@ export const uploadFile = async (
           
           // Set required headers - Use the Supabase auth getter methods
           const { data: { session } } = await supabase.auth.getSession();
-          const apiKey = supabase._supabaseKey;
+          
+          // Get the API key from the client config
+          const parsedUrl = new URL(uploadUrl);
+          const apiKey = parsedUrl.searchParams.get('apikey') || 
+                        window.localStorage.getItem('supabase.auth.token.access_token') ||
+                        '';
           
           if (session?.access_token) {
             xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
@@ -211,6 +217,18 @@ async function uploadLargeFileManually(
     console.log(`File will be uploaded in ${chunks} chunks of ${(chunkSize/1024/1024).toFixed(2)}MB each`);
     progressCallback(5); // Update to 5% after initialization
     
+    // Get storage URL once at the beginning
+    const { data: urlData } = await supabase.storage.from(bucket).getPublicUrl('dummy');
+    const baseUrl = new URL(urlData.publicUrl).origin;
+    const storageApiUrl = `${baseUrl}/storage/v1`;
+    
+    // Get auth information once
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token || '';
+    
+    // Get the API key - use localStorage as fallback
+    const apiKey = window.localStorage.getItem('sb-' + new URL(baseUrl).hostname.split('.')[0] + '-auth-token') || '';
+    
     if (chunks === 1) {
       // For files that fit in a single chunk, use standard upload
       console.log("File size allows for single upload");
@@ -219,9 +237,9 @@ async function uploadLargeFileManually(
         try {
           // Set up XMLHttpRequest for tracking upload progress
           const xhr = new XMLHttpRequest();
-          // Construct the upload URL manually
-          const baseUrl = supabase.storage._url;
-          const uploadUrl = `${baseUrl}/object/${bucket}/${filePath}`;
+          
+          // Construct the upload URL
+          const uploadUrl = `${storageApiUrl}/object/${bucket}/${filePath}`;
           
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -265,12 +283,9 @@ async function uploadLargeFileManually(
           xhr.timeout = timeoutMs;
           xhr.open("POST", uploadUrl, true);
           
-          // Set required headers - Use the Supabase auth getter methods
-          const { data: { session } } = await supabase.auth.getSession();
-          const apiKey = supabase._supabaseKey;
-          
-          if (session?.access_token) {
-            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+          // Set required headers
+          if (accessToken) {
+            xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
           }
           xhr.setRequestHeader("apikey", apiKey);
           xhr.setRequestHeader("Content-Type", contentType);
@@ -309,9 +324,9 @@ async function uploadLargeFileManually(
       const uploadPromise = new Promise<{ path: string; size: number }>(async (resolve, reject) => {
         try {
           const xhr = new XMLHttpRequest();
-          // Construct the upload URL manually
-          const baseUrl = supabase.storage._url;
-          const uploadUrl = `${baseUrl}/object/${bucket}/${partPath}`;
+          
+          // Construct the upload URL
+          const uploadUrl = `${storageApiUrl}/object/${bucket}/${partPath}`;
           
           xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -350,12 +365,9 @@ async function uploadLargeFileManually(
           xhr.timeout = timeoutMs / chunks; // Divide timeout among chunks
           xhr.open("POST", uploadUrl, true);
           
-          // Set required headers - Use the Supabase auth getter methods
-          const { data: { session } } = await supabase.auth.getSession();
-          const apiKey = supabase._supabaseKey;
-          
-          if (session?.access_token) {
-            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
+          // Set required headers
+          if (accessToken) {
+            xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
           }
           xhr.setRequestHeader("apikey", apiKey);
           xhr.setRequestHeader("Content-Type", "application/octet-stream"); // Use binary for parts
