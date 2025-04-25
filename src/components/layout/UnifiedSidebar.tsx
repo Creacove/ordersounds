@@ -66,7 +66,7 @@ export function UnifiedSidebar({
               <img 
                 src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
                 alt="OrderSOUNDS" 
-                className="h-12 w-auto object-contain" 
+                className="h-12 w-auto object-contain max-w-[160px]" 
               />
             )}
           </div>
