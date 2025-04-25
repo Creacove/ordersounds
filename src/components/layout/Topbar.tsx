@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"; 
+import React, { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
   Search, 
@@ -99,7 +99,8 @@ export function Topbar({ sidebarVisible = false }) {
             <Link to="/" className="flex items-center gap-2">
               <img 
                 src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
-                alt="OrderSOUNDS"                 
+                alt="OrderSOUNDS"
+                className="h-6 w-auto"
               />
             </Link>
           )}
