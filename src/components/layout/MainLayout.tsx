@@ -51,3 +51,4 @@ export function MainLayout({ children, activeTab, currentPath, hideSidebar, hide
     </div>
   );
 }
+
