@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -54,22 +53,20 @@ export function UnifiedSidebar({
         />
       )}
       
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out",
-          "bg-[#0e0e0e] text-white",
-          isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
-          isCollapsed ? "w-[80px]" : "w-[240px]",
-          isMobile ? "shadow-lg" : ""
-        )}
-      >
+      <aside className={cn(
+        "fixed inset-y-0 left-0 z-40 flex flex-col transition-all duration-300 ease-in-out",
+        "bg-[#0e0e0e] text-white",
+        isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : "translate-x-0",
+        isCollapsed ? "w-[80px]" : "w-[240px]",
+        isMobile ? "shadow-lg" : ""
+      )}>
         <div className="flex items-center justify-between p-4 border-b border-[#272727]">
           <div className="flex items-center gap-2">
             {!isCollapsed && (
               <img 
-                src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
+                src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
                 alt="OrderSOUNDS" 
-                className="h-12 w-auto object-contain" // Reduced back to h-12 and added object-contain
+                className="h-12 w-auto object-contain" 
               />
             )}
           </div>

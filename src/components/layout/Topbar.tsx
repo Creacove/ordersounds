@@ -97,19 +97,11 @@ export function Topbar({ sidebarVisible = false }) {
         <div className="flex items-center gap-2">          
           {showLogo && (
             <Link to="/" className="flex items-center gap-2">
-              {isMobile ? (
-                <img 
-                  src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
-                  alt="OrderSOUNDS" 
-                  className="h-8 w-auto object-contain"
-                />
-              ) : (
-                <img 
-                  src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
-                  alt="OrderSOUNDS" 
-                  className="h-12 w-auto object-contain"
-                />
-              )}
+              <img 
+                src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
+                alt="OrderSOUNDS" 
+                className="h-8 w-auto object-contain"
+              />
             </Link>
           )}
         </div>
