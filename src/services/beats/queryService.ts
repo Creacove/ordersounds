@@ -167,13 +167,16 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
 };
 
 // Cache for new beats
-const newBeatsCache = new Map<number, Beat[]>();
+const newBeatsCache = new Map<string, Beat[]>();
 
 export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
   try {
+    // Create a cache key based on the limit
+    const cacheKey = `new-beats-${limit}`;
+    
     // Check cache first
-    if (newBeatsCache.has(limit)) {
-      return newBeatsCache.get(limit) || [];
+    if (newBeatsCache.has(cacheKey)) {
+      return newBeatsCache.get(cacheKey) || [];
     }
     
     const { data, error } = await supabase
@@ -187,8 +190,8 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
 
     const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
     
-    // Store in cache
-    newBeatsCache.set(limit, mappedBeats);
+    // Store in cache with specific limit key
+    newBeatsCache.set(cacheKey, mappedBeats);
     
     return mappedBeats;
   } catch (error) {
