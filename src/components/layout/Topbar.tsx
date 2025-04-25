@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -38,7 +37,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 
-// Add a new prop to receive sidebar open state
 export function Topbar({ sidebarVisible = false }) {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
@@ -48,7 +46,6 @@ export function Topbar({ sidebarVisible = false }) {
   
   const [isScrolled, setIsScrolled] = useState(false);
   
-  // Check if current route is login or signup
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
   
   useEffect(() => {
@@ -74,25 +71,19 @@ export function Topbar({ sidebarVisible = false }) {
     if (newCurrency === currency) return;
     
     setCurrency(newCurrency);
-    // Store the user's preference (will be overwritten if logged in)
     localStorage.setItem('preferred_currency', newCurrency);
     toast.success(`Currency changed to ${newCurrency === 'USD' ? 'US Dollar' : 'Nigerian Naira'}`);
   };
 
-  // Only show logo on mobile or when sidebar is not visible on desktop
   const showLogo = isMobile || !sidebarVisible;
 
-  // Determine correct settings page based on user role and current view
   const getSettingsPath = () => {
-    // If currently in producer view, go to producer settings
     if (location.pathname.startsWith('/producer')) {
       return "/producer/settings";
     }
-    // If user is a producer but in buyer view, still go to user settings
     return "/settings";
   };
 
-  // Check if currently in producer view
   const isInProducerView = location.pathname.startsWith('/producer');
 
   return (
@@ -103,22 +94,19 @@ export function Topbar({ sidebarVisible = false }) {
       )}
     >
       <div className="container flex items-center justify-between h-16 py-2">
-        {/* Logo - Only show when sidebar is not visible on desktop or always on mobile */}
         <div className="flex items-center gap-2">          
           {showLogo && (
             <Link to="/" className="flex items-center gap-2">
-              <Headphones size={isMobile ? 20 : 24} className="text-purple-600" />
+              <Headphones size={isMobile ? 24 : 32} className="text-purple-600" />
               <span className={cn(
                 "font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text",
-                isMobile ? "text-lg" : "text-xl"
+                isMobile ? "text-xl" : "text-2xl"
               )}>OrderSOUNDS</span>
             </Link>
           )}
         </div>
         
-        {/* Search and User Menu - Hide when on auth pages and not logged in */}
         <div className="flex items-center gap-3">
-          {/* Only show currency toggle if not on auth page or user is logged in */}
           {(!isAuthPage || user) && (
             <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
               <Button
@@ -155,7 +143,6 @@ export function Topbar({ sidebarVisible = false }) {
             </div>
           )}
           
-          {/* Cart - Only show on desktop for buyers AND not on auth pages */}
           {user && user.role === 'buyer' && !isMobile && !isAuthPage && (
             <Button
               variant="ghost"
@@ -176,12 +163,10 @@ export function Topbar({ sidebarVisible = false }) {
             </Button>
           )}
           
-          {/* Notifications - Only show when user is logged in */}
           {user && !isAuthPage && (
             <NotificationCenter />
           )}
           
-          {/* Search - Only show if not on auth page or user is logged in */}
           {(!isAuthPage || user) && (
             <Button
               variant="ghost"
@@ -194,7 +179,6 @@ export function Topbar({ sidebarVisible = false }) {
             </Button>
           )}
           
-          {/* User Menu - Show auth buttons on auth pages, or user dropdown elsewhere */}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -256,7 +240,6 @@ export function Topbar({ sidebarVisible = false }) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            // Show sign in button only if not already on auth pages
             !isAuthPage && (
               <Button
                 variant="default"
