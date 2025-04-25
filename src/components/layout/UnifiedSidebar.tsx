@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -61,16 +60,7 @@ export function UnifiedSidebar({
         isCollapsed ? "w-[80px]" : "w-[240px]",
         isMobile ? "shadow-lg" : ""
       )}>
-        <div className="flex items-center justify-between p-3 border-b border-[#272727]">
-          <div className="flex items-center">
-            {!isCollapsed && (
-              <img 
-                src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
-                alt="OrderSOUNDS"     
-                className="h-20 object-contain"             
-              />
-            )}
-          </div>
+        <div className="flex items-center justify-end p-3 border-b border-[#272727]">
           <div className="flex items-center gap-2">
             {isMobile && (
               <Button 

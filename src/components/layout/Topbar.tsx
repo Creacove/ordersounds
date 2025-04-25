@@ -89,7 +89,7 @@ export function Topbar({ sidebarVisible = false }) {
   return (
     <header 
       className={cn(
-        "sticky top-0 z-30 w-full transition-all duration-200",
+        "sticky top-0 z-50 w-full transition-all duration-200",
         isScrolled ? "bg-background/90 backdrop-blur-md border-b shadow-sm" : "bg-transparent"
       )}
     >
