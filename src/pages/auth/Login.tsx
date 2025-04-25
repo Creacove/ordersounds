@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
@@ -16,6 +16,7 @@ import { logAuthEvent } from "@/lib/authLogger";
 
 export default function Login() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const recoveryMode = searchParams.get('recovery') === 'true';
   const recoveryEmail = searchParams.get('email') || "";
   
@@ -276,7 +277,7 @@ export default function Login() {
   );
 
   return (
-    <MainLayout hideSidebar>
+    <MainLayout hideSidebar currentPath={location.pathname}>
       <div className="container relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
         <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
           <div className="absolute inset-0 bg-zinc-900">
