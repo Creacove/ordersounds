@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -271,7 +271,7 @@ export default function Login() {
   );
 
   return (
-    <MainLayout hideSidebar hideTopbar>
+    <MainLayout hideSidebar>
       <div className="container relative min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
         <div className="relative hidden h-full flex-col bg-muted p-10 text-white lg:flex dark:border-r">
           <div className="absolute inset-0 bg-zinc-900">
@@ -282,31 +282,23 @@ export default function Login() {
               className="object-cover w-full h-full opacity-50 mix-blend-overlay"
             />
           </div>
-          <div className="relative z-20 flex flex-col h-full justify-between">
-            <div className="mt-auto mb-8">
-              <div className="mb-4">
-                <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
-                <p className="text-white/70">Your ultimate sound experience</p>
-              </div>
-              <blockquote className="space-y-2">
-                <p className="text-lg">
-                  "Discover premium audio that transforms your creative projects. Join our community of passionate creators and elevate your sound experience."
-                </p>
-                <footer className="text-sm text-white/70">Creative Director</footer>
-              </blockquote>
+          <div className="relative z-20 mt-auto">
+            <div className="mb-4">
+              <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
+              <p className="text-white/70">Your ultimate sound experience</p>
             </div>
+            <blockquote className="space-y-2">
+              <p className="text-lg">
+                "Discover premium audio that transforms your creative projects. Join our community of passionate creators and elevate your sound experience."
+              </p>
+              <footer className="text-sm text-white/70">Creative Director</footer>
+            </blockquote>
           </div>
         </div>
         <div className="lg:p-8 flex items-center justify-center w-full min-h-[calc(100vh-4rem)]">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-purple-800/20 to-zinc-900/10 lg:hidden" />
           <Card className="mx-auto flex w-full flex-col justify-center sm:w-[350px] bg-background/95 backdrop-blur-sm border border-border/20 shadow-xl animate-fade-in relative z-10">
             <CardHeader className="space-y-1">
-              <div className="flex items-center justify-center mb-4 lg:hidden">
-                <img 
-                  src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
-                  alt="OrderSOUNDS"
-                  className="h-8 w-auto"
-                />
-              </div>
               <CardTitle className="text-2xl font-bold tracking-tight text-center">
                 {showForgotPassword ? "Reset Password" : recoveryMode ? "Session Recovery" : "Welcome back"}
               </CardTitle>
