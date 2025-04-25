@@ -148,8 +148,8 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
       .eq('status', 'published')
-      .eq('is_trending', true)
       .order('favorites_count', { ascending: false })
+      .order('purchase_count', { ascending: false })
       .limit(limit);
 
     if (error) throw error;

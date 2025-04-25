@@ -1,67 +1,43 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useBeats } from "@/hooks/useBeats";
-import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { ChevronDown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { fetchTrendingBeats } from "@/services/beats/queryService";
+import { useAuth } from "@/context/AuthContext";
+import { useBeats } from "@/hooks/useBeats";
 
 export default function Trending() {
-  const { trendingBeats, isLoading, toggleFavorite, isFavorite, isPurchased, fetchBeats, isOffline } = useBeats();
-  const { isInCart } = useCart();
   const [displayCount, setDisplayCount] = useState(30);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const { isInCart } = useCart();
+  const { toggleFavorite, isFavorite, isPurchased } = useBeats();
+  const { user } = useAuth();
   
+  const { data: trendingBeats = [], isLoading } = useQuery({
+    queryKey: ['trending-beats', displayCount],
+    queryFn: () => fetchTrendingBeats(displayCount),
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+  });
+
   useEffect(() => {
     document.title = "Trending Beats | OrderSOUNDS";
   }, []);
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await fetchBeats();
-      toast.success("Content refreshed successfully");
-    } catch (error) {
-      toast.error("Failed to refresh. Please try again later.");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   const loadMoreBeats = () => {
-    setIsLoadingMore(true);
     setDisplayCount(prevCount => prevCount + 30);
-    setIsLoadingMore(false);
   };
 
   return (
     <MainLayout>
       <div className="container py-4 md:py-8 px-4 md:px-6">
-        <div className="mb-6 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Trending Beats</h1>
-            <p className="text-sm text-muted-foreground mt-1">Discover the hottest beats right now based on likes and plays</p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleRefresh} 
-            disabled={isRefreshing || isLoading}
-            className="gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            {isRefreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold">Trending Beats</h1>
+          <p className="text-sm text-muted-foreground mt-1">Discover the most popular beats based on plays and engagement</p>
         </div>
-        
-        {isOffline && (
-          <div className="bg-amber-50 border border-amber-200 rounded-md p-3 mb-6">
-            <p className="text-amber-800 text-sm">You're currently offline. Showing cached content. Click refresh when you're back online.</p>
-          </div>
-        )}
         
         {isLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -76,11 +52,11 @@ export default function Trending() {
         ) : (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {trendingBeats.slice(0, displayCount).map((beat) => (
+              {trendingBeats.map((beat) => (
                 <BeatCard 
                   key={beat.id} 
                   beat={beat} 
-                  onToggleFavorite={toggleFavorite}
+                  onToggleFavorite={user ? toggleFavorite : undefined}
                   isFavorite={isFavorite(beat.id)}
                   isInCart={isInCart(beat.id)}
                   isPurchased={isPurchased(beat.id)}
@@ -88,34 +64,22 @@ export default function Trending() {
               ))}
             </div>
             
-            {trendingBeats.length > displayCount && (
+            {trendingBeats.length >= displayCount && (
               <div className="flex justify-center mt-8">
                 <Button 
                   variant="outline" 
                   size="lg" 
                   onClick={loadMoreBeats}
-                  disabled={isLoadingMore}
                   className="gap-2"
                 >
-                  {isLoadingMore ? 'Loading...' : 'See More'}
-                  {!isLoadingMore && <ChevronDown className="h-4 w-4" />}
+                  See More <ChevronDown className="h-4 w-4" />
                 </Button>
               </div>
             )}
             
             {trendingBeats.length === 0 && (
               <div className="text-center py-10">
-                <p className="text-muted-foreground">No trending beats available at the moment.</p>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleRefresh} 
-                  className="mt-4 gap-2"
-                  disabled={isRefreshing}
-                >
-                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+                <p className="text-muted-foreground">No beats available at the moment.</p>
               </div>
             )}
           </>
