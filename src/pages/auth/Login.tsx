@@ -283,14 +283,6 @@ export default function Login() {
             />
           </div>
           <div className="relative z-20 flex flex-col h-full justify-between">
-            <div className="flex items-center gap-2">
-              <img 
-                src="/lovable-uploads/37e9c39c-303b-478d-a418-a8334cf378cd.png" 
-                alt="OrderSounds Logo" 
-                className="h-12 w-auto"
-              />
-              <span className="text-2xl font-bold text-white">OrderSounds</span>
-            </div>
             <div>
               <div className="mb-4">
                 <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
