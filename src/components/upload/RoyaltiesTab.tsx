@@ -10,14 +10,22 @@ type RoyaltiesTabProps = {
   handleRemoveCollaborator: (id: number) => void;
   handleCollaboratorChange: (id: number, field: string, value: string | number) => void;
   handleAddCollaborator: () => void;
+  beatStatus?: "draft" | "published";
+  onUpdate?: () => void;
+  onPublish?: () => void;
+  isSubmitting?: boolean;
+  isEditMode?: boolean;
 };
 
 export const RoyaltiesTab = ({
   collaborators,
   handleRemoveCollaborator,
   handleCollaboratorChange,
-  handleAddCollaborator
+  handleAddCollaborator,
+  // Remove button-business props
 }: RoyaltiesTabProps) => {
+  const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
+
   return (
     <div className="space-y-4">
       <div className="bg-muted/30 rounded-lg p-4 flex items-start gap-3">
@@ -30,7 +38,6 @@ export const RoyaltiesTab = ({
           </p>
         </div>
       </div>
-      
       <div className="space-y-4">
         {collaborators.map((collaborator, index) => (
           <div key={collaborator.id} className="border rounded-lg p-4">
@@ -49,7 +56,6 @@ export const RoyaltiesTab = ({
                 </Button>
               )}
             </div>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor={`name-${collaborator.id}`} size="lg">Name</Label>
@@ -74,7 +80,6 @@ export const RoyaltiesTab = ({
                 />
               </div>
             </div>
-            
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
               <div>
                 <Label htmlFor={`role-${collaborator.id}`} size="lg">Role</Label>
@@ -101,7 +106,6 @@ export const RoyaltiesTab = ({
             </div>
           </div>
         ))}
-        
         {collaborators.length < 5 && (
           <Button 
             variant="outline" 
@@ -111,17 +115,16 @@ export const RoyaltiesTab = ({
             <Plus className="mr-2 h-4 w-4" /> Add Collaborator
           </Button>
         )}
-        
         <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
           <span className="text-sm font-medium">Total Percentage:</span>
           <span 
             className={`font-bold text-base ${
-              collaborators.reduce((sum, c) => sum + c.percentage, 0) === 100 
+              totalPercentage === 100 
                 ? 'text-green-600' 
                 : 'text-red-600'
             }`}
           >
-            {collaborators.reduce((sum, c) => sum + c.percentage, 0)}%
+            {totalPercentage}%
           </span>
         </div>
       </div>

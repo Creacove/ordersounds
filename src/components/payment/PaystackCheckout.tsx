@@ -21,6 +21,7 @@ export function PaystackCheckout({
   producerId,
   beatId
 }: PaystackProps) {
+  // Only initialize the hook if the dialog is open to save resources
   const {
     isProcessing,
     isValidating,

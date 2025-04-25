@@ -5,6 +5,7 @@ import { uploadImage } from './imageStorage';
 import { Beat, RoyaltySplit } from '@/types';
 import { toast } from 'sonner';
 import { Collaborator } from '@/hooks/useBeatUpload';
+import { clearBeatsCache } from '@/services/beats';
 
 interface BeatUploadResult {
   success: boolean;
@@ -31,7 +32,8 @@ type UploadBeatData = {
   status: 'draft' | 'published';
   license_type: string;
   license_terms?: string;
-  cover_image?: string; // Added to accept direct cover image URL or base64
+  cover_image?: string;
+  stems_url?: string;
 };
 
 /**
@@ -55,7 +57,6 @@ export const getProducerRoyaltySplits = async (producerId: string): Promise<Roya
     
     if (!data) return [];
     
-    // Map database fields to RoyaltySplit interface
     return data.map(item => ({
       id: item.id,
       beat_id: item.beat_id,
@@ -84,7 +85,8 @@ export const uploadBeat = async (
   producerName: string,
   collaborators: Collaborator[],
   selectedLicenseTypes: string[],
-  previewUrl?: string
+  previewUrl?: string,
+  stemsUrl?: string | null
 ): Promise<BeatUploadResult> => {
   try {
     console.log('Starting beat upload process');
@@ -93,7 +95,15 @@ export const uploadBeat = async (
     let fullTrackUrl: string;
     if (isFile(fullTrackFileOrUrl)) {
       console.log('Uploading full track file');
-      fullTrackUrl = await uploadFile(fullTrackFileOrUrl, 'beats', 'full-tracks');
+      try {
+        fullTrackUrl = await uploadFile(fullTrackFileOrUrl, 'beats', 'full-tracks');
+      } catch (error) {
+        console.error('Failed to upload full track:', error);
+        return {
+          success: false,
+          error: `Failed to upload full track: ${error.message}`
+        };
+      }
     } else {
       fullTrackUrl = fullTrackFileOrUrl.url;
     }
@@ -102,29 +112,44 @@ export const uploadBeat = async (
     let previewTrackUrl: string = previewUrl || '';
     if (previewTrackFile) {
       console.log('Uploading preview track file');
-      previewTrackUrl = await uploadFile(previewTrackFile, 'beats', 'previews');
+      try {
+        previewTrackUrl = await uploadFile(previewTrackFile, 'beats', 'previews');
+      } catch (error) {
+        console.error('Failed to upload preview track:', error);
+        return {
+          success: false,
+          error: `Failed to upload preview track: ${error.message}`
+        };
+      }
     }
     
     // Use the provided cover image (could be URL, base64, or null)
     let coverImageUrl: string = beatData.cover_image || '';
     
-    // Upload stems if provided
-    let stemsUrl: string | null = null;
-    if (stemsFile) {
+    // Handle stems: Use existing URL if provided, otherwise upload new file if provided
+    let finalStemsUrl: string | null = stemsUrl || null;
+    if (!finalStemsUrl && stemsFile) {
       console.log('Uploading stems file');
-      stemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
+      try {
+        finalStemsUrl = await uploadFile(stemsFile, 'beats', 'stems');
+      } catch (error) {
+        console.error('Failed to upload stems:', error);
+        return {
+          success: false,
+          error: `Failed to upload stems: ${error.message}`
+        };
+      }
     }
     
     // Prepare beat data for database insert
     const beatInsertData = {
       title: beatData.title,
-      description: beatData.description || '',
+      description: beatData.description || "",
       genre: beatData.genre,
       track_type: beatData.track_type,
       bpm: beatData.bpm,
       key: beatData.key || 'C Major',
       producer_id: producerId,
-      // Removed producer_name as it doesn't exist in database schema
       audio_file: fullTrackUrl,
       audio_preview: previewTrackUrl,
       cover_image: coverImageUrl,
@@ -141,7 +166,7 @@ export const uploadBeat = async (
       exclusive_license_price_diaspora: beatData.exclusive_license_price_diaspora || 0,
       custom_license_price_local: beatData.custom_license_price_local || 0,
       custom_license_price_diaspora: beatData.custom_license_price_diaspora || 0,
-      stems_url: stemsUrl, // Use stems_url instead of stems to match DB schema
+      stems_url: finalStemsUrl,
     };
     
     console.log('Inserting beat into database');
@@ -184,6 +209,24 @@ export const uploadBeat = async (
         console.error('Error inserting collaborators:', collabError);
         // Don't throw here, just log the error
       }
+    }
+    
+    // Clear the beats cache after successful upload to ensure fresh data
+    clearBeatsCache();
+    
+    // Also clear producer-specific cache
+    localStorage.removeItem(`producer_beats_${producerId}`);
+    
+    // Set the refresh flag for other components/tabs to know data was updated
+    sessionStorage.setItem('beats_needs_refresh', 'true');
+    
+    // Dispatch storage event to notify other tabs
+    if (window.dispatchEvent) {
+      const event = new StorageEvent('storage', {
+        key: 'beats_needs_refresh',
+        newValue: 'true'
+      });
+      window.dispatchEvent(event);
     }
     
     return {
