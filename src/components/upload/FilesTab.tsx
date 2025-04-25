@@ -502,7 +502,7 @@ export const FilesTab = ({
                     <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     <div className="flex-1">
                       <p className="text-xs sm:text-sm font-medium">
-                        {processingFiles ? "Generating preview..." : "Preview will be auto-generated"}
+                        {processingFiles ? "Generating preview..." : "Upload or generate preview"}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {processingFiles ? (
@@ -511,9 +511,15 @@ export const FilesTab = ({
                             Processing audio...
                           </span>
                         ) : (
-                          "30-second watermarked MP3 sample"
+                          "Automatic preview generation available, or upload a 30-second MP3"
                         )}
                       </p>
+                      {uploadError && !processingFiles && (
+                        <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                          <AlertTriangle size={12} />
+                          Automatic preview failed. Please upload a preview manually.
+                        </p>
+                      )}
                     </div>
                     {processingFiles ? (
                       <Button
@@ -525,29 +531,31 @@ export const FilesTab = ({
                         Processing
                       </Button>
                     ) : (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => document.getElementById("previewTrack")?.click()}
-                        className="px-2 sm:px-3"
-                      >
-                        <span className="hidden sm:inline">Upload</span>
-                        <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
-                      </Button>
+                      <>
+                        <Button 
+                          variant={uploadError ? "destructive" : "outline"}
+                          size="sm"
+                          onClick={() => document.getElementById("previewTrack")?.click()}
+                          className="px-2 sm:px-3"
+                        >
+                          <span className="hidden sm:inline">Upload Preview</span>
+                          <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
+                        </Button>
+                        <input 
+                          id="previewTrack" 
+                          type="file" 
+                          className="hidden" 
+                          accept="audio/mpeg"
+                          onChange={handlePreviewUploadInternal}
+                        />
+                      </>
                     )}
-                    <input 
-                      id="previewTrack" 
-                      type="file" 
-                      className="hidden" 
-                      accept="audio/mpeg"
-                      onChange={handlePreviewUploadInternal}
-                    />
                   </>
                 )}
               </div>
               {processingFiles && (
                 <p className="text-xs text-muted-foreground mt-2 italic">
-                  Preview generation can take up to 30 seconds. Please be patient.
+                  Preview generation can take up to 30 seconds. Please be patient or upload manually.
                 </p>
               )}
             </div>
