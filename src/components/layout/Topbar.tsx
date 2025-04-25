@@ -93,10 +93,10 @@ export function Topbar({ sidebarVisible = false }) {
         isScrolled ? "bg-background/90 backdrop-blur-md border-b shadow-sm" : "bg-transparent"
       )}
     >
-      <div className="container mx-auto px-0 xs:px-2 sm:px-4 flex items-center justify-between h-16 py-2">
-        <div className="flex items-center">          
+      <div className="container mx-auto px-2 xs:px-4 sm:px-6 flex items-center justify-between h-16 py-2">
+        <div className="flex items-center gap-2">          
           {showLogo && (
-            <Link to="/" className="flex items-center">
+            <Link to="/" className="flex items-center gap-2">
               <img 
                 src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
                 alt="OrderSOUNDS"                 

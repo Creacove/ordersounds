@@ -14,7 +14,7 @@ import { GenreQuickLinks } from "@/components/marketplace/GenreQuickLinks";
 const Home = () => {
   return (
     <MainLayoutWithPlayer activeTab="home">
-      <div className="container mx-auto px-0 xs:px-2 sm:px-4 py-6 space-y-12">
+      <div className="container mx-auto px-2 xs:px-4 sm:px-6 py-6 space-y-12">
         <FeaturedBeat />
         <GenreQuickLinks />
         <TrendingBeats />

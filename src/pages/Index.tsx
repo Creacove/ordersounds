@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -118,7 +117,7 @@ export default function IndexPage() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container mx-auto px-0 xs:px-2 sm:px-4 pb-8">
+      <div className="container mx-auto px-2 xs:px-4 sm:px-6 pb-8">
         <div className="mb-8">
           <form onSubmit={handleSearch} className="relative">
             <div className="flex items-center">
