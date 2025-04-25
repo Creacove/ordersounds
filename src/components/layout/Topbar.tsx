@@ -97,11 +97,19 @@ export function Topbar({ sidebarVisible = false }) {
         <div className="flex items-center gap-2">          
           {showLogo && (
             <Link to="/" className="flex items-center gap-2">
-              <Headphones size={isMobile ? 24 : 32} className="text-purple-600" />
-              <span className={cn(
-                "font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text",
-                isMobile ? "text-xl" : "text-2xl"
-              )}>OrderSOUNDS</span>
+              {isMobile ? (
+                <img 
+                  src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
+                  alt="OrderSOUNDS" 
+                  className="h-8 w-auto"
+                />
+              ) : (
+                <img 
+                  src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
+                  alt="OrderSOUNDS" 
+                  className="h-12 w-auto"
+                />
+              )}
             </Link>
           )}
         </div>

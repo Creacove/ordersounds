@@ -68,7 +68,7 @@ export function UnifiedSidebar({
               <img 
                 src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
                 alt="OrderSOUNDS" 
-                className="h-12 w-auto" // Increased height from h-8 to h-12
+                className="h-24 w-auto" // Significantly increased height from h-12 to h-24
               />
             )}
           </div>
