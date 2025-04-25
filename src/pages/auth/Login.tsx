@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -283,7 +284,7 @@ export default function Login() {
             />
           </div>
           <div className="relative z-20 flex flex-col h-full justify-between">
-            <div>
+            <div className="mt-auto mb-8">
               <div className="mb-4">
                 <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
                 <p className="text-white/70">Your ultimate sound experience</p>
