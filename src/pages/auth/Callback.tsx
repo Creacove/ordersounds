@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { RoleSelectionDialog } from '@/components/auth/RoleSelectionDialog';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';  // Fixed import
+import { toast } from 'sonner';
 import { logCallbackEvent, initiateRecoveryFlow } from '@/lib/authLogger';
 import { uniqueToast } from '@/lib/toast';
 
@@ -83,24 +82,16 @@ export default function AuthCallback() {
               if (userData) {
                 console.log("Successfully fetched user data directly:", userData);
                 
-                // Update user context with the fetched data
+                // Update user context with the fetched data - always set as active
                 updateUserInfo({
                   ...user,
                   role: userData.role as 'buyer' | 'producer' | 'admin',
-                  status: userData.status as 'active' | 'inactive',
+                  status: 'active', // Always set to active
                   name: userData.full_name || user.name
                 });
                 
-                // Redirect based on role
-                if (userData.role === 'producer') {
-                  if (userData.status === 'inactive') {
-                    navigate('/producer-activation');
-                  } else {
-                    navigate('/producer/dashboard');
-                  }
-                } else {
-                  navigate('/');
-                }
+                // Redirect all users to home, regardless of role or status
+                navigate('/');
                 return;
               } else {
                 throw new Error("No user data found in database");
@@ -163,31 +154,16 @@ export default function AuthCallback() {
                     ? userData.role 
                     : 'buyer';
                 
-                const validStatus: 'active' | 'inactive' =
-                  userData.status === 'active' || userData.status === 'inactive'
-                    ? userData.status
-                    : 'inactive';
-                
                 if (userData && user) {
                   updateUserInfo({
                     ...user,
                     role: validRole,
-                    status: validStatus
+                    status: 'active' // Always set to active
                   });
                 }
                 
-                if (validRole === 'producer' && validStatus === 'inactive') {
-                  console.log("Inactive producer, redirecting to activation page");
-                  await logCallbackEvent('producer_inactive_redirect', { user_id: data.session.user.id });
-                  navigate('/producer-activation');
-                  return;
-                }
-                
-                if (validRole === 'producer') {
-                  navigate('/producer/dashboard');
-                } else {
-                  navigate('/');
-                }
+                // Always redirect to home page, regardless of role/status
+                navigate('/');
                 
                 localStorage.removeItem('oauth_initiated');
                 localStorage.removeItem('oauth_provider');
@@ -246,8 +222,8 @@ export default function AuthCallback() {
         .from('users')
         .select('*')
         .eq('id', user.id)
-        .maybeSingle();  // Changed from single() to maybeSingle() for better error handling
-        
+        .maybeSingle();
+      
       if (userError) throw userError;
       
       if (userData) {
@@ -255,7 +231,7 @@ export default function AuthCallback() {
         updateUserInfo({
           ...user,
           role: userData.role as 'buyer' | 'producer' | 'admin',
-          status: userData.status as 'active' | 'inactive',
+          status: 'active', // Always set to active
           name: userData.full_name || user.name,
           bio: userData.bio || user.bio || '',
           country: userData.country || user.country || '',
@@ -265,16 +241,8 @@ export default function AuthCallback() {
         
         toast.success("User data refreshed successfully");
         
-        // Redirect based on role
-        if (userData.role === 'producer') {
-          if (userData.status === 'inactive') {
-            navigate('/producer-activation');
-          } else {
-            navigate('/producer/dashboard');
-          }
-        } else {
-          navigate('/');
-        }
+        // Redirect all users to home, regardless of role or status
+        navigate('/');
       }
     } catch (error: any) {
       console.error("Failed to refresh user data:", error);

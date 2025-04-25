@@ -184,8 +184,8 @@ export const useAuthMethods = ({
             full_name: name,
             email: email,
             role: role,
-            // Set status for producers to inactive by default
-            status: role === 'producer' ? 'inactive' : 'active',
+            // Set status to active for all users regardless of role
+            status: 'active',
             // Add the required password_hash field
             password_hash: 'managed-by-supabase'
           });
@@ -211,8 +211,16 @@ export const useAuthMethods = ({
           }
           
           if (signInData?.user) {
-            console.log("Auto-login successful, redirecting to callback");
-            navigate('/auth/callback');
+            console.log("Auto-login successful, redirecting to home");
+            // Set user data in context to include active status
+            const mappedUser = mapSupabaseUser(signInData.user);
+            setUser({
+              ...mappedUser,
+              status: 'active'
+            });
+            
+            // Redirect directly to home page instead of callback
+            navigate('/');
             return;
           }
         }
