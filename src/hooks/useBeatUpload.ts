@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, FileOrUrl, isFile } from "@/lib/storage";
-import { uploadImage } from "@/lib/imageStorage";
 import { createMp3Preview } from "@/utils/audioPreview";
 
 export type LicenseOption = {
@@ -151,7 +149,7 @@ export function useBeatUpload() {
       setUploadError(null);
       
       try {
-        toast.info(`Uploading full track (${(file.size / (1024 * 1024)).toFixed(2)} MB)...`, {
+        toast.info(`Uploading full track`, {
           duration: 10000,
           id: "upload-track"
         });
@@ -160,19 +158,16 @@ export function useBeatUpload() {
           console.log(`Upload progress for ${file.name}: ${progress}%`);
           setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
           
-          // Update toast as progress changes
+          // Update toast silently without showing percentage
           if (progress === 100) {
             toast.success("Full track uploaded", { id: "upload-track" });
-          } else if (progress % 10 === 0 || progress === 25 || progress === 75) {
-            // Update on key percentages
-            toast.loading(`Uploading: ${progress}%`, { id: "upload-track" });
           }
         });
         
         setUploadedFileUrl(url);
         toast.success("Full track uploaded successfully");
 
-        toast.info("Processing audio and generating preview...", {
+        toast.info("Processing audio and generating preview", {
           id: "processing-audio"
         });
         await generatePreview(url);
@@ -183,7 +178,7 @@ export function useBeatUpload() {
       }
     }
   };
-  
+
   const generatePreview = async (fileUrl: string) => {
     try {
       setProcessingFiles(true);
@@ -538,12 +533,15 @@ export function useBeatUpload() {
       const file = e.target.files[0];
       
       if (file.size > 250 * 1024 * 1024) {
-        toast.error("File must be less than 250MB");
+        toast.error("Stems file must be less than 250MB");
         return;
       }
       
-      if (file.type !== "application/zip" && !file.name.endsWith('.zip') && 
-          file.type !== "application/x-zip-compressed") {
+      const isZip = file.type === "application/zip" || 
+                    file.type === "application/x-zip-compressed" || 
+                    file.name.endsWith('.zip');
+                    
+      if (!isZip) {
         toast.error("Stems file must be a ZIP archive");
         return;
       }
@@ -554,16 +552,13 @@ export function useBeatUpload() {
       setStemsUploadError(null);
       
       try {
-        toast.info("Uploading stems...", { id: "stems-upload" });
-        
-        console.log("Starting upload for stems file:", file.name, "type:", file.type);
+        toast.info("Uploading stems", { id: "stems-upload" });
         
         const url = await uploadFile(file, 'beats', 'stems', (progress) => {
           console.log(`Stems upload progress: ${progress}%`);
           setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
         });
         
-        console.log("Stems upload completed, URL:", url);
         setStemsUrl(url);
         toast.success("Stems uploaded successfully", { id: "stems-upload" });
       } catch (error) {
@@ -573,10 +568,10 @@ export function useBeatUpload() {
       }
     }
   };
-  
+
   const uploadStemsFile = async (file: File) => {
     try {
-      toast.info("Uploading stems...", { id: "stems-upload" });
+      toast.info("Uploading stems", { id: "stems-upload" });
       
       const url = await uploadFile(file, 'beats', 'stems', (progress) => {
         console.log(`Stems upload progress: ${progress}%`);
