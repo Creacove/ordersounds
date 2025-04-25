@@ -93,7 +93,10 @@ export function Topbar({ sidebarVisible = false }) {
         isScrolled ? "bg-background/90 backdrop-blur-md border-b shadow-sm" : "bg-transparent"
       )}
     >
-      <div className="container mx-auto px-2 xs:px-4 sm:px-6 flex items-center justify-between h-16 py-2">
+      <div className={cn(
+        "flex items-center justify-between h-16 py-2",
+        isMobile ? "container mx-auto px-2 xs:px-4 sm:px-6" : "pr-6 pl-2"
+      )}>
         <div className="flex items-center gap-2">          
           <Link to="/" className="flex items-center gap-2">
             <img 
