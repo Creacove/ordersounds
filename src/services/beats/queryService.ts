@@ -336,3 +336,22 @@ export const clearBeatsCache = (): void => {
     console.error('Could not set refresh notification:', e);
   }
 };
+
+export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .eq('is_trending', true)
+      .limit(limit);
+
+    if (error) throw error;
+
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    return mappedBeats;
+  } catch (error) {
+    console.error('Error fetching marked trending beats:', error);
+    return [];
+  }
+};
