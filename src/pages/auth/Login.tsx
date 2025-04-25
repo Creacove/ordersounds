@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -33,14 +32,11 @@ export default function Login() {
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
   useEffect(() => {
-    // If in recovery mode, attempt to clean any problematic auth state
     if (recoveryMode) {
       const attemptCleanup = async () => {
         try {
-          // Sign out locally first to clear any problematic tokens
           await supabase.auth.signOut({ scope: 'local' });
           
-          // Clear auth storage
           try {
             localStorage.removeItem('supabase.auth.token');
             sessionStorage.removeItem('supabase.auth.token');
@@ -48,7 +44,6 @@ export default function Login() {
             console.warn('Could not access storage:', e);
           }
           
-          // Log the recovery attempt
           await logAuthEvent('recovery', 'cleanup_complete', { email: recoveryEmail || undefined });
           
           uniqueToast.info('Your session has been reset. Please sign in again.');
@@ -290,7 +285,6 @@ export default function Login() {
           <div className="relative z-20 mt-auto">
             <div className="mb-4">
               <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
-              <h2 className="text-2xl font-bold tracking-tight text-white mb-2">OrderSounds</h2>
               <p className="text-white/70">Your ultimate sound experience</p>
             </div>
             <blockquote className="space-y-2">
