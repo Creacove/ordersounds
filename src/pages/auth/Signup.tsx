@@ -101,13 +101,6 @@ export default function Signup() {
           <div className="relative z-20 mt-auto">
             <div className="mb-4">
               <div className="w-12 h-1 bg-primary mb-3 rounded-full"></div>
-              <Link to="/" className="inline-block">
-                <img 
-                  src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
-                  alt="OrderSOUNDS"
-                  className="h-8 w-auto"
-                />
-              </Link>
               <h2 className="text-2xl font-bold tracking-tight text-white mb-2">OrderSounds</h2>
               <p className="text-white/70">Your ultimate sound experience</p>
             </div>
