@@ -42,6 +42,15 @@ export const getCacheExpiration = (intervalHours: number): number => {
   return date.getTime();
 };
 
+// Size limits for different caches in bytes (approximately)
+const CACHE_SIZE_LIMITS = {
+  TRENDING_BEATS: 1 * 1024 * 1024, // 1MB for trending beats
+  WEEKLY_PICKS: 500 * 1024,        // 500KB for weekly picks
+  FEATURED_BEATS: 200 * 1024,      // 200KB for featured beats
+  ALL_BEATS: 2 * 1024 * 1024,      // 2MB for all beats
+  USER_CARTS: 100 * 1024           // 100KB for user carts
+};
+
 // Improved load from cache with data validation
 export const loadFromCache = <T>(cacheKey: string): T | null => {
   try {
@@ -73,6 +82,25 @@ export const loadFromCache = <T>(cacheKey: string): T | null => {
   }
 };
 
+// Check if an item will exceed size limits before saving
+const willExceedSizeLimit = (key: string, data: string): boolean => {
+  let limit = 1 * 1024 * 1024; // Default 1MB limit
+  
+  if (key.includes('trending')) {
+    limit = CACHE_SIZE_LIMITS.TRENDING_BEATS;
+  } else if (key.includes('weekly')) {
+    limit = CACHE_SIZE_LIMITS.WEEKLY_PICKS;
+  } else if (key.includes('featured')) {
+    limit = CACHE_SIZE_LIMITS.FEATURED_BEATS;
+  } else if (key.includes('all_beats')) {
+    limit = CACHE_SIZE_LIMITS.ALL_BEATS;
+  } else if (key.includes('cart_')) {
+    limit = CACHE_SIZE_LIMITS.USER_CARTS;
+  }
+  
+  return data.length * 2 > limit; // Rough estimate of byte size in UTF-16
+};
+
 // Enhanced save to cache with storage quota management
 export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, durationHours: number): boolean => {
   try {
@@ -85,20 +113,13 @@ export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, dur
     // Convert data to JSON string
     const jsonData = JSON.stringify(data);
     
-    // Check if we're approaching storage limits
-    const estimatedSize = jsonData.length * 2; // Rough estimate in bytes
-    if (estimatedSize > 3 * 1024 * 1024) { // 3MB - more conservative limit
-      console.warn(`Cache data for ${cacheKey} is very large (${Math.round(estimatedSize/1024/1024)}MB), might hit storage limits`);
-      
-      // If too large, try to clear old caches
-      try {
-        clearOldCaches();
-      } catch (e) {
-        console.error("Error clearing old caches:", e);
-      }
+    // Check if we're approaching storage limits with this specific item
+    if (willExceedSizeLimit(cacheKey, jsonData)) {
+      console.warn(`Cache data for ${cacheKey} is too large, cannot be saved`);
+      return false;
     }
     
-    // Try to save the data
+    // Try to save the data with error handling
     try {
       localStorage.setItem(cacheKey, jsonData);
       localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
@@ -109,14 +130,20 @@ export const saveToCache = <T>(cacheKey: string, data: T, expiryKey: string, dur
       console.error(`Storage error for ${cacheKey}:`, storageError);
       emergencyCacheClear();
       
-      // Try again after clearing
-      try {
-        localStorage.setItem(cacheKey, jsonData);
-        localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
-        console.log(`Saved ${cacheKey} to cache after emergency clear, expires in ${durationHours} hours`);
-        return true;
-      } catch (secondError) {
-        console.error(`Failed to save ${cacheKey} even after clearing cache:`, secondError);
+      // Try again after clearing but skip if it's one of the large caches
+      if (!cacheKey.includes('trending') && !cacheKey.includes('all_beats')) {
+        try {
+          localStorage.setItem(cacheKey, jsonData);
+          localStorage.setItem(expiryKey, String(getCacheExpiration(durationHours)));
+          console.log(`Saved ${cacheKey} to cache after emergency clear, expires in ${durationHours} hours`);
+          return true;
+        } catch (secondError) {
+          console.error(`Failed to save ${cacheKey} even after clearing cache:`, secondError);
+          return false;
+        }
+      } else {
+        // Skip saving large data after emergency clear to avoid filling up again
+        console.log(`Skipped saving ${cacheKey} after emergency clear to preserve space`);
         return false;
       }
     }
@@ -157,25 +184,41 @@ const clearOldCaches = (): void => {
   }
 };
 
-// More aggressive emergency cache clearing
+// More selective emergency cache clearing - prioritize keeping user-specific data
 const emergencyCacheClear = (): void => {
   console.warn("Emergency cache clearing triggered due to storage limits");
   
-  // Only keep the absolutely essential caches
-  const keysToKeep = [
+  // First try clearing just the large caches
+  const largeCachesToRemove = [
+    CACHE_KEYS.TRENDING_BEATS,
     CACHE_KEYS.ALL_BEATS,
+    CACHE_KEYS.FEATURED_BEATS,
+    CACHE_KEYS.WEEKLY_PICKS,
+    CACHE_KEYS.TRENDING_EXPIRY,
     CACHE_KEYS.ALL_BEATS_EXPIRY,
-    CACHE_KEYS.USER_FAVORITES,
-    CACHE_KEYS.USER_PURCHASES,
-    'auth.access_token',
-    'auth.refresh_token',
+    CACHE_KEYS.FEATURED_EXPIRY,
+    CACHE_KEYS.WEEKLY_EXPIRY
   ];
   
-  // Clear everything except what we want to keep
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && !keysToKeep.includes(key)) {
-      localStorage.removeItem(key);
+  for (const key of largeCachesToRemove) {
+    localStorage.removeItem(key);
+  }
+  
+  // Then clear any other non-essential items if needed
+  if (isStorageLimitApproaching()) {
+    const keysToKeep = [
+      CACHE_KEYS.USER_FAVORITES,
+      CACHE_KEYS.USER_PURCHASES,
+      'auth.access_token',
+      'auth.refresh_token',
+    ];
+    
+    // Clear everything except what we want to keep
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && !keysToKeep.includes(key) && !key.startsWith('cart_')) {
+        localStorage.removeItem(key);
+      }
     }
   }
   
@@ -194,26 +237,7 @@ export const checkShouldRefreshCache = (expiryKey: string, defaultDurationHours:
 // Check if we're online with improved detection
 export const isOnline = (): boolean => {
   // Check navigator.onLine as base condition
-  const navigatorOnline = navigator.onLine;
-  
-  // Get cached connection status as backup
-  const cachedStatus = localStorage.getItem('supabase_connection_status');
-  
-  // If navigator says we're offline, trust it
-  if (!navigatorOnline) return false;
-  
-  // If navigator says online but we have a cached failed status from the last 2 minutes, use that
-  const lastCheckTimeStr = localStorage.getItem('last_connection_check');
-  if (cachedStatus === 'disconnected' && lastCheckTimeStr) {
-    const lastCheck = parseInt(lastCheckTimeStr);
-    const twoMinutesAgo = Date.now() - (2 * 60 * 1000);
-    if (lastCheck > twoMinutesAgo) {
-      return false;
-    }
-  }
-  
-  // Default to navigator status
-  return navigatorOnline;
+  return navigator.onLine;
 };
 
 // Get appropriate timeout based on network conditions

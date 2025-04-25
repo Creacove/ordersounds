@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw } from "lucide-react";
+import { FileAudio, FileUp, Image, Play, Pause, Upload, X, RefreshCw, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/hooks/useAudio";
@@ -28,6 +28,9 @@ type FilesTabProps = {
   setPreviewUrl?: React.Dispatch<React.SetStateAction<string | null>>;
   handlePreviewUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleStemsUpload?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadError?: string | null;
+  stemsUrl?: string | null;
+  uploadedFileUrl?: string;
 };
 
 export const FilesTab = ({
@@ -49,9 +52,13 @@ export const FilesTab = ({
   previewUrl,
   setPreviewUrl,
   handlePreviewUpload,
-  handleStemsUpload
+  handleStemsUpload,
+  uploadError,
+  stemsUrl,
+  uploadedFileUrl
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
@@ -65,18 +72,54 @@ export const FilesTab = ({
   const { 
     playing: isAudioPlaying, 
     togglePlay: toggleAudioPlay,
-    duration: audioDuration
+    duration: audioDuration,
+    isReady: audioIsReady,
+    error: audioError,
+    reload: reloadAudio
   } = useAudio(audioPreviewUrl);
   
+  const hasStemsData = stems !== null || stemsUrl !== null && stemsUrl !== undefined;
+
   useEffect(() => {
     setIsPlaying(isAudioPlaying);
   }, [isAudioPlaying, setIsPlaying]);
+
+  useEffect(() => {
+    if (audioIsReady && audioPreviewUrl) {
+      console.log(`Audio preview ready - Duration: ${audioDuration}s, URL: ${audioPreviewUrl}`);
+    }
+  }, [audioDuration, audioIsReady, audioPreviewUrl]);
 
   useEffect(() => {
     if (uploadedFile && isFile(uploadedFile) && uploadProgress[uploadedFile.name] !== undefined) {
       console.log(`Progress update for ${uploadedFile.name}: ${uploadProgress[uploadedFile.name]}%`);
     }
   }, [uploadedFile, uploadProgress]);
+
+  useEffect(() => {
+    return () => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+      }
+    };
+  }, [previewObjectUrl]);
+
+  useEffect(() => {
+    if (audioError && previewUrl && retryCount < 3) {
+      const timer = setTimeout(() => {
+        console.log(`Auto-retrying preview load (${retryCount + 1}/3) with cache-busting...`);
+        if (setPreviewUrl) {
+          const cacheBuster = `cb=${Date.now()}`;
+          const urlBase = previewUrl.split('?')[0];
+          const newUrl = `${urlBase}?${cacheBuster}`;
+          setPreviewUrl(newUrl);
+          setRetryCount(prev => prev + 1);
+        }
+      }, 1500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [audioError, previewUrl, retryCount, setPreviewUrl]);
 
   const getAcceptedAudioTypes = () => {
     if (requiresWavFormat) {
@@ -108,6 +151,23 @@ export const FilesTab = ({
     }
   }, [uploadedFile, requiresWavFormat]);
 
+  const handleRetryAudioPreview = () => {
+    if (audioError) {
+      console.log("Manually retrying audio preview...");
+      setRetryCount(0);
+      
+      if (reloadAudio) {
+        reloadAudio();
+      }
+      
+      if (regeneratePreview && (uploadedFileUrl || (uploadedFile && !isFile(uploadedFile)))) {
+        console.log("Using regeneratePreview with existing upload URL");
+        toast.info("Regenerating preview, please wait...");
+        regeneratePreview();
+      }
+    }
+  };
+
   const handleFullTrackUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -122,31 +182,43 @@ export const FilesTab = ({
         return;
       }
       
+      setRetryCount(0);
+      setValidationError(null);
+      
       handleFullTrackUpload(e);
     }
   };
 
   const handleStemsUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (handleStemsUpload) {
-      handleStemsUpload(e);
-      return;
-    }
-    
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
       if (file.size > 250 * 1024 * 1024) {
         setValidationError("Stems file must be less than 250MB");
+        toast.error("Stems file must be less than 250MB");
         return;
       }
       
-      if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
+      const isZip = file.type === "application/zip" || 
+                    file.type === "application/x-zip-compressed" || 
+                    file.name.endsWith('.zip');
+                    
+      if (!isZip) {
         setValidationError("Stems file must be a ZIP archive");
+        toast.error("Stems file must be a ZIP archive");
         return;
       }
       
+      console.log("Stem file selected:", file.name, "type:", file.type, "size:", (file.size / (1024 * 1024)).toFixed(2) + "MB");
+      toast.info(`Starting upload of ${(file.size / (1024 * 1024)).toFixed(2)}MB stems file. This may take several minutes for large files.`, {
+        duration: 8000
+      });
       setStems(file);
       setValidationError(null);
+      
+      if (handleStemsUpload) {
+        handleStemsUpload(e);
+      }
     }
   };
 
@@ -185,6 +257,10 @@ export const FilesTab = ({
       statusMessage = "Upload complete";
     } else if (safeValue > 0 && safeValue < 100) {
       statusMessage = `Uploading: ${safeValue}%`;
+      
+      if (file.size > 50 * 1024 * 1024) {
+        statusMessage += ` (${(file.size / (1024 * 1024) * (safeValue / 100)).toFixed(1)}/${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+      }
     }
     
     return (
@@ -216,6 +292,29 @@ export const FilesTab = ({
     if (setPreviewUrl) {
       setPreviewUrl(null);
     }
+  };
+
+  const handleStemsClear = () => {
+    setStems(null);
+  };
+
+  const getStemsFileName = () => {
+    if (stems && isFile(stems)) {
+      return stems.name;
+    } else if (stemsUrl) {
+      const urlParts = stemsUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      return fileName.split('?')[0] || "stems.zip";
+    }
+    return "stems.zip";
+  };
+
+  const formatDuration = (seconds: number): string => {
+    if (!seconds || isNaN(seconds) || seconds <= 0) return "0:00";
+    
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -332,26 +431,36 @@ export const FilesTab = ({
               <div 
                 className={`border rounded-lg p-3 flex items-center gap-3
                   ${previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted"} 
+                  ${audioError ? "border-destructive/50 bg-destructive/5" : ""}
                   transition-colors`}
               >
                 {(previewFile || previewUrl) ? (
                   <>
                     <button
-                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center"
-                      onClick={toggleAudioPlay}
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${audioError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
+                      onClick={audioError ? handleRetryAudioPreview : toggleAudioPlay}
                       disabled={!audioPreviewUrl}
                     >
-                      {isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
+                      {audioError ? <RefreshCw size={14} className="animate-spin" /> : 
+                        isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
-                        {previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
+                        {audioError ? "Error loading preview" : 
+                          previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {previewFile && isFile(previewFile) ? 
+                        {audioError ? (
+                          <span className="text-destructive flex items-center">
+                            <AlertTriangle size={12} className="mr-1" />
+                            Failed to load audio. Click to retry.
+                            {retryCount > 0 && ` (${retryCount}/3)`}
+                          </span>
+                        ) : previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
-                          audioPreviewUrl ? `Preview ready (${Math.round(audioDuration)}s)` : 
-                          "Loading preview..."}
+                          audioPreviewUrl && audioIsReady && audioDuration > 0 ? 
+                            `Preview ready (${formatDuration(audioDuration)})` : 
+                            "Loading preview..."}
                       </p>
                       
                       {previewFile && isFile(previewFile) && 
@@ -361,10 +470,11 @@ export const FilesTab = ({
                     </div>
                     {regeneratePreview && (
                       <Button 
-                        variant="outline"
+                        variant={audioError ? "destructive" : "outline"}
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
+                          setRetryCount(0);
                           regeneratePreview();
                         }}
                         className="mr-1"
@@ -441,6 +551,14 @@ export const FilesTab = ({
                   Preview generation can take up to 30 seconds. Please be patient.
                 </p>
               )}
+              {audioError && (
+                <Alert variant="destructive" className="mt-2 py-2">
+                  <AlertDescription className="text-xs">
+                    Preview may not work properly in this browser with WAV files. 
+                    Try uploading an MP3 file instead or use a different browser.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
 
             {hasExclusiveLicense && (
@@ -448,18 +566,18 @@ export const FilesTab = ({
                 <h4 className="text-sm font-medium mb-1">Stems (Optional for Exclusive)</h4>
                 <div 
                   className={`border rounded-lg p-3 flex items-center gap-3 ${
-                    stems ? "bg-primary/5 border-primary/30" : "border-muted"
+                    hasStemsData ? "bg-primary/5 border-primary/30" : "border-muted"
                   } transition-colors`}
                 >
-                  {stems ? (
+                  {hasStemsData ? (
                     <>
                       <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
                       <div className="flex-1 overflow-hidden">
                         <p className="text-xs sm:text-sm font-medium truncate">
-                          {isFile(stems) ? stems.name : "Stems.zip"}
+                          {getStemsFileName()}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {isFile(stems) ? `${(stems.size / (1024 * 1024)).toFixed(2)} MB` : ""}
+                          {isFile(stems) ? `${(stems.size / (1024 * 1024)).toFixed(2)} MB` : stemsUrl ? "Stems file uploaded" : ""}
                         </p>
                         
                         {isFile(stems) && uploadProgress[stems.name] !== undefined && (
@@ -471,7 +589,7 @@ export const FilesTab = ({
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setStems(null);
+                          handleStemsClear();
                         }}
                       >
                         <X size={16} />
@@ -483,6 +601,7 @@ export const FilesTab = ({
                       <div className="flex-1">
                         <p className="text-xs sm:text-sm font-medium">Upload stems</p>
                         <p className="text-xs text-muted-foreground">ZIP file, max 250MB</p>
+                        <p className="text-xs text-muted-foreground mt-1">For large files, allow time for upload to complete</p>
                       </div>
                       <Button 
                         variant="outline" 
@@ -511,6 +630,15 @@ export const FilesTab = ({
         {validationError && (
           <Alert variant="destructive" className="mt-4">
             <AlertDescription>{validationError}</AlertDescription>
+          </Alert>
+        )}
+
+        {uploadError && (
+          <Alert variant="destructive" className="mt-2">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="ml-2 text-xs">
+              Upload error: {uploadError}. Please try again or use a smaller file.
+            </AlertDescription>
           </Alert>
         )}
       </div>

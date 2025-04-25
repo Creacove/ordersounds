@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PlusCircle, Music, Grid, List, Table } from "lucide-react";
+import { PlusCircle, Music, LayoutGrid, LayoutList, Table as LucideTable, Pencil, Trash2, Upload } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,225 +21,604 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useCart } from "@/context/CartContext";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 
 type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
-  const { beats, isLoading, isPurchased, isFavorite } = useBeats();
+  const { beats, isLoading, isPurchased, isFavorite, fetchBeats, forceRefreshBeats } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? "list" : "grid");
+  const [tabValue, setTabValue] = useState<"published" | "drafts">("published");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [dataFetchedRef, setDataFetchedRef] = useState(false);
+  const hasInitialLoadBeenTriggered = useRef(false);
   
+  // Check for refresh flags in sessionStorage
+  const checkForRefreshFlags = useCallback(() => {
+    const needsRefresh = sessionStorage.getItem('beats_needs_refresh');
+    if (needsRefresh === 'true') {
+      console.log("Found refresh flag in sessionStorage, refreshing beats");
+      forceRefreshBeats();
+      // Clear the flag after refresh
+      sessionStorage.removeItem('beats_needs_refresh');
+      return true;
+    }
+    return false;
+  }, [forceRefreshBeats]);
+
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
-    
-    // Redirect to login if not authenticated or not a producer
-    if (!user) {
-      navigate('/login', { state: { from: '/producer/beats' } });
-    } else if (user.role !== 'producer') {
-      navigate('/');
-    }
-  }, [user, navigate]);
+    const timer = setTimeout(() => {
+      setInitialLoading(false);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
 
-  // Update view mode when screen size changes
+  // Load beats data only once when component mounts or when user changes
+  useEffect(() => {
+    const loadBeats = async () => {
+      if (hasInitialLoadBeenTriggered.current) return;
+      
+      console.log("Initial beats data fetch on page load");
+      const hasRefreshed = checkForRefreshFlags();
+      
+      // Only force refresh if no refresh flag was found
+      if (!hasRefreshed && user) {
+        await forceRefreshBeats();
+      }
+      
+      setDataFetchedRef(true);
+      hasInitialLoadBeenTriggered.current = true;
+    };
+    
+    if (user) {
+      loadBeats();
+    }
+  }, [user, forceRefreshBeats, checkForRefreshFlags]);
+  
+  // Listen for storage events to detect changes from other tabs/windows
+  useEffect(() => {
+    const handleStorageEvent = (event: StorageEvent) => {
+      if (event.key === 'beats_needs_refresh' && event.newValue === 'true') {
+        console.log("Refresh triggered from another tab/component");
+        forceRefreshBeats();
+        sessionStorage.removeItem('beats_needs_refresh');
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageEvent);
+    return () => window.removeEventListener('storage', handleStorageEvent);
+  }, [forceRefreshBeats]);
+
   useEffect(() => {
     if (isMobile && viewMode === "table") {
       setViewMode("list");
     }
   }, [isMobile, viewMode]);
 
-  // Filter beats by producer
-  const producerBeats = user ? beats.filter(beat => beat.producer_id === user.id) : [];
+  const producerId = user ? user.id : 'anonymous-producer';
+  const producerBeats = beats.filter(beat => beat.producer_id === producerId);
+  const draftBeats = producerBeats.filter(beat => beat.status === 'draft');
+  const publishedBeats = producerBeats.filter(beat => beat.status === 'published');
 
-  // If not logged in or not a producer, show login prompt
-  if (!user || user.role !== 'producer') {
-    return (
-      <MainLayout>
-        <div className="container py-16">
-          <div className="text-center">
-            <h1 className="heading-responsive-md mb-4">Producer Access Required</h1>
-            <p className="text-responsive-base mb-4">You need to be logged in as a producer to access this page.</p>
-            <Button onClick={() => navigate('/login')}>Login</Button>
-          </div>
+  const handleEdit = useCallback((beatId: string) => {
+    navigate(`/producer/upload?edit=${beatId}`);
+  }, [navigate]);
+
+  const handleDelete = useCallback((beatId: string) => {
+    setSelectedBeatId(beatId);
+    setDeleteOpen(true);
+  }, []);
+
+  const handlePublish = useCallback((beatId: string) => {
+    setSelectedBeatId(beatId);
+    setPublishOpen(true);
+  }, []);
+
+  const confirmDelete = async () => {
+    if (!selectedBeatId) return;
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('beats')
+        .delete()
+        .eq('id', selectedBeatId);
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      toast.success('Beat deleted successfully');
+      // Force refresh the beats data after deletion
+      await forceRefreshBeats();
+      // Set flag for other components/tabs
+      sessionStorage.setItem('beats_needs_refresh', 'true');
+    } catch (error) {
+      console.error('Error deleting beat:', error);
+      toast.error('Failed to delete beat');
+    } finally {
+      setIsDeleting(false);
+      setDeleteOpen(false);
+      setSelectedBeatId(null);
+    }
+  };
+
+  const confirmPublish = async () => {
+    if (!selectedBeatId) return;
+    try {
+      setIsPublishing(true);
+      const { error } = await supabase
+        .from('beats')
+        .update({ status: 'published' })
+        .eq('id', selectedBeatId);
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      toast.success('Beat published successfully');
+      // Force refresh the beats data after publishing
+      await forceRefreshBeats();
+      // Set flag for other components/tabs
+      sessionStorage.setItem('beats_needs_refresh', 'true');
+    } catch (error) {
+      console.error('Error publishing beat:', error);
+      toast.error('Failed to publish beat');
+    } finally {
+      setIsPublishing(false);
+      setPublishOpen(false);
+      setSelectedBeatId(null);
+    }
+  };
+
+  const NoBeatsCard = ({
+    title,
+    description,
+    showUpload = true,
+  }: {
+    title: string,
+    description: string,
+    showUpload?: boolean
+  }) => (
+    <Card className="border border-dashed bg-muted/40">
+      <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="rounded-full bg-primary/10 p-4 mb-3">
+          <Music className="h-7 w-7 text-primary" />
         </div>
-      </MainLayout>
-    );
-  }
+        <h2 className="heading-responsive-sm mb-2">{title}</h2>
+        <p className="text-sm text-muted-foreground max-w-md mb-5">{description}</p>
+        {showUpload && (
+          <Button onClick={() => navigate('/producer/upload')} className="gap-1.5 rounded px-4" size="sm">
+            <PlusCircle className="h-4 w-4" />
+            Upload Beat
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const showSkeleton = initialLoading || (isLoading && beats.length === 0);
 
   return (
     <MainLayout activeTab="beats">
-      <div className={cn(
-        "container py-6 md:py-8 max-w-full px-4 md:px-8 lg:px-12",
-        isMobile ? "pb-20" : ""
-      )}>
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-3">
-            <h1 className="heading-responsive-lg">My Beats</h1>
-            <span className="text-muted-foreground text-sm">
-              {producerBeats.length} {producerBeats.length === 1 ? 'beat' : 'beats'}
-            </span>
-          </div>
-          <Button 
-            onClick={() => navigate('/producer/upload')}
-            size="sm"
-            className="gap-1.5"
-          >
-            <PlusCircle className="h-4 w-4" />
-            Upload
-          </Button>
-        </div>
-        
-        {/* View switcher */}
-        <div className="flex items-center justify-end gap-2 mb-4">
-          <Button
-            variant={viewMode === "grid" ? "secondary" : "ghost"}
-            size="sm"
-            className="text-xs py-1 px-2.5 h-auto"
-            onClick={() => setViewMode("grid")}
-          >
-            <Grid className="h-3.5 w-3.5 mr-1.5" />
-            Grid
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "secondary" : "ghost"}
-            size="sm"
-            className="text-xs py-1 px-2.5 h-auto"
-            onClick={() => setViewMode("list")}
-          >
-            <List className="h-3.5 w-3.5 mr-1.5" />
-            List
-          </Button>
-          {!isMobile && (
-            <Button
-              variant={viewMode === "table" ? "secondary" : "ghost"}
-              size="sm"
-              className="text-xs py-1 px-2.5 h-auto"
-              onClick={() => setViewMode("table")}
+      <div className={cn("container py-4 md:py-6 max-w-full px-1 md:px-3 lg:px-8", isMobile ? "pb-16" : "")}>
+        <div className="flex flex-wrap md:flex-nowrap items-center justify-between mb-4 gap-y-2 gap-x-3">
+          <div className="flex items-center space-x-3 w-full">
+            <h1 className="heading-responsive-lg flex-grow truncate">My Beats</h1>
+            {!showSkeleton && (
+              <span className="text-muted-foreground text-xs md:text-sm ml-2">
+                {producerBeats.length} {producerBeats.length === 1 ? "beat" : "beats"}
+              </span>
+            )}
+            <Button 
+              onClick={() => navigate("/producer/upload")} 
+              size="sm" 
+              className="ml-auto flex-shrink-0 gap-1.5"
             >
-              <Table className="h-3.5 w-3.5 mr-1.5" />
-              Table
+              <PlusCircle className="h-4 w-4" />
+              Upload
             </Button>
+          </div>
+          {!isMobile && (
+            <div className="flex gap-2 ml-4">
+              <Button
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="sm"
+                className="text-xs p-2 h-auto"
+                onClick={() => setViewMode("grid")}
+                aria-label="Grid view"
+              >
+                <LayoutGrid className="h-4 w-4 mr-1.5" />
+                Grid
+              </Button>
+              <Button
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="sm"
+                className="text-xs p-2 h-auto"
+                onClick={() => setViewMode("list")}
+                aria-label="List view"
+              >
+                <LayoutList className="h-4 w-4 mr-1.5" />
+                List
+              </Button>
+              <Button
+                variant={viewMode === "table" ? "secondary" : "ghost"}
+                size="sm"
+                className="text-xs p-2 h-auto"
+                onClick={() => setViewMode("table")}
+                aria-label="Table view"
+              >
+                <LucideTable className="h-4 w-4 mr-1.5" />
+                Table
+              </Button>
+            </div>
           )}
         </div>
-        
-        {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-            {[...Array(10)].map((_, i) => (
-              <div key={i} className="flex flex-col gap-2">
-                <Skeleton className="aspect-square w-full rounded-lg" />
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-3 w-1/2" />
-              </div>
-            ))}
-          </div>
-        ) : producerBeats.length > 0 ? (
-          <>
-            {/* Grid View - Desktop */}
-            {viewMode === "grid" && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-                {producerBeats.map((beat) => (
-                  <BeatCard 
-                    key={beat.id} 
-                    beat={beat}
-                    isFavorite={isFavorite(beat.id)}
-                    isInCart={isInCart(beat.id)}
-                    isPurchased={isPurchased(beat.id)}
-                    className="h-full shadow-sm hover:shadow"
-                  />
-                ))}
-              </div>
-            )}
-            
-            {/* List View */}
-            {viewMode === "list" && (
-              <div className="space-y-3">
-                {producerBeats.map((beat) => (
-                  <BeatListItem
-                    key={beat.id}
-                    beat={beat}
-                    isFavorite={isFavorite(beat.id)}
-                    isInCart={isInCart(beat.id)}
-                    isPurchased={isPurchased(beat.id)}
-                  />
-                ))}
-              </div>
-            )}
-            
-            {/* Table View - Desktop only */}
-            {viewMode === "table" && !isMobile && (
-              <div className="rounded-md border">
-                <UITable>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[80px]"></TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Genre</TableHead>
-                      <TableHead>BPM</TableHead>
-                      <TableHead>Key</TableHead>
-                      <TableHead>Track Type</TableHead>
-                      <TableHead className="text-right">Price (Local)</TableHead>
-                      <TableHead className="text-right">Price (Diaspora)</TableHead>
-                      <TableHead className="text-right">Plays</TableHead>
-                      <TableHead className="text-right">Favorites</TableHead>
-                      <TableHead className="text-right">Sales</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {producerBeats.map((beat) => (
-                      <TableRow 
-                        key={beat.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/beat/${beat.id}`)}
-                      >
-                        <TableCell className="p-2">
-                          <div className="relative h-10 w-10 rounded-md overflow-hidden">
-                            <img 
-                              src={beat.cover_image_url || '/placeholder.svg'} 
-                              alt={beat.title}
-                              className="h-full w-full object-cover"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium">{beat.title}</TableCell>
-                        <TableCell>{beat.genre}</TableCell>
-                        <TableCell>{beat.bpm} BPM</TableCell>
-                        <TableCell>{beat.key || "-"}</TableCell>
-                        <TableCell>{beat.track_type}</TableCell>
-                        <TableCell className="text-right">₦{(beat.basic_license_price_local || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">${(beat.basic_license_price_diaspora || 0).toLocaleString()}</TableCell>
-                        <TableCell className="text-right">{beat.plays || 0}</TableCell>
-                        <TableCell className="text-right">{beat.favorites_count}</TableCell>
-                        <TableCell className="text-right">{beat.purchase_count}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </UITable>
-              </div>
-            )}
-          </>
-        ) : (
-          <Card className="border border-dashed bg-muted/30">
-            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="rounded-full bg-primary/10 p-3 mb-4">
-                <Music className="h-6 w-6 text-primary" />
-              </div>
-              <h2 className="heading-responsive-sm mb-2">No Beats Yet</h2>
-              <p className="text-sm text-muted-foreground max-w-md mb-5">
-                You haven't uploaded any beats yet. Get started by uploading your first beat!
-              </p>
-              <Button 
-                onClick={() => navigate('/producer/upload')}
-                className="gap-1.5"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Upload Beat
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between md:gap-6 gap-2 mb-2">
+          <Tabs
+            value={tabValue}
+            onValueChange={(v) => setTabValue(v as "published" | "drafts")}
+            className="w-full"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <TabsList className="max-w-xs w-full flex items-center ml-0 md:mx-0 mb-0">
+                <TabsTrigger value="published" className={cn("flex-1 text-base py-2", tabValue === "published" ? "shadow" : "")}>
+                  Published <span className="ml-1 text-xs text-muted-foreground font-normal">
+                    {!showSkeleton ? `(${publishedBeats.length})` : "(...)"}
+                  </span>
+                </TabsTrigger>
+                <TabsTrigger value="drafts" className={cn("flex-1 text-base py-2", tabValue === "drafts" ? "shadow" : "")}>
+                  Drafts <span className="ml-1 text-xs text-muted-foreground font-normal">
+                    {!showSkeleton ? `(${draftBeats.length})` : "(...)"}
+                  </span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="published" className="mt-4 min-h-[220px] animate-fade-in">
+              {showSkeleton ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="flex flex-col gap-2">
+                      <Skeleton className="aspect-square w-full rounded-lg" />
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              ) : publishedBeats.length > 0 ? (
+                <>
+                  {viewMode === "grid" && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
+                      {publishedBeats.map((beat) => (
+                        <div key={beat.id} className="relative group h-full">
+                          <BeatCard
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                            className="h-full shadow-sm hover:shadow-sm"
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {viewMode === "list" && (
+                    <div className="space-y-2">
+                      {publishedBeats.map((beat) => (
+                        <div key={beat.id} className="relative group">
+                          <BeatListItem
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {viewMode === "table" && !isMobile && (
+                    <div className="rounded-md border overflow-x-auto">
+                      <UITable>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[80px]"></TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Genre</TableHead>
+                            <TableHead>BPM</TableHead>
+                            <TableHead>Key</TableHead>
+                            <TableHead>Track Type</TableHead>
+                            <TableHead className="text-right">Price (Local)</TableHead>
+                            <TableHead className="text-right">Price (Diaspora)</TableHead>
+                            <TableHead className="text-right">Plays</TableHead>
+                            <TableHead className="text-right">Favorites</TableHead>
+                            <TableHead className="text-right">Sales</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {publishedBeats.map((beat) => (
+                            <TableRow
+                              key={beat.id}
+                              className="cursor-pointer hover:bg-muted/40"
+                              onClick={() => navigate(`/beat/${beat.id}`)}
+                            >
+                              <TableCell className="p-2">
+                                <div className="relative h-10 w-10 rounded-md overflow-hidden">
+                                  <img
+                                    src={beat.cover_image_url || '/placeholder.svg'}
+                                    alt={beat.title}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-medium">{beat.title}</TableCell>
+                              <TableCell>{beat.genre}</TableCell>
+                              <TableCell>{beat.bpm} BPM</TableCell>
+                              <TableCell>{beat.key || "-"}</TableCell>
+                              <TableCell>{beat.track_type}</TableCell>
+                              <TableCell className="text-right">₦{(beat.basic_license_price_local || 0).toLocaleString()}</TableCell>
+                              <TableCell className="text-right">${(beat.basic_license_price_diaspora || 0).toLocaleString()}</TableCell>
+                              <TableCell className="text-right">{beat.plays || 0}</TableCell>
+                              <TableCell className="text-right">{beat.favorites_count}</TableCell>
+                              <TableCell className="text-right">{beat.purchase_count}</TableCell>
+                              <TableCell>
+                                <span className="inline-block px-2 py-0.5 rounded bg-green-100 text-green-900 text-xs font-semibold">
+                                  PUBLISHED
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right align-middle">
+                                <div className="flex gap-2 items-center justify-end">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-purple-100"
+                                    aria-label="Edit"
+                                    onClick={e => { e.stopPropagation(); handleEdit(beat.id); }}
+                                    style={{ color: "#fff", background: "#9b87f5" }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-red-100"
+                                    aria-label="Delete"
+                                    onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
+                                    style={{ color: "#fff", background: "#ea384c" }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </UITable>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <NoBeatsCard
+                  title="No Published Beats"
+                  description="You haven't published any beats yet. Upload or publish a beat to get started!"
+                />
+              )}
+            </TabsContent>
+            <TabsContent value="drafts" className="mt-4 min-h-[220px] animate-fade-in">
+              {isLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3">
+                  {[...Array(6)].map((_, i) => (
+                    <div key={i} className="flex flex-col gap-2">
+                      <Skeleton className="aspect-square w-full rounded-lg" />
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              ) : draftBeats.length > 0 ? (
+                <>
+                  {viewMode === "grid" && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-3">
+                      {draftBeats.map((beat) => (
+                        <div key={beat.id} className="relative group h-full">
+                          <BeatCard
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                            className="h-full shadow-sm hover:shadow-sm ring-2 ring-yellow-300"
+                            label="DRAFT"
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            onPublish={handlePublish}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {viewMode === "list" && (
+                    <div className="space-y-2">
+                      {draftBeats.map((beat) => (
+                        <div key={beat.id} className="relative group">
+                          <BeatListItem
+                            beat={beat}
+                            isFavorite={isFavorite(beat.id)}
+                            isInCart={isInCart(beat.id)}
+                            isPurchased={isPurchased(beat.id)}
+                            statusLabel="DRAFT"
+                            isProducerOwned={true}
+                            onEdit={handleEdit}
+                            onDelete={handleDelete}
+                            onPublish={handlePublish}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {viewMode === "table" && !isMobile && (
+                    <div className="rounded-md border overflow-x-auto">
+                      <UITable>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[80px]"></TableHead>
+                            <TableHead>Title</TableHead>
+                            <TableHead>Genre</TableHead>
+                            <TableHead>BPM</TableHead>
+                            <TableHead>Key</TableHead>
+                            <TableHead>Track Type</TableHead>
+                            <TableHead className="text-right">Price (Local)</TableHead>
+                            <TableHead className="text-right">Price (Diaspora)</TableHead>
+                            <TableHead className="text-right">Plays</TableHead>
+                            <TableHead className="text-right">Favorites</TableHead>
+                            <TableHead className="text-right">Sales</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {draftBeats.map((beat) => (
+                            <TableRow
+                              key={beat.id}
+                              className="cursor-pointer hover:bg-yellow-50"
+                              onClick={() => navigate(`/beat/${beat.id}`)}
+                            >
+                              <TableCell className="p-2">
+                                <div className="relative h-10 w-10 rounded-md overflow-hidden ring-2 ring-yellow-300">
+                                  <img
+                                    src={beat.cover_image_url || '/placeholder.svg'}
+                                    alt={beat.title}
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-medium">{beat.title}</TableCell>
+                              <TableCell>{beat.genre}</TableCell>
+                              <TableCell>{beat.bpm} BPM</TableCell>
+                              <TableCell>{beat.key || "-"}</TableCell>
+                              <TableCell>{beat.track_type}</TableCell>
+                              <TableCell className="text-right">₦{(beat.basic_license_price_local || 0).toLocaleString()}</TableCell>
+                              <TableCell className="text-right">${(beat.basic_license_price_diaspora || 0).toLocaleString()}</TableCell>
+                              <TableCell className="text-right">{beat.plays || 0}</TableCell>
+                              <TableCell className="text-right">{beat.favorites_count}</TableCell>
+                              <TableCell className="text-right">{beat.purchase_count}</TableCell>
+                              <TableCell>
+                                <span className="inline-block px-2 py-0.5 rounded bg-yellow-200 text-yellow-900 text-xs font-semibold">
+                                  DRAFT
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right align-middle">
+                                <div className="flex gap-2 items-center justify-end">
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-green-100"
+                                    aria-label="Publish"
+                                    onClick={e => { e.stopPropagation(); handlePublish(beat.id); }}
+                                    style={{ color: "#fff", background: "#8B5CF6" }}
+                                  >
+                                    <Upload className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-purple-100"
+                                    aria-label="Edit"
+                                    onClick={e => { e.stopPropagation(); handleEdit(beat.id); }}
+                                    style={{ color: "#fff", background: "#9b87f5" }}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-7 w-7 border-0 hover:bg-red-100"
+                                    aria-label="Delete"
+                                    onClick={e => { e.stopPropagation(); handleDelete(beat.id); }}
+                                    style={{ color: "#fff", background: "#ea384c" }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </UITable>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <NoBeatsCard
+                  title="No Drafts"
+                  description="You don't have any draft beats! Upload or save a beat as draft to see them here."
+                  showUpload={true}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this beat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this beat? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Publish this beat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to publish this beat? It will be visible to all users.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-primary text-white hover:bg-primary/90"
+              onClick={confirmPublish}
+              disabled={isPublishing}
+            >
+              {isPublishing ? 'Publishing...' : 'Publish'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </MainLayout>
   );
 }

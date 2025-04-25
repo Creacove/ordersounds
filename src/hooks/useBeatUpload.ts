@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, FileOrUrl, isFile } from "@/lib/storage";
 import { uploadImage } from "@/lib/imageStorage";
+import { createMp3Preview } from "@/utils/audioPreview";
 
 export type LicenseOption = {
   value: string;
@@ -42,7 +43,7 @@ export type Collaborator = {
   percentage: number;
 };
 
-export const useBeatUpload = () => {
+export function useBeatUpload() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("details");
   const [isPlaying, setIsPlaying] = useState(false);
@@ -58,7 +59,9 @@ export const useBeatUpload = () => {
   const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [stemsUrl, setStemsUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [beatDetails, setBeatDetails] = useState<BeatDetails>({
     title: "",
@@ -133,19 +136,18 @@ export const useBeatUpload = () => {
       }
       
       const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
-                                selectedLicenseTypes.includes('exclusive');
-                                
+                              selectedLicenseTypes.includes('exclusive');
+                              
       if (requiresWavFormat && file.type !== "audio/wav" && !file.name.endsWith('.wav')) {
         toast.error("Premium and exclusive licenses require WAV format");
         return;
       }
       
       setUploadedFile(file);
-      
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
-      
       setPreviewFile(null);
       setPreviewUrl(null);
+      setUploadError(null);
       
       try {
         toast.info("Uploading full track...");
@@ -158,12 +160,12 @@ export const useBeatUpload = () => {
         setUploadedFileUrl(url);
         toast.success("Full track uploaded");
 
-        // Automatically generate preview once upload completes
         toast.info("Processing audio and generating preview...");
         await generatePreview(url);
       } catch (error) {
         console.error("Error uploading file:", error);
-        toast.error("Failed to upload file. Please try again.");
+        setUploadError(error.message || "Failed to upload file");
+        toast.error(error.message || "Failed to upload file. Please try again.");
       }
     }
   };
@@ -174,18 +176,36 @@ export const useBeatUpload = () => {
       setPreviewUrl(null);
       setPreviewFile(null);
       
+      const timestampedUrl = fileUrl.includes('?') 
+        ? `${fileUrl}&t=${Date.now()}` 
+        : `${fileUrl}?t=${Date.now()}`;
+      
       const { data, error } = await supabase.functions.invoke('process-audio', {
         body: { 
-          fullTrackUrl: fileUrl,
+          fullTrackUrl: timestampedUrl,
           requiresWav: selectedLicenseTypes.includes('premium') || selectedLicenseTypes.includes('exclusive')
         }
       });
       
       if (error) {
         console.error("Error processing audio:", error);
-        toast.error(error.message || "Failed to process audio. Please try again.");
-        setProcessingFiles(false);
-        return;
+        toast.error("Server preview generation failed. Trying client-side generation...");
+        
+        if (uploadedFile && isFile(uploadedFile)) {
+          try {
+            const previewBlob = await createMp3Preview(uploadedFile);
+            const previewObjectUrl = URL.createObjectURL(previewBlob);
+            setPreviewUrl(previewObjectUrl);
+            toast.success("Preview generated locally");
+            setProcessingFiles(false);
+            return;
+          } catch (clientError) {
+            console.error("Client-side preview generation failed:", clientError);
+            throw new Error("Failed to generate preview");
+          }
+        } else {
+          throw new Error("No file available for preview generation");
+        }
       }
 
       if (data && data.previewUrl) {
@@ -199,6 +219,18 @@ export const useBeatUpload = () => {
       } else {
         console.error("No preview URL returned from processing:", data);
         toast.error("Failed to generate audio preview");
+        
+        if (uploadedFile && isFile(uploadedFile)) {
+          toast.info("Trying client-side preview generation...");
+          try {
+            const previewBlob = await createMp3Preview(uploadedFile);
+            const previewObjectUrl = URL.createObjectURL(previewBlob);
+            setPreviewUrl(previewObjectUrl);
+            toast.success("Preview generated locally");
+          } catch (clientError) {
+            console.error("Client-side preview generation failed:", clientError);
+          }
+        }
       }
       
       setProcessingFiles(false);
@@ -261,13 +293,11 @@ export const useBeatUpload = () => {
         return;
       }
       
-      // Create a preview immediately using FileReader
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target && event.target.result) {
           const base64String = event.target.result.toString();
           setImagePreview(base64String);
-          // Store the base64 string directly
           setImageFile({
             url: base64String
           });
@@ -275,7 +305,6 @@ export const useBeatUpload = () => {
       };
       reader.readAsDataURL(file);
       
-      // No need to upload the image immediately - will be done when the beat is saved
       toast.success("Cover image selected", { id: "image-upload" });
     }
   };
@@ -476,19 +505,38 @@ export const useBeatUpload = () => {
       const file = e.target.files[0];
       
       if (file.size > 250 * 1024 * 1024) {
-        toast.error("Stems file must be less than 250MB");
+        toast.error("File must be less than 250MB");
         return;
       }
       
-      if (file.type !== "application/zip" && !file.name.endsWith('.zip')) {
+      if (file.type !== "application/zip" && !file.name.endsWith('.zip') && 
+          file.type !== "application/x-zip-compressed") {
         toast.error("Stems file must be a ZIP archive");
         return;
       }
       
       setStems(file);
       setUploadProgress(prev => ({ ...prev, [file.name]: 0 }));
+      setStemsUrl(null);
       
-      uploadStemsFile(file);
+      try {
+        toast.info("Uploading stems...");
+        
+        console.log("Starting upload for stems file:", file.name, "type:", file.type);
+        
+        const url = await uploadFile(file, 'beats', 'stems', (progress) => {
+          console.log(`Stems upload progress: ${progress}%`);
+          setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
+        });
+        
+        console.log("Stems upload completed, URL:", url);
+        setStemsUrl(url);
+        toast.success("Stems uploaded successfully");
+      } catch (error) {
+        console.error("Error uploading stems:", error);
+        setUploadError(error.message || "Failed to upload stems");
+        toast.error("Failed to upload stems. Please try again.");
+      }
     }
   };
   
@@ -501,6 +549,7 @@ export const useBeatUpload = () => {
         setUploadProgress(prev => ({ ...prev, [file.name]: progress }));
       });
       
+      setStemsUrl(url);
       toast.success("Stems uploaded");
       return url;
     } catch (error) {
@@ -541,6 +590,11 @@ export const useBeatUpload = () => {
     handleStemsUpload,
     regeneratePreview,
     licenseOptions,
-    uploadedFileUrl
+    uploadedFileUrl,
+    setUploadedFileUrl,
+    uploadError,
+    uploadStemsFile,
+    stemsUrl,
+    setStemsUrl
   };
-};
+}
