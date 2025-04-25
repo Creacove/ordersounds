@@ -1,3 +1,4 @@
+
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -63,13 +64,14 @@ export function UnifiedSidebar({
       >
         <div className="flex items-center justify-between p-4 border-b border-[#272727]">
           <div className="flex items-center gap-2">
-            {!isCollapsed && (
-              <img 
-                src="/lovable-uploads/b5e6b0f7-4aed-41b2-8d54-69612337a521.png" 
-                alt="OrderSOUNDS" 
-                className="h-8"
-              />
-            )}
+            {/* Display logo image - sized differently based on collapsed state */}
+            <img 
+              src="/lovable-uploads/527d98e3-e7fa-4ff8-9145-438f4f6d7437.png" 
+              alt="OrderSOUNDS" 
+              className={cn(
+                isCollapsed ? "h-8 mx-auto" : "h-10"
+              )}
+            />
           </div>
           <div className="flex items-center gap-2">
             {isMobile && (
