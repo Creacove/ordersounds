@@ -11,30 +11,18 @@ export const FeaturedPlaylists = () => {
   const { data: playlists = [], isLoading } = useQuery({
     queryKey: ['featured-playlists'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('playlists')
         .select('*')
         .eq('is_public', true)
         .limit(4);
         
-      if (error) throw error;
-      
       // Map the data to match the Playlist type
       return (data || []).map(playlist => ({
-        id: playlist.id,
-        name: playlist.name,
-        owner_id: playlist.owner_id,
-        beats: playlist.beats,
-        is_public: playlist.is_public,
+        ...playlist,
         created_at: playlist.created_date || new Date().toISOString(),
-        cover_image_url: playlist.cover_image
       })) as Playlist[];
-    },
-    staleTime: 60000, // Consider data fresh for 1 minute
-    retry: 2, // Retry up to 2 times
-    retryDelay: attempt => Math.min(1000 * 2 ** attempt, 10000), // Exponential backoff
-    // Return empty array for failed queries instead of undefined
-    placeholderData: []
+    }
   });
 
   return (
@@ -60,13 +48,6 @@ export const FeaturedPlaylists = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {playlists?.map((playlist) => (
             <PlaylistCard key={playlist.id} playlist={playlist} />
-          ))}
-          
-          {/* Show empty placeholders if not enough playlists */}
-          {playlists.length < 4 && Array(4 - playlists.length).fill(0).map((_, i) => (
-            <div key={`empty-${i}`} className="aspect-square rounded-2xl bg-muted/20 border border-muted flex items-center justify-center">
-              <span className="text-muted-foreground text-sm">Coming Soon</span>
-            </div>
           ))}
         </div>
       )}
