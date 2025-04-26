@@ -128,7 +128,7 @@ export const fetchAllBeats = async (options: {
         } else {
           resolve([]);
         }
-      }).catch(error => {
+      }).catch((error) => {
         pendingRequests.delete(requestKey);
         reject(error);
       });
@@ -174,7 +174,7 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
           
           resolve(mappedBeats);
         })
-        .catch(error => {
+        .catch((error) => {
           reject(error);
         });
     });
@@ -218,7 +218,7 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
           
           resolve(mappedBeats);
         })
-        .catch(error => {
+        .catch((error) => {
           reject(error);
         });
     });
@@ -265,7 +265,7 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
             resolve([]);
           }
         })
-        .catch(error => {
+        .catch((error) => {
           reject(error);
         });
     });
@@ -322,7 +322,7 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
           
           resolve(mappedBeat);
         })
-        .catch(error => {
+        .catch((error) => {
           reject(error);
         });
     });
@@ -363,7 +363,7 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
           
           resolve(mappedBeats);
         })
-        .catch(error => {
+        .catch((error) => {
           reject(error);
         });
     });
@@ -420,7 +420,7 @@ export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
           const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
           resolve(mappedBeats);
         })
-        .catch(error => {
+        .catch((error) => {
           reject(error);
         });
     });
