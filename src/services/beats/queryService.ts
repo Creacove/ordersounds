@@ -107,7 +107,7 @@ export const fetchAllBeats = async (options: {
     }
     
     // Store this request in the pending map
-    // Fix: Create a full Promise instead of PromiseLike by returning Promise object directly
+    // Create a full Promise object instead of PromiseLike
     const requestPromise = new Promise<Beat[]>((resolve, reject) => {
       query.then(({ data: beatsData, error: beatsError }) => {
         // Remove from pending requests map when done
@@ -152,7 +152,7 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
       return trendingCache.get(limit) || [];
     }
     
-    // Fix: Convert to a full Promise with proper error handling
+    // Create a full Promise with proper error handling
     return new Promise<Beat[]>((resolve, reject) => {
       supabase
         .from('beats')
@@ -197,7 +197,7 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
       return newBeatsCache.get(cacheKey) || [];
     }
     
-    // Fix: Convert to a full Promise with proper error handling
+    // Create a full Promise with proper error handling
     return new Promise<Beat[]>((resolve, reject) => {
       supabase
         .from('beats')
@@ -239,7 +239,7 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
       return randomBeatsCache.get(limit) || [];
     }
     
-    // Fix: Convert to a full Promise with proper error handling
+    // Create a full Promise with proper error handling
     return new Promise<Beat[]>((resolve, reject) => {
       // Clone the query each time to prevent body stream already read errors
       supabase
@@ -285,7 +285,7 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
       return beatCache.get(beatId) || null;
     }
     
-    // Fix: Convert to a full Promise with proper error handling
+    // Create a full Promise with proper error handling
     return new Promise<Beat | null>((resolve, reject) => {
       supabase
         .from('beats')
@@ -342,7 +342,7 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
       return featuredBeatsCache.get(limit) || [];
     }
     
-    // Fix: Convert to a full Promise with proper error handling
+    // Create a full Promise with proper error handling
     return new Promise<Beat[]>((resolve, reject) => {
       supabase
         .from('beats')
@@ -403,7 +403,7 @@ export const clearBeatsCache = (): void => {
 
 export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    // Fix: Convert to a full Promise with proper error handling
+    // Create a full Promise with proper error handling
     return new Promise<Beat[]>((resolve, reject) => {
       supabase
         .from('beats')
