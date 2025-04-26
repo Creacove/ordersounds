@@ -7,22 +7,76 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Playlist } from "@/types";
 
+// Fallback playlists for when the server is unavailable
+const fallbackPlaylists: Playlist[] = [
+  {
+    id: "fallback-1",
+    name: "Top Hits",
+    owner_id: "system",
+    owner_name: "System",
+    beats: [],
+    is_public: true,
+    created_at: new Date().toISOString(),
+    cover_image: "/placeholder.svg"
+  },
+  {
+    id: "fallback-2",
+    name: "Trending Now",
+    owner_id: "system",
+    owner_name: "System",
+    beats: [],
+    is_public: true,
+    created_at: new Date().toISOString(),
+    cover_image: "/placeholder.svg"
+  },
+  {
+    id: "fallback-3",
+    name: "New Releases",
+    owner_id: "system",
+    owner_name: "System",
+    beats: [],
+    is_public: true,
+    created_at: new Date().toISOString(),
+    cover_image: "/placeholder.svg"
+  },
+  {
+    id: "fallback-4",
+    name: "Popular Classics",
+    owner_id: "system",
+    owner_name: "System",
+    beats: [],
+    is_public: true,
+    created_at: new Date().toISOString(),
+    cover_image: "/placeholder.svg"
+  }
+];
+
 export const FeaturedPlaylists = () => {
   const { data: playlists = [], isLoading } = useQuery({
     queryKey: ['featured-playlists'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('playlists')
-        .select('*')
-        .eq('is_public', true)
-        .limit(4);
+      try {
+        const { data, error } = await supabase
+          .from('playlists')
+          .select('*')
+          .eq('is_public', true)
+          .limit(4);
+          
+        if (error) throw error;
         
-      // Map the data to match the Playlist type
-      return (data || []).map(playlist => ({
-        ...playlist,
-        created_at: playlist.created_date || new Date().toISOString(),
-      })) as Playlist[];
-    }
+        // Map the data to match the Playlist type
+        return (data || []).map(playlist => ({
+          ...playlist,
+          created_at: playlist.created_date || new Date().toISOString(),
+        })) as Playlist[];
+      } catch (error) {
+        console.error('Error fetching playlists:', error);
+        return fallbackPlaylists;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    placeholderData: fallbackPlaylists, // Use fallback playlists as placeholder
+    retry: 1 // Don't retry too many times
   });
 
   return (

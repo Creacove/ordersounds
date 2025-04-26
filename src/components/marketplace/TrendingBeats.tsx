@@ -7,10 +7,12 @@ import { BeatCardCompact } from "./BeatCardCompact";
 import { fetchMarkedTrendingBeats } from "@/services/beats/queryService";
 
 export const TrendingBeats = () => {
+  // Always provide an empty array as default data to avoid undefined
   const { data: trendingBeats = [], isLoading } = useQuery({
     queryKey: ['marked-trending-beats'],
     queryFn: () => fetchMarkedTrendingBeats(5),
-    staleTime: 5 * 60 * 1000 // Consider data fresh for 5 minutes
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    retry: 1 // Don't retry too many times
   });
 
   return (

@@ -1,73 +1,79 @@
 
-import { useState } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { RefreshCw, WifiOff } from 'lucide-react';
-import { useSupabaseConnection } from '@/hooks/useSupabaseConnection';
+import React, { ReactNode, useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
+import { getConnectionStatus } from "@/lib/supabaseConnectionMonitor";
 
-interface ConnectionErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
-  onRetry?: () => void;
-  showAlert?: boolean;
-}
-
-export function ConnectionErrorBoundary({
-  children,
-  fallback,
-  onRetry,
-  showAlert = false // Set default to false to hide connection alerts
-}: ConnectionErrorBoundaryProps) {
-  const { isConnected, checkConnection } = useSupabaseConnection();
-  const [isRetrying, setIsRetrying] = useState(false);
+// This component provides a silent error boundary that handles connection issues
+// without displaying alerts to users, but gracefully falls back to cached content
+export const ConnectionErrorBoundary: React.FC<{
+  children: ReactNode;
+  onRetry?: () => Promise<void> | void; 
+  showAlert?: boolean; // Set to false to be completely silent
+}> = ({ children, onRetry, showAlert = false }) => {
+  const [isErrorVisible, setIsErrorVisible] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  
+  // Check connection status periodically
+  useEffect(() => {
+    const checkConnection = async () => {
+      const { isConnected, networkError } = getConnectionStatus();
+      // Only show error if explicitly enabled and there's a network error
+      setIsErrorVisible(showAlert && networkError);
+    };
+    
+    // Check immediately 
+    checkConnection();
+    
+    // Then check periodically
+    const interval = setInterval(checkConnection, 30000);
+    
+    return () => {
+      clearInterval(interval);
+    };
+  }, [showAlert]);
   
   const handleRetry = async () => {
-    if (isRetrying) return;
-    
-    setIsRetrying(true);
+    setRetrying(true);
     try {
-      await checkConnection(true);
       if (onRetry) {
-        onRetry();
+        await onRetry();
       }
+      setIsErrorVisible(false);
+    } catch (error) {
+      console.error("Error during retry:", error);
     } finally {
-      setIsRetrying(false);
+      setRetrying(false);
     }
   };
   
-  // We'll only show the alert if explicitly requested via showAlert prop
-  if (!isConnected && showAlert) {
-    return (
-      <div className="space-y-4">
-        {fallback || (
-          <Alert variant="destructive">
-            <WifiOff className="h-4 w-4" />
-            <AlertTitle>Connection Error</AlertTitle>
-            <AlertDescription className="flex flex-col gap-2">
-              <p>Unable to connect to the server. Please check your network connection.</p>
+  // Show error bar only if we're supposed to show alerts and there's an error
+  return (
+    <>
+      {isErrorVisible && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 shadow-md">
+          <div className="flex">
+            <div className="flex-grow">
+              <p className="text-sm text-yellow-700">
+                We're having trouble connecting to our servers. You're viewing cached content.
+              </p>
+            </div>
+            <div>
               <Button 
                 variant="outline" 
                 size="sm" 
-                className="w-full sm:w-auto" 
                 onClick={handleRetry}
-                disabled={isRetrying}
+                disabled={retrying}
+                className="text-yellow-700 border-yellow-600 hover:bg-yellow-100"
               >
-                <RefreshCw className={cn("h-4 w-4 mr-2", isRetrying ? "animate-spin" : "")} />
-                {isRetrying ? "Checking connection..." : "Retry Connection"}
+                <RefreshCw className={`h-4 w-4 mr-1 ${retrying ? 'animate-spin' : ''}`} />
+                {retrying ? 'Retrying...' : 'Retry'}
               </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-        {children}
-      </div>
-    );
-  }
-  
-  // Most of the time, just render children without error message
-  return <>{children}</>;
-}
-
-// Helper function for conditional class names
-const cn = (...classes: (string | boolean | undefined)[]) => {
-  return classes.filter(Boolean).join(' ');
+            </div>
+          </div>
+        </div>
+      )}
+      {children}
+    </>
+  );
 };
