@@ -177,9 +177,6 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
         .catch(error => {
           reject(error);
         });
-    }).catch(error => {
-      console.error('Error fetching trending beats:', error);
-      return [];
     });
   } catch (error) {
     console.error('Error fetching trending beats:', error);
@@ -224,9 +221,6 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
         .catch(error => {
           reject(error);
         });
-    }).catch(error => {
-      console.error('Error fetching new beats:', error);
-      return [];
     });
   } catch (error) {
     console.error('Error fetching new beats:', error);
@@ -274,9 +268,6 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
         .catch(error => {
           reject(error);
         });
-    }).catch(error => {
-      console.error('Error fetching random beats:', error);
-      return [];
     });
   } catch (error) {
     console.error('Error fetching random beats:', error);
@@ -334,9 +325,6 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
         .catch(error => {
           reject(error);
         });
-    }).catch(error => {
-      console.error('Error fetching beat by ID:', error);
-      return null;
     });
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
@@ -378,13 +366,10 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
         .catch(error => {
           reject(error);
         });
-    }).catch(error => {
-      console.error('Error fetching featured beats:', error);
-      uniqueToast.error("Failed to load featured beats");
-      return [];
     });
   } catch (error) {
     console.error('Error fetching featured beats:', error);
+    uniqueToast.error("Failed to load featured beats");
     return [];
   }
 };
@@ -438,9 +423,6 @@ export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
         .catch(error => {
           reject(error);
         });
-    }).catch(error => {
-      console.error('Error fetching marked trending beats:', error);
-      return [];
     });
   } catch (error) {
     console.error('Error fetching marked trending beats:', error);
