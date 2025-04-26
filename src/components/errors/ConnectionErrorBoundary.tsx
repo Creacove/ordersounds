@@ -16,10 +16,11 @@ export function ConnectionErrorBoundary({
   children,
   fallback,
   onRetry,
-  showAlert = true
+  showAlert = false // Changed default to false to avoid showing unnecessary alerts
 }: ConnectionErrorBoundaryProps) {
   const { isConnected, checkConnection } = useSupabaseConnection();
   const [isRetrying, setIsRetrying] = useState(false);
+  const [showError, setShowError] = useState(false);
   
   const handleRetry = async () => {
     if (isRetrying) return;
@@ -30,12 +31,15 @@ export function ConnectionErrorBoundary({
       if (onRetry) {
         onRetry();
       }
+      // Only show error if manually retrying and still not connected
+      setShowError(!isConnected);
     } finally {
       setIsRetrying(false);
     }
   };
   
-  if (!isConnected && showAlert) {
+  // Only show alert if explicitly enabled AND connection is lost AND user has manually requested to show it
+  if (!isConnected && showAlert && showError) {
     return (
       <div className="space-y-4">
         {fallback || (

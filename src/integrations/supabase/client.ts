@@ -16,20 +16,28 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
   },
   global: {
-    // Set fetch timeout to 15 seconds to prevent indefinite hanging requests
+    // Set fetch timeout to 10 seconds instead of 15 to prevent long hanging requests
     fetch: (url, options) => {
       const controller = new AbortController();
       const { signal } = controller;
       
-      // Set a timeout of 15 seconds
+      // Shorter timeout - 10 seconds
       const timeoutId = setTimeout(() => {
         controller.abort();
-        console.log(`Request to ${url} timed out after 15s`);
-      }, 15000);
+      }, 10000);
       
-      return fetch(url, { ...options, signal }).finally(() => {
-        clearTimeout(timeoutId);
-      });
+      // Add cache control headers to prevent caching issues
+      const headers = {
+        ...(options?.headers || {}),
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      };
+      
+      return fetch(url, { ...options, headers, signal })
+        .finally(() => {
+          clearTimeout(timeoutId);
+        });
     },
   },
   db: {
@@ -45,7 +53,23 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // Export utility functions for handling supabase connectivity issues
 export const healthCheck = async () => {
   try {
-    const { data, error } = await supabase.from('health_check').select('id').limit(1).maybeSingle();
+    // First try simple REST endpoint that doesn't require database access
+    const { error: serviceError } = await supabase.from('_service_status').select('status').limit(1).maybeSingle();
+    
+    // If that fails with auth error, it means Supabase is up but authentication is working
+    // which is good enough for most purposes
+    if (serviceError?.code === 'PGRST301') {
+      return { ok: true, status: 'service_available' };
+    }
+    
+    // Fall back to health_check table as a second option
+    const { data, error } = await supabase.from('health_check').select('status').limit(1).maybeSingle();
+    
+    // Return success even if table doesn't exist but service is available
+    if (error?.code === '42P01') {
+      return { ok: true, status: 'service_available_no_table' };
+    }
+    
     return { ok: !error, data, error };
   } catch (error) {
     console.error('Supabase connectivity error:', error);

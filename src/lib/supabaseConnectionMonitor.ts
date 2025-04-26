@@ -29,33 +29,57 @@ export async function checkSupabaseConnection(): Promise<boolean> {
   checkCount++;
   
   try {
-    // Use a simple and fast query to test connection
-    const { data, error } = await supabase
-      .from('health_check')
-      .select('status')
-      .maybeSingle()
-      .timeout(5000);
-    
-    // If we get a response at all, connection is working
-    isConnected = !error;
-    
-    // Reset failure count on success
-    if (isConnected) {
-      if (consecutiveFailures > 0) {
-        toast.success("Connection to server restored");
+    // Try multiple lightweight endpoints to determine connection status
+    const endpoints = [
+      // Try a simple query first
+      async () => {
+        const { data, error } = await supabase
+          .from('beats')
+          .select('id')
+          .limit(1)
+          .timeout(5000);
+        return !error;
+      },
+      // Try health check table as fallback
+      async () => {
+        const { data, error } = await supabase
+          .from('health_check')
+          .select('status')
+          .maybeSingle()
+          .timeout(5000);
+        return !error || error.code === '42P01'; // Table might not exist yet
       }
-      consecutiveFailures = 0;
-    } else {
-      consecutiveFailures++;
-      
-      // Only notify after multiple failures to avoid false alarms
-      if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
-        console.error('Supabase connection error:', error);
-        toast.error("Server connection issues detected");
+    ];
+    
+    // Try each endpoint until one succeeds
+    for (const checkEndpoint of endpoints) {
+      try {
+        const success = await checkEndpoint();
+        if (success) {
+          isConnected = true;
+          if (consecutiveFailures > 0) {
+            // Only reset failures, don't show success message to avoid UI noise
+            consecutiveFailures = 0;
+          }
+          isCheckingConnection = false;
+          return true;
+        }
+      } catch (e) {
+        // Continue to next check
       }
     }
     
-    return isConnected;
+    // All checks failed
+    isConnected = false;
+    consecutiveFailures++;
+    
+    // Only notify after multiple failures to avoid false alarms
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+      console.error('Supabase connection issues detected after multiple attempts');
+      // No toast - silent failure as requested
+    }
+    
+    return false;
   } catch (e) {
     isConnected = false;
     consecutiveFailures++;
@@ -63,7 +87,7 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     // Only notify after multiple failures to avoid false alarms
     if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
       console.error('Error checking Supabase connection:', e);
-      toast.error("Server connection issues detected");
+      // No toast - silent failure as requested
     }
     
     return false;
@@ -85,7 +109,7 @@ export async function setupHealthCheck(): Promise<void> {
     
     // If we get an error that the table doesn't exist, let's silently fail
     // This is expected on first run before the table is created
-    if (error && !data) {
+    if (error && error.code === '42P01' && !data) {
       console.log('Health check table does not exist yet');
     }
   } catch (e) {
