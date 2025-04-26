@@ -45,7 +45,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // Export utility functions for handling supabase connectivity issues
 export const healthCheck = async () => {
   try {
-    const { data, error } = await supabase.from('health_check').select('id').limit(1).maybeSingle();
+    const { data, error } = await supabase.from('beats').select('id').limit(1).maybeSingle();
     return { ok: !error, data, error };
   } catch (error) {
     console.error('Supabase connectivity error:', error);

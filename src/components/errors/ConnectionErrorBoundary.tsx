@@ -16,7 +16,7 @@ export function ConnectionErrorBoundary({
   children,
   fallback,
   onRetry,
-  showAlert = true
+  showAlert = false // Set default to false to hide connection alerts
 }: ConnectionErrorBoundaryProps) {
   const { isConnected, checkConnection } = useSupabaseConnection();
   const [isRetrying, setIsRetrying] = useState(false);
@@ -35,6 +35,7 @@ export function ConnectionErrorBoundary({
     }
   };
   
+  // We'll only show the alert if explicitly requested via showAlert prop
   if (!isConnected && showAlert) {
     return (
       <div className="space-y-4">
@@ -62,6 +63,7 @@ export function ConnectionErrorBoundary({
     );
   }
   
+  // Most of the time, just render children without error message
   return <>{children}</>;
 }
 

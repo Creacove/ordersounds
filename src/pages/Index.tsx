@@ -8,7 +8,6 @@ import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { usePlayer } from "@/context/PlayerContext";
 import { useBeats } from "@/hooks/useBeats";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useProducers } from "@/hooks/useProducers";
@@ -22,15 +21,12 @@ import {
   Search,
   Calendar,
   RefreshCw,
-  AlertCircle,
   Loader2
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { User, Beat } from "@/types";
+import { Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { toast } from "sonner";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ConnectionErrorBoundary } from "@/components/errors/ConnectionErrorBoundary";
 import { useSupabaseConnection } from "@/hooks/useSupabaseConnection";
 
@@ -63,7 +59,6 @@ export default function IndexPage() {
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [networkError, setNetworkError] = useState(false);
   const [userDataError, setUserDataError] = useState(false);
   const { isConnected } = useSupabaseConnection();
   const navigate = useNavigate();
@@ -82,10 +77,6 @@ export default function IndexPage() {
   useEffect(() => {
     prefetchProducers();
   }, [prefetchProducers]);
-  
-  useEffect(() => {
-    setNetworkError(!isConnected);
-  }, [isConnected]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,23 +87,20 @@ export default function IndexPage() {
 
   const handleRefreshData = async () => {
     setIsRefreshing(true);
-    setNetworkError(false);
     
     try {
       if (userDataError && user) {
         const userRefreshed = await forceUserDataRefresh();
         if (userRefreshed) {
-          toast.success("User data refreshed successfully");
+          console.log("User data refreshed successfully");
         }
       }
       
       await forceRefreshBeats();
-      toast.success("Content refreshed successfully");
+      console.log("Content refreshed successfully");
       setUserDataError(false);
     } catch (error) {
       console.error("Error refreshing data:", error);
-      setNetworkError(true);
-      toast.error("Failed to refresh content. Please check your connection.");
     } finally {
       setIsRefreshing(false);
     }
@@ -128,7 +116,7 @@ export default function IndexPage() {
     <MainLayoutWithPlayer>
       <ConnectionErrorBoundary
         onRetry={handleRefreshData}
-        showAlert={networkError}
+        showAlert={false} // Never show connection alerts to users
       >
         <div className="container mx-auto px-2 xs:px-4 sm:px-6 pb-8">
           <div className="mb-8">
@@ -151,36 +139,6 @@ export default function IndexPage() {
               </div>
             </form>
           </div>
-
-          {(networkError || userDataError) && (
-            <Alert variant={userDataError ? "warning" : "destructive"} className="mb-6">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {userDataError 
-                  ? "User data may be incomplete. This could cause limited functionality." 
-                  : "Connection issues detected. Some content may not be available."}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="ml-2" 
-                  onClick={handleRefreshData}
-                  disabled={isRefreshing}
-                >
-                  {isRefreshing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Refreshing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      {userDataError ? "Refresh User Data" : "Retry"}
-                    </>
-                  )}
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
 
           {displayedFeaturedBeat && (
             <section className="mb-6">

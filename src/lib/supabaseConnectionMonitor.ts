@@ -1,5 +1,4 @@
 
-import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 // Connection monitor singleton
@@ -31,10 +30,9 @@ export async function checkSupabaseConnection(): Promise<boolean> {
   try {
     // Use a simple and fast query to test connection
     const { data, error } = await supabase
-      .from('health_check')
-      .select('status')
-      .maybeSingle()
-      .timeout(5000);
+      .from('beats')
+      .select('id')
+      .limit(1);
     
     // If we get a response at all, connection is working
     isConnected = !error;
@@ -42,16 +40,15 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     // Reset failure count on success
     if (isConnected) {
       if (consecutiveFailures > 0) {
-        toast.success("Connection to server restored");
+        console.log("Connection to server restored");
       }
       consecutiveFailures = 0;
     } else {
       consecutiveFailures++;
       
-      // Only notify after multiple failures to avoid false alarms
+      // Only log after multiple failures to avoid false alarms
       if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
         console.error('Supabase connection error:', error);
-        toast.error("Server connection issues detected");
       }
     }
     
@@ -60,10 +57,9 @@ export async function checkSupabaseConnection(): Promise<boolean> {
     isConnected = false;
     consecutiveFailures++;
     
-    // Only notify after multiple failures to avoid false alarms
+    // Only log after multiple failures to avoid false alarms
     if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
       console.error('Error checking Supabase connection:', e);
-      toast.error("Server connection issues detected");
     }
     
     return false;
@@ -73,23 +69,19 @@ export async function checkSupabaseConnection(): Promise<boolean> {
 }
 
 /**
- * Create a health check table in Supabase if it doesn't exist
+ * Setup connection monitoring
  */
 export async function setupHealthCheck(): Promise<void> {
   try {
-    // Check if the health_check table exists
-    const { data, error } = await supabase
-      .from('health_check')
+    // Just check if we can connect to the database
+    await supabase
+      .from('beats')
       .select('id')
       .limit(1);
-    
-    // If we get an error that the table doesn't exist, let's silently fail
-    // This is expected on first run before the table is created
-    if (error && !data) {
-      console.log('Health check table does not exist yet');
-    }
+      
+    console.log('Supabase connection setup completed');
   } catch (e) {
-    console.log('Error setting up health check:', e);
+    console.log('Error setting up connection monitoring:', e);
   }
 }
 

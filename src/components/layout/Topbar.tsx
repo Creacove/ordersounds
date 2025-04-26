@@ -18,9 +18,7 @@ import {
   BookOpen,
   ShoppingCart,
   DollarSign,
-  RefreshCw,
-  Wifi,
-  WifiOff
+  RefreshCw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -40,8 +38,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useSupabaseConnection } from "@/hooks/useSupabaseConnection";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { checkSupabaseConnection } from "@/lib/supabaseConnectionMonitor";
 import { useBeats } from "@/hooks/useBeats";
 
 export function Topbar({ sidebarVisible = false }) {
@@ -50,7 +46,7 @@ export function Topbar({ sidebarVisible = false }) {
   const location = useLocation();
   const { itemCount } = useCart();
   const isMobile = useIsMobile();
-  const { isConnected, checkConnection } = useSupabaseConnection();
+  const { checkConnection } = useSupabaseConnection();
   const { forceRefreshBeats } = useBeats();
   
   const [isScrolled, setIsScrolled] = useState(false);
@@ -96,11 +92,10 @@ export function Topbar({ sidebarVisible = false }) {
         await forceRefreshBeats();
         toast.success("Data refreshed successfully");
       } else {
-        toast.error("Cannot connect to server. Please check your internet connection.");
+        console.error("Cannot connect to server. Please check internet connection.");
       }
     } catch (error) {
       console.error('Error refreshing data:', error);
-      toast.error("Failed to refresh data");
     } finally {
       setIsRefreshing(false);
     }
@@ -139,34 +134,6 @@ export function Topbar({ sidebarVisible = false }) {
         </div>
         
         <div className="flex items-center gap-3">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "h-8 w-8 rounded-full transition-all duration-300", 
-                    isRefreshing ? "animate-spin text-primary" : "",
-                    isConnected ? "text-green-500 hover:text-green-600" : "text-red-500 hover:text-red-600",
-                  )}
-                  onClick={handleRefreshData}
-                  disabled={isRefreshing}
-                >
-                  {isConnected ? (
-                    <Wifi size={16} />
-                  ) : (
-                    <WifiOff size={16} />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{isRefreshing ? "Refreshing..." : isConnected ? "Connected" : "Connection Issue"}</p>
-                <p className="text-xs text-muted-foreground">Click to refresh data</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
           {(!isAuthPage || user) && (
             <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
               <Button
