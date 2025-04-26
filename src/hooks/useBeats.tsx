@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -19,6 +20,11 @@ import {
   clearBeatsCache
 } from '@/services/beats';
 
+// Request throttling constants
+const MIN_REQUEST_INTERVAL = 3000; // 3 seconds between fetch attempts
+const MAX_RETRIES_BEFORE_COOLDOWN = 3;
+const COOLDOWN_PERIOD = 30000; // 30 seconds after hitting max retries
+
 export function useBeats() {
   const [beats, setBeats] = useState<Beat[]>([]);
   const [trendingBeats, setTrendingBeats] = useState<Beat[]>([]);
@@ -36,6 +42,11 @@ export function useBeats() {
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
   const [fetchInProgress, setFetchInProgress] = useState(false);
   const [dataFetched, setDataFetched] = useState<boolean>(false);
+  
+  // New state for request throttling
+  const [lastFetchTime, setLastFetchTime] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+  const [inCooldown, setInCooldown] = useState(false);
 
   const fetchUserFavoritesData = useCallback(async () => {
     if (!user) return;
@@ -155,6 +166,20 @@ export function useBeats() {
   }, [trendingBeats.length]);
 
   const fetchBeats = useCallback(async (options?: { skipCache?: boolean }) => {
+    // Check if we're in cooldown period
+    if (inCooldown) {
+      console.log('In cooldown period, skipping fetch');
+      return;
+    }
+    
+    // Throttle requests - don't allow more than one request every MIN_REQUEST_INTERVAL ms
+    const now = Date.now();
+    if (now - lastFetchTime < MIN_REQUEST_INTERVAL && !options?.skipCache) {
+      console.log(`Request too soon (${now - lastFetchTime}ms since last request), throttling`);
+      // We'll skip this request because it's too soon after the previous one
+      return;
+    }
+    
     if (fetchInProgress) {
       console.log('Fetch already in progress, skipping duplicate request');
       return;
@@ -165,6 +190,9 @@ export function useBeats() {
       setIsLoading(false);
       return;
     }
+    
+    // Update the last fetch time
+    setLastFetchTime(now);
     
     if (user?.role === 'producer') {
       try {
@@ -195,6 +223,9 @@ export function useBeats() {
           setIsLoading(false);
           setDataFetched(true);
           
+          // Reset retry count on success
+          setRetryCount(0);
+          
           if (!skipCache) {
             localStorage.setItem(`producer_beats_${user.id}`, JSON.stringify(producerBeatsQuery));
           }
@@ -202,6 +233,7 @@ export function useBeats() {
         }
       } catch (error) {
         console.error('Error fetching producer beats:', error);
+        incrementRetryCount();
       }
     }
     
@@ -240,8 +272,12 @@ export function useBeats() {
         console.warn("No beats returned from API");
         handleNoBeatsFound();
         setFetchInProgress(false);
+        incrementRetryCount();
         return;
       }
+      
+      // Success! Reset retry count
+      setRetryCount(0);
       
       setBeats(transformedBeats);
       
@@ -286,6 +322,7 @@ export function useBeats() {
         await fetchInitialBeats();
       }
       
+      incrementRetryCount();
       setLoadingError(`Failed to load complete beat collection: ${error.message || 'Unknown error'}`);
     } finally {
       setFetchInProgress(false);
@@ -294,10 +331,34 @@ export function useBeats() {
   }, [user, activeFilters, checkNetworkAndRetry, handleNoBeatsFound, 
       fetchInitialBeats, fetchUserFavoritesData, fetchPurchasedBeatsData, 
       trendingBeats.length, weeklyPicks.length, featuredBeat, 
-      fetchInProgress, beats.length, dataFetched]);
+      fetchInProgress, beats.length, dataFetched, lastFetchTime, inCooldown]);
+
+  // Helper function to manage retry counts and cooldown
+  const incrementRetryCount = useCallback(() => {
+    setRetryCount(prev => {
+      const newCount = prev + 1;
+      // If we hit the max retries, go into cooldown
+      if (newCount >= MAX_RETRIES_BEFORE_COOLDOWN) {
+        console.log(`Hit max retries (${MAX_RETRIES_BEFORE_COOLDOWN}), entering cooldown period`);
+        setInCooldown(true);
+        
+        // Set a timeout to exit cooldown
+        setTimeout(() => {
+          console.log('Exiting cooldown period');
+          setInCooldown(false);
+          setRetryCount(0);
+        }, COOLDOWN_PERIOD);
+      }
+      return newCount;
+    });
+  }, []);
 
   const forceRefreshBeats = useCallback(async () => {
     console.log("Force refreshing beats data...");
+    
+    // Reset retry count and cooldown when manually refreshing
+    setRetryCount(0);
+    setInCooldown(false);
     
     if (user?.role === 'producer') {
       localStorage.removeItem(`producer_beats_${user.id}`);
@@ -321,6 +382,10 @@ export function useBeats() {
     const handleOnline = () => {
       setIsOffline(false);
       toast.success("You're back online!");
+      // Try refetching data when coming back online
+      if (!dataFetched || beats.length === 0) {
+        fetchBeats();
+      }
     };
     
     const handleOffline = () => {
@@ -339,7 +404,7 @@ export function useBeats() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [dataFetched, fetchInitialBeats, fetchBeats]);
+  }, [dataFetched, fetchInitialBeats, fetchBeats, beats.length]);
 
   const updateFilters = (newFilters: FilterValues) => {
     setActiveFilters(newFilters);

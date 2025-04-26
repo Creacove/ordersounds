@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -40,12 +41,31 @@ const isCacheValid = (timestamp: number): boolean => {
   return Date.now() - timestamp < MAX_CACHE_AGE;
 }
 
+// Global pending requests map - moved outside function to persist between calls
+const pendingRequests = new Map<string, Promise<Beat[]>>();
+
+// Exponential backoff settings
+const BACKOFF_SETTINGS = {
+  initialDelay: 300,
+  maxDelay: 10000,
+  maxRetries: 3
+};
+
+// Get backoff delay based on retry count
+const getBackoffDelay = (retryCount: number): number => {
+  return Math.min(
+    BACKOFF_SETTINGS.initialDelay * Math.pow(2, retryCount),
+    BACKOFF_SETTINGS.maxDelay
+  );
+};
+
 export const fetchAllBeats = async (options: { 
   includeDetails?: boolean; 
   limit?: number; 
   includeDrafts?: boolean;
   producerId?: string;
   skipCache?: boolean;
+  retryCount?: number;
 } = {}): Promise<Beat[]> => {
   try {
     const { 
@@ -53,7 +73,8 @@ export const fetchAllBeats = async (options: {
       limit = 0, 
       includeDrafts = false,
       producerId,
-      skipCache = false
+      skipCache = false,
+      retryCount = 0
     } = options;
     
     // Create a cache key based on the query parameters
@@ -78,8 +99,7 @@ export const fetchAllBeats = async (options: {
     // "body stream already read" errors when multiple components request the same data
     // Use a URL without getUrl() which doesn't exist on the client
     const baseUrl = supabase.from('beats').url.toString();
-    const requestKey = `GET:${baseUrl}?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:""`;
-    const pendingRequests = new Map<string, Promise<any>>();
+    const requestKey = `GET:${baseUrl}?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:${retryCount}`;
     
     if (pendingRequests.has(requestKey)) {
       console.log('Duplicate request prevented:', requestKey);
@@ -105,12 +125,27 @@ export const fetchAllBeats = async (options: {
     }
     
     // Store this request in the pending map
-    // Fix: Convert the PromiseLike to a full Promise with Promise.resolve()
+    // Convert the PromiseLike to a full Promise with Promise.resolve()
     const requestPromise = Promise.resolve(query.then(({ data: beatsData, error: beatsError }) => {
       // Remove from pending requests map when done
       pendingRequests.delete(requestKey);
       
       if (beatsError) {
+        // If we have retries left, back off and try again
+        if (retryCount < BACKOFF_SETTINGS.maxRetries) {
+          console.log(`Request failed, retrying in ${getBackoffDelay(retryCount)}ms (retry ${retryCount + 1}/${BACKOFF_SETTINGS.maxRetries})`);
+          
+          // Wait and retry with backoff
+          return new Promise<Beat[]>((resolve) => {
+            setTimeout(() => {
+              resolve(fetchAllBeats({
+                ...options,
+                retryCount: retryCount + 1
+              }));
+            }, getBackoffDelay(retryCount));
+          });
+        }
+        
         throw beatsError;
       }
 
@@ -124,6 +159,28 @@ export const fetchAllBeats = async (options: {
       }
       
       return [];
+    }).catch(error => {
+      // Remove from pending requests map on error
+      pendingRequests.delete(requestKey);
+      console.error('Error in fetchAllBeats:', error);
+      
+      // For network errors, retry with backoff if we have retries left
+      if (retryCount < BACKOFF_SETTINGS.maxRetries && 
+          (error.message?.includes('network') || error.message?.includes('fetch'))) {
+        console.log(`Network error, retrying in ${getBackoffDelay(retryCount)}ms (retry ${retryCount + 1}/${BACKOFF_SETTINGS.maxRetries})`);
+        
+        // Wait and retry with backoff
+        return new Promise<Beat[]>((resolve) => {
+          setTimeout(() => {
+            resolve(fetchAllBeats({
+              ...options, 
+              retryCount: retryCount + 1
+            }));
+          }, getBackoffDelay(retryCount));
+        });
+      }
+      
+      return [];
     }));
     
     pendingRequests.set(requestKey, requestPromise);
@@ -133,6 +190,13 @@ export const fetchAllBeats = async (options: {
     return [];
   }
 };
+
+// Global pending requests maps for other endpoints
+const trendingPendingRequests = new Map<string, Promise<Beat[]>>();
+const newBeatsPendingRequests = new Map<string, Promise<Beat[]>>();
+const randomBeatsPendingRequests = new Map<string, Promise<Beat[]>>();
+const beatDetailPendingRequests = new Map<string, Promise<Beat | null>>();
+const featuredBeatsPendingRequests = new Map<string, Promise<Beat[]>>();
 
 // Cache for trending beats (memory only, cleared when page refreshes)
 const trendingCache = new Map<number, Beat[]>();
@@ -144,22 +208,39 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
       return trendingCache.get(limit) || [];
     }
     
-    const { data, error } = await supabase
+    const requestKey = `trending-beats-${limit}`;
+    if (trendingPendingRequests.has(requestKey)) {
+      console.log('Duplicate trending beats request prevented');
+      return trendingPendingRequests.get(requestKey) as Promise<Beat[]>;
+    }
+    
+    const requestPromise = Promise.resolve(supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
       .eq('status', 'published')
       .order('favorites_count', { ascending: false })
       .order('purchase_count', { ascending: false })
-      .limit(limit);
+      .limit(limit)
+      .then(({ data, error }) => {
+        trendingPendingRequests.delete(requestKey);
+        
+        if (error) throw error;
 
-    if (error) throw error;
-
-    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+        const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+        
+        // Store in cache
+        trendingCache.set(limit, mappedBeats);
+        
+        return mappedBeats;
+      })
+      .catch(error => {
+        trendingPendingRequests.delete(requestKey);
+        console.error('Error fetching trending beats:', error);
+        return [];
+      }));
     
-    // Store in cache
-    trendingCache.set(limit, mappedBeats);
-    
-    return mappedBeats;
+    trendingPendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching trending beats:', error);
     return [];
@@ -179,21 +260,37 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
       return newBeatsCache.get(cacheKey) || [];
     }
     
-    const { data, error } = await supabase
+    if (newBeatsPendingRequests.has(cacheKey)) {
+      console.log('Duplicate new beats request prevented');
+      return newBeatsPendingRequests.get(cacheKey) as Promise<Beat[]>;
+    }
+    
+    const requestPromise = Promise.resolve(supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
       .eq('status', 'published')
       .order('upload_date', { ascending: false })
-      .limit(limit);
+      .limit(limit)
+      .then(({ data, error }) => {
+        newBeatsPendingRequests.delete(cacheKey);
+        
+        if (error) throw error;
 
-    if (error) throw error;
-
-    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+        const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+        
+        // Store in cache with specific limit key
+        newBeatsCache.set(cacheKey, mappedBeats);
+        
+        return mappedBeats;
+      })
+      .catch(error => {
+        newBeatsPendingRequests.delete(cacheKey);
+        console.error('Error fetching new beats:', error);
+        return [];
+      }));
     
-    // Store in cache with specific limit key
-    newBeatsCache.set(cacheKey, mappedBeats);
-    
-    return mappedBeats;
+    newBeatsPendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching new beats:', error);
     return [];
@@ -211,26 +308,42 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
       return randomBeatsCache.get(limit) || [];
     }
     
-    // Clone the query each time to prevent body stream already read errors
-    const { data, error } = await supabase
+    const requestKey = `random-beats-${limit}`;
+    if (randomBeatsPendingRequests.has(requestKey)) {
+      console.log('Duplicate random beats request prevented');
+      return randomBeatsPendingRequests.get(requestKey) as Promise<Beat[]>;
+    }
+    
+    const requestPromise = Promise.resolve(supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
       .eq('status', 'published')
-      .limit(limit);
+      .limit(limit)
+      .then(({ data, error }) => {
+        randomBeatsPendingRequests.delete(requestKey);
+        
+        if (error) throw error;
 
-    if (error) throw error;
-
-    if (data && data.length > 0) {
-      const shuffled = [...data].sort(() => Math.random() - 0.5);
-      const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-      
-      // Store in cache
-      randomBeatsCache.set(limit, mappedBeats);
-      
-      return mappedBeats;
-    }
+        if (data && data.length > 0) {
+          const shuffled = [...data].sort(() => Math.random() - 0.5);
+          const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+          
+          // Store in cache
+          randomBeatsCache.set(limit, mappedBeats);
+          
+          return mappedBeats;
+        }
+        
+        return [];
+      })
+      .catch(error => {
+        randomBeatsPendingRequests.delete(requestKey);
+        console.error('Error fetching random beats:', error);
+        return [];
+      }));
     
-    return [];
+    randomBeatsPendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching random beats:', error);
     return [];
@@ -247,7 +360,12 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
       return beatCache.get(beatId) || null;
     }
     
-    const { data, error } = await supabase
+    if (beatDetailPendingRequests.has(beatId)) {
+      console.log('Duplicate beat detail request prevented');
+      return beatDetailPendingRequests.get(beatId) as Promise<Beat | null>;
+    }
+    
+    const requestPromise = Promise.resolve(supabase
       .from('beats')
       .select(`
         ${BEAT_QUERY_FIELDS},
@@ -263,16 +381,27 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
         plays
       `)
       .eq('id', beatId)
-      .single();
-    
-    if (error) throw error;
+      .maybeSingle()  // Changed from .single() to .maybeSingle() for better error handling
+      .then(({ data, error }) => {
+        beatDetailPendingRequests.delete(beatId);
+        
+        if (error) throw error;
 
-    const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
+        const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
+        
+        // Store in cache
+        beatCache.set(beatId, mappedBeat);
+        
+        return mappedBeat;
+      })
+      .catch(error => {
+        beatDetailPendingRequests.delete(beatId);
+        console.error('Error fetching beat by ID:', error);
+        return null;
+      }));
     
-    // Store in cache
-    beatCache.set(beatId, mappedBeat);
-    
-    return mappedBeat;
+    beatDetailPendingRequests.set(beatId, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
     return null;
@@ -289,21 +418,38 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
       return featuredBeatsCache.get(limit) || [];
     }
     
-    const { data, error } = await supabase
+    const requestKey = `featured-beats-${limit}`;
+    if (featuredBeatsPendingRequests.has(requestKey)) {
+      console.log('Duplicate featured beats request prevented');
+      return featuredBeatsPendingRequests.get(requestKey) as Promise<Beat[]>;
+    }
+    
+    const requestPromise = Promise.resolve(supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
       .eq('status', 'published')
       .eq('is_featured', true)
-      .limit(limit);
+      .limit(limit)
+      .then(({ data, error }) => {
+        featuredBeatsPendingRequests.delete(requestKey);
+        
+        if (error) throw error;
 
-    if (error) throw error;
-
-    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+        const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+        
+        // Store in cache
+        featuredBeatsCache.set(limit, mappedBeats);
+        
+        return mappedBeats;
+      })
+      .catch(error => {
+        featuredBeatsPendingRequests.delete(requestKey);
+        console.error('Error fetching featured beats:', error);
+        return [];
+      }));
     
-    // Store in cache
-    featuredBeatsCache.set(limit, mappedBeats);
-    
-    return mappedBeats;
+    featuredBeatsPendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
     return [];
@@ -319,6 +465,14 @@ export const clearBeatsCache = (): void => {
   randomBeatsCache.clear();
   beatCache.clear();
   featuredBeatsCache.clear();
+  
+  // Important: Also clear pending requests maps to avoid stale requests
+  pendingRequests.clear();
+  trendingPendingRequests.clear();
+  newBeatsPendingRequests.clear();
+  randomBeatsPendingRequests.clear();
+  beatDetailPendingRequests.clear();
+  featuredBeatsPendingRequests.clear();
   
   // Also notify other components that cache has been cleared
   try {

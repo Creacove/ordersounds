@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -21,7 +22,8 @@ import {
   Search,
   Calendar,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Beat } from "@/types";
@@ -29,6 +31,8 @@ import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ConnectionErrorBoundary } from "@/components/errors/ConnectionErrorBoundary";
+import { useSupabaseConnection } from "@/hooks/useSupabaseConnection";
 
 const fallbackFeaturedBeat: Beat = {
   id: "fallback-featured",
@@ -53,7 +57,7 @@ const fallbackFeaturedBeat: Beat = {
 
 export default function IndexPage() {
   const { user, forceUserDataRefresh } = useAuth();
-  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats } = useBeats();
+  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats, forceRefreshBeats } = useBeats();
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
   const { prefetchProducers } = useProducers();
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
@@ -61,6 +65,7 @@ export default function IndexPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [networkError, setNetworkError] = useState(false);
   const [userDataError, setUserDataError] = useState(false);
+  const { isConnected } = useSupabaseConnection();
   const navigate = useNavigate();
 
   const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
@@ -77,6 +82,10 @@ export default function IndexPage() {
   useEffect(() => {
     prefetchProducers();
   }, [prefetchProducers]);
+  
+  useEffect(() => {
+    setNetworkError(!isConnected);
+  }, [isConnected]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +106,7 @@ export default function IndexPage() {
         }
       }
       
-      await fetchBeats();
+      await forceRefreshBeats();
       toast.success("Content refreshed successfully");
       setUserDataError(false);
     } catch (error) {
@@ -117,153 +126,158 @@ export default function IndexPage() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="container mx-auto px-2 xs:px-4 sm:px-6 pb-8">
-        <div className="mb-8">
-          <form onSubmit={handleSearch} className="relative">
-            <div className="flex items-center">
-              <Input
-                type="text"
-                placeholder="Search for beats, producers, genres..."
-                className="pr-12 py-6 h-14 text-base rounded-l-lg border-r-0"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+      <ConnectionErrorBoundary
+        onRetry={handleRefreshData}
+        showAlert={networkError}
+      >
+        <div className="container mx-auto px-2 xs:px-4 sm:px-6 pb-8">
+          <div className="mb-8">
+            <form onSubmit={handleSearch} className="relative">
+              <div className="flex items-center">
+                <Input
+                  type="text"
+                  placeholder="Search for beats, producers, genres..."
+                  className="pr-12 py-6 h-14 text-base rounded-l-lg border-r-0"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                <Button 
+                  type="submit" 
+                  className="h-14 px-5 rounded-l-none bg-primary"
+                >
+                  <Search className="mr-2 h-5 w-5" />
+                  <span>Search</span>
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          {(networkError || userDataError) && (
+            <Alert variant={userDataError ? "warning" : "destructive"} className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {userDataError 
+                  ? "User data may be incomplete. This could cause limited functionality." 
+                  : "Connection issues detected. Some content may not be available."}
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="ml-2" 
+                  onClick={handleRefreshData}
+                  disabled={isRefreshing}
+                >
+                  {isRefreshing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Refreshing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      {userDataError ? "Refresh User Data" : "Retry"}
+                    </>
+                  )}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {displayedFeaturedBeat && (
+            <section className="mb-6">
+              <SectionTitle 
+                title="Featured Beat" 
+                icon={<Star className="h-5 w-5" />}
+                badge="Today's Pick"
               />
-              <Button 
-                type="submit" 
-                className="h-14 px-5 rounded-l-none bg-primary"
-              >
-                <Search className="mr-2 h-5 w-5" />
-                <span>Search</span>
-              </Button>
-            </div>
-          </form>
-        </div>
+              
+              <div className="mt-3">
+                <BeatCard 
+                  key={displayedFeaturedBeat.id} 
+                  beat={displayedFeaturedBeat} 
+                  featured={true} 
+                />
+              </div>
+            </section>
+          )}
 
-        {(networkError || userDataError) && (
-          <Alert variant={userDataError ? "warning" : "destructive"} className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              {userDataError 
-                ? "User data may be incomplete. This could cause limited functionality." 
-                : "Connection issues detected. Some content may not be available."}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="ml-2" 
-                onClick={handleRefreshData}
-                disabled={isRefreshing}
-              >
-                {isRefreshing ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Refreshing...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    {userDataError ? "Refresh User Data" : "Retry"}
-                  </>
-                )}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {displayedFeaturedBeat && (
           <section className="mb-6">
             <SectionTitle 
-              title="Featured Beat" 
+              title="Producer of the Week" 
               icon={<Star className="h-5 w-5" />}
-              badge="Today's Pick"
+              badge="Featured"
             />
-            
             <div className="mt-3">
-              <BeatCard 
-                key={displayedFeaturedBeat.id} 
-                beat={displayedFeaturedBeat} 
-                featured={true} 
-              />
+              <ProducerOfWeek />
             </div>
           </section>
-        )}
 
-        <section className="mb-6">
-          <SectionTitle 
-            title="Producer of the Week" 
-            icon={<Star className="h-5 w-5" />}
-            badge="Featured"
-          />
-          <div className="mt-3">
-            <ProducerOfWeek />
-          </div>
-        </section>
+          <RecommendedBeats />
 
-        <RecommendedBeats />
+          <section className="mb-6">
+            <SectionTitle 
+              title="Trending Beats" 
+              icon={<TrendingUp className="h-5 w-5" />} 
+              badge="Updated Hourly"
+            />
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {trendingBeats.slice(0, 8).map((beat) => (
+                <BeatCardCompact key={beat.id} beat={beat} />
+              ))}
+            </div>
+            <div className="mt-3 flex justify-end">
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/trending">
+                  View all trending <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </section>
 
-        <section className="mb-6">
-          <SectionTitle 
-            title="Trending Beats" 
-            icon={<TrendingUp className="h-5 w-5" />} 
-            badge="Updated Hourly"
-          />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {trendingBeats.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
-          <div className="mt-3 flex justify-end">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/trending">
-                View all trending <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </section>
+          <section className="mb-6">
+            <SectionTitle 
+              title="Weekly Picks" 
+              icon={<Calendar className="h-5 w-5" />}
+              badge="Updated Weekly"
+            />
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {weeklyPicks.slice(0, 8).map((beat) => (
+                <BeatCardCompact key={beat.id} beat={beat} />
+              ))}
+              {weeklyPicks.length === 0 && trendingBeats.slice(10, 14).map((beat) => (
+                <BeatCardCompact key={beat.id} beat={beat} />
+              ))}
+            </div>
+          </section>
 
-        <section className="mb-6">
-          <SectionTitle 
-            title="Weekly Picks" 
-            icon={<Calendar className="h-5 w-5" />}
-            badge="Updated Weekly"
-          />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {weeklyPicks.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-            {weeklyPicks.length === 0 && trendingBeats.slice(10, 14).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
-        </section>
+          <section className="mb-6">
+            <SectionTitle 
+              title="New Releases" 
+              icon={<Flame className="h-5 w-5" />}
+            />
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {newBeats.slice(0, 8).map((beat) => (
+                <BeatCardCompact key={beat.id} beat={beat} />
+              ))}
+            </div>
+            <div className="mt-3 flex justify-end">
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/new">
+                  View all new releases <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </section>
 
-        <section className="mb-6">
-          <SectionTitle 
-            title="New Releases" 
-            icon={<Flame className="h-5 w-5" />}
-          />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {newBeats.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
-          <div className="mt-3 flex justify-end">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/new">
-                View all new releases <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </section>
-
-        <section className="mb-6">
-          <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {featuredPlaylists.map((playlist) => (
-              <PlaylistCard key={playlist.id} playlist={playlist} />
-            ))}
-          </div>
-        </section>
-      </div>
+          <section className="mb-6">
+            <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {featuredPlaylists.map((playlist) => (
+                <PlaylistCard key={playlist.id} playlist={playlist} />
+              ))}
+            </div>
+          </section>
+        </div>
+      </ConnectionErrorBoundary>
     </MainLayoutWithPlayer>
   );
 }
