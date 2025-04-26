@@ -34,7 +34,7 @@ const BEAT_QUERY_FIELDS = `
 // Add request cache to prevent duplicate requests in the same session
 const requestCache = new Map<string, { data: Beat[], timestamp: number }>();
 
-// Define additional cache maps for different beat query types
+// Define cache maps for different beat query types
 const trendingCache = new Map<number, Beat[]>();
 const newBeatsCache = new Map<string, Beat[]>();
 const randomBeatsCache = new Map<number, Beat[]>();
@@ -56,284 +56,255 @@ export const fetchAllBeats = async (options: {
   producerId?: string;
   skipCache?: boolean;
 } = {}): Promise<Beat[]> => {
+  const { 
+    includeDetails = true, 
+    limit = 0, 
+    includeDrafts = false,
+    producerId,
+    skipCache = false
+  } = options;
+  
+  // Create a cache key based on the query parameters
+  const cacheKey = JSON.stringify({limit, includeDrafts, producerId});
+  
+  // Check in-memory cache first (only valid for current session) - unless skipCache is true
+  if (!skipCache && requestCache.has(cacheKey)) {
+    const cached = requestCache.get(cacheKey)!;
+    
+    // Only use cache if it's not too old
+    if (isCacheValid(cached.timestamp)) {
+      console.log('Using in-memory cached beats data (age:', Date.now() - cached.timestamp, 'ms)');
+      return cached.data;
+    }
+  }
+  
+  console.log(skipCache ? 'Bypassing cache and fetching fresh data' : 'Cache miss, fetching from database');
+  
+  const baseUrl = supabase.from('beats').url.toString();
+  const requestKey = `GET:${baseUrl}?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:""`;
+  const pendingRequests = new Map<string, Promise<any>>();
+  
+  if (pendingRequests.has(requestKey)) {
+    console.log('Duplicate request prevented:', requestKey);
+    return pendingRequests.get(requestKey) as Promise<Beat[]>;
+  }
+  
+  let query = supabase
+    .from('beats')
+    .select(BEAT_QUERY_FIELDS);
+  
+  // Only filter by published status if we're not including drafts
+  if (!includeDrafts) {
+    query = query.eq('status', 'published');
+  }
+  
+  // If producerId is provided, filter beats by that producer
+  if (producerId) {
+    query = query.eq('producer_id', producerId);
+  }
+  
+  if (limit > 0) {
+    query = query.limit(limit);
+  }
+  
   try {
-    const { 
-      includeDetails = true, 
-      limit = 0, 
-      includeDrafts = false,
-      producerId,
-      skipCache = false
-    } = options;
+    const { data: beatsData, error: beatsError } = await query;
     
-    // Create a cache key based on the query parameters
-    const cacheKey = JSON.stringify({limit, includeDrafts, producerId});
-    
-    // Check in-memory cache first (only valid for current session) - unless skipCache is true
-    if (!skipCache && requestCache.has(cacheKey)) {
-      const cached = requestCache.get(cacheKey)!;
-      
-      // Only use cache if it's not too old
-      if (isCacheValid(cached.timestamp)) {
-        console.log('Using in-memory cached beats data (age:', Date.now() - cached.timestamp, 'ms)');
-        return cached.data;
-      } else {
-        console.log('Cache expired, fetching fresh data');
-      }
+    if (beatsError) {
+      console.error("Error fetching all beats:", beatsError);
+      throw beatsError;
     }
-    
-    console.log(skipCache ? 'Bypassing cache and fetching fresh data' : 'Cache miss, fetching from database');
-    
-    const baseUrl = supabase.from('beats').url.toString();
-    const requestKey = `GET:${baseUrl}?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:""`;
-    const pendingRequests = new Map<string, Promise<any>>();
-    
-    if (pendingRequests.has(requestKey)) {
-      console.log('Duplicate request prevented:', requestKey);
-      return pendingRequests.get(requestKey) as Promise<Beat[]>;
-    }
-    
-    let query = supabase
-      .from('beats')
-      .select(BEAT_QUERY_FIELDS);
-    
-    // Only filter by published status if we're not including drafts
-    if (!includeDrafts) {
-      query = query.eq('status', 'published');
-    }
-    
-    // If producerId is provided, filter beats by that producer
-    if (producerId) {
-      query = query.eq('producer_id', producerId);
-    }
-    
-    if (limit > 0) {
-      query = query.limit(limit);
-    }
-    
-    // Create a full Promise with proper error handling
-    const requestPromise = new Promise<Beat[]>((resolve, reject) => {
-      query
-        .then(({ data: beatsData, error: beatsError }) => {
-          pendingRequests.delete(requestKey);
-          
-          if (beatsError) {
-            reject(beatsError);
-            return;
-          }
 
-          if (beatsData && beatsData.length > 0) {
-            const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-            requestCache.set(cacheKey, { data: mappedBeats, timestamp: Date.now() });
-            resolve(mappedBeats);
-          } else {
-            resolve([]);
-          }
-        });
-    });
+    if (!beatsData || beatsData.length === 0) {
+      return [];
+    }
     
-    pendingRequests.set(requestKey, requestPromise);
-    return requestPromise;
+    const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+    requestCache.set(cacheKey, { data: mappedBeats, timestamp: Date.now() });
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching all beats:', error);
-    return [];
+    throw error; // Re-throw to handle at the component level
   }
 };
 
 export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
+  if (trendingCache.has(limit)) {
+    return trendingCache.get(limit) || [];
+  }
+  
   try {
-    if (trendingCache.has(limit)) {
-      return trendingCache.get(limit) || [];
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .order('favorites_count', { ascending: false })
+      .order('purchase_count', { ascending: false })
+      .limit(limit);
+      
+    if (error) {
+      console.error("Error fetching trending beats:", error);
+      throw error;
     }
     
-    return new Promise<Beat[]>((resolve, reject) => {
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .order('favorites_count', { ascending: false })
-        .order('purchase_count', { ascending: false })
-        .limit(limit)
-        .then(({ data, error }) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          
-          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-          trendingCache.set(limit, mappedBeats);
-          resolve(mappedBeats);
-        });
-    });
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    trendingCache.set(limit, mappedBeats);
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching trending beats:', error);
-    return [];
+    throw error;
   }
 };
 
 export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
+  const cacheKey = `new-beats-${limit}`;
+  
+  if (newBeatsCache.has(cacheKey)) {
+    return newBeatsCache.get(cacheKey) || [];
+  }
+  
   try {
-    const cacheKey = `new-beats-${limit}`;
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .order('upload_date', { ascending: false })
+      .limit(limit);
     
-    if (newBeatsCache.has(cacheKey)) {
-      return newBeatsCache.get(cacheKey) || [];
+    if (error) {
+      console.error("Error fetching new beats:", error);
+      throw error;
     }
     
-    return new Promise<Beat[]>((resolve, reject) => {
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .order('upload_date', { ascending: false })
-        .limit(limit)
-        .then(({ data, error }) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          
-          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-          newBeatsCache.set(cacheKey, mappedBeats);
-          resolve(mappedBeats);
-        });
-    });
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    newBeatsCache.set(cacheKey, mappedBeats);
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching new beats:', error);
-    return [];
+    throw error;
   }
 };
 
 export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
+  if (randomBeatsCache.has(limit)) {
+    return randomBeatsCache.get(limit) || [];
+  }
+  
   try {
-    if (randomBeatsCache.has(limit)) {
-      return randomBeatsCache.get(limit) || [];
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .limit(limit);
+      
+    if (error) {
+      console.error("Error fetching random beats:", error);
+      throw error;
     }
     
-    return new Promise<Beat[]>((resolve, reject) => {
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .limit(limit)
-        .then(({ data, error }) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          
-          if (data && data.length > 0) {
-            const shuffled = [...data].sort(() => Math.random() - 0.5);
-            const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-            randomBeatsCache.set(limit, mappedBeats);
-            resolve(mappedBeats);
-          } else {
-            resolve([]);
-          }
-        });
-    });
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
+    const shuffled = [...data].sort(() => Math.random() - 0.5);
+    const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+    randomBeatsCache.set(limit, mappedBeats);
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching random beats:', error);
-    return [];
+    throw error;
   }
 };
 
 export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
+  if (beatCache.has(beatId)) {
+    return beatCache.get(beatId) || null;
+  }
+  
   try {
-    if (beatCache.has(beatId)) {
-      return beatCache.get(beatId) || null;
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        ${BEAT_QUERY_FIELDS},
+        audio_file,
+        premium_license_price_local,
+        premium_license_price_diaspora,
+        exclusive_license_price_local,
+        exclusive_license_price_diaspora,
+        custom_license_price_local,
+        custom_license_price_diaspora,
+        key,
+        description,
+        plays
+      `)
+      .eq('id', beatId)
+      .maybeSingle();
+    
+    if (error) {
+      // Handle but don't throw "not found" error
+      if (error.code === 'PGRST116') {
+        console.log(`Beat with ID ${beatId} not found`);
+        return null;
+      }
+      console.error("Error fetching beat by ID:", error);
+      throw error;
     }
     
-    return new Promise<Beat | null>((resolve, reject) => {
-      supabase
-        .from('beats')
-        .select(`
-          ${BEAT_QUERY_FIELDS},
-          audio_file,
-          premium_license_price_local,
-          premium_license_price_diaspora,
-          exclusive_license_price_local,
-          exclusive_license_price_diaspora,
-          custom_license_price_local,
-          custom_license_price_diaspora,
-          key,
-          description,
-          plays
-        `)
-        .eq('id', beatId)
-        .single()
-        .then(({ data, error }) => {
-          if (error) {
-            if (error.code === 'PGRST116') {
-              resolve(null);
-              return;
-            }
-            reject(error);
-            return;
-          }
-          
-          const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
-          beatCache.set(beatId, mappedBeat);
-          resolve(mappedBeat);
-        });
-    });
+    const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
+    beatCache.set(beatId, mappedBeat);
+    return mappedBeat;
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
-    return null;
+    throw error;
   }
 };
 
 export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
+  if (featuredBeatsCache.has(limit)) {
+    return featuredBeatsCache.get(limit) || [];
+  }
+  
   try {
-    if (featuredBeatsCache.has(limit)) {
-      return featuredBeatsCache.get(limit) || [];
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .eq('is_featured', true)
+      .limit(limit);
+      
+    if (error) {
+      console.error("Error fetching featured beats:", error);
+      uniqueToast.error("Failed to load featured beats");
+      throw error;
     }
     
-    return new Promise<Beat[]>((resolve, reject) => {
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .eq('is_featured', true)
-        .limit(limit)
-        .then(({ data, error }) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          
-          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-          featuredBeatsCache.set(limit, mappedBeats);
-          resolve(mappedBeats);
-        });
-    });
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    featuredBeatsCache.set(limit, mappedBeats);
+    return mappedBeats;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
-    uniqueToast.error("Failed to load featured beats");
-    return [];
+    throw error;
   }
 };
 
 export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    return new Promise<Beat[]>((resolve, reject) => {
-      supabase
-        .from('beats')
-        .select(BEAT_QUERY_FIELDS)
-        .eq('status', 'published')
-        .eq('is_trending', true)
-        .limit(limit)
-        .then(({ data, error }) => {
-          if (error) {
-            reject(error);
-            return;
-          }
-          
-          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-          resolve(mappedBeats);
-        });
-    });
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .eq('is_trending', true)
+      .limit(limit);
+      
+    if (error) {
+      console.error("Error fetching marked trending beats:", error);
+      throw error;
+    }
+    
+    return data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
   } catch (error) {
     console.error('Error fetching marked trending beats:', error);
-    return [];
+    throw error;
   }
 };
 
