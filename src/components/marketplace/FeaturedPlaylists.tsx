@@ -6,22 +6,35 @@ import { Sparkles, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Playlist } from "@/types";
+import { uniqueToast } from "@/lib/toast";
 
 export const FeaturedPlaylists = () => {
   const { data: playlists = [], isLoading } = useQuery({
     queryKey: ['featured-playlists'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('playlists')
-        .select('*')
-        .eq('is_public', true)
-        .limit(4);
+      try {
+        const { data, error } = await supabase
+          .from('playlists')
+          .select('*')
+          .eq('is_public', true)
+          .limit(4);
+          
+        if (error) {
+          console.error("Error fetching playlists:", error);
+          uniqueToast.error("Failed to load playlists");
+          return [];
+        }
         
-      // Map the data to match the Playlist type
-      return (data || []).map(playlist => ({
-        ...playlist,
-        created_at: playlist.created_date || new Date().toISOString(),
-      })) as Playlist[];
+        // Map the data to match the Playlist type
+        return (data || []).map(playlist => ({
+          ...playlist,
+          created_at: playlist.created_date || new Date().toISOString(),
+        })) as Playlist[];
+      } catch (err) {
+        console.error("Exception fetching playlists:", err);
+        uniqueToast.error("Failed to load playlists");
+        return [];
+      }
     }
   });
 

@@ -1,7 +1,9 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
 import { mapSupabaseBeatToBeat } from './utils';
+import { uniqueToast } from '@/lib/toast';
 
 // Helper to get the basic beats query fields
 const BEAT_QUERY_FIELDS = `
@@ -105,26 +107,32 @@ export const fetchAllBeats = async (options: {
     }
     
     // Store this request in the pending map
-    // Fix: Convert the PromiseLike to a full Promise with Promise.resolve()
-    const requestPromise = Promise.resolve(query.then(({ data: beatsData, error: beatsError }) => {
-      // Remove from pending requests map when done
-      pendingRequests.delete(requestKey);
-      
-      if (beatsError) {
-        throw beatsError;
-      }
+    // Fix: Create a full Promise instead of PromiseLike by returning Promise object directly
+    const requestPromise = new Promise<Beat[]>((resolve, reject) => {
+      query.then(({ data: beatsData, error: beatsError }) => {
+        // Remove from pending requests map when done
+        pendingRequests.delete(requestKey);
+        
+        if (beatsError) {
+          reject(beatsError);
+          return;
+        }
 
-      if (beatsData && beatsData.length > 0) {
-        const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-        
-        // Store in session cache with timestamp (memory only, cleared when page refreshes)
-        requestCache.set(cacheKey, { data: mappedBeats, timestamp: Date.now() });
-        
-        return mappedBeats;
-      }
-      
-      return [];
-    }));
+        if (beatsData && beatsData.length > 0) {
+          const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+          
+          // Store in session cache with timestamp (memory only, cleared when page refreshes)
+          requestCache.set(cacheKey, { data: mappedBeats, timestamp: Date.now() });
+          
+          resolve(mappedBeats);
+        } else {
+          resolve([]);
+        }
+      }).catch(error => {
+        pendingRequests.delete(requestKey);
+        reject(error);
+      });
+    });
     
     pendingRequests.set(requestKey, requestPromise);
     return requestPromise;
@@ -144,22 +152,35 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
       return trendingCache.get(limit) || [];
     }
     
-    const { data, error } = await supabase
-      .from('beats')
-      .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published')
-      .order('favorites_count', { ascending: false })
-      .order('purchase_count', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-    
-    // Store in cache
-    trendingCache.set(limit, mappedBeats);
-    
-    return mappedBeats;
+    // Fix: Convert to a full Promise with proper error handling
+    return new Promise<Beat[]>((resolve, reject) => {
+      supabase
+        .from('beats')
+        .select(BEAT_QUERY_FIELDS)
+        .eq('status', 'published')
+        .order('favorites_count', { ascending: false })
+        .order('purchase_count', { ascending: false })
+        .limit(limit)
+        .then(({ data, error }) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          
+          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+          
+          // Store in cache
+          trendingCache.set(limit, mappedBeats);
+          
+          resolve(mappedBeats);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    }).catch(error => {
+      console.error('Error fetching trending beats:', error);
+      return [];
+    });
   } catch (error) {
     console.error('Error fetching trending beats:', error);
     return [];
@@ -179,21 +200,34 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
       return newBeatsCache.get(cacheKey) || [];
     }
     
-    const { data, error } = await supabase
-      .from('beats')
-      .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published')
-      .order('upload_date', { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-    
-    // Store in cache with specific limit key
-    newBeatsCache.set(cacheKey, mappedBeats);
-    
-    return mappedBeats;
+    // Fix: Convert to a full Promise with proper error handling
+    return new Promise<Beat[]>((resolve, reject) => {
+      supabase
+        .from('beats')
+        .select(BEAT_QUERY_FIELDS)
+        .eq('status', 'published')
+        .order('upload_date', { ascending: false })
+        .limit(limit)
+        .then(({ data, error }) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          
+          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+          
+          // Store in cache with specific limit key
+          newBeatsCache.set(cacheKey, mappedBeats);
+          
+          resolve(mappedBeats);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    }).catch(error => {
+      console.error('Error fetching new beats:', error);
+      return [];
+    });
   } catch (error) {
     console.error('Error fetching new beats:', error);
     return [];
@@ -211,26 +245,39 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
       return randomBeatsCache.get(limit) || [];
     }
     
-    // Clone the query each time to prevent body stream already read errors
-    const { data, error } = await supabase
-      .from('beats')
-      .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published')
-      .limit(limit);
-
-    if (error) throw error;
-
-    if (data && data.length > 0) {
-      const shuffled = [...data].sort(() => Math.random() - 0.5);
-      const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-      
-      // Store in cache
-      randomBeatsCache.set(limit, mappedBeats);
-      
-      return mappedBeats;
-    }
-    
-    return [];
+    // Fix: Convert to a full Promise with proper error handling
+    return new Promise<Beat[]>((resolve, reject) => {
+      // Clone the query each time to prevent body stream already read errors
+      supabase
+        .from('beats')
+        .select(BEAT_QUERY_FIELDS)
+        .eq('status', 'published')
+        .limit(limit)
+        .then(({ data, error }) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          
+          if (data && data.length > 0) {
+            const shuffled = [...data].sort(() => Math.random() - 0.5);
+            const mappedBeats = shuffled.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+            
+            // Store in cache
+            randomBeatsCache.set(limit, mappedBeats);
+            
+            resolve(mappedBeats);
+          } else {
+            resolve([]);
+          }
+        })
+        .catch(error => {
+          reject(error);
+        });
+    }).catch(error => {
+      console.error('Error fetching random beats:', error);
+      return [];
+    });
   } catch (error) {
     console.error('Error fetching random beats:', error);
     return [];
@@ -247,32 +294,50 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
       return beatCache.get(beatId) || null;
     }
     
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        ${BEAT_QUERY_FIELDS},
-        audio_file,
-        premium_license_price_local,
-        premium_license_price_diaspora,
-        exclusive_license_price_local,
-        exclusive_license_price_diaspora,
-        custom_license_price_local,
-        custom_license_price_diaspora,
-        key,
-        description,
-        plays
-      `)
-      .eq('id', beatId)
-      .single();
-    
-    if (error) throw error;
-
-    const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
-    
-    // Store in cache
-    beatCache.set(beatId, mappedBeat);
-    
-    return mappedBeat;
+    // Fix: Convert to a full Promise with proper error handling
+    return new Promise<Beat | null>((resolve, reject) => {
+      supabase
+        .from('beats')
+        .select(`
+          ${BEAT_QUERY_FIELDS},
+          audio_file,
+          premium_license_price_local,
+          premium_license_price_diaspora,
+          exclusive_license_price_local,
+          exclusive_license_price_diaspora,
+          custom_license_price_local,
+          custom_license_price_diaspora,
+          key,
+          description,
+          plays
+        `)
+        .eq('id', beatId)
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            if (error.code === 'PGRST116') {
+              // This is "No rows returned" error, which we want to handle differently
+              resolve(null);
+              return;
+            }
+            reject(error);
+            return;
+          }
+          
+          const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
+          
+          // Store in cache
+          beatCache.set(beatId, mappedBeat);
+          
+          resolve(mappedBeat);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    }).catch(error => {
+      console.error('Error fetching beat by ID:', error);
+      return null;
+    });
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
     return null;
@@ -289,21 +354,35 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
       return featuredBeatsCache.get(limit) || [];
     }
     
-    const { data, error } = await supabase
-      .from('beats')
-      .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published')
-      .eq('is_featured', true)
-      .limit(limit);
-
-    if (error) throw error;
-
-    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-    
-    // Store in cache
-    featuredBeatsCache.set(limit, mappedBeats);
-    
-    return mappedBeats;
+    // Fix: Convert to a full Promise with proper error handling
+    return new Promise<Beat[]>((resolve, reject) => {
+      supabase
+        .from('beats')
+        .select(BEAT_QUERY_FIELDS)
+        .eq('status', 'published')
+        .eq('is_featured', true)
+        .limit(limit)
+        .then(({ data, error }) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          
+          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+          
+          // Store in cache
+          featuredBeatsCache.set(limit, mappedBeats);
+          
+          resolve(mappedBeats);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    }).catch(error => {
+      console.error('Error fetching featured beats:', error);
+      uniqueToast.error("Failed to load featured beats");
+      return [];
+    });
   } catch (error) {
     console.error('Error fetching featured beats:', error);
     return [];
@@ -339,17 +418,30 @@ export const clearBeatsCache = (): void => {
 
 export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
   try {
-    const { data, error } = await supabase
-      .from('beats')
-      .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published')
-      .eq('is_trending', true)
-      .limit(limit);
-
-    if (error) throw error;
-
-    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-    return mappedBeats;
+    // Fix: Convert to a full Promise with proper error handling
+    return new Promise<Beat[]>((resolve, reject) => {
+      supabase
+        .from('beats')
+        .select(BEAT_QUERY_FIELDS)
+        .eq('status', 'published')
+        .eq('is_trending', true)
+        .limit(limit)
+        .then(({ data, error }) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+          
+          const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+          resolve(mappedBeats);
+        })
+        .catch(error => {
+          reject(error);
+        });
+    }).catch(error => {
+      console.error('Error fetching marked trending beats:', error);
+      return [];
+    });
   } catch (error) {
     console.error('Error fetching marked trending beats:', error);
     return [];
