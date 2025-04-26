@@ -109,29 +109,31 @@ export const fetchAllBeats = async (options: {
     // Store this request in the pending map
     // Create a full Promise object instead of PromiseLike
     const requestPromise = new Promise<Beat[]>((resolve, reject) => {
-      query.then(({ data: beatsData, error: beatsError }) => {
-        // Remove from pending requests map when done
-        pendingRequests.delete(requestKey);
-        
-        if (beatsError) {
-          reject(beatsError);
-          return;
-        }
+      query
+        .then(({ data: beatsData, error: beatsError }) => {
+          // Remove from pending requests map when done
+          pendingRequests.delete(requestKey);
+          
+          if (beatsError) {
+            reject(beatsError);
+            return;
+          }
 
-        if (beatsData && beatsData.length > 0) {
-          const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-          
-          // Store in session cache with timestamp (memory only, cleared when page refreshes)
-          requestCache.set(cacheKey, { data: mappedBeats, timestamp: Date.now() });
-          
-          resolve(mappedBeats);
-        } else {
-          resolve([]);
-        }
-      }).catch((error) => {
-        pendingRequests.delete(requestKey);
-        reject(error);
-      });
+          if (beatsData && beatsData.length > 0) {
+            const mappedBeats = beatsData.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+            
+            // Store in session cache with timestamp (memory only, cleared when page refreshes)
+            requestCache.set(cacheKey, { data: mappedBeats, timestamp: Date.now() });
+            
+            resolve(mappedBeats);
+          } else {
+            resolve([]);
+          }
+        })
+        .catch((error) => {
+          pendingRequests.delete(requestKey);
+          reject(error);
+        });
     });
     
     pendingRequests.set(requestKey, requestPromise);
