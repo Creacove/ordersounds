@@ -159,10 +159,7 @@ export const fetchAllBeats = async (options: {
       }
       
       return [];
-    }));
-    
-    // Now we can safely use .catch with Promise.resolve
-    const finalPromise = requestPromise.catch(error => {
+    }).catch(error => {
       // Remove from pending requests map on error
       pendingRequests.delete(requestKey);
       console.error('Error in fetchAllBeats:', error);
@@ -184,10 +181,10 @@ export const fetchAllBeats = async (options: {
       }
       
       return [];
-    });
+    }));
     
-    pendingRequests.set(requestKey, finalPromise);
-    return finalPromise;
+    pendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching all beats:', error);
     return [];
@@ -236,16 +233,14 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
         
         return mappedBeats;
       })
-    );
+      .catch(error => {
+        trendingPendingRequests.delete(requestKey);
+        console.error('Error fetching trending beats:', error);
+        return [];
+      }));
     
-    const finalPromise = requestPromise.catch(error => {
-      trendingPendingRequests.delete(requestKey);
-      console.error('Error fetching trending beats:', error);
-      return [];
-    });
-    
-    trendingPendingRequests.set(requestKey, finalPromise);
-    return finalPromise;
+    trendingPendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching trending beats:', error);
     return [];
@@ -288,16 +283,14 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
         
         return mappedBeats;
       })
-    );
+      .catch(error => {
+        newBeatsPendingRequests.delete(cacheKey);
+        console.error('Error fetching new beats:', error);
+        return [];
+      }));
     
-    const finalPromise = requestPromise.catch(error => {
-      newBeatsPendingRequests.delete(cacheKey);
-      console.error('Error fetching new beats:', error);
-      return [];
-    });
-    
-    newBeatsPendingRequests.set(cacheKey, finalPromise);
-    return finalPromise;
+    newBeatsPendingRequests.set(cacheKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching new beats:', error);
     return [];
@@ -343,16 +336,14 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
         
         return [];
       })
-    );
+      .catch(error => {
+        randomBeatsPendingRequests.delete(requestKey);
+        console.error('Error fetching random beats:', error);
+        return [];
+      }));
     
-    const finalPromise = requestPromise.catch(error => {
-      randomBeatsPendingRequests.delete(requestKey);
-      console.error('Error fetching random beats:', error);
-      return [];
-    });
-    
-    randomBeatsPendingRequests.set(requestKey, finalPromise);
-    return finalPromise;
+    randomBeatsPendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching random beats:', error);
     return [];
@@ -403,16 +394,14 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
         
         return mappedBeat;
       })
-    );
+      .catch(error => {
+        beatDetailPendingRequests.delete(beatId);
+        console.error('Error fetching beat by ID:', error);
+        return null;
+      }));
     
-    const finalPromise = requestPromise.catch(error => {
-      beatDetailPendingRequests.delete(beatId);
-      console.error('Error fetching beat by ID:', error);
-      return null;
-    });
-    
-    beatDetailPendingRequests.set(beatId, finalPromise);
-    return finalPromise;
+    beatDetailPendingRequests.set(beatId, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
     return null;
@@ -453,16 +442,14 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
         
         return mappedBeats;
       })
-    );
+      .catch(error => {
+        featuredBeatsPendingRequests.delete(requestKey);
+        console.error('Error fetching featured beats:', error);
+        return [];
+      }));
     
-    const finalPromise = requestPromise.catch(error => {
-      featuredBeatsPendingRequests.delete(requestKey);
-      console.error('Error fetching featured beats:', error);
-      return [];
-    });
-    
-    featuredBeatsPendingRequests.set(requestKey, finalPromise);
-    return finalPromise;
+    featuredBeatsPendingRequests.set(requestKey, requestPromise);
+    return requestPromise;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
     return [];
