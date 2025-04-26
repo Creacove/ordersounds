@@ -16,26 +16,18 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     persistSession: true,
   },
   global: {
-    // Set fetch timeout to 8 seconds to prevent indefinite hanging requests
-    // Reduced from 15s to 8s to fail faster when network is unstable
+    // Set fetch timeout to 15 seconds to prevent indefinite hanging requests
     fetch: (url, options) => {
       const controller = new AbortController();
       const { signal } = controller;
       
-      // Set a timeout of 8 seconds
+      // Set a timeout of 15 seconds
       const timeoutId = setTimeout(() => {
         controller.abort();
-      }, 8000);
+        console.log(`Request to ${url} timed out after 15s`);
+      }, 15000);
       
-      return fetch(url, { 
-        ...options, 
-        signal,
-        // Add cache control to prevent caching issues
-        headers: {
-          ...options?.headers,
-          'Cache-Control': 'no-cache'
-        }
-      }).finally(() => {
+      return fetch(url, { ...options, signal }).finally(() => {
         clearTimeout(timeoutId);
       });
     },
@@ -50,16 +42,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   },
 });
 
-// Create a health check function that's more reliable
+// Export utility functions for handling supabase connectivity issues
 export const healthCheck = async () => {
   try {
-    // Use a very simple query with a short timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-    
     const { data, error } = await supabase.from('beats').select('id').limit(1).maybeSingle();
-    
-    clearTimeout(timeoutId);
     return { ok: !error, data, error };
   } catch (error) {
     console.error('Supabase connectivity error:', error);

@@ -7,12 +7,9 @@ import { BeatCardCompact } from "./BeatCardCompact";
 import { fetchNewBeats } from "@/services/beats/queryService";
 
 export const NewBeats = () => {
-  // Always provide an empty array as default data to avoid undefined
   const { data: newBeats = [], isLoading } = useQuery({
     queryKey: ['new-beats'],
-    queryFn: () => fetchNewBeats(5),
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    retry: 1, // Don't retry too many times to avoid network spam
+    queryFn: () => fetchNewBeats(5)
   });
 
   return (

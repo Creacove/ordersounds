@@ -33,9 +33,8 @@ const BEAT_QUERY_FIELDS = `
 // Add request cache to prevent duplicate requests in the same session
 const requestCache = new Map<string, { data: Beat[], timestamp: number }>();
 
-// Maximum age for cached results in milliseconds (1 hour)
-// Increased cache duration to reduce network errors impact
-const MAX_CACHE_AGE = 60 * 60 * 1000; 
+// Maximum age for cached results in milliseconds (5 minutes)
+const MAX_CACHE_AGE = 5 * 60 * 1000; 
 
 // Function to check if cache is still valid
 const isCacheValid = (timestamp: number): boolean => {
@@ -47,9 +46,9 @@ const pendingRequests = new Map<string, Promise<Beat[]>>();
 
 // Exponential backoff settings
 const BACKOFF_SETTINGS = {
-  initialDelay: 500,
+  initialDelay: 300,
   maxDelay: 10000,
-  maxRetries: 2
+  maxRetries: 3
 };
 
 // Get backoff delay based on retry count
@@ -60,36 +59,6 @@ const getBackoffDelay = (retryCount: number): number => {
   );
 };
 
-// Mock data to use when database is unavailable
-const getFallbackBeats = (count = 4): Beat[] => {
-  const mockBeats: Beat[] = [];
-  
-  for (let i = 0; i < count; i++) {
-    mockBeats.push({
-      id: `fallback-${i}`,
-      title: `Demo Beat ${i+1}`,
-      producer_id: "demo-producer",
-      producer_name: "Demo Producer",
-      cover_image_url: "/placeholder.svg",
-      preview_url: "",
-      full_track_url: "",
-      basic_license_price_local: 5000,
-      basic_license_price_diaspora: 15,
-      genre: "Afrobeat",
-      track_type: "Single",
-      bpm: 100 + i * 5,
-      status: "published",
-      is_featured: i === 0,
-      created_at: new Date(Date.now() - i * 86400000).toISOString(),
-      tags: ["demo"],
-      favorites_count: 0,
-      purchase_count: 0,
-    });
-  }
-  
-  return mockBeats;
-};
-
 export const fetchAllBeats = async (options: { 
   includeDetails?: boolean; 
   limit?: number; 
@@ -97,7 +66,6 @@ export const fetchAllBeats = async (options: {
   producerId?: string;
   skipCache?: boolean;
   retryCount?: number;
-  useFallback?: boolean;
 } = {}): Promise<Beat[]> => {
   try {
     const { 
@@ -106,15 +74,8 @@ export const fetchAllBeats = async (options: {
       includeDrafts = false,
       producerId,
       skipCache = false,
-      retryCount = 0,
-      useFallback = false
+      retryCount = 0
     } = options;
-    
-    // Use fallback data when explicitly requested
-    if (useFallback) {
-      console.log('Using fallback beats data');
-      return getFallbackBeats(limit > 0 ? limit : 10);
-    }
     
     // Create a cache key based on the query parameters
     const cacheKey = JSON.stringify({limit, includeDrafts, producerId});
@@ -125,7 +86,7 @@ export const fetchAllBeats = async (options: {
       
       // Only use cache if it's not too old
       if (isCacheValid(cached.timestamp)) {
-        console.log(`Using in-memory cached beats data (age: ${Math.floor((Date.now() - cached.timestamp) / 1000)}s)`);
+        console.log('Using in-memory cached beats data (age:', Date.now() - cached.timestamp, 'ms)');
         return cached.data;
       } else {
         console.log('Cache expired, fetching fresh data');
@@ -134,7 +95,9 @@ export const fetchAllBeats = async (options: {
     
     console.log(skipCache ? 'Bypassing cache and fetching fresh data' : 'Cache miss, fetching from database');
     
-    // Check if we already have a pending request for this exact query
+    // Check if we already have a pending request for this exact query to prevent 
+    // "body stream already read" errors when multiple components request the same data
+    // Use a URL without getUrl() which doesn't exist on the client
     const baseUrl = supabase.from('beats').url.toString();
     const requestKey = `GET:${baseUrl}?select=${encodeURIComponent(BEAT_QUERY_FIELDS)}${producerId ? `&producer_id=eq.${producerId}` : ''}${limit > 0 ? `&limit=${limit}` : ''}:${retryCount}`;
     
@@ -161,7 +124,8 @@ export const fetchAllBeats = async (options: {
       query = query.limit(limit);
     }
     
-    // Use Promise.resolve to ensure we have a real Promise with catch method
+    // Store this request in the pending map
+    // Convert the PromiseLike to a full Promise with Promise.resolve()
     const requestPromise = Promise.resolve(query.then(({ data: beatsData, error: beatsError }) => {
       // Remove from pending requests map when done
       pendingRequests.delete(requestKey);
@@ -182,9 +146,7 @@ export const fetchAllBeats = async (options: {
           });
         }
         
-        // If we've exhausted retries, return fallback data
-        console.log('Exhausted retries, using fallback data');
-        return getFallbackBeats(limit);
+        throw beatsError;
       }
 
       if (beatsData && beatsData.length > 0) {
@@ -206,7 +168,8 @@ export const fetchAllBeats = async (options: {
       console.error('Error in fetchAllBeats:', error);
       
       // For network errors, retry with backoff if we have retries left
-      if (retryCount < BACKOFF_SETTINGS.maxRetries) {
+      if (retryCount < BACKOFF_SETTINGS.maxRetries && 
+          (error.message?.includes('network') || error.message?.includes('fetch'))) {
         console.log(`Network error, retrying in ${getBackoffDelay(retryCount)}ms (retry ${retryCount + 1}/${BACKOFF_SETTINGS.maxRetries})`);
         
         // Wait and retry with backoff
@@ -220,16 +183,14 @@ export const fetchAllBeats = async (options: {
         });
       }
       
-      // Fall back to demo data when all else fails
-      console.log('Using fallback data after network error');
-      return getFallbackBeats(limit);
+      return [];
     });
     
     pendingRequests.set(requestKey, finalPromise);
     return finalPromise;
   } catch (error) {
     console.error('Error fetching all beats:', error);
-    return getFallbackBeats();
+    return [];
   }
 };
 
@@ -280,14 +241,14 @@ export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
     const finalPromise = requestPromise.catch(error => {
       trendingPendingRequests.delete(requestKey);
       console.error('Error fetching trending beats:', error);
-      return getFallbackBeats(limit);
+      return [];
     });
     
     trendingPendingRequests.set(requestKey, finalPromise);
     return finalPromise;
   } catch (error) {
     console.error('Error fetching trending beats:', error);
-    return getFallbackBeats(limit);
+    return [];
   }
 };
 
@@ -332,14 +293,14 @@ export const fetchNewBeats = async (limit = 30): Promise<Beat[]> => {
     const finalPromise = requestPromise.catch(error => {
       newBeatsPendingRequests.delete(cacheKey);
       console.error('Error fetching new beats:', error);
-      return getFallbackBeats(limit);
+      return [];
     });
     
     newBeatsPendingRequests.set(cacheKey, finalPromise);
     return finalPromise;
   } catch (error) {
     console.error('Error fetching new beats:', error);
-    return getFallbackBeats(limit);
+    return [];
   }
 };
 
@@ -387,14 +348,14 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
     const finalPromise = requestPromise.catch(error => {
       randomBeatsPendingRequests.delete(requestKey);
       console.error('Error fetching random beats:', error);
-      return getFallbackBeats(limit);
+      return [];
     });
     
     randomBeatsPendingRequests.set(requestKey, finalPromise);
     return finalPromise;
   } catch (error) {
     console.error('Error fetching random beats:', error);
-    return getFallbackBeats(limit);
+    return [];
   }
 };
 
@@ -447,30 +408,7 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
     const finalPromise = requestPromise.catch(error => {
       beatDetailPendingRequests.delete(beatId);
       console.error('Error fetching beat by ID:', error);
-      
-      // Create a fallback beat with the requested ID
-      const fallbackBeat: Beat = {
-        id: beatId,
-        title: "Sample Beat",
-        producer_id: "demo-producer",
-        producer_name: "Demo Producer",
-        cover_image_url: "/placeholder.svg",
-        preview_url: "",
-        full_track_url: "",
-        basic_license_price_local: 5000,
-        basic_license_price_diaspora: 15,
-        genre: "Afrobeat",
-        track_type: "Single",
-        bpm: 100,
-        status: "published",
-        is_featured: false,
-        created_at: new Date().toISOString(),
-        tags: ["demo"],
-        favorites_count: 0,
-        purchase_count: 0,
-      };
-      
-      return fallbackBeat;
+      return null;
     });
     
     beatDetailPendingRequests.set(beatId, finalPromise);
@@ -520,21 +458,14 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
     const finalPromise = requestPromise.catch(error => {
       featuredBeatsPendingRequests.delete(requestKey);
       console.error('Error fetching featured beats:', error);
-      
-      // Create fallback featured beats
-      const fallbackBeats = getFallbackBeats(limit).map(beat => ({
-        ...beat,
-        is_featured: true
-      }));
-      
-      return fallbackBeats;
+      return [];
     });
     
     featuredBeatsPendingRequests.set(requestKey, finalPromise);
     return finalPromise;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
-    return getFallbackBeats(limit).map(beat => ({...beat, is_featured: true}));
+    return [];
   }
 };
 
@@ -555,6 +486,22 @@ export const clearBeatsCache = (): void => {
   randomBeatsPendingRequests.clear();
   beatDetailPendingRequests.clear();
   featuredBeatsPendingRequests.clear();
+  
+  // Also notify other components that cache has been cleared
+  try {
+    sessionStorage.setItem('beats_needs_refresh', 'true');
+    
+    // Dispatch storage event to notify other tabs
+    if (window.dispatchEvent) {
+      const event = new StorageEvent('storage', {
+        key: 'beats_needs_refresh',
+        newValue: 'true'
+      });
+      window.dispatchEvent(event);
+    }
+  } catch (e) {
+    console.error('Could not set refresh notification:', e);
+  }
 };
 
 export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
@@ -566,15 +513,12 @@ export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
       .eq('is_trending', true)
       .limit(limit);
 
-    if (error) {
-      console.error('Error fetching marked trending beats:', error);
-      return getFallbackBeats(limit).map(beat => ({...beat, is_trending: true}));
-    }
+    if (error) throw error;
 
     const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
     return mappedBeats;
   } catch (error) {
     console.error('Error fetching marked trending beats:', error);
-    return getFallbackBeats(limit).map(beat => ({...beat, is_trending: true}));
+    return [];
   }
 };
