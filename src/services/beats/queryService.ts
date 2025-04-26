@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -32,6 +33,13 @@ const BEAT_QUERY_FIELDS = `
 
 // Add request cache to prevent duplicate requests in the same session
 const requestCache = new Map<string, { data: Beat[], timestamp: number }>();
+
+// Define additional cache maps for different beat query types
+const trendingCache = new Map<number, Beat[]>();
+const newBeatsCache = new Map<string, Beat[]>();
+const randomBeatsCache = new Map<number, Beat[]>();
+const beatCache = new Map<string, Beat | null>();
+const featuredBeatsCache = new Map<number, Beat[]>();
 
 // Maximum age for cached results in milliseconds (5 minutes)
 const MAX_CACHE_AGE = 5 * 60 * 1000; 
