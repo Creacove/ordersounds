@@ -1,0 +1,244 @@
+import { useState } from "react";
+import { useSolanaPayment } from "@/hooks/payment/useSolanaPayment";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Loader2, AlertTriangle } from "lucide-react";
+
+interface CartItem {
+  id: string;
+  title: string;
+  price: number;
+  thumbnail_url: string;
+  quantity: number;
+  producer_wallet?: string;
+}
+
+interface CheckoutDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  cartItems: CartItem[];
+  onCheckoutSuccess: () => void;
+}
+
+export const SolanaCheckoutDialog = ({
+  open,
+  onOpenChange,
+  cartItems,
+  onCheckoutSuccess
+}: CheckoutDialogProps) => {
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+  const { makePayment, isProcessing, isWalletConnected } = useSolanaPayment();
+  
+  const totalPrice = cartItems.reduce((total, item) => {
+    return total + (item.price * item.quantity);
+  }, 0);
+  
+  // Group items by producer wallet for payment processing
+  const getItemsByProducer = () => {
+    const groupedItems: Record<string, { items: CartItem[], total: number }> = {};
+    
+    cartItems.forEach(item => {
+      const producerWallet = item.producer_wallet || '';
+      if (!groupedItems[producerWallet]) {
+        groupedItems[producerWallet] = { items: [], total: 0 };
+      }
+      
+      groupedItems[producerWallet].items.push(item);
+      groupedItems[producerWallet].total += item.price * item.quantity;
+    });
+    
+    return Object.entries(groupedItems).map(([wallet, data]) => ({
+      producerWallet: wallet,
+      items: data.items,
+      total: data.total
+    }));
+  };
+  
+  const handleCheckout = async () => {
+    if (!isWalletConnected) {
+      toast.error("Please connect your wallet first");
+      return;
+    }
+    
+    setIsCheckingOut(true);
+    const groupedItems = getItemsByProducer();
+    
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData?.user?.id) {
+        throw new Error("User not authenticated");
+      }
+
+      // Create order header - immediately set as completed since we're going to validate it
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          user_id: userData.user.id,
+          total_amount: totalPrice,
+          status: 'completed' // Initialize as completed, we'll delete if payments fail
+        })
+        .select()
+        .single();
+        
+      if (orderError) {
+        console.error("Order creation error:", orderError);
+        toast.error("Could not process your order");
+        return;
+      }
+      
+      // Process payments for each producer
+      let successfulPayments = 0;
+      let transactionSignatures: string[] = [];
+      
+      for (const group of groupedItems) {
+        try {
+          if (!group.producerWallet) {
+            toast.error(`Missing producer wallet address for ${group.items[0].title}`);
+            continue;
+          }
+          
+          // Process payment for this producer's items
+          const signature = await makePayment(
+            group.total,
+            group.producerWallet,
+            (sig) => {
+              successfulPayments++;
+              transactionSignatures.push(sig);
+            },
+            (err) => console.error(`Payment error for ${group.producerWallet}:`, err)
+          );
+          
+          // Create order items for this producer's items
+          const orderItems = group.items.map(item => ({
+            order_id: order.id,
+            product_id: item.id,
+            quantity: item.quantity,
+            price: item.price,
+            title: item.title
+          }));
+          
+          const { error: itemsError } = await supabase
+            .from('order_items')
+            .insert(orderItems);
+            
+          if (itemsError) {
+            console.error("Order items error:", itemsError);
+            toast.error("Could not register all items in your order");
+          }
+          
+        } catch (error) {
+          console.error("Checkout error for producer:", error);
+          toast.error(`Error processing payment to producer`);
+        }
+      }
+      
+      // Update order status based on payment results
+      if (successfulPayments === groupedItems.length) {
+        // All payments successful - status already set to completed
+        if (transactionSignatures.length > 0) {
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({
+              transaction_signatures: transactionSignatures
+            })
+            .eq('id', order.id);
+            
+          if (updateError) {
+            console.error("Error updating transaction signatures:", updateError);
+          }
+        }
+          
+        toast.success("Purchase completed successfully!");
+        onCheckoutSuccess();
+      } else if (successfulPayments > 0) {
+        // Some payments successful but not all - keep it as completed since some items were purchased
+        const { error: updateError } = await supabase
+          .from('orders')
+          .update({
+            transaction_signatures: transactionSignatures
+          })
+          .eq('id', order.id);
+          
+        if (updateError) {
+          console.error("Error updating transaction signatures:", updateError);
+        }
+          
+        toast.warning("Some items were purchased successfully, but others failed");
+        onCheckoutSuccess();
+      } else {
+        // No payments successful - delete the order entirely since nothing was purchased
+        await supabase
+          .from('orders')
+          .delete()
+          .eq('id', order.id);
+          
+        toast.error("Payment failed for all items");
+      }
+      
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error("An error occurred during checkout");
+    } finally {
+      setIsCheckingOut(false);
+      onOpenChange(false);
+    }
+  };
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Complete your purchase</DialogTitle>
+          <DialogDescription>
+            You are about to purchase {cartItems.length} digital item(s) for ${totalPrice.toFixed(2)}
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4 py-4">
+          {!isWalletConnected && (
+            <div className="flex items-center p-2 rounded bg-amber-50 border border-amber-200 text-amber-800">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              <p className="text-sm">Please connect your Solana wallet to complete this purchase</p>
+            </div>
+          )}
+          
+          <p>Your items will be available for download immediately after purchase.</p>
+          <p className="text-sm text-muted-foreground">
+            This checkout will process individual payments to each producer, with platform fees calculated per item.
+          </p>
+        </div>
+        
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCheckingOut}>
+            Cancel
+          </Button>
+          <Button 
+            className="button-gradient" 
+            onClick={handleCheckout} 
+            disabled={isCheckingOut || !isWalletConnected}
+          >
+            {isCheckingOut ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              'Complete Purchase'
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
