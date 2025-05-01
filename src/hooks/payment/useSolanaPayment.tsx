@@ -2,7 +2,7 @@
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { processPurchase, isValidSolanaAddress, processMultiplePayments } from '@/utils/solanaTransactions';
+import { processPurchase, isValidSolanaAddress, processMultiplePayments } from '@/utils/payment/solanaTransactions';
 import { supabase } from '@/integrations/supabase/client';
 
 export const useSolanaPayment = () => {
@@ -27,8 +27,8 @@ export const useSolanaPayment = () => {
       }
       
       if (!isValidSolanaAddress(producerWalletAddress)) {
-        toast.error("Creator wallet address is invalid");
-        throw new Error("Invalid creator wallet address");
+        toast.error("Producer wallet address is invalid");
+        throw new Error("Invalid Producer wallet address");
       }
       
       const signature = await processPurchase(
