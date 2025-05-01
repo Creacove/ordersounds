@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { getLicensePrice } from '@/utils/licenseUtils';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
 import { supabase } from '@/integrations/supabase/client';
-// import { SolanaCheckoutDialog } from "@/components/checkout/SolanaCheckoutDialog";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
