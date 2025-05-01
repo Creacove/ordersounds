@@ -41,10 +41,6 @@ import ProducerBeats from "./pages/producer/Beats";
 import Royalties from "./pages/producer/Royalties";
 import ProtectedProducerRoute from "./components/auth/ProtectedProducerRoute";
 
-// Add custom wallet styles
-import '@solana/wallet-adapter-react-ui/styles.css';
-import './wallet-button.css';
-
 // Configure QueryClient with optimized settings for less API stress
 const queryClient = new QueryClient({
   defaultOptions: {
