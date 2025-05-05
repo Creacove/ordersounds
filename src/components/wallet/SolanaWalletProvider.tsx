@@ -9,7 +9,6 @@ import {
     CloverWalletAdapter,
     SalmonWalletAdapter,
     TorusWalletAdapter,
-    GlowWalletAdapter,
     LedgerWalletAdapter,
     MathWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
@@ -41,7 +40,6 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
             new CloverWalletAdapter(),
             new SalmonWalletAdapter(),
             new TorusWalletAdapter(),
-            new GlowWalletAdapter(),
             new LedgerWalletAdapter(),
             new MathWalletAdapter(),
         ],

@@ -53,7 +53,7 @@ export const useSolanaPayment = () => {
           .from('orders')
           .insert({
             buyer_id: userData.user.id,
-            total_amount: amount,
+            total_price: amount,
             status: 'completed', // Ensure status is always completed for successful purchases
             transaction_signatures: [signature],
             payment_method: 'solana',
