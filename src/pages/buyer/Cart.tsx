@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -28,6 +27,7 @@ export default function Cart() {
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [cartKey, setCartKey] = useState(Date.now()); // Added to force re-render
   
   useEffect(() => {
     // Debug log cart status when component mounts or changes
@@ -35,9 +35,11 @@ export default function Cart() {
     setIsLoading(false);
   }, [cartItems]);
   
-  const handleRemoveItem = (beatId: string) => {
+  const handleRemoveItem = (beatId) => {
     console.log("Handling remove item:", beatId);
     removeFromCart(beatId);
+    // Force component re-render by updating key
+    setCartKey(Date.now());
     toast.success("Item removed from cart");
   };
   
@@ -76,6 +78,8 @@ export default function Cart() {
   const handleClearCart = () => {
     console.log("Handling clear cart");
     clearCart();
+    // Force component re-render by updating key
+    setCartKey(Date.now());
     toast.success("Cart cleared successfully");
   };
   
@@ -256,8 +260,9 @@ export default function Cart() {
     );
   }
   
+  // Re-render the component whenever cart changes by using the key
   return (
-    <MainLayoutWithPlayer>
+    <MainLayoutWithPlayer key={cartKey}>
       <div className="container py-8 pb-32 md:pb-8">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
@@ -271,6 +276,7 @@ export default function Cart() {
               size="sm"
               onClick={() => {
                 refreshCart();
+                setCartKey(Date.now()); // Force re-render after refresh
                 toast.success("Cart refreshed");
               }}
               className="flex items-center gap-1"
@@ -281,7 +287,7 @@ export default function Cart() {
           )}
         </div>
 
-        {cartItems.length === 0 ? (
+        {(!cartItems || cartItems.length === 0) ? (
           <div className="text-center py-12">
             <ShoppingCart className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h2 className="text-xl font-semibold mb-2">Your cart is empty</h2>
@@ -297,7 +303,7 @@ export default function Cart() {
             <div className="lg:col-span-2">
               <div className="space-y-3">
                 {cartItems.map((item) => (
-                  <div key={item.beat.id} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
+                  <div key={`${item.beat.id}-${cartKey}`} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
                     <div className="flex-shrink-0 w-16 h-16">
                       <div
                         className="relative w-16 h-16 rounded-md overflow-hidden cursor-pointer group"

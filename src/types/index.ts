@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -32,6 +31,8 @@ export interface User {
   status?: 'active' | 'inactive';
   // Add music_interests field
   music_interests?: string[];
+  // Add favorites field
+  favorites?: Array<{beat_id: string, added_at: string}>;
 }
 
 export interface Beat {
@@ -80,6 +81,8 @@ export interface Beat {
     wallet_address?: string; // Added wallet_address property
     id?: string; // Add ID for easier lookup
   };
+  // Add selected_license for cart functionality
+  selected_license?: string;
 }
 
 export interface Playlist {

@@ -40,6 +40,7 @@ export const SolanaCheckoutDialog = ({
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [validatedItems, setValidatedItems] = useState<CartItem[]>([]);
   const [validationComplete, setValidationComplete] = useState(false);
+  const [validationError, setValidationError] = useState('');
   const { makePayment, isProcessing, isWalletConnected } = useSolanaPayment();
   
   // Re-validate wallet addresses when dialog opens
@@ -47,6 +48,7 @@ export const SolanaCheckoutDialog = ({
     const checkWalletAddresses = async () => {
       if (!open || cartItems.length === 0) return;
       
+      setValidationError('');
       console.log("Validating wallet addresses for items:", cartItems);
 
       try {
@@ -66,8 +68,7 @@ export const SolanaCheckoutDialog = ({
         
         if (!beatsData || beatsData.length === 0) {
           console.error("No beats data returned");
-          toast.error("Could not verify beat information");
-          onOpenChange(false);
+          setValidationError("Could not verify beat information");
           return;
         }
         
@@ -118,8 +119,7 @@ export const SolanaCheckoutDialog = ({
         const missingWallets = updatedItems.filter(item => !item.producer_wallet);
         if (missingWallets.length > 0) {
           console.error("Items missing wallet addresses:", missingWallets);
-          toast.error(`${missingWallets.length} item(s) cannot be purchased due to missing wallet address`);
-          onOpenChange(false);
+          setValidationError(`${missingWallets.length} item(s) cannot be purchased due to missing wallet address`);
           return;
         }
         
@@ -127,8 +127,7 @@ export const SolanaCheckoutDialog = ({
         setValidationComplete(true);
       } catch (error) {
         console.error('Error validating wallet addresses:', error);
-        toast.error('Error validating producer payment information');
-        onOpenChange(false);
+        setValidationError('Error validating producer payment information');
       }
     };
     
@@ -136,7 +135,7 @@ export const SolanaCheckoutDialog = ({
       setValidationComplete(false);
       checkWalletAddresses();
     }
-  }, [open, cartItems, onOpenChange]);
+  }, [open, cartItems]);
   
   const totalPrice = cartItems.reduce((total, item) => {
     return total + (item.price * item.quantity);
@@ -326,7 +325,12 @@ export const SolanaCheckoutDialog = ({
             </div>
           )}
           
-          {validationComplete ? (
+          {validationError ? (
+            <div className="flex items-center p-2 rounded bg-red-50 border border-red-200 text-red-800">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              <p className="text-sm">{validationError}</p>
+            </div>
+          ) : validationComplete ? (
             <div className="flex items-center p-2 rounded bg-green-50 border border-green-200 text-green-800">
               <CheckCircle2 className="h-4 w-4 mr-2" />
               <p className="text-sm">All producer wallet addresses verified</p>
@@ -351,7 +355,7 @@ export const SolanaCheckoutDialog = ({
           <Button 
             className="button-gradient" 
             onClick={handleCheckout} 
-            disabled={isCheckingOut || !isWalletConnected || !validationComplete}
+            disabled={isCheckingOut || !isWalletConnected || !validationComplete || !!validationError}
           >
             {isCheckingOut ? (
               <>

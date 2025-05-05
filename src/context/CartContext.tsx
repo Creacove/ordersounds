@@ -89,40 +89,56 @@ const createLightweightBeat = (beat: Beat & { selected_license?: string }): Ligh
   };
 };
 
+// Helper to safely save to localStorage
+const safeLocalStorageSave = (key: string, value: any) => {
+  try {
+    const stringValue = JSON.stringify(value);
+    localStorage.setItem(key, stringValue);
+    return true;
+  } catch (error) {
+    console.error("Error saving to localStorage:", error);
+    return false;
+  }
+};
+
+// Helper to safely get from localStorage
+const safeLocalStorageGet = (key: string) => {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : null;
+  } catch (error) {
+    console.error("Error reading from localStorage:", error);
+    return null;
+  }
+};
+
 export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const { user, currency } = useAuth();
   const [totalAmount, setTotalAmount] = useState(0);
   const [itemCount, setItemCount] = useState(0);
 
+  // Load cart from localStorage when user changes
   useEffect(() => {
     if (user) {
-      try {
-        const savedCart = localStorage.getItem(`cart_${user.id}`);
-        if (savedCart) {
-          try {
-            const parsedCart = JSON.parse(savedCart);
-            setCartItems(parsedCart);
-            setItemCount(parsedCart.length);
-          } catch (error) {
-            console.error("Error loading cart from local storage:", error);
-            setCartItems([]);
-            setItemCount(0);
-          }
-        } else {
-          setCartItems([]);
-          setItemCount(0);
-        }
-      } catch (error) {
-        console.error("Error accessing localStorage:", error);
-        // Continue without cart data if localStorage fails
+      const savedCart = safeLocalStorageGet(`cart_${user.id}`);
+      if (savedCart && Array.isArray(savedCart)) {
+        console.log("Loading cart from localStorage:", savedCart);
+        setCartItems(savedCart);
+        setItemCount(savedCart.length);
+      } else {
+        console.log("No valid cart found in localStorage, initializing empty cart");
+        setCartItems([]);
+        setItemCount(0);
       }
     } else {
+      console.log("No user, clearing cart");
       setCartItems([]);
       setItemCount(0);
     }
   }, [user]);
 
+  // Calculate total amount when cart or currency changes
   useEffect(() => {
     if (cartItems.length === 0) {
       setTotalAmount(0);
@@ -134,61 +150,56 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
     const newTotal = cartItems.reduce((total, item) => {
       const licenseType = item.beat.selected_license || 'basic';
-      
       const price = getLicensePrice(item.beat as any, licenseType, currency === 'USD');
-      
       return total + price;
     }, 0);
 
     setTotalAmount(newTotal);
   }, [cartItems, currency]);
 
+  // Save cart to localStorage when it changes
   useEffect(() => {
-    if (user && cartItems.length > 0) {
-      try {
-        localStorage.setItem(`cart_${user.id}`, JSON.stringify(cartItems));
-      } catch (error) {
-        console.error("Error saving cart to localStorage:", error);
-        // Try to remove some items if storage is full
-        if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-          // If we have more than 5 items, reduce to 5 and try again
-          if (cartItems.length > 5) {
-            const reducedCart = cartItems.slice(0, 5);
-            try {
-              localStorage.setItem(`cart_${user.id}`, JSON.stringify(reducedCart));
-              setCartItems(reducedCart);
-              toast.warning("Cart was limited to 5 items due to storage constraints");
-            } catch (innerError) {
-              console.error("Still failed to save reduced cart:", innerError);
-            }
-          }
+    if (user) {
+      if (cartItems.length > 0) {
+        console.log("Saving cart to localStorage:", cartItems);
+        const success = safeLocalStorageSave(`cart_${user.id}`, cartItems);
+        
+        if (!success && cartItems.length > 5) {
+          // If storage fails, try with a reduced cart
+          const reducedCart = cartItems.slice(0, 5);
+          safeLocalStorageSave(`cart_${user.id}`, reducedCart);
+          setCartItems(reducedCart);
+          toast.warning("Cart was limited to 5 items due to storage constraints");
         }
-      }
-    } else if (user && cartItems.length === 0) {
-      // Explicitly clear cart in localStorage when cartItems is empty
-      try {
+      } else {
+        // Clear cart in localStorage when cart is empty
         localStorage.removeItem(`cart_${user.id}`);
-      } catch (error) {
-        console.error("Error clearing cart from localStorage:", error);
       }
     }
   }, [cartItems, user]);
 
   const addToCart = (beat: Beat & { selected_license?: string }) => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Please log in to add items to cart");
+      return;
+    }
     
+    console.log("Adding to cart:", beat.id, beat.title);
     const existingItem = cartItems.find(item => item.beat.id === beat.id);
     const lightweightBeat = createLightweightBeat(beat);
     
     if (existingItem) {
       if (existingItem.beat.selected_license !== beat.selected_license) {
-        setCartItems(prevItems => 
-          prevItems.map(item => 
-            item.beat.id === beat.id 
-              ? { ...item, beat: { ...lightweightBeat } } 
-              : item
-          )
+        // Update existing item with new license
+        const updatedItems = cartItems.map(item => 
+          item.beat.id === beat.id 
+            ? { ...item, beat: { ...lightweightBeat } } 
+            : item
         );
+        setCartItems(updatedItems);
+        console.log("Updated item in cart:", beat.id, updatedItems);
+      } else {
+        console.log("Item already in cart with same license:", beat.id);
       }
     } else {
       // Check if cart is getting too large
@@ -197,18 +208,24 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         return;
       }
       
-      setCartItems(prevItems => [
-        ...prevItems, 
-        { 
-          beat: lightweightBeat,
-          added_at: new Date().toISOString() 
-        }
-      ]);
+      // Add new item to cart
+      const newItem = { 
+        beat: lightweightBeat,
+        added_at: new Date().toISOString() 
+      };
+      
+      const newCartItems = [...cartItems, newItem];
+      console.log("Added new item to cart:", beat.id, newCartItems);
+      setCartItems(newCartItems);
+      toast.success("Added to cart");
     }
   };
 
   const addMultipleToCart = (beats: Beat[]) => {
-    if (!user) return;
+    if (!user) {
+      toast.error("Please log in to add items to cart");
+      return;
+    }
     
     const now = new Date().toISOString();
     const newItems: CartItem[] = [];
@@ -226,7 +243,9 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     });
     
     if (newItems.length > 0) {
-      setCartItems(prevItems => [...prevItems, ...newItems]);
+      const updatedCart = [...cartItems, ...newItems];
+      console.log("Added multiple items to cart:", updatedCart);
+      setCartItems(updatedCart);
       toast.success(`Added ${newItems.length} beat${newItems.length > 1 ? 's' : ''} to cart`);
     } else if (beats.length > availableSlots) {
       toast.info('Cart limit reached. Some beats could not be added.');
@@ -249,16 +268,14 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     
     // Update localStorage immediately
     if (user) {
-      try {
-        if (updatedItems.length === 0) {
-          localStorage.removeItem(`cart_${user.id}`);
-        } else {
-          localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedItems));
-        }
-      } catch (error) {
-        console.error("Error updating cart in localStorage after removal:", error);
+      if (updatedItems.length === 0) {
+        localStorage.removeItem(`cart_${user.id}`);
+      } else {
+        safeLocalStorageSave(`cart_${user.id}`, updatedItems);
       }
     }
+    
+    return true; // Return success indicator
   };
 
   const clearCart = () => {
@@ -269,11 +286,8 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     
     // Clear from localStorage
     if (user) {
-      try {
-        localStorage.removeItem(`cart_${user.id}`);
-      } catch (error) {
-        console.error("Error clearing cart from localStorage:", error);
-      }
+      localStorage.removeItem(`cart_${user.id}`);
+      console.log("Cart cleared from localStorage");
     }
   };
 
@@ -286,7 +300,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   };
 
   const refreshCart = async () => {
+    if (!user) return;
     if (cartItems.length === 0) return;
+    
+    console.log("Refreshing cart...");
     
     const beatIds = cartItems.map(item => item.beat.id);
     const producerIds = cartItems.map(item => item.beat.producer_id);
@@ -325,6 +342,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       console.log("Producer wallet addresses:", walletAddressMap);
       
       if (existingBeats && existingBeats.length !== beatIds.length) {
+        // Some beats no longer exist
         const existingIds = existingBeats.map(beat => beat.id);
         const updatedCart = cartItems.filter(item => existingIds.includes(item.beat.id));
         
@@ -337,14 +355,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           }
         }));
         
+        console.log("Updated cart after refresh:", cartWithUpdatedWallets);
         setCartItems(cartWithUpdatedWallets);
         
         if (user) {
-          try {
-            localStorage.setItem(`cart_${user.id}`, JSON.stringify(cartWithUpdatedWallets));
-          } catch (error) {
-            console.error("Error saving updated cart to localStorage:", error);
-          }
+          safeLocalStorageSave(`cart_${user.id}`, cartWithUpdatedWallets);
         }
         
         const removedCount = cartItems.length - updatedCart.length;
@@ -361,14 +376,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           }
         }));
         
+        console.log("Updated wallet addresses in cart:", updatedCartItems);
         setCartItems(updatedCartItems);
         
         if (user) {
-          try {
-            localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedCartItems));
-          } catch (error) {
-            console.error("Error saving updated cart to localStorage:", error);
-          }
+          safeLocalStorageSave(`cart_${user.id}`, updatedCartItems);
         }
       }
     } catch (err) {
@@ -385,15 +397,15 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     const isBeatingCart = isInCart(beat.id);
     
     if (isBeatingCart) {
-      removeFromCart(beat.id);
-      toast.success('Removed from cart');
+      if (removeFromCart(beat.id)) {
+        toast.success('Removed from cart');
+      }
     } else {
       const beatWithLicense = {
         ...beat,
         selected_license: licenseType
       };
       addToCart(beatWithLicense);
-      toast.success('Added to cart');
     }
   };
 
