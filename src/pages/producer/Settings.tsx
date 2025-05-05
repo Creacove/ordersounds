@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -14,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ProducerBankDetailsForm } from "@/components/payment/ProducerBankDetailsForm";
+import { ProducerWalletDetailsForm } from "@/components/payment/ProducerWalletDetailsForm";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Bell,
@@ -21,6 +23,7 @@ import {
   DollarSign,
   User,
   KeyRound,
+  Wallet,
 } from "lucide-react";
 import { ProfileForm } from "@/components/producer/settings/ProfileForm";
 import { ProfilePictureUploader } from "@/components/producer/settings/ProfilePictureUploader";
@@ -90,7 +93,7 @@ export default function ProducerSettings() {
         const { data, error } = await supabase
           .from("users")
           .select(
-            "bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code"
+            "bank_code, account_number, verified_account_name, paystack_subaccount_code, paystack_split_code, wallet_address"
           )
           .eq("id", user.id)
           .single();
@@ -121,6 +124,27 @@ export default function ProducerSettings() {
         .then(({ data }) => {
           if (data) {
             console.log("Updated bank details:", data);
+          }
+        });
+    }
+  };
+
+  const handleWalletUpdateSuccess = () => {
+    // Refresh producer data after wallet update
+    if (user) {
+      supabase
+        .from("users")
+        .select("wallet_address")
+        .eq("id", user.id)
+        .single()
+        .then(({ data, error }) => {
+          if (error) {
+            console.error("Error refreshing wallet data:", error);
+            return;
+          }
+          if (data) {
+            setProducerData(prev => ({...prev, wallet_address: data.wallet_address}));
+            toast.success("Wallet address updated successfully");
           }
         });
     }
@@ -295,11 +319,32 @@ export default function ProducerSettings() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-xl md:text-2xl">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-5 w-5" />
+                      Solana Wallet
+                    </div>
+                  </CardTitle>
+                  <CardDescription className="text-sm md:text-base">
+                    Set up your Solana wallet address to receive earnings from your beat sales in USD
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ProducerWalletDetailsForm
+                    producerId={user.id}
+                    walletAddress={producerData?.wallet_address}
+                    onSuccess={handleWalletUpdateSuccess}
+                  />
+                </CardContent>
+              </Card>
+            
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-xl md:text-2xl">
                     Payment Account
                   </CardTitle>
                   <CardDescription className="text-sm md:text-base">
                     Set up your bank account to receive earnings from your beat
-                    sales
+                    sales in NGN
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
