@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSolanaPayment } from "@/hooks/payment/useSolanaPayment";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +40,77 @@ export const SolanaCheckoutDialog = ({
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const { makePayment, isProcessing, isWalletConnected } = useSolanaPayment();
+  const [validatedItems, setValidatedItems] = useState<CartItem[]>([]);
+  
+  // Re-validate wallet addresses when dialog opens
+  useEffect(() => {
+    if (open && cartItems.length > 0) {
+      const checkWalletAddresses = async () => {
+        // Extract product IDs for database verification
+        const productIds = cartItems.map(item => item.id);
+        
+        try {
+          // Get the producer IDs for these beats
+          const { data: beatsData, error: beatsError } = await supabase
+            .from('beats')
+            .select('id, producer_id')
+            .in('id', productIds);
+            
+          if (beatsError) throw beatsError;
+          
+          // Extract producer IDs
+          const producerIds = beatsData.map(beat => beat.producer_id);
+          
+          // Get the wallet addresses for these producers
+          const { data: producersData, error: producersError } = await supabase
+            .from('users')
+            .select('id, wallet_address')
+            .in('id', producerIds);
+            
+          if (producersError) throw producersError;
+          
+          // Create producer wallet map
+          const producerWalletMap = {};
+          producersData.forEach(producer => {
+            producerWalletMap[producer.id] = producer.wallet_address;
+          });
+          
+          // Create beat-to-producer map
+          const beatProducerMap = {};
+          beatsData.forEach(beat => {
+            beatProducerMap[beat.id] = beat.producer_id;
+          });
+          
+          // Update cart items with verified wallet addresses
+          const updatedItems = cartItems.map(item => {
+            const producerId = beatProducerMap[item.id];
+            const verifiedWalletAddress = producerId ? producerWalletMap[producerId] : null;
+            
+            return {
+              ...item,
+              producer_wallet: verifiedWalletAddress || item.producer_wallet
+            };
+          });
+          
+          // Check if any item is missing a wallet address
+          const missingWallets = updatedItems.filter(item => !item.producer_wallet);
+          if (missingWallets.length > 0) {
+            toast.error(`${missingWallets.length} item(s) cannot be purchased due to missing wallet address`);
+            onOpenChange(false);
+            return;
+          }
+          
+          setValidatedItems(updatedItems);
+        } catch (error) {
+          console.error('Error validating wallet addresses:', error);
+          toast.error('Error validating producer payment information');
+          onOpenChange(false);
+        }
+      };
+      
+      checkWalletAddresses();
+    }
+  }, [open, cartItems, onOpenChange]);
   
   const totalPrice = cartItems.reduce((total, item) => {
     return total + (item.price * item.quantity);
@@ -47,10 +118,16 @@ export const SolanaCheckoutDialog = ({
   
   // Group items by producer wallet for payment processing
   const getItemsByProducer = () => {
+    const itemsToUse = validatedItems.length > 0 ? validatedItems : cartItems;
     const groupedItems: Record<string, { items: CartItem[], total: number }> = {};
     
-    cartItems.forEach(item => {
+    itemsToUse.forEach(item => {
       const producerWallet = item.producer_wallet || '';
+      if (!producerWallet) {
+        console.error(`Missing wallet address for item: ${item.title}`);
+        return;
+      }
+      
       if (!groupedItems[producerWallet]) {
         groupedItems[producerWallet] = { items: [], total: 0 };
       }

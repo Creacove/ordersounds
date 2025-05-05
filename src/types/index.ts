@@ -15,6 +15,7 @@ export interface User {
   verified_account_name?: string;
   paystack_subaccount_code?: string;
   paystack_split_code?: string;
+  wallet_address?: string; // Added explicit wallet_address field
   settings?: {
     emailNotifications?: boolean;
     pushNotifications?: boolean;
@@ -68,13 +69,15 @@ export interface Beat {
   producer?: {
     full_name?: string;
     stage_name?: string;
-    wallet_address?: string; // Added wallet_address property
+    wallet_address?: string; // Added wallet_address property explicitly
+    id?: string; // Add ID for easier lookup
   };
   // For backward compatibility with existing code
   users?: {
     full_name?: string;
     stage_name?: string;
     wallet_address?: string; // Added wallet_address property
+    id?: string; // Add ID for easier lookup
   };
 }
 

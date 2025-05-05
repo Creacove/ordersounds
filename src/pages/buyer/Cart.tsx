@@ -25,6 +25,7 @@ export default function Cart() {
   const location = useLocation();
   const [redirectingFromPayment, setRedirectingFromPayment] = useState(false);
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
+  const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   
   const handleRemoveItem = (beatId: string) => {
     removeFromCart(beatId);
@@ -63,20 +64,58 @@ export default function Cart() {
     }
   };
   
-  const handleOpenSolanaCheckout = () => {
-    // Check if any producer is missing a wallet address
-    const missingWalletProducers = cartItems.filter(item => !item.beat.producer_wallet_address);
-    
-    if (missingWalletProducers.length > 0) {
-      toast.error('Some producers have not set up their wallet address. Please remove those items or try again later.');
-      return;
-    }
-    
+  const handleOpenSolanaCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
-    setIsSolanaDialogOpen(true);
+    
+    // Fetch latest producer wallet data for items in cart
+    const beatProducerIds = cartItems.map(item => item.beat.producer_id);
+    
+    try {
+      const { data: producersData, error } = await supabase
+        .from('users')
+        .select('id, wallet_address')
+        .in('id', beatProducerIds);
+      
+      if (error) {
+        console.error('Error fetching producer wallet data:', error);
+        toast.error('Error validating producer payment information');
+        return;
+      }
+      
+      // Create a map of producer IDs to wallet addresses
+      const producerWallets = {};
+      producersData.forEach(producer => {
+        producerWallets[producer.id] = producer.wallet_address;
+      });
+      
+      // Check if any producer is missing a wallet address
+      const missingWalletProducers = cartItems.filter(item => 
+        !producerWallets[item.beat.producer_id] 
+      );
+      
+      if (missingWalletProducers.length > 0) {
+        toast.error('Some producers have not set up their wallet address. Please remove those items or try again later.');
+        return;
+      }
+      
+      // Update cart items with wallet addresses for checkout
+      const updatedCartItems = cartItems.map(item => ({
+        ...item,
+        beat: {
+          ...item.beat,
+          producer_wallet_address: producerWallets[item.beat.producer_id]
+        }
+      }));
+      
+      setBeatsWithWalletAddresses(updatedCartItems);
+      setIsSolanaDialogOpen(true);
+    } catch (err) {
+      console.error('Error processing Solana checkout:', err);
+      toast.error('Error preparing checkout information');
+    }
   };
 
   useEffect(() => {
@@ -162,7 +201,9 @@ export default function Cart() {
   
   // Prepare cart items for Solana checkout
   const prepareSolanaCartItems = () => {
-    return cartItems.map(item => {
+    const itemsToUse = beatsWithWalletAddresses.length > 0 ? beatsWithWalletAddresses : cartItems;
+    
+    return itemsToUse.map(item => {
       const beat = item.beat;
       const price = getItemPrice(item);
       
@@ -172,7 +213,7 @@ export default function Cart() {
         price: price,
         thumbnail_url: beat.cover_image_url,
         quantity: 1,
-        producer_wallet: beat.producer_wallet_address || '' // Handle case when wallet address might be missing
+        producer_wallet: beat.producer_wallet_address || '' 
       };
     });
   };

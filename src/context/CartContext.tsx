@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -74,7 +75,7 @@ const createLightweightBeat = (beat: Beat & { selected_license?: string }): Ligh
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
     selected_license: beat.selected_license || 'basic',
     genre: beat.genre,
-    producer_wallet_address: beat.producer?.wallet_address // Get wallet address from producer object
+    producer_wallet_address: beat.producer?.wallet_address || beat.users?.wallet_address // Get wallet address from either producer or users object
   };
 };
 
@@ -237,8 +238,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     if (cartItems.length === 0) return;
     
     const beatIds = cartItems.map(item => item.beat.id);
+    const producerIds = cartItems.map(item => item.beat.producer_id);
     
     try {
+      // Verify beats still exist
       const { data: existingBeats, error } = await supabase
         .from('beats')
         .select('id')
@@ -250,22 +253,70 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         return;
       }
       
+      // Fetch current producer wallet addresses
+      const { data: producerData, error: producerError } = await supabase
+        .from('users')
+        .select('id, wallet_address')
+        .in('id', producerIds);
+        
+      if (producerError) {
+        console.error('Error fetching producer data:', producerError);
+      }
+      
+      // Create wallet address map
+      const walletAddressMap = {};
+      if (producerData) {
+        producerData.forEach(producer => {
+          walletAddressMap[producer.id] = producer.wallet_address;
+        });
+      }
+      
       if (existingBeats && existingBeats.length !== beatIds.length) {
         const existingIds = existingBeats.map(beat => beat.id);
         const updatedCart = cartItems.filter(item => existingIds.includes(item.beat.id));
         
-        setCartItems(updatedCart);
+        // Update wallet addresses in cart items
+        const cartWithUpdatedWallets = updatedCart.map(item => ({
+          ...item,
+          beat: {
+            ...item.beat,
+            producer_wallet_address: walletAddressMap[item.beat.producer_id] || item.beat.producer_wallet_address
+          }
+        }));
+        
+        setCartItems(cartWithUpdatedWallets);
         
         if (user) {
           try {
-            localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedCart));
+            localStorage.setItem(`cart_${user.id}`, JSON.stringify(cartWithUpdatedWallets));
           } catch (error) {
             console.error("Error saving updated cart to localStorage:", error);
           }
         }
         
         const removedCount = cartItems.length - updatedCart.length;
-        toast.info(`Removed ${removedCount} unavailable item${removedCount !== 1 ? 's' : ''} from your cart.`);
+        if (removedCount > 0) {
+          toast.info(`Removed ${removedCount} unavailable item${removedCount !== 1 ? 's' : ''} from your cart.`);
+        }
+      } else if (producerData) {
+        // Just update wallet addresses if all beats still exist
+        const updatedCartItems = cartItems.map(item => ({
+          ...item,
+          beat: {
+            ...item.beat,
+            producer_wallet_address: walletAddressMap[item.beat.producer_id] || item.beat.producer_wallet_address
+          }
+        }));
+        
+        setCartItems(updatedCartItems);
+        
+        if (user) {
+          try {
+            localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedCartItems));
+          } catch (error) {
+            console.error("Error saving updated cart to localStorage:", error);
+          }
+        }
       }
     } catch (err) {
       console.error('Error during cart refresh:', err);
