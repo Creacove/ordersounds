@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
 
 export default function Cart() {
-  const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
+  const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart, getCartItemCount } = useCart();
   const { user, currency } = useAuth();
   const { toggleFavorite, isFavorite, fetchPurchasedBeats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
@@ -34,11 +34,12 @@ export default function Cart() {
   useEffect(() => {
     setCartKey(Date.now());
     setIsLoading(false);
-  }, [cartItems]);
+  }, [cartItems, getCartItemCount()]);
   
   // Custom wrapper for removeFromCart to ensure UI updates
   const handleRemoveItem = async (beatId) => {
     console.log("Handling remove item:", beatId);
+    setIsLoading(true);
     try {
       await removeFromCart(beatId);
       // Force component re-render
@@ -47,12 +48,15 @@ export default function Cart() {
     } catch (error) {
       console.error("Error removing item:", error);
       toast.error("Failed to remove item");
+    } finally {
+      setIsLoading(false);
     }
   };
   
   // Custom wrapper for clearCart to ensure UI updates
   const handleClearCart = () => {
     console.log("Handling clear cart");
+    setIsLoading(true);
     try {
       clearCart();
       // Force component re-render
@@ -61,6 +65,8 @@ export default function Cart() {
     } catch (error) {
       console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart");
+    } finally {
+      setIsLoading(false);
     }
   };
   
@@ -210,6 +216,7 @@ export default function Cart() {
     const initializeCart = async () => {
       setIsLoading(true);
       await refreshCart();
+      setCartKey(Date.now()); // Force re-render after refresh
       setIsLoading(false);
     };
     
@@ -341,7 +348,7 @@ export default function Cart() {
             <div className="lg:col-span-2">
               <div className="space-y-3">
                 {cartItems.map((item) => (
-                  <div key={`${item.beat.id}-${cartKey}`} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
+                  <div key={`${item.beat.id}-${Date.now()}`} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
                     <div className="flex-shrink-0 w-16 h-16">
                       <div
                         className="relative w-16 h-16 rounded-md overflow-hidden cursor-pointer group"

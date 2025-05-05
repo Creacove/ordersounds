@@ -70,6 +70,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     setIsAdding(true);
     try {
       console.log("Add to cart clicked for beat:", beat.id, beat.title);
+      
       if (isAlreadyInCart) {
         console.log("Removing from cart:", beat.id);
         await removeFromCart(beat.id);
@@ -80,6 +81,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           ...beat, 
           selected_license: 'basic'
         });
+        toast.success("Added to cart");
       }
     } catch (error) {
       toast.error("Failed to update cart.");
