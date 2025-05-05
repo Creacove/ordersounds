@@ -14,15 +14,29 @@ import { Badge } from '@/components/ui/badge';
 import { getLicensePrice } from '@/utils/licenseUtils';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
 import { supabase } from '@/integrations/supabase/client';
+import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const { user, currency } = useAuth();
   const { toggleFavorite, isFavorite, fetchPurchasedBeats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const location = useLocation();
   const [redirectingFromPayment, setRedirectingFromPayment] = useState(false);
+
+  const handleCheckoutSuccess = async (data) => {
+    console.log("Checkout successful:", data);
+    
+    // Handle successful checkout
+    // This might involve clearing the cart, updating local storage, etc.
+    await clearCart();
+    toast.success("Checkout completed successfully!");
+    
+    // Close the dialog
+    setIsCheckoutOpen(false);
+  };
   
   const handleRemoveItem = (beatId: string) => {
     removeFromCart(beatId);
@@ -141,6 +155,8 @@ export default function Cart() {
     const licenseType = item.beat.selected_license || 'basic';
     return getLicensePrice(item.beat, licenseType, currency === 'USD');
   };
+
+  
   
   return (
     <MainLayoutWithPlayer>
@@ -166,6 +182,12 @@ export default function Cart() {
             </Button>
           )}
         </div>
+      <SolanaCheckoutDialog 
+        open={isCheckoutOpen} 
+        onOpenChange={setIsCheckoutOpen} 
+        cartItems={itemsWithProducerInfo}
+        onCheckoutSuccess={handleCheckoutSuccess}
+      />
 
         {cartItems.length === 0 ? (
           <div className="text-center py-12">
