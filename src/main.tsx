@@ -22,4 +22,3 @@ root.render(
     </SolanaWalletProvider>
   </BrowserRouter>
 );
-

@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -5,7 +6,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-// import { ProducerWalletDetailsForm }  from "@/components/payment/ProducerWalletDetailsForm";
+import { ProducerWalletDetailsForm } from "@/components/payment/ProducerWalletDetailsForm";
 
 interface WalletDetailsCardProps {
   userId: string;
@@ -29,11 +30,11 @@ export function WalletDetailsCard({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* <ProducerWalletDetailsForm
+        <ProducerWalletDetailsForm
           producerId={userId}
           walletAddress={producerData?.wallet_address}
           onSuccess={onSuccess}
-        /> */}
+        />
       </CardContent>
     </Card>
   );
