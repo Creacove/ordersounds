@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -26,8 +27,16 @@ export default function Cart() {
   const [redirectingFromPayment, setRedirectingFromPayment] = useState(false);
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    // Debug log cart status when component mounts or changes
+    console.log("Current cart items:", cartItems);
+    setIsLoading(false);
+  }, [cartItems]);
   
   const handleRemoveItem = (beatId: string) => {
+    console.log("Handling remove item:", beatId);
     removeFromCart(beatId);
     toast.success("Item removed from cart");
   };
@@ -64,6 +73,12 @@ export default function Cart() {
     }
   };
   
+  const handleClearCart = () => {
+    console.log("Handling clear cart");
+    clearCart();
+    toast.success("Cart cleared successfully");
+  };
+  
   const handleOpenSolanaCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error('Your cart is empty');
@@ -86,10 +101,12 @@ export default function Cart() {
       }
       
       // Create a map of producer IDs to wallet addresses
-      const producerWallets = {};
+      const producerWallets: Record<string, string | null> = {};
       producersData.forEach(producer => {
         producerWallets[producer.id] = producer.wallet_address;
       });
+      
+      console.log("Producer wallet data:", producerWallets);
       
       // Check if any producer is missing a wallet address
       const missingWalletProducers = cartItems.filter(item => 
@@ -97,6 +114,14 @@ export default function Cart() {
       );
       
       if (missingWalletProducers.length > 0) {
+        console.error("Missing wallet addresses for producers:", 
+          missingWalletProducers.map(item => ({
+            beatId: item.beat.id,
+            producerId: item.beat.producer_id,
+            title: item.beat.title
+          }))
+        );
+        
         toast.error('Some producers have not set up their wallet address. Please remove those items or try again later.');
         return;
       }
@@ -152,9 +177,9 @@ export default function Cart() {
 
   useEffect(() => {
     document.title = "Shopping Cart | OrderSOUNDS";
-    if (cartItems.length > 0) {
-      refreshCart();
-    }
+    
+    // Ensure we have the latest cart data and producer wallet addresses
+    refreshCart();
     
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
     const paymentInProgress = localStorage.getItem('paymentInProgress');
@@ -182,7 +207,7 @@ export default function Cart() {
         localStorage.removeItem('purchaseTime');
       }
     }
-  }, [refreshCart, cartItems.length, navigate, clearCart, redirectingFromPayment]);
+  }, [refreshCart, clearCart, redirectingFromPayment]);
 
   useEffect(() => {
     return () => {
@@ -217,6 +242,19 @@ export default function Cart() {
       };
     });
   };
+  
+  if (isLoading) {
+    return (
+      <MainLayoutWithPlayer>
+        <div className="container py-8 pb-32 md:pb-8 flex justify-center items-center min-h-[60vh]">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p>Loading your cart...</p>
+          </div>
+        </div>
+      </MainLayoutWithPlayer>
+    );
+  }
   
   return (
     <MainLayoutWithPlayer>
@@ -287,10 +325,12 @@ export default function Cart() {
                           <p className="text-xs text-muted-foreground">{item.beat.producer_name}</p>
                           
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <Badge variant="outline" className="text-xs py-0 px-1.5">
-                              <Music size={10} className="mr-1" />
-                              {item.beat.genre}
-                            </Badge>
+                            {item.beat.genre && (
+                              <Badge variant="outline" className="text-xs py-0 px-1.5">
+                                <Music size={10} className="mr-1" />
+                                {item.beat.genre}
+                              </Badge>
+                            )}
                             
                             <Badge variant="secondary" className="text-xs py-0 px-1.5 capitalize">
                               {item.beat.selected_license || 'Basic'} License
@@ -323,7 +363,7 @@ export default function Cart() {
                 <Button 
                   variant="outline" 
                   className="text-muted-foreground"
-                  onClick={clearCart}
+                  onClick={handleClearCart}
                 >
                   Clear Cart
                 </Button>

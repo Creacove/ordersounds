@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -15,7 +16,7 @@ export interface User {
   verified_account_name?: string;
   paystack_subaccount_code?: string;
   paystack_split_code?: string;
-  wallet_address?: string; // Added explicit wallet_address field
+  wallet_address?: string; // Solana wallet address
   settings?: {
     emailNotifications?: boolean;
     pushNotifications?: boolean;

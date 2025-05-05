@@ -61,6 +61,16 @@ export const useCart = () => useContext(CartContext);
 
 // Function to create a lightweight version of a beat for storage
 const createLightweightBeat = (beat: Beat & { selected_license?: string }): LightweightBeat => {
+  // Get the wallet address from producer object first (if available), then from users object
+  const walletAddress = 
+    beat.producer?.wallet_address || 
+    beat.users?.wallet_address || 
+    undefined;
+    
+  if (!walletAddress) {
+    console.log(`No wallet address found for beat: ${beat.id}, producer: ${beat.producer_id}`);
+  }
+
   return {
     id: beat.id,
     title: beat.title,
@@ -75,7 +85,7 @@ const createLightweightBeat = (beat: Beat & { selected_license?: string }): Ligh
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
     selected_license: beat.selected_license || 'basic',
     genre: beat.genre,
-    producer_wallet_address: beat.producer?.wallet_address || beat.users?.wallet_address // Get wallet address from either producer or users object
+    producer_wallet_address: walletAddress
   };
 };
 
@@ -154,6 +164,13 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           }
         }
       }
+    } else if (user && cartItems.length === 0) {
+      // Explicitly clear cart in localStorage when cartItems is empty
+      try {
+        localStorage.removeItem(`cart_${user.id}`);
+      } catch (error) {
+        console.error("Error clearing cart from localStorage:", error);
+      }
     }
   }, [cartItems, user]);
 
@@ -219,11 +236,45 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   };
 
   const removeFromCart = (beatId: string) => {
-    setCartItems(prevItems => prevItems.filter(item => item.beat.id !== beatId));
+    // Log for debugging
+    console.log("Removing beat from cart:", beatId);
+    console.log("Current cart before removal:", cartItems);
+    
+    const updatedItems = cartItems.filter(item => item.beat.id !== beatId);
+    
+    // Log updated cart
+    console.log("Updated cart after removal:", updatedItems);
+    
+    setCartItems(updatedItems);
+    
+    // Update localStorage immediately
+    if (user) {
+      try {
+        if (updatedItems.length === 0) {
+          localStorage.removeItem(`cart_${user.id}`);
+        } else {
+          localStorage.setItem(`cart_${user.id}`, JSON.stringify(updatedItems));
+        }
+      } catch (error) {
+        console.error("Error updating cart in localStorage after removal:", error);
+      }
+    }
   };
 
   const clearCart = () => {
+    // Log for debugging
+    console.log("Clearing cart");
+    
     setCartItems([]);
+    
+    // Clear from localStorage
+    if (user) {
+      try {
+        localStorage.removeItem(`cart_${user.id}`);
+      } catch (error) {
+        console.error("Error clearing cart from localStorage:", error);
+      }
+    }
   };
 
   const isInCart = (beatId: string) => {
@@ -264,12 +315,14 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       }
       
       // Create wallet address map
-      const walletAddressMap = {};
+      const walletAddressMap: { [key: string]: string | null } = {};
       if (producerData) {
         producerData.forEach(producer => {
           walletAddressMap[producer.id] = producer.wallet_address;
         });
       }
+      
+      console.log("Producer wallet addresses:", walletAddressMap);
       
       if (existingBeats && existingBeats.length !== beatIds.length) {
         const existingIds = existingBeats.map(beat => beat.id);

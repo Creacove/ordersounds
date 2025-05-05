@@ -13,7 +13,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 interface CartItem {
   id: string;
@@ -38,76 +38,102 @@ export const SolanaCheckoutDialog = ({
   onCheckoutSuccess
 }: CheckoutDialogProps) => {
   const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [currentItemIndex, setCurrentItemIndex] = useState(0);
-  const { makePayment, isProcessing, isWalletConnected } = useSolanaPayment();
   const [validatedItems, setValidatedItems] = useState<CartItem[]>([]);
+  const [validationComplete, setValidationComplete] = useState(false);
+  const { makePayment, isProcessing, isWalletConnected } = useSolanaPayment();
   
   // Re-validate wallet addresses when dialog opens
   useEffect(() => {
-    if (open && cartItems.length > 0) {
-      const checkWalletAddresses = async () => {
+    const checkWalletAddresses = async () => {
+      if (!open || cartItems.length === 0) return;
+      
+      console.log("Validating wallet addresses for items:", cartItems);
+
+      try {
         // Extract product IDs for database verification
         const productIds = cartItems.map(item => item.id);
         
-        try {
-          // Get the producer IDs for these beats
-          const { data: beatsData, error: beatsError } = await supabase
-            .from('beats')
-            .select('id, producer_id')
-            .in('id', productIds);
-            
-          if (beatsError) throw beatsError;
+        // Get the producer IDs for these beats
+        const { data: beatsData, error: beatsError } = await supabase
+          .from('beats')
+          .select('id, producer_id')
+          .in('id', productIds);
           
-          // Extract producer IDs
-          const producerIds = beatsData.map(beat => beat.producer_id);
-          
-          // Get the wallet addresses for these producers
-          const { data: producersData, error: producersError } = await supabase
-            .from('users')
-            .select('id, wallet_address')
-            .in('id', producerIds);
-            
-          if (producersError) throw producersError;
-          
-          // Create producer wallet map
-          const producerWalletMap = {};
-          producersData.forEach(producer => {
-            producerWalletMap[producer.id] = producer.wallet_address;
-          });
-          
-          // Create beat-to-producer map
-          const beatProducerMap = {};
-          beatsData.forEach(beat => {
-            beatProducerMap[beat.id] = beat.producer_id;
-          });
-          
-          // Update cart items with verified wallet addresses
-          const updatedItems = cartItems.map(item => {
-            const producerId = beatProducerMap[item.id];
-            const verifiedWalletAddress = producerId ? producerWalletMap[producerId] : null;
-            
-            return {
-              ...item,
-              producer_wallet: verifiedWalletAddress || item.producer_wallet
-            };
-          });
-          
-          // Check if any item is missing a wallet address
-          const missingWallets = updatedItems.filter(item => !item.producer_wallet);
-          if (missingWallets.length > 0) {
-            toast.error(`${missingWallets.length} item(s) cannot be purchased due to missing wallet address`);
-            onOpenChange(false);
-            return;
-          }
-          
-          setValidatedItems(updatedItems);
-        } catch (error) {
-          console.error('Error validating wallet addresses:', error);
-          toast.error('Error validating producer payment information');
-          onOpenChange(false);
+        if (beatsError) {
+          console.error("Error fetching beats data:", beatsError);
+          throw beatsError;
         }
-      };
-      
+        
+        if (!beatsData || beatsData.length === 0) {
+          console.error("No beats data returned");
+          toast.error("Could not verify beat information");
+          onOpenChange(false);
+          return;
+        }
+        
+        // Extract producer IDs
+        const producerIds = beatsData.map(beat => beat.producer_id);
+        
+        console.log("Producer IDs to check:", producerIds);
+        
+        // Get the wallet addresses for these producers
+        const { data: producersData, error: producersError } = await supabase
+          .from('users')
+          .select('id, wallet_address')
+          .in('id', producerIds);
+          
+        if (producersError) {
+          console.error("Error fetching producer data:", producersError);
+          throw producersError;
+        }
+        
+        console.log("Producer data from database:", producersData);
+        
+        // Create producer wallet map
+        const producerWalletMap: Record<string, string | null> = {};
+        producersData.forEach(producer => {
+          producerWalletMap[producer.id] = producer.wallet_address;
+        });
+        
+        // Create beat-to-producer map
+        const beatProducerMap: Record<string, string> = {};
+        beatsData.forEach(beat => {
+          beatProducerMap[beat.id] = beat.producer_id;
+        });
+        
+        // Update cart items with verified wallet addresses
+        const updatedItems = cartItems.map(item => {
+          const producerId = beatProducerMap[item.id];
+          const verifiedWalletAddress = producerId ? producerWalletMap[producerId] : null;
+          
+          return {
+            ...item,
+            producer_wallet: verifiedWalletAddress || item.producer_wallet
+          };
+        });
+        
+        console.log("Updated items with verified wallet addresses:", updatedItems);
+        
+        // Check if any item is missing a wallet address
+        const missingWallets = updatedItems.filter(item => !item.producer_wallet);
+        if (missingWallets.length > 0) {
+          console.error("Items missing wallet addresses:", missingWallets);
+          toast.error(`${missingWallets.length} item(s) cannot be purchased due to missing wallet address`);
+          onOpenChange(false);
+          return;
+        }
+        
+        setValidatedItems(updatedItems);
+        setValidationComplete(true);
+      } catch (error) {
+        console.error('Error validating wallet addresses:', error);
+        toast.error('Error validating producer payment information');
+        onOpenChange(false);
+      }
+    };
+    
+    if (open) {
+      setValidationComplete(false);
       checkWalletAddresses();
     }
   }, [open, cartItems, onOpenChange]);
@@ -149,6 +175,11 @@ export const SolanaCheckoutDialog = ({
       return;
     }
     
+    if (!validationComplete) {
+      toast.error("Please wait for wallet validation to complete");
+      return;
+    }
+    
     setIsCheckingOut(true);
     const groupedItems = getItemsByProducer();
     
@@ -187,6 +218,8 @@ export const SolanaCheckoutDialog = ({
             toast.error(`Missing producer wallet address for ${group.items[0].title}`);
             continue;
           }
+          
+          console.log(`Processing payment of ${group.total} to wallet ${group.producerWallet}`);
           
           // Process payment for this producer's items
           const signature = await makePayment(
@@ -293,6 +326,18 @@ export const SolanaCheckoutDialog = ({
             </div>
           )}
           
+          {validationComplete ? (
+            <div className="flex items-center p-2 rounded bg-green-50 border border-green-200 text-green-800">
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              <p className="text-sm">All producer wallet addresses verified</p>
+            </div>
+          ) : (
+            <div className="flex items-center p-2 rounded bg-blue-50 border border-blue-200 text-blue-800">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <p className="text-sm">Verifying producer wallet addresses...</p>
+            </div>
+          )}
+          
           <p>Your items will be available for download immediately after purchase.</p>
           <p className="text-sm text-muted-foreground">
             This checkout will process individual payments to each producer, with platform fees calculated per item.
@@ -306,7 +351,7 @@ export const SolanaCheckoutDialog = ({
           <Button 
             className="button-gradient" 
             onClick={handleCheckout} 
-            disabled={isCheckingOut || !isWalletConnected}
+            disabled={isCheckingOut || !isWalletConnected || !validationComplete}
           >
             {isCheckingOut ? (
               <>
