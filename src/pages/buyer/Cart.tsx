@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -65,6 +64,14 @@ export default function Cart() {
   };
   
   const handleOpenSolanaCheckout = () => {
+    // Check if any producer is missing a wallet address
+    const missingWalletProducers = cartItems.filter(item => !item.beat.producer_wallet_address);
+    
+    if (missingWalletProducers.length > 0) {
+      toast.error('Some producers have not set up their wallet address. Please remove those items or try again later.');
+      return;
+    }
+    
     if (cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
@@ -165,7 +172,7 @@ export default function Cart() {
         price: price,
         thumbnail_url: beat.cover_image_url,
         quantity: 1,
-        producer_wallet: beat.producer_wallet_address
+        producer_wallet: beat.producer_wallet_address || '' // Handle case when wallet address might be missing
       };
     });
   };

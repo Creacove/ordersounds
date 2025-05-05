@@ -20,6 +20,7 @@ type LightweightBeat = {
   exclusive_license_price_diaspora?: number;
   selected_license?: string;
   genre?: string;
+  producer_wallet_address?: string; // Added this property for Solana payments
 };
 
 interface CartItem {
@@ -72,7 +73,8 @@ const createLightweightBeat = (beat: Beat & { selected_license?: string }): Ligh
     exclusive_license_price_local: beat.exclusive_license_price_local,
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
     selected_license: beat.selected_license || 'basic',
-    genre: beat.genre
+    genre: beat.genre,
+    producer_wallet_address: beat.producer?.wallet_address // Getting wallet address from the producer object
   };
 };
 
