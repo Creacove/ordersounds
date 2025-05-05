@@ -50,7 +50,7 @@ export function ProducerWalletDetailsForm({ producerId, walletAddress, onSuccess
       
       // Update the producer's wallet address in the database
       const { error } = await supabase
-        .from('producers')
+        .from('users')
         .update({ wallet_address: values.walletAddress })
         .eq('id', producerId);
       

@@ -52,10 +52,12 @@ export const useSolanaPayment = () => {
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .insert({
-            user_id: userData.user.id,
+            buyer_id: userData.user.id,
             total_amount: amount,
             status: 'completed', // Ensure status is always completed for successful purchases
-            transaction_signatures: [signature]
+            transaction_signatures: [signature],
+            payment_method: 'solana',
+            currency_used: 'USDC'
           })
           .select()
           .single();
