@@ -32,29 +32,29 @@ interface CartItem {
 interface CartContextType {
   cartItems: CartItem[];
   totalAmount: number;
-  addToCart: (beat: Beat & { selected_license?: string }) => void;
+  addToCart: (beat: Beat & { selected_license?: string }) => Promise<void>;
   addMultipleToCart: (beats: Beat[]) => void;
-  removeFromCart: (beatId: string) => void;
+  removeFromCart: (beatId: string) => Promise<boolean>;
   clearCart: () => void;
   isInCart: (beatId: string) => boolean;
   getCartItemCount: () => number;
   itemCount: number;
   refreshCart: () => Promise<void>;
-  toggleCartItem: (beat: Beat, licenseType: string) => void;
+  toggleCartItem: (beat: Beat, licenseType: string) => Promise<void>;
 }
 
 const CartContext = createContext<CartContextType>({
   cartItems: [],
   totalAmount: 0,
-  addToCart: () => {},
+  addToCart: async () => {},
   addMultipleToCart: () => {},
-  removeFromCart: () => {},
+  removeFromCart: async () => false,
   clearCart: () => {},
   isInCart: () => false,
   getCartItemCount: () => 0,
   itemCount: 0,
   refreshCart: async () => {},
-  toggleCartItem: () => {}
+  toggleCartItem: async () => {}
 });
 
 export const useCart = () => useContext(CartContext);
@@ -120,22 +120,26 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   // Load cart from localStorage when user changes
   useEffect(() => {
-    if (user) {
-      const savedCart = safeLocalStorageGet(`cart_${user.id}`);
-      if (savedCart && Array.isArray(savedCart)) {
-        console.log("Loading cart from localStorage:", savedCart);
-        setCartItems(savedCart);
-        setItemCount(savedCart.length);
+    const loadCart = () => {
+      if (user) {
+        const savedCart = safeLocalStorageGet(`cart_${user.id}`);
+        if (savedCart && Array.isArray(savedCart)) {
+          console.log("Loading cart from localStorage:", savedCart);
+          setCartItems(savedCart);
+          setItemCount(savedCart.length);
+        } else {
+          console.log("No valid cart found in localStorage, initializing empty cart");
+          setCartItems([]);
+          setItemCount(0);
+        }
       } else {
-        console.log("No valid cart found in localStorage, initializing empty cart");
+        console.log("No user, clearing cart");
         setCartItems([]);
         setItemCount(0);
       }
-    } else {
-      console.log("No user, clearing cart");
-      setCartItems([]);
-      setItemCount(0);
-    }
+    };
+    
+    loadCart();
   }, [user]);
 
   // Calculate total amount when cart or currency changes
@@ -159,26 +163,30 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   // Save cart to localStorage when it changes
   useEffect(() => {
-    if (user) {
-      if (cartItems.length > 0) {
-        console.log("Saving cart to localStorage:", cartItems);
-        const success = safeLocalStorageSave(`cart_${user.id}`, cartItems);
-        
-        if (!success && cartItems.length > 5) {
-          // If storage fails, try with a reduced cart
-          const reducedCart = cartItems.slice(0, 5);
-          safeLocalStorageSave(`cart_${user.id}`, reducedCart);
-          setCartItems(reducedCart);
-          toast.warning("Cart was limited to 5 items due to storage constraints");
+    const saveCart = () => {
+      if (user) {
+        if (cartItems.length > 0) {
+          console.log("Saving cart to localStorage:", cartItems);
+          const success = safeLocalStorageSave(`cart_${user.id}`, cartItems);
+          
+          if (!success && cartItems.length > 5) {
+            // If storage fails, try with a reduced cart
+            const reducedCart = cartItems.slice(0, 5);
+            safeLocalStorageSave(`cart_${user.id}`, reducedCart);
+            setCartItems(reducedCart);
+            toast.warning("Cart was limited to 5 items due to storage constraints");
+          }
+        } else {
+          // Clear cart in localStorage when cart is empty
+          localStorage.removeItem(`cart_${user.id}`);
         }
-      } else {
-        // Clear cart in localStorage when cart is empty
-        localStorage.removeItem(`cart_${user.id}`);
       }
-    }
+    };
+    
+    saveCart();
   }, [cartItems, user]);
 
-  const addToCart = (beat: Beat & { selected_license?: string }) => {
+  const addToCart = async (beat: Beat & { selected_license?: string }) => {
     if (!user) {
       toast.error("Please log in to add items to cart");
       return;
@@ -188,36 +196,41 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     const existingItem = cartItems.find(item => item.beat.id === beat.id);
     const lightweightBeat = createLightweightBeat(beat);
     
-    if (existingItem) {
-      if (existingItem.beat.selected_license !== beat.selected_license) {
-        // Update existing item with new license
-        const updatedItems = cartItems.map(item => 
-          item.beat.id === beat.id 
-            ? { ...item, beat: { ...lightweightBeat } } 
-            : item
-        );
-        setCartItems(updatedItems);
-        console.log("Updated item in cart:", beat.id, updatedItems);
+    try {
+      if (existingItem) {
+        if (existingItem.beat.selected_license !== beat.selected_license) {
+          // Update existing item with new license
+          const updatedItems = cartItems.map(item => 
+            item.beat.id === beat.id 
+              ? { ...item, beat: { ...lightweightBeat } } 
+              : item
+          );
+          setCartItems(updatedItems);
+          console.log("Updated item in cart:", beat.id, updatedItems);
+        } else {
+          console.log("Item already in cart with same license:", beat.id);
+        }
       } else {
-        console.log("Item already in cart with same license:", beat.id);
+        // Check if cart is getting too large
+        if (cartItems.length >= 20) {
+          toast.warning("Maximum cart size reached (20 items)");
+          return;
+        }
+        
+        // Add new item to cart
+        const newItem = { 
+          beat: lightweightBeat,
+          added_at: new Date().toISOString() 
+        };
+        
+        const newCartItems = [...cartItems, newItem];
+        console.log("Added new item to cart:", beat.id, newCartItems);
+        setCartItems(newCartItems);
+        toast.success("Added to cart");
       }
-    } else {
-      // Check if cart is getting too large
-      if (cartItems.length >= 20) {
-        toast.warning("Maximum cart size reached (20 items)");
-        return;
-      }
-      
-      // Add new item to cart
-      const newItem = { 
-        beat: lightweightBeat,
-        added_at: new Date().toISOString() 
-      };
-      
-      const newCartItems = [...cartItems, newItem];
-      console.log("Added new item to cart:", beat.id, newCartItems);
-      setCartItems(newCartItems);
-      toast.success("Added to cart");
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      toast.error("Failed to add item to cart");
     }
   };
 
@@ -254,40 +267,51 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
-  const removeFromCart = (beatId: string) => {
+  const removeFromCart = async (beatId: string): Promise<boolean> => {
     // Log for debugging
     console.log("Removing beat from cart:", beatId);
     console.log("Current cart before removal:", cartItems);
     
-    const updatedItems = cartItems.filter(item => item.beat.id !== beatId);
-    
-    // Log updated cart
-    console.log("Updated cart after removal:", updatedItems);
-    
-    setCartItems(updatedItems);
-    
-    // Update localStorage immediately
-    if (user) {
-      if (updatedItems.length === 0) {
-        localStorage.removeItem(`cart_${user.id}`);
-      } else {
-        safeLocalStorageSave(`cart_${user.id}`, updatedItems);
+    try {
+      const updatedItems = cartItems.filter(item => item.beat.id !== beatId);
+      
+      // Log updated cart
+      console.log("Updated cart after removal:", updatedItems);
+      
+      setCartItems(updatedItems);
+      
+      // Update localStorage immediately
+      if (user) {
+        if (updatedItems.length === 0) {
+          localStorage.removeItem(`cart_${user.id}`);
+        } else {
+          safeLocalStorageSave(`cart_${user.id}`, updatedItems);
+        }
       }
+      
+      return true;
+    } catch (error) {
+      console.error("Error removing from cart:", error);
+      toast.error("Failed to remove item from cart");
+      return false;
     }
-    
-    return true; // Return success indicator
   };
 
   const clearCart = () => {
-    // Log for debugging
-    console.log("Clearing cart");
-    
-    setCartItems([]);
-    
-    // Clear from localStorage
-    if (user) {
-      localStorage.removeItem(`cart_${user.id}`);
-      console.log("Cart cleared from localStorage");
+    try {
+      // Log for debugging
+      console.log("Clearing cart");
+      
+      setCartItems([]);
+      
+      // Clear from localStorage
+      if (user) {
+        localStorage.removeItem(`cart_${user.id}`);
+        console.log("Cart cleared from localStorage");
+      }
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+      toast.error("Failed to clear cart");
     }
   };
 
@@ -388,7 +412,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     }
   };
 
-  const toggleCartItem = (beat: Beat, licenseType: string) => {
+  const toggleCartItem = async (beat: Beat, licenseType: string) => {
     if (!user) {
       toast.error('Please log in to add items to cart');
       return;
@@ -396,16 +420,22 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     
     const isBeatingCart = isInCart(beat.id);
     
-    if (isBeatingCart) {
-      if (removeFromCart(beat.id)) {
-        toast.success('Removed from cart');
+    try {
+      if (isBeatingCart) {
+        const removed = await removeFromCart(beat.id);
+        if (removed) {
+          toast.success('Removed from cart');
+        }
+      } else {
+        const beatWithLicense = {
+          ...beat,
+          selected_license: licenseType
+        };
+        await addToCart(beatWithLicense);
       }
-    } else {
-      const beatWithLicense = {
-        ...beat,
-        selected_license: licenseType
-      };
-      addToCart(beatWithLicense);
+    } catch (error) {
+      console.error("Error toggling cart item:", error);
+      toast.error("Failed to update cart");
     }
   };
 

@@ -83,6 +83,8 @@ export interface Beat {
   };
   // Add selected_license for cart functionality
   selected_license?: string;
+  // Add producer_wallet_address to allow direct access for payments
+  producer_wallet_address?: string;
 }
 
 export interface Playlist {

@@ -49,6 +49,7 @@ export const SolanaCheckoutDialog = ({
       if (!open || cartItems.length === 0) return;
       
       setValidationError('');
+      setValidationComplete(false);
       console.log("Validating wallet addresses for items:", cartItems);
 
       try {
@@ -94,6 +95,7 @@ export const SolanaCheckoutDialog = ({
         const producerWalletMap: Record<string, string | null> = {};
         producersData.forEach(producer => {
           producerWalletMap[producer.id] = producer.wallet_address;
+          console.log(`Producer ${producer.id} wallet: ${producer.wallet_address || 'MISSING'}`);
         });
         
         // Create beat-to-producer map
@@ -107,6 +109,8 @@ export const SolanaCheckoutDialog = ({
           const producerId = beatProducerMap[item.id];
           const verifiedWalletAddress = producerId ? producerWalletMap[producerId] : null;
           
+          console.log(`Item ${item.id} - producer ${producerId} - wallet: ${verifiedWalletAddress || 'MISSING'}`);
+          
           return {
             ...item,
             producer_wallet: verifiedWalletAddress || item.producer_wallet
@@ -116,7 +120,12 @@ export const SolanaCheckoutDialog = ({
         console.log("Updated items with verified wallet addresses:", updatedItems);
         
         // Check if any item is missing a wallet address
-        const missingWallets = updatedItems.filter(item => !item.producer_wallet);
+        const missingWallets = updatedItems.filter(item => {
+          const hasWallet = !!item.producer_wallet;
+          console.log(`Item ${item.id} has wallet: ${hasWallet} (${item.producer_wallet || 'null'})`);
+          return !hasWallet;
+        });
+        
         if (missingWallets.length > 0) {
           console.error("Items missing wallet addresses:", missingWallets);
           setValidationError(`${missingWallets.length} item(s) cannot be purchased due to missing wallet address`);
@@ -132,7 +141,6 @@ export const SolanaCheckoutDialog = ({
     };
     
     if (open) {
-      setValidationComplete(false);
       checkWalletAddresses();
     }
   }, [open, cartItems]);
@@ -206,6 +214,8 @@ export const SolanaCheckoutDialog = ({
         toast.error("Could not process your order");
         return;
       }
+      
+      console.log("Created order:", order);
       
       // Process payments for each producer
       let successfulPayments = 0;

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useCallback } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
@@ -27,20 +28,40 @@ export default function Cart() {
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [cartKey, setCartKey] = useState(Date.now()); // Added to force re-render
+  const [cartKey, setCartKey] = useState(() => Date.now()); // Force re-render with a key
   
+  // Update cart key when cartItems change to force re-render
   useEffect(() => {
-    // Debug log cart status when component mounts or changes
-    console.log("Current cart items:", cartItems);
+    setCartKey(Date.now());
     setIsLoading(false);
   }, [cartItems]);
   
-  const handleRemoveItem = (beatId) => {
+  // Custom wrapper for removeFromCart to ensure UI updates
+  const handleRemoveItem = async (beatId) => {
     console.log("Handling remove item:", beatId);
-    removeFromCart(beatId);
-    // Force component re-render by updating key
-    setCartKey(Date.now());
-    toast.success("Item removed from cart");
+    try {
+      await removeFromCart(beatId);
+      // Force component re-render
+      setCartKey(Date.now());
+      toast.success("Item removed from cart");
+    } catch (error) {
+      console.error("Error removing item:", error);
+      toast.error("Failed to remove item");
+    }
+  };
+  
+  // Custom wrapper for clearCart to ensure UI updates
+  const handleClearCart = () => {
+    console.log("Handling clear cart");
+    try {
+      clearCart();
+      // Force component re-render
+      setCartKey(Date.now());
+      toast.success("Cart cleared successfully");
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+      toast.error("Failed to clear cart");
+    }
   };
   
   const handlePaymentSuccess = () => {
@@ -75,19 +96,13 @@ export default function Cart() {
     }
   };
   
-  const handleClearCart = () => {
-    console.log("Handling clear cart");
-    clearCart();
-    // Force component re-render by updating key
-    setCartKey(Date.now());
-    toast.success("Cart cleared successfully");
-  };
-  
   const handleOpenSolanaCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
+    
+    setIsLoading(true);
     
     // Fetch latest producer wallet data for items in cart
     const beatProducerIds = cartItems.map(item => item.beat.producer_id);
@@ -101,21 +116,23 @@ export default function Cart() {
       if (error) {
         console.error('Error fetching producer wallet data:', error);
         toast.error('Error validating producer payment information');
+        setIsLoading(false);
         return;
       }
       
       // Create a map of producer IDs to wallet addresses
-      const producerWallets: Record<string, string | null> = {};
+      const producerWallets = {};
       producersData.forEach(producer => {
         producerWallets[producer.id] = producer.wallet_address;
+        console.log(`Producer ${producer.id} wallet: ${producer.wallet_address}`);
       });
       
-      console.log("Producer wallet data:", producerWallets);
-      
       // Check if any producer is missing a wallet address
-      const missingWalletProducers = cartItems.filter(item => 
-        !producerWallets[item.beat.producer_id] 
-      );
+      const missingWalletProducers = cartItems.filter(item => {
+        const hasWallet = !!producerWallets[item.beat.producer_id];
+        console.log(`Item ${item.beat.id} producer ${item.beat.producer_id} has wallet: ${hasWallet}`);
+        return !hasWallet;
+      });
       
       if (missingWalletProducers.length > 0) {
         console.error("Missing wallet addresses for producers:", 
@@ -127,6 +144,7 @@ export default function Cart() {
         );
         
         toast.error('Some producers have not set up their wallet address. Please remove those items or try again later.');
+        setIsLoading(false);
         return;
       }
       
@@ -139,14 +157,19 @@ export default function Cart() {
         }
       }));
       
+      console.log("Cart items with wallet addresses:", updatedCartItems);
+      
       setBeatsWithWalletAddresses(updatedCartItems);
+      setIsLoading(false);
       setIsSolanaDialogOpen(true);
     } catch (err) {
       console.error('Error processing Solana checkout:', err);
       toast.error('Error preparing checkout information');
+      setIsLoading(false);
     }
   };
 
+  // Listen for purchases to update the cart
   useEffect(() => {
     if (!user) return;
     
@@ -179,12 +202,20 @@ export default function Cart() {
     };
   }, [user, fetchPurchasedBeats, clearCart]);
 
+  // Component initialization
   useEffect(() => {
     document.title = "Shopping Cart | OrderSOUNDS";
     
     // Ensure we have the latest cart data and producer wallet addresses
-    refreshCart();
+    const initializeCart = async () => {
+      setIsLoading(true);
+      await refreshCart();
+      setIsLoading(false);
+    };
     
+    initializeCart();
+    
+    // Handle purchase success redirect
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
     const paymentInProgress = localStorage.getItem('paymentInProgress');
     
@@ -201,6 +232,7 @@ export default function Cart() {
       window.location.href = '/library';
     }
     
+    // Clean up stale payment session
     if (paymentInProgress === 'true') {
       const purchaseTime = localStorage.getItem('purchaseTime');
       const now = Date.now();
@@ -213,6 +245,7 @@ export default function Cart() {
     }
   }, [refreshCart, clearCart, redirectingFromPayment]);
 
+  // Cleanup on component unmount
   useEffect(() => {
     return () => {
       if (!redirectingFromPayment) {
@@ -247,6 +280,15 @@ export default function Cart() {
     });
   };
   
+  // Handle refresh cart button
+  const handleRefreshCart = async () => {
+    setIsLoading(true);
+    await refreshCart();
+    setCartKey(Date.now()); // Force re-render after refresh
+    setIsLoading(false);
+    toast.success("Cart refreshed");
+  };
+  
   if (isLoading) {
     return (
       <MainLayoutWithPlayer>
@@ -267,18 +309,14 @@ export default function Cart() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <ShoppingCart className="mr-2 h-6 w-6" />
-            <h1 className="text-2xl font-bold">Your Cart</h1>
+            <h1 className="text-2xl font-bold">Your Cart ({cartItems.length} items)</h1>
           </div>
           
           {cartItems.length > 0 && (
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => {
-                refreshCart();
-                setCartKey(Date.now()); // Force re-render after refresh
-                toast.success("Cart refreshed");
-              }}
+              onClick={handleRefreshCart}
               className="flex items-center gap-1"
             >
               <RefreshCw size={14} />

@@ -72,11 +72,11 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       console.log("Add to cart clicked for beat:", beat.id, beat.title);
       if (isAlreadyInCart) {
         console.log("Removing from cart:", beat.id);
-        removeFromCart(beat.id);
+        await removeFromCart(beat.id);
         toast.success("Removed from cart");
       } else {
         console.log("Adding to cart:", beat.id);
-        addToCart({
+        await addToCart({
           ...beat, 
           selected_license: 'basic'
         });
