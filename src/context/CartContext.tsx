@@ -74,7 +74,7 @@ const createLightweightBeat = (beat: Beat & { selected_license?: string }): Ligh
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
     selected_license: beat.selected_license || 'basic',
     genre: beat.genre,
-    producer_wallet_address: beat.producer?.wallet_address // Getting wallet address from the producer object
+    producer_wallet_address: beat.producer?.wallet_address // Get wallet address from producer object
   };
 };
 

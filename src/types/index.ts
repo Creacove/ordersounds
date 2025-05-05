@@ -68,11 +68,13 @@ export interface Beat {
   producer?: {
     full_name?: string;
     stage_name?: string;
+    wallet_address?: string; // Added wallet_address property
   };
   // For backward compatibility with existing code
   users?: {
     full_name?: string;
     stage_name?: string;
+    wallet_address?: string; // Added wallet_address property
   };
 }
 

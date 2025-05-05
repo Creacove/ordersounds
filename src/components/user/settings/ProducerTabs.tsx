@@ -6,12 +6,64 @@ import { ProfileForm } from "@/components/user/settings/ProfileForm";
 import { PreferencesForm } from "@/components/user/settings/PreferencesForm";
 import { User as UserIcon } from "@/components/ui/user";
 import { Settings as SettingsIcon } from "lucide-react";
+import { WalletDetailsCard } from "@/components/producer/dashboard/WalletDetailsCard";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ProducerTabsProps {
   user: User;
 }
 
 export function ProducerTabs({ user }: ProducerTabsProps) {
+  const [producerData, setProducerData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch producer data including wallet address
+  useEffect(() => {
+    const fetchProducerData = async () => {
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('users')
+          .select('wallet_address')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setProducerData(data);
+      } catch (error) {
+        console.error("Error fetching producer data:", error);
+        toast.error("Failed to load producer data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducerData();
+  }, [user.id]);
+
+  const handleWalletUpdateSuccess = () => {
+    // Refresh producer data after wallet update
+    const refreshData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('wallet_address')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setProducerData(data);
+        toast.success("Payment settings updated successfully");
+      } catch (error) {
+        console.error("Error refreshing producer data:", error);
+      }
+    };
+
+    refreshData();
+  };
+
   return (
     <>
       <TabsList className="border-b w-full mb-6 md:mb-8 rounded-none p-0 h-auto bg-transparent">
@@ -57,8 +109,16 @@ export function ProducerTabs({ user }: ProducerTabsProps) {
               Configure how you'll receive payments for your beats
             </CardDescription>
           </CardHeader>
-          <CardContent className="text-center py-10">
-            <p className="text-base text-muted-foreground mb-4">Payment settings coming soon</p>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-8">Loading payment settings...</div>
+            ) : (
+              <WalletDetailsCard 
+                userId={user.id} 
+                producerData={producerData} 
+                onSuccess={handleWalletUpdateSuccess} 
+              />
+            )}
           </CardContent>
         </Card>
       </TabsContent>
