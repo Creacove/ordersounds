@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -14,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { getLicensePrice } from '@/utils/licenseUtils';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
 import { supabase } from '@/integrations/supabase/client';
-// import { SolanaCheckoutDialog } from "@/components/checkout/SolanaCheckoutDialog";
+import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
@@ -24,6 +25,7 @@ export default function Cart() {
   const navigate = useNavigate();
   const location = useLocation();
   const [redirectingFromPayment, setRedirectingFromPayment] = useState(false);
+  const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   
   const handleRemoveItem = (beatId: string) => {
     removeFromCart(beatId);
@@ -60,6 +62,14 @@ export default function Cart() {
     } else {
       playBeat(beat);
     }
+  };
+  
+  const handleOpenSolanaCheckout = () => {
+    if (cartItems.length === 0) {
+      toast.error('Your cart is empty');
+      return;
+    }
+    setIsSolanaDialogOpen(true);
   };
 
   useEffect(() => {
@@ -141,6 +151,23 @@ export default function Cart() {
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';
     return getLicensePrice(item.beat, licenseType, currency === 'USD');
+  };
+  
+  // Prepare cart items for Solana checkout
+  const prepareSolanaCartItems = () => {
+    return cartItems.map(item => {
+      const beat = item.beat;
+      const price = getItemPrice(item);
+      
+      return {
+        id: beat.id,
+        title: beat.title,
+        price: price,
+        thumbnail_url: beat.cover_image_url,
+        quantity: 1,
+        producer_wallet: beat.producer_wallet_address
+      };
+    });
   };
   
   return (
@@ -288,10 +315,21 @@ export default function Cart() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-2">
-                  <PaymentHandler 
-                    totalAmount={totalAmount} 
-                    onSuccess={handlePaymentSuccess}
-                  />
+                  {currency === 'NGN' ? (
+                    <PaymentHandler 
+                      totalAmount={totalAmount} 
+                      onSuccess={handlePaymentSuccess}
+                    />
+                  ) : (
+                    <Button
+                      onClick={handleOpenSolanaCheckout}
+                      className="w-full py-6 text-base"
+                      size="lg"
+                      disabled={cartItems.length === 0}
+                    >
+                      Pay with Solana ($)
+                    </Button>
+                  )}
                   
                   <Button 
                     variant="outline" 
@@ -306,6 +344,13 @@ export default function Cart() {
           </div>
         )}
       </div>
+      
+      <SolanaCheckoutDialog
+        open={isSolanaDialogOpen}
+        onOpenChange={setIsSolanaDialogOpen}
+        cartItems={prepareSolanaCartItems()}
+        onCheckoutSuccess={handlePaymentSuccess}
+      />
     </MainLayoutWithPlayer>
   );
 }
