@@ -38,6 +38,17 @@
   justify-content: center !important;
 }
 
+/* Embedded variant - more subtle */
+.wallet-adapter-button-trigger.wallet-embedded {
+  background: rgba(103, 58, 183, 0.9) !important;
+  box-shadow: 0 2px 8px rgba(103, 58, 183, 0.15) !important;
+}
+
+.wallet-adapter-button-trigger.wallet-embedded:hover {
+  background: rgba(103, 58, 183, 1) !important;
+  box-shadow: 0 4px 10px rgba(103, 58, 183, 0.25) !important;
+}
+
 /* Modal styling */
 .wallet-adapter-modal-wrapper {
   background-color: white !important;
@@ -99,5 +110,13 @@
   
   .wallet-adapter-modal-list .wallet-adapter-button:hover {
     background-color: #444 !important;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .wallet-adapter-button-trigger {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.8rem !important;
   }
 }

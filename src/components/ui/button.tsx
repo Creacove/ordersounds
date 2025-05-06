@@ -25,6 +25,8 @@ const buttonVariants = cva(
         emerald: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm hover:shadow",
         purple: "bg-purple-600 text-white hover:bg-purple-700 shadow-sm hover:shadow",
         soft: "bg-primary/10 text-primary hover:bg-primary/20 shadow-xs hover:shadow-sm",
+        glass: "bg-white/10 backdrop-blur-lg border border-white/20 text-white hover:bg-white/20 transition-all shadow-sm hover:shadow",
+        dark: "bg-gray-900 text-white hover:bg-black shadow-sm hover:shadow",
       },
       size: {
         default: "h-10 px-4 py-2",

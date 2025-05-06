@@ -62,7 +62,9 @@ export function PaystackDialog({
               >
                 {isValidating ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <span className="h-4 w-4 mr-2 inline-block">
+                      <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full block" />
+                    </span>
                     Refreshing...
                   </>
                 ) : (
@@ -90,21 +92,28 @@ export function PaystackDialog({
               disabled={isProcessing || isValidating || validationError !== null || paymentStarted}
               className="w-full py-6 text-base shadow-md hover:shadow-lg transition-all"
               variant="success"
+              rounded="lg"
               size="lg"
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <span className="h-5 w-5 mr-2 inline-block">
+                    <span className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full block" />
+                  </span>
                   Processing...
                 </>
               ) : paymentStarted ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <span className="h-5 w-5 mr-2 inline-block">
+                    <span className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full block" />
+                  </span>
                   Opening payment window...
                 </>
               ) : isValidating ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <span className="h-5 w-5 mr-2 inline-block">
+                    <span className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full block" />
+                  </span>
                   Validating...
                 </>
               ) : (
@@ -117,6 +126,7 @@ export function PaystackDialog({
                 variant="destructive" 
                 onClick={forceCancel}
                 className="w-full py-2 text-sm hover:bg-destructive/90 transition-colors"
+                rounded="lg"
                 size="sm"
               >
                 <X size={16} className="mr-2" />
@@ -129,6 +139,7 @@ export function PaystackDialog({
               onClick={onClose}
               disabled={isProcessing && !forceCancel}
               className="w-full py-5 text-base border-gray-300 dark:border-gray-700 hover:bg-secondary/20 transition-all shadow-sm hover:shadow"
+              rounded="lg"
               size="lg"
             >
               Back
