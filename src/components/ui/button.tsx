@@ -22,6 +22,9 @@ const buttonVariants = cva(
         accent: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm",
         premium: "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-none transition-all hover:shadow-md",
         success: "bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white border-none transition-all hover:shadow-md",
+        emerald: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm hover:shadow",
+        purple: "bg-purple-600 text-white hover:bg-purple-700 shadow-sm hover:shadow",
+        soft: "bg-primary/10 text-primary hover:bg-primary/20 shadow-xs hover:shadow-sm",
       },
       size: {
         default: "h-10 px-4 py-2",

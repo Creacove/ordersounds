@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
 import { Wallet } from 'lucide-react';
+import '@/wallet-button.css';
 
 interface WalletButtonProps {
   className?: string;
@@ -26,7 +27,7 @@ const WalletButton = ({
   };
 
   return (
-    <div className={className}>
+    <div className={`${className} ${buttonClass.includes('w-full') ? 'w-full' : ''}`}>
       {connected && publicKey ? (
         <Button 
           variant="outline" 
@@ -41,7 +42,7 @@ const WalletButton = ({
           )}
         </Button>
       ) : (
-        <WalletMultiButton className="wallet-adapter-button-trigger rounded-full transform hover:scale-105 transition-all shadow-sm hover:shadow" />
+        <WalletMultiButton className={`wallet-adapter-button-trigger rounded-full transform hover:scale-105 transition-all shadow-sm hover:shadow ${buttonClass.includes('w-full') ? 'w-full justify-center' : ''}`} />
       )}
     </div>
   );

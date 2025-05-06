@@ -7,7 +7,7 @@
   padding: 0.5rem 1rem !important;
   font-size: 0.875rem !important;
   font-weight: 500 !important;
-  transition: all 0.2s !important;
+  transition: all 0.3s !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -29,6 +29,13 @@
 
 .wallet-adapter-button-trigger .wallet-adapter-button-start-icon {
   margin-right: 0.5rem !important;
+}
+
+/* Make sure wallet button maintains full width when specified */
+.wallet-adapter-button-trigger.w-full {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: center !important;
 }
 
 /* Modal styling */

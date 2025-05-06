@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
@@ -67,11 +68,12 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         
         if (error || !isMountedRef.current) return;
         
-        // Fixed: Handle favorites in a type-safe way
-        const favorites = userData && typeof userData === 'object' ? userData.favorites || [] : [];
-        
-        if (Array.isArray(favorites)) {
-          setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
+        // Fixed: Type-safe way to access favorites 
+        if (userData && 
+            typeof userData === 'object' && 
+            'favorites' in userData && 
+            Array.isArray(userData.favorites)) {
+          setIsFavorite(userData.favorites.some((fav: any) => fav.beat_id === beat.id));
         }
       } catch (error) {
         console.error('Error checking favorite status:', error);

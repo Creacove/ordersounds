@@ -297,6 +297,9 @@ export default function Cart() {
   
   // Manual cart refresh with better error handling
   const handleRefreshCart = async () => {
+    // Prevent refresh button jitter by disabling immediately
+    if (isLoading) return;
+    
     setIsLoading(true);
     setIsError(false);
     
@@ -310,7 +313,10 @@ export default function Cart() {
       setErrorMessage("Failed to refresh cart data");
       toast.error("Failed to refresh cart");
     } finally {
-      setIsLoading(false);
+      // Introduce a small delay to prevent rapid clicking
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 300);
     }
   };
   
@@ -365,14 +371,14 @@ export default function Cart() {
               size="sm"
               onClick={handleRefreshCart}
               disabled={isLoading}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 min-w-[80px] justify-center"
             >
               {isLoading ? (
                 <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-1" />
               ) : (
                 <RefreshCw size={14} />
               )}
-              <span>Refresh</span>
+              <span>{isLoading ? "Refreshing" : "Refresh"}</span>
             </Button>
           )}
         </div>
@@ -481,15 +487,15 @@ export default function Cart() {
             </div>
             
             <div className="lg:col-span-1">
-              <Card className="sticky top-24">
-                <CardHeader>
-                  <CardTitle>Order Summary</CardTitle>
+              <Card className="sticky top-24 overflow-hidden border-primary/10 shadow-md hover:shadow-lg transition-shadow duration-300">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5 border-b border-primary/10">
+                  <CardTitle className="text-xl">Order Summary</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
+                <CardContent className="p-5 space-y-4">
+                  <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Subtotal ({cartItems?.length || 0} items)</span>
-                      <span>
+                      <span className="font-medium">
                         {currency === 'NGN' ? (
                           <span>₦{totalAmount.toLocaleString()}</span>
                         ) : (
@@ -499,11 +505,11 @@ export default function Cart() {
                     </div>
                   </div>
                   
-                  <Separator className="my-4" />
+                  <Separator className="my-3" />
                   
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span>
+                    <span className="text-primary">
                       {currency === 'NGN' ? (
                         <span>₦{totalAmount.toLocaleString()}</span>
                       ) : (
@@ -514,13 +520,15 @@ export default function Cart() {
 
                   {/* Add Solana wallet button when currency is USD */}
                   {currency === 'USD' && (
-                    <div className="mt-4 py-2 px-3 bg-secondary/30 rounded-md flex flex-col gap-2">
-                      <div className="text-sm font-medium">Connect your wallet</div>
-                      <WalletButton buttonClass="w-full justify-center" />
+                    <div className="mt-4 py-3 px-4 bg-secondary/30 rounded-md flex flex-col gap-3">
+                      <div className="text-sm font-medium">Connect your wallet to pay with Solana</div>
+                      <div className="w-full">
+                        <WalletButton buttonClass="w-full justify-center" />
+                      </div>
                     </div>
                   )}
                 </CardContent>
-                <CardFooter className="flex flex-col space-y-2">
+                <CardFooter className="flex flex-col space-y-3 p-5 bg-gradient-to-r from-primary/5 to-secondary/5 border-t border-primary/10">
                   {currency === 'NGN' ? (
                     <PaymentHandler 
                       totalAmount={totalAmount} 
@@ -529,7 +537,8 @@ export default function Cart() {
                   ) : (
                     <Button
                       onClick={handleOpenSolanaCheckout}
-                      className="w-full py-6 text-base"
+                      className="w-full py-6 text-base shadow-md hover:shadow-lg transition-all duration-300"
+                      variant="premium"
                       size="lg"
                       disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !wallet.connected}
                     >
@@ -548,7 +557,7 @@ export default function Cart() {
                   
                   <Button 
                     variant="outline" 
-                    className="w-full"
+                    className="w-full shadow-sm hover:shadow transition-all"
                     onClick={handleContinueShopping}
                   >
                     Continue Shopping
