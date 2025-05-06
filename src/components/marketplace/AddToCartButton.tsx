@@ -25,9 +25,9 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
 
   // Check if beat is in favorites
   useEffect(() => {
+    if (!user) return;
+    
     const checkFavorite = async () => {
-      if (!user) return;
-      
       try {
         // Check if the user has this beat in their favorites
         const { data: userData, error } = await supabase
@@ -69,14 +69,10 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     
     setIsAdding(true);
     try {
-      console.log("Add to cart clicked for beat:", beat.id, beat.title);
-      
       if (isAlreadyInCart) {
-        console.log("Removing from cart:", beat.id);
         await removeFromCart(beat.id);
         toast.success("Removed from cart");
       } else {
-        console.log("Adding to cart:", beat.id);
         await addToCart({
           ...beat, 
           selected_license: 'basic'
@@ -84,14 +80,21 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         toast.success("Added to cart");
       }
     } catch (error) {
-      toast.error("Failed to update cart.");
       console.error("Error updating cart:", error);
+      toast.error("Failed to update cart");
     } finally {
-      setIsAdding(false);
+      // Short delay before resetting state to ensure UI updates properly
+      setTimeout(() => {
+        setIsAdding(false);
+      }, 300);
     }
   };
 
-  const handleFavoriteClick = async () => {
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    // Prevent the click from navigating to the beat details
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (!user) {
       navigate('/login');
       return;
@@ -170,6 +173,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   
   const isItemInCart = isInCart(beat.id);
 
+  // Icon-only variant of the button (for compact displays)
   if (iconOnly) {
     return (
       <Button
@@ -178,6 +182,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         className={className}
         onClick={handleAddToCart}
         disabled={isAdding}
+        aria-label={isItemInCart ? "Remove from cart" : "Add to cart"}
       >
         {isAdding ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -190,6 +195,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     );
   }
 
+  // Standard button with text and icon
   return (
     <div className="flex items-center space-x-2">
       <Button
@@ -217,6 +223,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         size="icon"
         onClick={handleFavoriteClick}
         disabled={isFavoriting}
+        aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
       >
         {isFavoriting ? (
           <Loader2 className="h-4 w-4 animate-spin" />

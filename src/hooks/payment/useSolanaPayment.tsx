@@ -1,3 +1,4 @@
+
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -25,7 +26,12 @@ export const useSolanaPayment = () => {
   ) => {
     if (isProcessing) {
       toast.warning("Please wait for current transaction to complete");
-      return;
+      return null;
+    }
+
+    if (!amount || amount <= 0) {
+      toast.error("Payment amount must be positive");
+      return null;
     }
 
     setIsProcessing(true);
@@ -38,10 +44,6 @@ export const useSolanaPayment = () => {
       
       if (!isValidSolanaAddress(producerWalletAddress)) {
         throw new Error("INVALID_ADDRESS: Creator wallet address is invalid");
-      }
-
-      if (amount <= 0) {
-        throw new Error("INVALID_AMOUNT: Payment amount must be positive");
       }
 
       // Process payment
@@ -73,7 +75,7 @@ export const useSolanaPayment = () => {
           .insert({
             buyer_id: userData.user.id,
             total_price: amount,
-            status: 'completed', // Ensure status is always completed for successful purchases
+            status: 'completed',
             transaction_signatures: [signature],
             payment_method: 'solana',
             currency_used: 'USDC'
@@ -105,9 +107,11 @@ export const useSolanaPayment = () => {
       return signature;
     } catch (error: any) {
       console.error("Payment error:", error);
-      const message = error.message.split(':').pop() || "Payment failed";
-      toast.error(message);
+      const message = error.message.includes(':') 
+        ? error.message.split(':').pop().trim() 
+        : "Payment failed";
       
+      toast.error(message);
       onError?.(error);
       throw error;
     } finally {
@@ -123,7 +127,20 @@ export const useSolanaPayment = () => {
   ) => {
     if (isProcessing) {
       toast.warning("Please wait for current transaction to complete");
-      return;
+      return null;
+    }
+
+    if (!items || items.length === 0) {
+      toast.error("No payment items provided");
+      return null;
+    }
+
+    // Validate all items have valid wallet addresses
+    const invalidItems = items.filter(item => !isValidSolanaAddress(item.producerWallet));
+    if (invalidItems.length > 0) {
+      toast.error(`${invalidItems.length} items have invalid wallet addresses`);
+      onError?.({ message: "INVALID_ADDRESSES: Some items have invalid wallet addresses" });
+      return null;
     }
 
     setIsProcessing(true);
@@ -131,10 +148,6 @@ export const useSolanaPayment = () => {
     try {
       if (!wallet.connected || !wallet.publicKey) {
         throw new Error("WALLET_NOT_CONNECTED: Please connect your wallet first");
-      }
-
-      if (!items.length) {
-        throw new Error("NO_ITEMS: No payment items provided");
       }
 
       // Add retry logic
@@ -151,11 +164,14 @@ export const useSolanaPayment = () => {
           retries++;
           if (retries <= maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+            toast.info(`Retrying payment (attempt ${retries} of ${maxRetries})...`);
           }
         }
       }
 
-      if (!signatures.length) throw lastError || new Error("PAYMENT_FAILED: All retries exhausted");
+      if (!signatures.length) {
+        throw lastError || new Error("PAYMENT_FAILED: All retries exhausted");
+      }
 
       setLastTransactionSignature(signatures[signatures.length - 1]);
       toast.success(`${signatures.length} payments processed successfully!`);
@@ -163,9 +179,11 @@ export const useSolanaPayment = () => {
       return signatures;
     } catch (error: any) {
       console.error("Multiple payments error:", error);
-      const message = error.message.split(':').pop() || "Payments failed";
+      const message = error.message.includes(':') 
+        ? error.message.split(':').pop().trim() 
+        : "Payments failed";
+        
       toast.error(message);
-      
       onError?.(error);
       throw error;
     } finally {
