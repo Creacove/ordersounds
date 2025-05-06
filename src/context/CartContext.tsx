@@ -328,11 +328,14 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       // Create promise with timeout for beat validation
       const beatCheckPromise = new Promise<{existingIds: string[]}>(async (resolve) => {
         try {
-          const { data: existingBeats } = await supabase
+          const response = await supabase
             .from('beats')
             .select('id')
             .in('id', beatIds);
             
+          // Safely extract data from response
+          const existingBeats = response && 'data' in response ? response.data : [];
+          
           resolve({ 
             existingIds: existingBeats?.map(beat => beat.id) || beatIds 
           });
@@ -345,10 +348,13 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       // Create promise with timeout for wallet addresses
       const walletCheckPromise = new Promise<{walletAddressMap: Record<string, string | null>}>(async (resolve) => {
         try {
-          const { data: producerData } = await supabase
+          const response = await supabase
             .from('users')
             .select('id, wallet_address')
             .in('id', producerIds);
+            
+          // Safely extract data from response
+          const producerData = response && 'data' in response ? response.data : [];
             
           // Create wallet address map
           const walletAddressMap: { [key: string]: string | null } = {};

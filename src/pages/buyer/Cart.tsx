@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -203,10 +202,14 @@ export default function Cart() {
         .select('id, wallet_address')
         .in('id', beatProducerIds);
         
-      const { data: producersData, error } = await Promise.race([
+      const response = await Promise.race([
         fetchPromise,
         timeoutPromise
       ]);
+      
+      // Safely extract data and error from response
+      const producersData = response && 'data' in response ? response.data : null;
+      const error = response && 'error' in response ? response.error : null;
       
       if (error) {
         throw new Error('Error validating producer payment information');
@@ -214,9 +217,11 @@ export default function Cart() {
       
       // Map producer IDs to wallet addresses
       const producerWallets = {};
-      producersData.forEach(producer => {
-        producerWallets[producer.id] = producer.wallet_address;
-      });
+      if (producersData && Array.isArray(producersData)) {
+        producersData.forEach(producer => {
+          producerWallets[producer.id] = producer.wallet_address;
+        });
+      }
       
       // Check for missing wallet addresses
       const missingWalletProducers = cartItems.filter(item => {
