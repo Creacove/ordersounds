@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
-import { useBeats } from "@/hooks/useBeats";
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { ShoppingCart, AlertCircle, Music, Play, Pause, Trash2, RefreshCw } from 'lucide-react';
@@ -20,7 +19,6 @@ import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog"
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
   const { user, currency } = useAuth();
-  const { toggleFavorite, isFavorite, fetchPurchasedBeats } = useBeats();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   
@@ -31,71 +29,70 @@ export default function Cart() {
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const [refreshAttempted, setRefreshAttempted] = useState(false);
   
-  // Initialize the cart on component mount
+  // Check for purchase success on mount
   useEffect(() => {
-    // Check for existing purchase status first
-    const purchaseSuccess = localStorage.getItem('purchaseSuccess');
-    if (purchaseSuccess === 'true') {
-      const purchaseTime = localStorage.getItem('purchaseTime');
-      const now = Date.now();
-      
-      // If purchase was recent (within last 5 minutes), redirect to library
-      if (purchaseTime && (now - parseInt(purchaseTime)) < 5 * 60 * 1000) {
-        setPurchaseComplete(true);
-        toast.success('Payment successful! Redirecting to your library...');
+    const checkPurchaseStatus = () => {
+      const purchaseSuccess = localStorage.getItem('purchaseSuccess');
+      if (purchaseSuccess === 'true') {
+        const purchaseTime = localStorage.getItem('purchaseTime');
+        const now = Date.now();
         
-        // Clear purchase data and redirect
-        setTimeout(() => {
+        // If purchase was recent (within last 5 minutes), redirect to library
+        if (purchaseTime && (now - parseInt(purchaseTime)) < 5 * 60 * 1000) {
+          setPurchaseComplete(true);
+          toast.success('Payment successful! Redirecting to your library...');
+          
+          // Clear purchase data and redirect
+          setTimeout(() => {
+            localStorage.removeItem('purchaseSuccess');
+            localStorage.removeItem('purchaseTime');
+            localStorage.removeItem('pendingOrderId');
+            localStorage.removeItem('paystackReference');
+            localStorage.removeItem('paymentInProgress');
+            
+            window.location.href = '/library';
+          }, 1500);
+          return true;
+        } else {
+          // Clear stale purchase data
           localStorage.removeItem('purchaseSuccess');
           localStorage.removeItem('purchaseTime');
           localStorage.removeItem('pendingOrderId');
           localStorage.removeItem('paystackReference');
           localStorage.removeItem('paymentInProgress');
-          
-          window.location.href = '/library';
-        }, 1500);
-        return;
-      } else {
-        // Clear stale purchase data
-        localStorage.removeItem('purchaseSuccess');
-        localStorage.removeItem('purchaseTime');
-        localStorage.removeItem('pendingOrderId');
-        localStorage.removeItem('paystackReference');
-        localStorage.removeItem('paymentInProgress');
+        }
       }
+      return false;
+    };
+    
+    // If purchase check returns true, we don't need to do anything else
+    if (checkPurchaseStatus()) {
+      return;
     }
     
-    // Initialize cart with retry mechanism
+    // Initialize cart - only refresh once
     const initializeCart = async () => {
       setIsLoading(true);
-      setIsError(false);
+      
       try {
+        // Simplified cart loading - avoid excessive API calls
         await refreshCart();
-        setIsLoading(false);
+        setRefreshAttempted(true);
       } catch (error) {
-        console.error('Error refreshing cart:', error);
-        
-        // If we've tried less than 3 times, retry after a delay
-        if (retryCount < 3) {
-          setRetryCount(prev => prev + 1);
-          setTimeout(() => {
-            initializeCart();
-          }, 1500 * (retryCount + 1)); // Increasing delay with each retry
-        } else {
-          // After 3 retries, show error but allow user to continue
-          setIsError(true);
-          setErrorMessage('Could not load all cart data. Some items might be missing.');
-          setIsLoading(false);
-          toast.error('Some cart data could not be loaded');
-        }
+        console.error('Error loading cart:', error);
+        setIsError(true);
+        setErrorMessage('Could not load all cart data. Please try refreshing later.');
+      } finally {
+        // Always exit loading state, even on error
+        setIsLoading(false);
       }
     };
     
     initializeCart();
     
-    // Listen for purchase events
+    // Setup purchase listener
     const setupPurchaseListener = () => {
       if (!user) return { unsubscribe: () => {} };
       
@@ -111,15 +108,12 @@ export default function Cart() {
           },
           (payload) => {
             console.log('New purchase detected in Cart:', payload);
+            clearCart();
+            localStorage.setItem('purchaseSuccess', 'true');
+            localStorage.setItem('purchaseTime', Date.now().toString());
             
-            fetchPurchasedBeats().then(() => {
-              clearCart();
-              localStorage.setItem('purchaseSuccess', 'true');
-              localStorage.setItem('purchaseTime', Date.now().toString());
-              
-              // Redirect to library
-              window.location.href = '/library';
-            });
+            // Redirect to library
+            window.location.href = '/library';
           }
         )
         .subscribe();
@@ -130,21 +124,16 @@ export default function Cart() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, fetchPurchasedBeats, clearCart, refreshCart, retryCount]);
+  }, [user, clearCart, refreshCart]);
   
-  // Handle cart item removal
+  // Handle remove item with optimistic UI update
   const handleRemoveItem = async (beatId) => {
-    setIsLoading(true);
     try {
-      const success = await removeFromCart(beatId);
-      if (success) {
-        toast.success("Item removed from cart");
-      }
+      await removeFromCart(beatId);
+      toast.success("Item removed from cart");
     } catch (error) {
       console.error("Error removing item:", error);
       toast.error("Failed to remove item");
-    } finally {
-      setIsLoading(false);
     }
   };
   
@@ -161,8 +150,6 @@ export default function Cart() {
   
   // Handle successful payment
   const handlePaymentSuccess = () => {
-    console.log("Payment success handler in Cart called");
-    
     // Clear the cart
     clearCart();
     
@@ -193,7 +180,7 @@ export default function Cart() {
     }
   };
   
-  // Open Solana checkout
+  // Open Solana checkout with more reliable error handling
   const handleOpenSolanaCheckout = async () => {
     if (!cartItems || cartItems.length === 0) {
       toast.error('Your cart is empty');
@@ -203,35 +190,44 @@ export default function Cart() {
     setIsLoading(true);
     
     try {
-      // Fetch latest producer wallet data for items in cart
+      // Get producer wallet addresses only for cart items
       const beatProducerIds = cartItems.map(item => item.beat.producer_id);
       
-      const { data: producersData, error } = await supabase
+      // Simple fetch with timeout
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timeout')), 5000)
+      );
+      
+      const fetchPromise = supabase
         .from('users')
         .select('id, wallet_address')
         .in('id', beatProducerIds);
+        
+      const { data: producersData, error } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]);
       
       if (error) {
         throw new Error('Error validating producer payment information');
       }
       
-      // Create a map of producer IDs to wallet addresses
+      // Map producer IDs to wallet addresses
       const producerWallets = {};
       producersData.forEach(producer => {
         producerWallets[producer.id] = producer.wallet_address;
       });
       
-      // Check if any producer is missing a wallet address
+      // Check for missing wallet addresses
       const missingWalletProducers = cartItems.filter(item => {
         return !producerWallets[item.beat.producer_id];
       });
       
       if (missingWalletProducers.length > 0) {
-        const missingWalletItems = missingWalletProducers.map(item => item.beat.title).join(", ");
-        throw new Error(`Some producers haven't set up their wallet address for these beats: ${missingWalletItems}. Please remove them or try again later.`);
+        throw new Error(`Some producers haven't set up their wallet address. Please remove these items or try again later.`);
       }
       
-      // Update cart items with wallet addresses for checkout
+      // Update cart items with wallet addresses
       const updatedCartItems = cartItems.map(item => ({
         ...item,
         beat: {
@@ -250,13 +246,13 @@ export default function Cart() {
     }
   };
 
-  // Calculate price for each item
+  // Simplified price calculation
   const getItemPrice = (item) => {
     const licenseType = item.beat.selected_license || 'basic';
     return getLicensePrice(item.beat, licenseType, currency === 'USD');
   };
   
-  // Prepare cart items for Solana checkout
+  // Prepare items for Solana checkout
   const prepareSolanaCartItems = () => {
     const itemsToUse = beatsWithWalletAddresses.length > 0 ? beatsWithWalletAddresses : cartItems;
     
@@ -275,12 +271,14 @@ export default function Cart() {
     });
   };
   
-  // Handle refresh cart button
+  // Manual cart refresh with better error handling
   const handleRefreshCart = async () => {
     setIsLoading(true);
     setIsError(false);
+    
     try {
       await refreshCart();
+      setRefreshAttempted(true);
       toast.success("Cart refreshed");
     } catch (error) {
       console.error("Error refreshing cart:", error);
@@ -292,8 +290,8 @@ export default function Cart() {
     }
   };
   
-  // Loading state view
-  if (isLoading) {
+  // Simple loading view
+  if (isLoading && !refreshAttempted) {
     return (
       <MainLayoutWithPlayer>
         <div className="container py-8 pb-32 md:pb-8 flex justify-center items-center min-h-[60vh]">
@@ -306,7 +304,7 @@ export default function Cart() {
     );
   }
 
-  // Purchase complete view (will redirect automatically)
+  // Purchase complete view
   if (purchaseComplete) {
     return (
       <MainLayoutWithPlayer>
@@ -342,9 +340,14 @@ export default function Cart() {
               variant="outline" 
               size="sm"
               onClick={handleRefreshCart}
+              disabled={isLoading}
               className="flex items-center gap-1"
             >
-              <RefreshCw size={14} />
+              {isLoading ? (
+                <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-1" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
               <span>Refresh</span>
             </Button>
           )}
@@ -496,9 +499,16 @@ export default function Cart() {
                       onClick={handleOpenSolanaCheckout}
                       className="w-full py-6 text-base"
                       size="lg"
-                      disabled={!cartItems || cartItems.length === 0}
+                      disabled={!cartItems || cartItems.length === 0 || isLoading}
                     >
-                      Pay with Solana ($)
+                      {isLoading ? (
+                        <>
+                          <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>Pay with Solana ($)</>
+                      )}
                     </Button>
                   )}
                   

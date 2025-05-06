@@ -23,39 +23,44 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   const { addToCart, isInCart, removeFromCart } = useCart();
   const navigate = useNavigate();
   
-  // Track if component is mounted to prevent state updates after unmount
-  const [isMounted, setIsMounted] = useState(true);
+  // Use ref to track component mount state to avoid memory leaks
+  const isMountedRef = React.useRef(true);
+  
+  // Clean up function
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-  // Check if beat is in favorites
+  // Check favorite status once on mount
   useEffect(() => {
     if (!user) return;
     
     const checkFavorite = async () => {
       try {
-        // Check if the user has this beat in their favorites
-        const { data: userData, error } = await supabase
+        // Use a timeout to avoid long-running operations
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 3000)
+        );
+        
+        const queryPromise = supabase
           .from('users')
           .select('favorites')
           .eq('id', user.id)
           .single();
+          
+        const { data: userData, error } = await Promise.race([
+          queryPromise,
+          timeoutPromise
+        ]);
         
-        if (error) {
-          console.error('Error checking favorite status:', error);
-          return;
-        }
+        if (error || !isMountedRef.current) return;
         
-        // Only update state if component is still mounted
-        if (!isMounted) return;
-        
-        // Check if beat.id exists in the favorites array
         const favorites = userData?.favorites || [];
         
-        // Ensure favorites is treated as an array
         if (Array.isArray(favorites)) {
           setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
-        } else {
-          console.warn('favorites is not an array:', favorites);
-          setIsFavorite(false);
         }
       } catch (error) {
         console.error('Error checking favorite status:', error);
@@ -63,12 +68,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     };
 
     checkFavorite();
-    
-    // Cleanup function to prevent state updates after unmount
-    return () => {
-      setIsMounted(false);
-    };
-  }, [beat.id, user, isMounted]);
+  }, [beat.id, user]);
 
   const handleAddToCart = async () => {
     if (!user) {
@@ -78,7 +78,6 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     
     const isAlreadyInCart = isInCart(beat.id);
     
-    // Prevent multiple clicks
     if (isAdding) return;
     
     setIsAdding(true);
@@ -86,7 +85,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     try {
       if (isAlreadyInCart) {
         await removeFromCart(beat.id);
-        if (isMounted) {
+        if (isMountedRef.current) {
           toast.success("Removed from cart");
         }
       } else {
@@ -94,19 +93,19 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           ...beat, 
           selected_license: 'basic'
         });
-        if (isMounted) {
+        if (isMountedRef.current) {
           toast.success("Added to cart");
         }
       }
     } catch (error) {
       console.error("Error updating cart:", error);
-      if (isMounted) {
+      if (isMountedRef.current) {
         toast.error("Failed to update cart");
       }
     } finally {
-      // Short delay before resetting state to ensure UI updates properly
+      // Use shorter timeout for better responsiveness
       setTimeout(() => {
-        if (isMounted) {
+        if (isMountedRef.current) {
           setIsAdding(false);
         }
       }, 300);
@@ -114,7 +113,6 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   };
 
   const handleFavoriteClick = async (e: React.MouseEvent) => {
-    // Prevent the click from navigating to the beat details
     e.preventDefault();
     e.stopPropagation();
     
@@ -123,13 +121,12 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       return;
     }
 
-    // Prevent multiple clicks
     if (isFavoriting) return;
     
     try {
       setIsFavoriting(true);
       
-      // Get the user's current favorites
+      // Get current favorites
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('favorites')
@@ -142,14 +139,13 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       
       let favorites = userData?.favorites || [];
       
-      // Ensure favorites is treated as an array
       if (!Array.isArray(favorites)) {
         favorites = [];
       }
       
-      // Optimistically update UI first
+      // Optimistic UI update
       const wasInFavorites = isFavorite;
-      if (isMounted) {
+      if (isMountedRef.current) {
         setIsFavorite(!wasInFavorites);
       }
       
@@ -162,7 +158,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           .update({ favorites })
           .eq('id', user.id);
         
-        if (isMounted) {
+        if (isMountedRef.current) {
           toast("Removed from favorites");
         }
       } else {
@@ -193,19 +189,19 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
             });
         }
         
-        if (isMounted) {
+        if (isMountedRef.current) {
           toast("Added to favorites");
         }
       }
     } catch (error) {
       // Revert optimistic update on error
-      if (isMounted) {
+      if (isMountedRef.current) {
         setIsFavorite(isFavorite);
-        toast.error("Could not update favorites. Please try again.");
+        toast.error("Could not update favorites");
       }
       console.error('Error updating favorite:', error);
     } finally {
-      if (isMounted) {
+      if (isMountedRef.current) {
         setIsFavoriting(false);
       }
     }

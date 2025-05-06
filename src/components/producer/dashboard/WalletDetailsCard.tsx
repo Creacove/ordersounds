@@ -9,7 +9,7 @@ import {
 import { ProducerWalletDetailsForm } from "@/components/payment/ProducerWalletDetailsForm";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Info, CheckCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface WalletDetailsCardProps {
   userId: string;
@@ -25,14 +25,24 @@ export function WalletDetailsCard({
   const hasWalletAddress = !!producerData?.wallet_address;
   const [justUpdated, setJustUpdated] = useState(false);
 
+  // Reset "just updated" status after a time
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    if (justUpdated) {
+      timeoutId = setTimeout(() => {
+        setJustUpdated(false);
+      }, 5000);
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [justUpdated]);
+
   const handleWalletUpdate = () => {
     // Show success feedback
     setJustUpdated(true);
-    
-    // Reset after a few seconds
-    setTimeout(() => {
-      setJustUpdated(false);
-    }, 5000);
     
     // Call parent success handler
     onSuccess();
