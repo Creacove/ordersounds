@@ -21,7 +21,7 @@ type LightweightBeat = {
   exclusive_license_price_diaspora?: number;
   selected_license?: string;
   genre?: string;
-  producer_wallet_address?: string; // Added this property for Solana payments
+  producer_wallet_address?: string;
 };
 
 interface CartItem {
@@ -66,10 +66,6 @@ const createLightweightBeat = (beat: Beat & { selected_license?: string }): Ligh
     beat.producer?.wallet_address || 
     beat.users?.wallet_address || 
     undefined;
-    
-  if (!walletAddress) {
-    console.log(`No wallet address found for beat: ${beat.id}, producer: ${beat.producer_id}`);
-  }
 
   return {
     id: beat.id,
@@ -114,6 +110,7 @@ const safeLocalStorageGet = (key: string) => {
 
 export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loadingCart, setLoadingCart] = useState(false);
   const { user, currency } = useAuth();
   const [totalAmount, setTotalAmount] = useState(0);
   const [itemCount, setItemCount] = useState(0);
@@ -122,15 +119,25 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   useEffect(() => {
     const loadCart = () => {
       if (user) {
-        const savedCart = safeLocalStorageGet(`cart_${user.id}`);
-        if (savedCart && Array.isArray(savedCart)) {
-          console.log("Loading cart from localStorage:", savedCart);
-          setCartItems(savedCart);
-          setItemCount(savedCart.length);
-        } else {
-          console.log("No valid cart found in localStorage, initializing empty cart");
+        try {
+          setLoadingCart(true);
+          const savedCart = safeLocalStorageGet(`cart_${user.id}`);
+          if (savedCart && Array.isArray(savedCart)) {
+            console.log("Loading cart from localStorage:", savedCart);
+            setCartItems(savedCart);
+            setItemCount(savedCart.length);
+          } else {
+            console.log("No valid cart found in localStorage, initializing empty cart");
+            setCartItems([]);
+            setItemCount(0);
+          }
+        } catch (error) {
+          console.error("Error loading cart:", error);
+          // Initialize empty cart on error
           setCartItems([]);
           setItemCount(0);
+        } finally {
+          setLoadingCart(false);
         }
       } else {
         console.log("No user, clearing cart");
@@ -164,7 +171,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   // Save cart to localStorage when it changes
   useEffect(() => {
     const saveCart = () => {
-      if (user) {
+      if (user && !loadingCart) {
         if (cartItems.length > 0) {
           console.log("Saving cart to localStorage:", cartItems);
           const success = safeLocalStorageSave(`cart_${user.id}`, cartItems);
@@ -184,11 +191,17 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     };
     
     saveCart();
-  }, [cartItems, user]);
+  }, [cartItems, user, loadingCart]);
 
   const addToCart = async (beat: Beat & { selected_license?: string }) => {
     if (!user) {
       toast.error("Please log in to add items to cart");
+      return;
+    }
+    
+    // Add basic validation
+    if (!beat || !beat.id) {
+      toast.error("Invalid beat information");
       return;
     }
     
@@ -240,6 +253,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       return;
     }
     
+    // Basic validation
+    if (!beats || !Array.isArray(beats) || beats.length === 0) {
+      toast.error("No valid beats to add");
+      return;
+    }
+    
     const now = new Date().toISOString();
     const newItems: CartItem[] = [];
     
@@ -268,6 +287,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   };
 
   const removeFromCart = async (beatId: string): Promise<boolean> => {
+    if (!beatId) {
+      console.error("Invalid beatId for removal");
+      return false;
+    }
+    
     // Log for debugging
     console.log("Removing beat from cart:", beatId);
     console.log("Current cart before removal:", cartItems);
@@ -328,87 +352,127 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     if (cartItems.length === 0) return;
     
     console.log("Refreshing cart...");
+    setLoadingCart(true);
     
     const beatIds = cartItems.map(item => item.beat.id);
     const producerIds = cartItems.map(item => item.beat.producer_id);
     
     try {
-      // Verify beats still exist
-      const { data: existingBeats, error } = await supabase
-        .from('beats')
-        .select('id')
-        .in('id', beatIds);
+      // Verify beats still exist with a timeout safety
+      const beatCheckPromise = new Promise(async (resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          // If timeout occurs, just continue with current cart data
+          console.warn("Beat check timed out, continuing with current data");
+          resolve({ existingIds: beatIds });
+        }, 5000); // 5 second timeout
         
-      if (error) {
-        console.error('Error refreshing cart:', error);
-        toast.error('Failed to refresh cart. Please try again.');
-        return;
-      }
+        try {
+          const { data: existingBeats, error } = await supabase
+            .from('beats')
+            .select('id')
+            .in('id', beatIds);
+            
+          clearTimeout(timeoutId);
+            
+          if (error) {
+            console.error('Error checking beat existence:', error);
+            // Don't fail the entire operation if we can't verify beat existence
+            resolve({ existingIds: beatIds });
+            return;
+          }
+          
+          resolve({ existingIds: existingBeats.map(beat => beat.id) });
+        } catch (err) {
+          clearTimeout(timeoutId);
+          console.error('Error in beat check:', err);
+          resolve({ existingIds: beatIds });
+        }
+      });
       
-      // Fetch current producer wallet addresses
-      const { data: producerData, error: producerError } = await supabase
-        .from('users')
-        .select('id, wallet_address')
-        .in('id', producerIds);
+      // Fetch current producer wallet addresses with a timeout safety
+      const walletCheckPromise = new Promise(async (resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          console.warn("Wallet check timed out, continuing with current data");
+          resolve({ walletAddressMap: {} });
+        }, 5000); // 5 second timeout
         
-      if (producerError) {
-        console.error('Error fetching producer data:', producerError);
-      }
+        try {
+          const { data: producerData, error: producerError } = await supabase
+            .from('users')
+            .select('id, wallet_address')
+            .in('id', producerIds);
+            
+          clearTimeout(timeoutId);
+            
+          if (producerError) {
+            console.error('Error fetching producer data:', producerError);
+            resolve({ walletAddressMap: {} });
+            return;
+          }
+          
+          // Create wallet address map
+          const walletAddressMap: { [key: string]: string | null } = {};
+          if (producerData) {
+            producerData.forEach(producer => {
+              walletAddressMap[producer.id] = producer.wallet_address;
+            });
+          }
+          
+          resolve({ walletAddressMap });
+        } catch (err) {
+          clearTimeout(timeoutId);
+          console.error('Error in wallet check:', err);
+          resolve({ walletAddressMap: {} });
+        }
+      });
       
-      // Create wallet address map
-      const walletAddressMap: { [key: string]: string | null } = {};
-      if (producerData) {
-        producerData.forEach(producer => {
-          walletAddressMap[producer.id] = producer.wallet_address;
-        });
-      }
+      // Wait for both promises to resolve
+      const [beatCheck, walletCheck] = await Promise.all([
+        beatCheckPromise,
+        walletCheckPromise
+      ]) as [
+        { existingIds: string[] },
+        { walletAddressMap: { [key: string]: string | null } }
+      ];
+      
+      const { existingIds } = beatCheck;
+      const { walletAddressMap } = walletCheck;
       
       console.log("Producer wallet addresses:", walletAddressMap);
       
-      if (existingBeats && existingBeats.length !== beatIds.length) {
-        // Some beats no longer exist
-        const existingIds = existingBeats.map(beat => beat.id);
-        const updatedCart = cartItems.filter(item => existingIds.includes(item.beat.id));
-        
-        // Update wallet addresses in cart items
-        const cartWithUpdatedWallets = updatedCart.map(item => ({
-          ...item,
-          beat: {
-            ...item.beat,
-            producer_wallet_address: walletAddressMap[item.beat.producer_id] || item.beat.producer_wallet_address
-          }
-        }));
-        
-        console.log("Updated cart after refresh:", cartWithUpdatedWallets);
-        setCartItems(cartWithUpdatedWallets);
-        
-        if (user) {
-          safeLocalStorageSave(`cart_${user.id}`, cartWithUpdatedWallets);
-        }
+      // Update cart items
+      let updatedCart = cartItems;
+      
+      // Remove beats that no longer exist
+      if (existingIds.length !== beatIds.length) {
+        updatedCart = cartItems.filter(item => existingIds.includes(item.beat.id));
         
         const removedCount = cartItems.length - updatedCart.length;
         if (removedCount > 0) {
           toast.info(`Removed ${removedCount} unavailable item${removedCount !== 1 ? 's' : ''} from your cart.`);
         }
-      } else if (producerData) {
-        // Just update wallet addresses if all beats still exist
-        const updatedCartItems = cartItems.map(item => ({
-          ...item,
-          beat: {
-            ...item.beat,
-            producer_wallet_address: walletAddressMap[item.beat.producer_id] || item.beat.producer_wallet_address
-          }
-        }));
-        
-        console.log("Updated wallet addresses in cart:", updatedCartItems);
-        setCartItems(updatedCartItems);
-        
-        if (user) {
-          safeLocalStorageSave(`cart_${user.id}`, updatedCartItems);
+      }
+      
+      // Update wallet addresses
+      const cartWithUpdatedWallets = updatedCart.map(item => ({
+        ...item,
+        beat: {
+          ...item.beat,
+          producer_wallet_address: walletAddressMap[item.beat.producer_id] || item.beat.producer_wallet_address
         }
+      }));
+      
+      console.log("Updated wallet addresses in cart:", cartWithUpdatedWallets);
+      setCartItems(cartWithUpdatedWallets);
+      
+      if (user) {
+        safeLocalStorageSave(`cart_${user.id}`, cartWithUpdatedWallets);
       }
     } catch (err) {
       console.error('Error during cart refresh:', err);
+      // Don't throw error, just continue with current cart data
+    } finally {
+      setLoadingCart(false);
     }
   };
 
@@ -418,10 +482,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       return;
     }
     
-    const isBeatingCart = isInCart(beat.id);
+    const isItemInCart = isInCart(beat.id);
     
     try {
-      if (isBeatingCart) {
+      if (isItemInCart) {
         const removed = await removeFromCart(beat.id);
         if (removed) {
           toast.success('Removed from cart');

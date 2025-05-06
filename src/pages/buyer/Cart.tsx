@@ -26,27 +26,16 @@ export default function Cart() {
   
   // UI state management
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   
   // Initialize the cart on component mount
   useEffect(() => {
-    const initializeCart = async () => {
-      setIsLoading(true);
-      try {
-        await refreshCart();
-      } catch (error) {
-        console.error('Error refreshing cart:', error);
-        toast.error('Could not load your cart. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    initializeCart();
-    
-    // Check for existing purchase status
+    // Check for existing purchase status first
     const purchaseSuccess = localStorage.getItem('purchaseSuccess');
     if (purchaseSuccess === 'true') {
       const purchaseTime = localStorage.getItem('purchaseTime');
@@ -67,6 +56,7 @@ export default function Cart() {
           
           window.location.href = '/library';
         }, 1500);
+        return;
       } else {
         // Clear stale purchase data
         localStorage.removeItem('purchaseSuccess');
@@ -76,6 +66,34 @@ export default function Cart() {
         localStorage.removeItem('paymentInProgress');
       }
     }
+    
+    // Initialize cart with retry mechanism
+    const initializeCart = async () => {
+      setIsLoading(true);
+      setIsError(false);
+      try {
+        await refreshCart();
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error refreshing cart:', error);
+        
+        // If we've tried less than 3 times, retry after a delay
+        if (retryCount < 3) {
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => {
+            initializeCart();
+          }, 1500 * (retryCount + 1)); // Increasing delay with each retry
+        } else {
+          // After 3 retries, show error but allow user to continue
+          setIsError(true);
+          setErrorMessage('Could not load all cart data. Some items might be missing.');
+          setIsLoading(false);
+          toast.error('Some cart data could not be loaded');
+        }
+      }
+    };
+    
+    initializeCart();
     
     // Listen for purchase events
     const setupPurchaseListener = () => {
@@ -112,7 +130,7 @@ export default function Cart() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, fetchPurchasedBeats, clearCart, refreshCart]);
+  }, [user, fetchPurchasedBeats, clearCart, refreshCart, retryCount]);
   
   // Handle cart item removal
   const handleRemoveItem = async (beatId) => {
@@ -132,15 +150,12 @@ export default function Cart() {
   
   // Handle complete cart clearing
   const handleClearCart = () => {
-    setIsLoading(true);
     try {
       clearCart();
       toast.success("Cart cleared successfully");
     } catch (error) {
       console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart");
-    } finally {
-      setIsLoading(false);
     }
   };
   
@@ -263,11 +278,14 @@ export default function Cart() {
   // Handle refresh cart button
   const handleRefreshCart = async () => {
     setIsLoading(true);
+    setIsError(false);
     try {
       await refreshCart();
       toast.success("Cart refreshed");
     } catch (error) {
       console.error("Error refreshing cart:", error);
+      setIsError(true);
+      setErrorMessage("Failed to refresh cart data");
       toast.error("Failed to refresh cart");
     } finally {
       setIsLoading(false);
@@ -331,6 +349,16 @@ export default function Cart() {
             </Button>
           )}
         </div>
+
+        {isError && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded mb-6 flex items-start">
+            <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-medium">Warning</p>
+              <p className="text-sm">{errorMessage}</p>
+            </div>
+          </div>
+        )}
 
         {(!cartItems || cartItems.length === 0) ? (
           <div className="text-center py-12">

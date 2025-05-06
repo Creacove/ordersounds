@@ -22,6 +22,9 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   const { user } = useAuth();
   const { addToCart, isInCart, removeFromCart } = useCart();
   const navigate = useNavigate();
+  
+  // Track if component is mounted to prevent state updates after unmount
+  const [isMounted, setIsMounted] = useState(true);
 
   // Check if beat is in favorites
   useEffect(() => {
@@ -41,6 +44,9 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           return;
         }
         
+        // Only update state if component is still mounted
+        if (!isMounted) return;
+        
         // Check if beat.id exists in the favorites array
         const favorites = userData?.favorites || [];
         
@@ -57,7 +63,12 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     };
 
     checkFavorite();
-  }, [beat.id, user]);
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      setIsMounted(false);
+    };
+  }, [beat.id, user, isMounted]);
 
   const handleAddToCart = async () => {
     if (!user) {
@@ -67,25 +78,37 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     
     const isAlreadyInCart = isInCart(beat.id);
     
+    // Prevent multiple clicks
+    if (isAdding) return;
+    
     setIsAdding(true);
+    
     try {
       if (isAlreadyInCart) {
         await removeFromCart(beat.id);
-        toast.success("Removed from cart");
+        if (isMounted) {
+          toast.success("Removed from cart");
+        }
       } else {
         await addToCart({
           ...beat, 
           selected_license: 'basic'
         });
-        toast.success("Added to cart");
+        if (isMounted) {
+          toast.success("Added to cart");
+        }
       }
     } catch (error) {
       console.error("Error updating cart:", error);
-      toast.error("Failed to update cart");
+      if (isMounted) {
+        toast.error("Failed to update cart");
+      }
     } finally {
       // Short delay before resetting state to ensure UI updates properly
       setTimeout(() => {
-        setIsAdding(false);
+        if (isMounted) {
+          setIsAdding(false);
+        }
       }, 300);
     }
   };
@@ -100,6 +123,9 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       return;
     }
 
+    // Prevent multiple clicks
+    if (isFavoriting) return;
+    
     try {
       setIsFavoriting(true);
       
@@ -121,7 +147,13 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         favorites = [];
       }
       
-      if (isFavorite) {
+      // Optimistically update UI first
+      const wasInFavorites = isFavorite;
+      if (isMounted) {
+        setIsFavorite(!wasInFavorites);
+      }
+      
+      if (wasInFavorites) {
         // Remove from favorites
         favorites = favorites.filter((fav: any) => fav.beat_id !== beat.id);
         
@@ -130,8 +162,9 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           .update({ favorites })
           .eq('id', user.id);
         
-        setIsFavorite(false);
-        toast("Removed from favorites");
+        if (isMounted) {
+          toast("Removed from favorites");
+        }
       } else {
         // Add to favorites
         favorites.push({
@@ -160,14 +193,21 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
             });
         }
         
-        setIsFavorite(true);
-        toast("Added to favorites");
+        if (isMounted) {
+          toast("Added to favorites");
+        }
       }
     } catch (error) {
-      toast.error("Could not update favorites. Please try again.");
+      // Revert optimistic update on error
+      if (isMounted) {
+        setIsFavorite(isFavorite);
+        toast.error("Could not update favorites. Please try again.");
+      }
       console.error('Error updating favorite:', error);
     } finally {
-      setIsFavoriting(false);
+      if (isMounted) {
+        setIsFavoriting(false);
+      }
     }
   };
   
