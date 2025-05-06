@@ -55,9 +55,16 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           timeoutPromise
         ]);
         
-        // Safe access to response data and error
-        const userData = response && 'data' in response ? response.data : null;
-        const error = response && 'error' in response ? response.error : null;
+        // Type-safe response handling
+        const userData = response && 
+          typeof response === 'object' && 
+          'data' in response ? 
+          response.data : null;
+          
+        const error = response && 
+          typeof response === 'object' && 
+          'error' in response ? 
+          response.error : null;
         
         if (error || !isMountedRef.current) return;
         
@@ -137,9 +144,16 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         .eq('id', user.id)
         .single();
       
-      // Safely access the response properties
-      const userData = response && 'data' in response ? response.data : null;
-      const userError = response && 'error' in response ? response.error : null;
+      // Type-safe response handling
+      const userData = response && 
+        typeof response === 'object' && 
+        'data' in response ? 
+        response.data : null;
+        
+      const userError = response && 
+        typeof response === 'object' && 
+        'error' in response ? 
+        response.error : null;
       
       if (userError) {
         throw userError;

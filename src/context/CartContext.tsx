@@ -333,11 +333,14 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
             .select('id')
             .in('id', beatIds);
             
-          // Safely extract data from response
-          const existingBeats = response && 'data' in response ? response.data : [];
+          // Type-safe data extraction  
+          const existingBeats = response && 
+            typeof response === 'object' && 
+            'data' in response ? 
+            response.data : [];
           
           resolve({ 
-            existingIds: existingBeats?.map(beat => beat.id) || beatIds 
+            existingIds: (existingBeats as any[])?.map(beat => beat.id) || beatIds 
           });
         } catch (err) {
           // On error, keep all beats by default (fail open)
@@ -353,8 +356,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
             .select('id, wallet_address')
             .in('id', producerIds);
             
-          // Safely extract data from response
-          const producerData = response && 'data' in response ? response.data : [];
+          // Type-safe data extraction
+          const producerData = response && 
+            typeof response === 'object' && 
+            'data' in response ? 
+            response.data as any[] : [];
             
           // Create wallet address map
           const walletAddressMap: { [key: string]: string | null } = {};

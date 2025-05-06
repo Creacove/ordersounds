@@ -14,12 +14,15 @@ import { getLicensePrice } from '@/utils/licenseUtils';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
+import WalletButton from "@/components/wallet/WalletButton";
+import { useWallet } from '@solana/wallet-adapter-react';
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
   const { user, currency } = useAuth();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
+  const wallet = useWallet();
   
   // UI state management
   const [isLoading, setIsLoading] = useState(true);
@@ -29,6 +32,7 @@ export default function Cart() {
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [refreshAttempted, setRefreshAttempted] = useState(false);
+  const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
   
   // Check for purchase success on mount
   useEffect(() => {
@@ -186,7 +190,14 @@ export default function Cart() {
       return;
     }
     
-    setIsLoading(true);
+    // Check if wallet is connected first
+    if (!wallet.connected) {
+      toast.error('Please connect your Solana wallet first');
+      return;
+    }
+    
+    console.log("Opening Solana checkout dialog");
+    setIsPreparingCheckout(true);
     
     try {
       // Get producer wallet addresses only for cart items
@@ -207,16 +218,23 @@ export default function Cart() {
         timeoutPromise
       ]);
       
-      // Safely extract data and error from response
-      const producersData = response && 'data' in response ? response.data : null;
-      const error = response && 'error' in response ? response.error : null;
+      // Type-safe response handling
+      const producersData = response && 
+        typeof response === 'object' && 
+        'data' in response ? 
+        response.data as any[] : null;
+        
+      const error = response && 
+        typeof response === 'object' && 
+        'error' in response ? 
+        response.error : null;
       
       if (error) {
         throw new Error('Error validating producer payment information');
       }
       
       // Map producer IDs to wallet addresses
-      const producerWallets = {};
+      const producerWallets: Record<string, string> = {};
       if (producersData && Array.isArray(producersData)) {
         producersData.forEach(producer => {
           producerWallets[producer.id] = producer.wallet_address;
@@ -242,12 +260,13 @@ export default function Cart() {
       }));
       
       setBeatsWithWalletAddresses(updatedCartItems);
+      console.log("Opening Solana dialog with items:", updatedCartItems);
       setIsSolanaDialogOpen(true);
     } catch (err) {
       console.error('Error processing Solana checkout:', err);
       toast.error(err.message || 'Error preparing checkout information');
     } finally {
-      setIsLoading(false);
+      setIsPreparingCheckout(false);
     }
   };
 
@@ -492,6 +511,14 @@ export default function Cart() {
                       )}
                     </span>
                   </div>
+
+                  {/* Add Solana wallet button when currency is USD */}
+                  {currency === 'USD' && (
+                    <div className="mt-4 py-2 px-3 bg-secondary/30 rounded-md flex flex-col gap-2">
+                      <div className="text-sm font-medium">Connect your wallet</div>
+                      <WalletButton buttonClass="w-full justify-center" />
+                    </div>
+                  )}
                 </CardContent>
                 <CardFooter className="flex flex-col space-y-2">
                   {currency === 'NGN' ? (
@@ -504,13 +531,15 @@ export default function Cart() {
                       onClick={handleOpenSolanaCheckout}
                       className="w-full py-6 text-base"
                       size="lg"
-                      disabled={!cartItems || cartItems.length === 0 || isLoading}
+                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !wallet.connected}
                     >
-                      {isLoading ? (
+                      {isPreparingCheckout ? (
                         <>
                           <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
                           Processing...
                         </>
+                      ) : !wallet.connected ? (
+                        <>Connect Wallet First</>
                       ) : (
                         <>Pay with Solana ($)</>
                       )}

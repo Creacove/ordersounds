@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useSolanaPayment } from "@/hooks/payment/useSolanaPayment";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useWallet } from '@solana/wallet-adapter-react';
 
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import WalletButton from "../wallet/WalletButton";
 
 interface CartItem {
   id: string;
@@ -42,6 +44,14 @@ export const SolanaCheckoutDialog = ({
   const [validationComplete, setValidationComplete] = useState(false);
   const [validationError, setValidationError] = useState('');
   const { makePayment, isProcessing, isWalletConnected } = useSolanaPayment();
+  const wallet = useWallet();
+  
+  // Add debug logs for dialog state
+  useEffect(() => {
+    console.log("SolanaCheckoutDialog - open state changed:", open);
+    console.log("SolanaCheckoutDialog - cartItems count:", cartItems?.length);
+    console.log("SolanaCheckoutDialog - wallet connected:", wallet.connected);
+  }, [open, cartItems, wallet.connected]);
   
   // Re-validate wallet addresses when dialog opens
   useEffect(() => {
@@ -93,7 +103,7 @@ export const SolanaCheckoutDialog = ({
         
         // Create producer wallet map
         const producerWalletMap: Record<string, string | null> = {};
-        producersData.forEach(producer => {
+        producersData?.forEach(producer => {
           producerWalletMap[producer.id] = producer.wallet_address;
           console.log(`Producer ${producer.id} wallet: ${producer.wallet_address || 'MISSING'}`);
         });
@@ -134,9 +144,9 @@ export const SolanaCheckoutDialog = ({
         
         setValidatedItems(updatedItems);
         setValidationComplete(true);
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error validating wallet addresses:', error);
-        setValidationError('Error validating producer payment information');
+        setValidationError('Error validating producer payment information: ' + (error.message || 'Unknown error'));
       }
     };
     
@@ -149,7 +159,7 @@ export const SolanaCheckoutDialog = ({
     return total + (item.price * item.quantity);
   }, 0);
   
-  // Group items by producer wallet for payment processing
+  // Group items by producer for payment processing
   const getItemsByProducer = () => {
     const itemsToUse = validatedItems.length > 0 ? validatedItems : cartItems;
     const groupedItems: Record<string, { items: CartItem[], total: number }> = {};
@@ -328,26 +338,29 @@ export const SolanaCheckoutDialog = ({
         </DialogHeader>
         
         <div className="space-y-4 py-4">
-          {!isWalletConnected && (
-            <div className="flex items-center p-2 rounded bg-amber-50 border border-amber-200 text-amber-800">
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              <p className="text-sm">Please connect your Solana wallet to complete this purchase</p>
+          {!wallet.connected && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center p-2 rounded bg-amber-50 border border-amber-200 text-amber-800">
+                <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
+                <p className="text-sm">Please connect your Solana wallet to complete this purchase</p>
+              </div>
+              <WalletButton className="w-full flex justify-center" />
             </div>
           )}
           
           {validationError ? (
             <div className="flex items-center p-2 rounded bg-red-50 border border-red-200 text-red-800">
-              <AlertTriangle className="h-4 w-4 mr-2" />
+              <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
               <p className="text-sm">{validationError}</p>
             </div>
           ) : validationComplete ? (
             <div className="flex items-center p-2 rounded bg-green-50 border border-green-200 text-green-800">
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+              <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
               <p className="text-sm">All producer wallet addresses verified</p>
             </div>
           ) : (
             <div className="flex items-center p-2 rounded bg-blue-50 border border-blue-200 text-blue-800">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin flex-shrink-0" />
               <p className="text-sm">Verifying producer wallet addresses...</p>
             </div>
           )}
@@ -365,7 +378,7 @@ export const SolanaCheckoutDialog = ({
           <Button 
             className="button-gradient" 
             onClick={handleCheckout} 
-            disabled={isCheckingOut || !isWalletConnected || !validationComplete || !!validationError}
+            disabled={isCheckingOut || !wallet.connected || !validationComplete || !!validationError}
           >
             {isCheckingOut ? (
               <>
