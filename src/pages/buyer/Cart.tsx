@@ -374,13 +374,11 @@ export default function Cart() {
               className="flex items-center gap-1 min-w-[80px] justify-center"
             >
               {isLoading ? (
-                <span className="h-4 w-4 inline-block">
-                  <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full block" />
-                </span>
+                <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-1" />
               ) : (
                 <RefreshCw size={14} />
               )}
-              <span className="ml-1">{isLoading ? "Refreshing" : "Refresh"}</span>
+              <span>{isLoading ? "Refreshing" : "Refresh"}</span>
             </Button>
           )}
         </div>
@@ -490,12 +488,9 @@ export default function Cart() {
             
             <div className="lg:col-span-1">
               <Card className="sticky top-24 overflow-hidden border-primary/10 shadow-md hover:shadow-lg transition-shadow duration-300">
-                <CardHeader className="bg-gradient-to-r from-purple-50/80 to-indigo-50/80 dark:from-purple-900/10 dark:to-indigo-900/10 border-b border-primary/10 pb-4">
-                  <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-indigo-700 dark:from-purple-400 dark:to-indigo-400">
-                    Order Summary
-                  </CardTitle>
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-secondary/5 border-b border-primary/10">
+                  <CardTitle className="text-xl">Order Summary</CardTitle>
                 </CardHeader>
-
                 <CardContent className="p-5 space-y-4">
                   <div className="space-y-3">
                     <div className="flex justify-between">
@@ -514,29 +509,26 @@ export default function Cart() {
                   
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span className="text-primary font-bold">
+                    <span className="text-primary">
                       {currency === 'NGN' ? (
                         <span>₦{totalAmount.toLocaleString()}</span>
                       ) : (
-                        <span className="text-purple-600 dark:text-purple-400">${totalAmount.toLocaleString()}</span>
+                        <span>${totalAmount.toLocaleString()}</span>
                       )}
                     </span>
                   </div>
 
-                  {/* Enhanced Solana wallet section */}
+                  {/* Add Solana wallet button when currency is USD */}
                   {currency === 'USD' && (
-                    <div className="mt-4 py-3 px-4 bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-900/20 dark:to-indigo-900/20 rounded-lg border border-purple-100/50 dark:border-purple-800/30">
-                      <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2.5">Connect your wallet to pay with Solana</div>
-                      <WalletButton 
-                        buttonClass="w-full" 
-                        variant="embedded" 
-                        className="w-full"
-                      />
+                    <div className="mt-4 py-3 px-4 bg-secondary/30 rounded-md flex flex-col gap-3">
+                      <div className="text-sm font-medium">Connect your wallet to pay with Solana</div>
+                      <div className="w-full">
+                        <WalletButton buttonClass="w-full justify-center" />
+                      </div>
                     </div>
                   )}
                 </CardContent>
-
-                <CardFooter className="flex flex-col space-y-3 p-5 bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-900/20 dark:to-indigo-900/20 border-t border-primary/10">
+                <CardFooter className="flex flex-col space-y-3 p-5 bg-gradient-to-r from-primary/5 to-secondary/5 border-t border-primary/10">
                   {currency === 'NGN' ? (
                     <PaymentHandler 
                       totalAmount={totalAmount} 
@@ -545,16 +537,14 @@ export default function Cart() {
                   ) : (
                     <Button
                       onClick={handleOpenSolanaCheckout}
-                      className="w-full h-12 text-base font-medium shadow-md hover:shadow-lg transition-all duration-300"
+                      className="w-full py-6 text-base shadow-md hover:shadow-lg transition-all duration-300"
                       variant="premium"
-                      rounded="lg"
+                      size="lg"
                       disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !wallet.connected}
                     >
                       {isPreparingCheckout ? (
                         <>
-                          <span className="h-4 w-4 mr-2 inline-block">
-                            <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full block" />
-                          </span>
+                          <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
                           Processing...
                         </>
                       ) : !wallet.connected ? (
@@ -566,9 +556,8 @@ export default function Cart() {
                   )}
                   
                   <Button 
-                    variant="secondary" 
-                    rounded="lg"
-                    className="w-full h-12 text-base font-medium bg-black hover:bg-gray-900 text-white shadow-sm hover:shadow transition-all"
+                    variant="outline" 
+                    className="w-full shadow-sm hover:shadow transition-all"
                     onClick={handleContinueShopping}
                   >
                     Continue Shopping
