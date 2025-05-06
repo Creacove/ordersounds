@@ -7,7 +7,7 @@ import './index.css'
 import SolanaWalletProvider from './components/wallet/SolanaWalletProvider.tsx'
 
 
-// Polyfills for Solana wallet adapter
+//Polyfills for Solana wallet adapter
 import { Buffer } from 'buffer';
 window.Buffer = Buffer;
 

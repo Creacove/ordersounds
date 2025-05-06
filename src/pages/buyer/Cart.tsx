@@ -267,6 +267,8 @@ export default function Cart() {
     const licenseType = item.beat.selected_license || 'basic';
     return getLicensePrice(item.beat, licenseType, currency === 'USD');
   };
+
+  
   
   // Prepare cart items for Solana checkout
   const prepareSolanaCartItems = () => {
@@ -331,6 +333,12 @@ export default function Cart() {
             </Button>
           )}
         </div>
+      <SolanaCheckoutDialog 
+        open={isCheckoutOpen} 
+        onOpenChange={setIsCheckoutOpen} 
+        cartItems={itemsWithProducerInfo}
+        onCheckoutSuccess={handleCheckoutSuccess}
+      />
 
         {(!cartItems || cartItems.length === 0) ? (
           <div className="text-center py-12">
@@ -481,6 +489,7 @@ export default function Cart() {
               </Card>
             </div>
           </div>
+          
         )}
       </div>
       

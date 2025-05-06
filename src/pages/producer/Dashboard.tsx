@@ -15,7 +15,6 @@ import { GenreDistribution } from "@/components/producer/dashboard/GenreDistribu
 import { RecentActivity } from "@/components/producer/dashboard/RecentActivity";
 import { TopSellingBeats } from "@/components/producer/dashboard/TopSellingBeats";
 import { BankDetailsCard } from "@/components/producer/dashboard/BankDetailsCard";
-import { WalletDetailsCard } from "@/components/producer/dashboard/WalletDetailsCard";
 
 export default function ProducerDashboard() {
   const { user, currency } = useAuth();

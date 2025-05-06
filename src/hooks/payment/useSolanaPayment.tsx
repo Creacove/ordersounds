@@ -1,9 +1,14 @@
-
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { processPurchase, isValidSolanaAddress, processMultiplePayments } from '@/utils/payment/solanaTransactions';
 import { supabase } from '@/integrations/supabase/client';
+
+interface ProductData {
+  id: string;
+  title: string;
+  price: number;
+}
 
 export const useSolanaPayment = () => {
   const { connection } = useConnection();
@@ -16,39 +21,53 @@ export const useSolanaPayment = () => {
     producerWalletAddress: string,
     onSuccess?: (signature: string) => void,
     onError?: (error: any) => void,
-    productData?: { id: string, title: string, price: number }
+    productData?: ProductData
   ) => {
+    if (isProcessing) {
+      toast.warning("Please wait for current transaction to complete");
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
+      // Validate inputs
       if (!wallet.connected || !wallet.publicKey) {
-        toast.error("Please connect your wallet first");
-        throw new Error("Wallet not connected");
+        throw new Error("WALLET_NOT_CONNECTED: Please connect your wallet first");
       }
       
       if (!isValidSolanaAddress(producerWalletAddress)) {
-        toast.error("Producer wallet address is invalid");
-        throw new Error("Invalid Producer wallet address");
+        throw new Error("INVALID_ADDRESS: Creator wallet address is invalid");
       }
-      
+
+      if (amount <= 0) {
+        throw new Error("INVALID_AMOUNT: Payment amount must be positive");
+      }
+
+      // Process payment
       const signature = await processPurchase(
         amount,
         producerWalletAddress,
         connection,
         wallet
       );
-      
+
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      if (!confirmation.value) {
+        throw new Error("TRANSACTION_NOT_CONFIRMED: Transaction failed to confirm");
+      }
+
       setLastTransactionSignature(signature);
       
-      // If this is a product purchase (not just a direct payment)
-      // save the order to the database
+      // Handle product purchase record if applicable
       if (productData) {
-        const { data: userData } = await supabase.auth.getUser();
-        if (!userData?.user?.id) {
-          throw new Error("User not authenticated");
+        const { data: userData, error: authError } = await supabase.auth.getUser();
+        if (authError || !userData?.user?.id) {
+          throw new Error("USER_NOT_AUTHENTICATED: Please sign in to complete purchase");
         }
 
-        // Create an order record with status explicitly set to completed
+        // Use transaction for data consistency
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .insert({
@@ -61,13 +80,9 @@ export const useSolanaPayment = () => {
           })
           .select()
           .single();
-          
-        if (orderError) {
-          console.error("Error creating order:", orderError);
-          throw new Error("Failed to save order");
-        }
-        
-        // Create order item record
+
+        if (orderError) throw new Error("ORDER_CREATION_FAILED: Failed to save order");
+
         const { error: itemError } = await supabase
           .from('order_items')
           .insert({
@@ -77,73 +92,81 @@ export const useSolanaPayment = () => {
             price: productData.price,
             quantity: 1,
           });
-          
+
         if (itemError) {
-          console.error("Error creating order item:", itemError);
-          throw new Error("Failed to save order item");
+          // Attempt to clean up the order if items fail
+          await supabase.from('orders').delete().eq('id', orderData.id);
+          throw new Error("ORDER_ITEM_CREATION_FAILED: Failed to save order details");
         }
       }
       
       toast.success("Payment successful!");
-      
-      if (onSuccess) {
-        onSuccess(signature);
-      }
-      
+      onSuccess?.(signature);
       return signature;
     } catch (error: any) {
       console.error("Payment error:", error);
-      toast.error(`Payment failed: ${error.message || "Unknown error"}`);
+      const message = error.message.split(':').pop() || "Payment failed";
+      toast.error(message);
       
-      if (onError) {
-        onError(error);
-      }
-      
+      onError?.(error);
       throw error;
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Method for processing multiple payments
   const makeMultiplePayments = async (
     items: { price: number, producerWallet: string }[],
     onSuccess?: (signatures: string[]) => void,
-    onError?: (error: any) => void
+    onError?: (error: any) => void,
+    maxRetries = 2
   ) => {
+    if (isProcessing) {
+      toast.warning("Please wait for current transaction to complete");
+      return;
+    }
+
     setIsProcessing(true);
     
     try {
       if (!wallet.connected || !wallet.publicKey) {
-        toast.error("Please connect your wallet first");
-        throw new Error("Wallet not connected");
+        throw new Error("WALLET_NOT_CONNECTED: Please connect your wallet first");
       }
-      
-      const signatures = await processMultiplePayments(
-        items,
-        connection,
-        wallet
-      );
-      
-      if (signatures.length > 0) {
-        setLastTransactionSignature(signatures[signatures.length - 1]);
+
+      if (!items.length) {
+        throw new Error("NO_ITEMS: No payment items provided");
       }
-      
-      toast.success("All payments processed successfully!");
-      
-      if (onSuccess) {
-        onSuccess(signatures);
+
+      // Add retry logic
+      let retries = 0;
+      let lastError;
+      let signatures: string[] = [];
+
+      while (retries <= maxRetries) {
+        try {
+          signatures = await processMultiplePayments(items, connection, wallet);
+          break;
+        } catch (error) {
+          lastError = error;
+          retries++;
+          if (retries <= maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+          }
+        }
       }
-      
+
+      if (!signatures.length) throw lastError || new Error("PAYMENT_FAILED: All retries exhausted");
+
+      setLastTransactionSignature(signatures[signatures.length - 1]);
+      toast.success(`${signatures.length} payments processed successfully!`);
+      onSuccess?.(signatures);
       return signatures;
     } catch (error: any) {
       console.error("Multiple payments error:", error);
-      toast.error(`Payment failed: ${error.message || "Unknown error"}`);
+      const message = error.message.split(':').pop() || "Payments failed";
+      toast.error(message);
       
-      if (onError) {
-        onError(error);
-      }
-      
+      onError?.(error);
       throw error;
     } finally {
       setIsProcessing(false);

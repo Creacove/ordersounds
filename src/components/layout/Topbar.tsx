@@ -36,6 +36,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
 export function Topbar({ sidebarVisible = false }) {
   const { user, logout, currency, setCurrency } = useAuth();
@@ -109,7 +110,10 @@ export function Topbar({ sidebarVisible = false }) {
         
         <div className="flex items-center gap-3">
           {(!isAuthPage || user) && (
+            <>
+              <WalletMultiButton className="bg-primary"/>
             <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
+            
               <Button
                 variant="ghost"
                 size="sm"
@@ -142,6 +146,7 @@ export function Topbar({ sidebarVisible = false }) {
                 <span className={isMobile ? "sr-only" : "inline"}>NGN</span>
               </Button>
             </div>
+            </>
           )}
           
           {user && user.role === 'buyer' && !isMobile && !isAuthPage && (

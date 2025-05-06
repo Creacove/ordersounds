@@ -9,7 +9,7 @@ const WalletPrompt = () => {
         Set up your wallet address
       </h3>
       <p className="text-sm text-amber-700 mt-1">
-        Please add your wallet address in the Producers Settings tab to receive payments from your sales.
+        Please add your wallet address in the Producer Settings tab to receive payments from your sales.
       </p>
     </div>
   );
