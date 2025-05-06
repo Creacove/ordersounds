@@ -61,9 +61,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setConsecutiveErrors(0);
   };
 
-  const isProducerInactive = 
-    user?.role === 'producer' && 
-    user?.status === 'inactive';
+  const isProducerInactive = false;
 
   const forceUserDataRefresh = async (): Promise<boolean> => {
     if (!user) {

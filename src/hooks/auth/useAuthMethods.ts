@@ -1,11 +1,10 @@
-
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { useState } from 'react';
 import { User } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 import { mapSupabaseUser } from '@/lib/supabase';
 import { uniqueToast } from '@/lib/toast';
-import { useState } from 'react';
 import { logSessionEvent } from '@/lib/authLogger';
 
 interface AuthMethodsProps {
@@ -32,7 +31,6 @@ export const useAuthMethods = ({
   const navigate = useNavigate();
   const [tokenRefreshAttempted, setTokenRefreshAttempted] = useState(false);
 
-  // Function to refresh the session using refresh token
   const refreshSession = async (): Promise<boolean> => {
     try {
       setIsLoading(true);
@@ -46,17 +44,14 @@ export const useAuthMethods = ({
       setTokenRefreshAttempted(true);
       console.log('Attempting to refresh session...');
       
-      // Try to refresh the token using Supabase's built-in refresh mechanism
       const { data, error } = await supabase.auth.refreshSession();
       
       if (error) {
         console.error('Session refresh error:', error);
         setAuthError(`[silent] Refresh session failed: ${error.message}`);
         
-        // Log the refresh failure
         await logSessionEvent('refresh_failed', { error: error.message });
         
-        // If version changed, show a helpful message
         if (appVersion?.hasChanged) {
           uniqueToast.error('Please login again due to a recent update');
         }
@@ -68,11 +63,9 @@ export const useAuthMethods = ({
         console.log('Session refreshed successfully');
         await logSessionEvent('refresh_success', { user_id: data.user.id });
         
-        // Map the user data
         const mappedUser = mapSupabaseUser(data.user);
         setUser(mappedUser);
         
-        // Reset consecutive errors on successful refresh
         setConsecutiveErrors(0);
         
         return true;
@@ -97,7 +90,6 @@ export const useAuthMethods = ({
     try {
       console.log("Attempting login with:", email);
       
-      // Direct sign-in attempt
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -106,7 +98,6 @@ export const useAuthMethods = ({
       if (error) {
         console.error("Login error:", error);
         
-        // Special case for unconfirmed emails
         if (error.message.includes("Email not confirmed") || error.code === "email_not_confirmed") {
           uniqueToast.error("Email not confirmed. Please check your inbox for a confirmation email or try signing up again.");
           setIsLoading(false);
@@ -120,7 +111,6 @@ export const useAuthMethods = ({
 
       if (data?.user) {
         console.log("Login successful:", data.user.id);
-        // Redirect to callback which will handle role/status routing
         navigate('/auth/callback');
         return;
       }
@@ -140,20 +130,6 @@ export const useAuthMethods = ({
     try {
       console.log("Attempting signup with:", { email, name, role });
       
-      // Check if user already exists
-      const { data: existingUser, error: checkError } = await supabase
-        .from('users')
-        .select('email')
-        .eq('email', email)
-        .maybeSingle();
-        
-      if (existingUser) {
-        toast.error('A user with this email already exists');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Create the auth account
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -168,7 +144,13 @@ export const useAuthMethods = ({
 
       if (error) {
         console.error("Signup auth error:", error);
-        toast.error(error.message);
+        
+        if (error.message.includes("already registered") || error.message.includes("already exists")) {
+          toast.error('A user with this email already exists');
+        } else {
+          toast.error(error.message || 'Failed to create account');
+        }
+        
         setIsLoading(false);
         return;
       }
@@ -176,7 +158,6 @@ export const useAuthMethods = ({
       console.log("Auth signup successful:", data);
       
       if (data?.user) {
-        // Create user record in the users table
         const { error: profileError } = await supabase
           .from('users')
           .insert({
@@ -184,20 +165,20 @@ export const useAuthMethods = ({
             full_name: name,
             email: email,
             role: role,
-            // Set status for producers to inactive by default
-            status: role === 'producer' ? 'inactive' : 'active',
-            // Add the required password_hash field
+            status: 'active',
             password_hash: 'managed-by-supabase'
           });
 
         if (profileError) {
           console.error('Error creating user profile:', profileError);
-          toast.error('Could not complete profile setup, but auth account was created');
+          
+          if (!profileError.message.includes('duplicate key')) {
+            toast.error('Could not complete profile setup, but auth account was created');
+          }
         } else {
           console.log("User profile created successfully");
           toast.success('Account created successfully!');
           
-          // Try to sign in immediately
           const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -211,13 +192,18 @@ export const useAuthMethods = ({
           }
           
           if (signInData?.user) {
-            console.log("Auto-login successful, redirecting to callback");
-            navigate('/auth/callback');
+            console.log("Auto-login successful, redirecting to home");
+            const mappedUser = mapSupabaseUser(signInData.user);
+            setUser({
+              ...mappedUser,
+              status: 'active'
+            });
+            
+            navigate('/');
             return;
           }
         }
         
-        // Default fallback - redirect to login
         toast.info("Account created! Please log in to continue.");
         navigate('/login');
       }
@@ -252,7 +238,6 @@ export const useAuthMethods = ({
   const updateProfile = async (data: Partial<User>) => {
     setIsLoading(true);
     try {
-      // Update user metadata in auth.users
       const { error: authError } = await supabase.auth.updateUser({
         data: {
           full_name: data.name,
@@ -269,13 +254,11 @@ export const useAuthMethods = ({
         throw authError;
       }
 
-      // Get the current user session
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData.user) {
         throw userError || new Error('No user found');
       }
 
-      // Check if user exists in the users table
       const { data: existingUser, error: checkError } = await supabase
         .from('users')
         .select('id')
@@ -286,9 +269,7 @@ export const useAuthMethods = ({
         throw checkError;
       }
 
-      // If user exists, update; otherwise insert
       if (existingUser) {
-        // Update users table
         const { error: profileError } = await supabase
           .from('users')
           .update({
@@ -305,7 +286,6 @@ export const useAuthMethods = ({
           throw profileError;
         }
       } else {
-        // Insert new user record
         const { error: insertError } = await supabase
           .from('users')
           .insert([
@@ -327,17 +307,14 @@ export const useAuthMethods = ({
         }
       }
 
-      // Get the updated user
       const { data: updatedUserData, error: updatedUserError } = await supabase.auth.getUser();
       if (updatedUserError || !updatedUserData.user) {
         throw updatedUserError || new Error('Failed to get updated user data');
       }
 
-      // Update local state
       const mappedUser = mapSupabaseUser(updatedUserData.user);
       setUser(mappedUser);
       
-      // Update currency if country changed
       if (data.default_currency) {
         setCurrency(data.default_currency);
       }

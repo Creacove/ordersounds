@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -37,8 +36,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
-// Add a new prop to receive sidebar open state
 export function Topbar({ sidebarVisible = false }) {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
@@ -48,7 +47,6 @@ export function Topbar({ sidebarVisible = false }) {
   
   const [isScrolled, setIsScrolled] = useState(false);
   
-  // Check if current route is login or signup
   const isAuthPage = location.pathname === "/login" || location.pathname === "/signup";
   
   useEffect(() => {
@@ -74,53 +72,48 @@ export function Topbar({ sidebarVisible = false }) {
     if (newCurrency === currency) return;
     
     setCurrency(newCurrency);
-    // Store the user's preference (will be overwritten if logged in)
     localStorage.setItem('preferred_currency', newCurrency);
     toast.success(`Currency changed to ${newCurrency === 'USD' ? 'US Dollar' : 'Nigerian Naira'}`);
   };
 
-  // Only show logo on mobile or when sidebar is not visible on desktop
-  const showLogo = isMobile || !sidebarVisible;
+  const showLogo = true;
 
-  // Determine correct settings page based on user role and current view
   const getSettingsPath = () => {
-    // If currently in producer view, go to producer settings
     if (location.pathname.startsWith('/producer')) {
       return "/producer/settings";
     }
-    // If user is a producer but in buyer view, still go to user settings
     return "/settings";
   };
 
-  // Check if currently in producer view
   const isInProducerView = location.pathname.startsWith('/producer');
 
   return (
     <header 
       className={cn(
-        "sticky top-0 z-30 w-full transition-all duration-200",
+        "sticky top-0 z-50 w-full transition-all duration-200",
         isScrolled ? "bg-background/90 backdrop-blur-md border-b shadow-sm" : "bg-transparent"
       )}
     >
-      <div className="container flex items-center justify-between h-16 py-2">
-        {/* Logo - Only show when sidebar is not visible on desktop or always on mobile */}
+      <div className={cn(
+        "flex items-center justify-between h-16 py-2",
+        isMobile ? "container mx-auto px-2 xs:px-4 sm:px-6" : "pr-6 pl-2"
+      )}>
         <div className="flex items-center gap-2">          
-          {showLogo && (
-            <Link to="/" className="flex items-center gap-2">
-              <Headphones size={isMobile ? 20 : 24} className="text-purple-600" />
-              <span className={cn(
-                "font-heading font-bold bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text",
-                isMobile ? "text-lg" : "text-xl"
-              )}>OrderSOUNDS</span>
-            </Link>
-          )}
+          <Link to="/" className="flex items-center gap-2">
+            <img 
+              src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
+              alt="OrderSOUNDS"
+              className="h-36 w-auto"
+            />
+          </Link>
         </div>
         
-        {/* Search and User Menu - Hide when on auth pages and not logged in */}
         <div className="flex items-center gap-3">
-          {/* Only show currency toggle if not on auth page or user is logged in */}
           {(!isAuthPage || user) && (
+            <>
+              <WalletMultiButton className="bg-primary"/>
             <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
+            
               <Button
                 variant="ghost"
                 size="sm"
@@ -153,9 +146,9 @@ export function Topbar({ sidebarVisible = false }) {
                 <span className={isMobile ? "sr-only" : "inline"}>NGN</span>
               </Button>
             </div>
+            </>
           )}
           
-          {/* Cart - Only show on desktop for buyers AND not on auth pages */}
           {user && user.role === 'buyer' && !isMobile && !isAuthPage && (
             <Button
               variant="ghost"
@@ -176,12 +169,10 @@ export function Topbar({ sidebarVisible = false }) {
             </Button>
           )}
           
-          {/* Notifications - Only show when user is logged in */}
           {user && !isAuthPage && (
             <NotificationCenter />
           )}
           
-          {/* Search - Only show if not on auth page or user is logged in */}
           {(!isAuthPage || user) && (
             <Button
               variant="ghost"
@@ -194,7 +185,6 @@ export function Topbar({ sidebarVisible = false }) {
             </Button>
           )}
           
-          {/* User Menu - Show auth buttons on auth pages, or user dropdown elsewhere */}
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -256,7 +246,6 @@ export function Topbar({ sidebarVisible = false }) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            // Show sign in button only if not already on auth pages
             !isAuthPage && (
               <Button
                 variant="default"

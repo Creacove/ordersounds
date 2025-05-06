@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { useAudio } from "@/hooks/useAudio";
 import { toast } from "sonner";
 import { FileOrUrl, isFile } from "@/lib/storage";
+import { cn } from "@/lib/utils";
 
 type FilesTabProps = {
   imagePreview: string | null;
@@ -59,6 +60,10 @@ export const FilesTab = ({
 }: FilesTabProps) => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [previewLoadingTimeout, setPreviewLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [previewLoadingFailed, setPreviewLoadingFailed] = useState(false);
+  const [stemUploadError, setStemUploadError] = useState<string | null>(null);
+  
   const hasExclusiveLicense = selectedLicenseTypes.includes('exclusive');
   const hasPremiumLicense = selectedLicenseTypes.includes('premium');
   const requiresWavFormat = hasExclusiveLicense || hasPremiumLicense;
@@ -87,8 +92,43 @@ export const FilesTab = ({
   useEffect(() => {
     if (audioIsReady && audioPreviewUrl) {
       console.log(`Audio preview ready - Duration: ${audioDuration}s, URL: ${audioPreviewUrl}`);
+      setPreviewLoadingFailed(false);
+      
+      // Clear any existing timeout when preview is ready
+      if (previewLoadingTimeout) {
+        clearTimeout(previewLoadingTimeout);
+        setPreviewLoadingTimeout(null);
+      }
     }
-  }, [audioDuration, audioIsReady, audioPreviewUrl]);
+  }, [audioDuration, audioIsReady, audioPreviewUrl, previewLoadingTimeout]);
+
+  useEffect(() => {
+    if (processingFiles && !audioIsReady && !audioError && !previewLoadingFailed) {
+      const timeoutId = setTimeout(() => {
+        setPreviewLoadingFailed(true);
+        console.log("Preview generation timed out after 30 seconds");
+      }, 30000); // 30 seconds timeout
+      
+      setPreviewLoadingTimeout(timeoutId);
+      
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    }
+  }, [processingFiles, audioIsReady, audioError, previewLoadingFailed]);
+
+  useEffect(() => {
+    if (audioError) {
+      setPreviewLoadingFailed(true);
+      console.log("Audio preview error detected:", audioError);
+      
+      // Clear any existing timeout when there's an error
+      if (previewLoadingTimeout) {
+        clearTimeout(previewLoadingTimeout);
+        setPreviewLoadingTimeout(null);
+      }
+    }
+  }, [audioError, previewLoadingTimeout]);
 
   useEffect(() => {
     if (uploadedFile && isFile(uploadedFile) && uploadProgress[uploadedFile.name] !== undefined) {
@@ -97,29 +137,28 @@ export const FilesTab = ({
   }, [uploadedFile, uploadProgress]);
 
   useEffect(() => {
+    if (stems && isFile(stems) && uploadProgress[stems.name] !== undefined) {
+      console.log(`Stems progress update for ${stems.name}: ${uploadProgress[stems.name]}%`);
+    }
+  }, [stems, uploadProgress]);
+
+  useEffect(() => {
+    if (uploadError && uploadedFile && previewUrl) {
+      if (uploadError.includes('stem') || 
+          (stems && isFile(stems) && uploadError.includes(stems.name))) {
+        setStemUploadError(uploadError);
+        return;
+      }
+    }
+  }, [uploadError, uploadedFile, previewUrl, stems]);
+
+  useEffect(() => {
     return () => {
       if (previewObjectUrl) {
         URL.revokeObjectURL(previewObjectUrl);
       }
     };
   }, [previewObjectUrl]);
-
-  useEffect(() => {
-    if (audioError && previewUrl && retryCount < 3) {
-      const timer = setTimeout(() => {
-        console.log(`Auto-retrying preview load (${retryCount + 1}/3) with cache-busting...`);
-        if (setPreviewUrl) {
-          const cacheBuster = `cb=${Date.now()}`;
-          const urlBase = previewUrl.split('?')[0];
-          const newUrl = `${urlBase}?${cacheBuster}`;
-          setPreviewUrl(newUrl);
-          setRetryCount(prev => prev + 1);
-        }
-      }, 1500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [audioError, previewUrl, retryCount, setPreviewUrl]);
 
   const getAcceptedAudioTypes = () => {
     if (requiresWavFormat) {
@@ -151,23 +190,6 @@ export const FilesTab = ({
     }
   }, [uploadedFile, requiresWavFormat]);
 
-  const handleRetryAudioPreview = () => {
-    if (audioError) {
-      console.log("Manually retrying audio preview...");
-      setRetryCount(0);
-      
-      if (reloadAudio) {
-        reloadAudio();
-      }
-      
-      if (regeneratePreview && (uploadedFileUrl || (uploadedFile && !isFile(uploadedFile)))) {
-        console.log("Using regeneratePreview with existing upload URL");
-        toast.info("Regenerating preview, please wait...");
-        regeneratePreview();
-      }
-    }
-  };
-
   const handleFullTrackUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -194,7 +216,7 @@ export const FilesTab = ({
       const file = e.target.files[0];
       
       if (file.size > 250 * 1024 * 1024) {
-        setValidationError("Stems file must be less than 250MB");
+        setStemUploadError("Stems file must be less than 250MB");
         toast.error("Stems file must be less than 250MB");
         return;
       }
@@ -204,17 +226,18 @@ export const FilesTab = ({
                     file.name.endsWith('.zip');
                     
       if (!isZip) {
-        setValidationError("Stems file must be a ZIP archive");
+        setStemUploadError("Stems file must be a ZIP archive");
         toast.error("Stems file must be a ZIP archive");
         return;
       }
       
       console.log("Stem file selected:", file.name, "type:", file.type, "size:", (file.size / (1024 * 1024)).toFixed(2) + "MB");
       toast.info(`Starting upload of ${(file.size / (1024 * 1024)).toFixed(2)}MB stems file. This may take several minutes for large files.`, {
-        duration: 8000
+        duration: 8000,
+        id: "stems-upload-start"
       });
       setStems(file);
-      setValidationError(null);
+      setStemUploadError(null);
       
       if (handleStemsUpload) {
         handleStemsUpload(e);
@@ -225,11 +248,13 @@ export const FilesTab = ({
   const handlePreviewUploadInternal = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (handlePreviewUpload) {
       handlePreviewUpload(e);
+      setPreviewLoadingFailed(false);
       return;
     }
     
     if (e.target.files && e.target.files[0]) {
       setPreviewFile(e.target.files[0]);
+      setPreviewLoadingFailed(false);
     }
   };
 
@@ -259,7 +284,9 @@ export const FilesTab = ({
       statusMessage = `Uploading: ${safeValue}%`;
       
       if (file.size > 50 * 1024 * 1024) {
-        statusMessage += ` (${(file.size / (1024 * 1024) * (safeValue / 100)).toFixed(1)}/${(file.size / (1024 * 1024)).toFixed(1)} MB)`;
+        const uploadedMB = (file.size / (1024 * 1024) * (safeValue / 100)).toFixed(1);
+        const totalMB = (file.size / (1024 * 1024)).toFixed(1);
+        statusMessage += ` (${uploadedMB}/${totalMB} MB)`;
       }
     }
     
@@ -292,6 +319,7 @@ export const FilesTab = ({
     if (setPreviewUrl) {
       setPreviewUrl(null);
     }
+    setPreviewLoadingFailed(false);
   };
 
   const handleStemsClear = () => {
@@ -429,32 +457,33 @@ export const FilesTab = ({
             <div>
               <h4 className="text-sm font-medium mb-1">Preview Track</h4>
               <div 
-                className={`border rounded-lg p-3 flex items-center gap-3
-                  ${previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted"} 
-                  ${audioError ? "border-destructive/50 bg-destructive/5" : ""}
-                  transition-colors`}
+                className={cn(
+                  "border rounded-lg p-3 flex items-center gap-3",
+                  previewFile || previewUrl ? "bg-primary/5 border-primary/30" : "border-muted",
+                  (uploadError || previewLoadingFailed || audioError) ? "border-destructive/50 bg-destructive/5" : "",
+                  "transition-colors"
+                )}
               >
                 {(previewFile || previewUrl) ? (
                   <>
                     <button
-                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${audioError ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
-                      onClick={audioError ? handleRetryAudioPreview : toggleAudioPlay}
-                      disabled={!audioPreviewUrl}
+                      className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full ${(uploadError || previewLoadingFailed || audioError) ? "bg-destructive" : "bg-primary"} text-primary-foreground flex items-center justify-center`}
+                      onClick={toggleAudioPlay}
+                      disabled={!audioPreviewUrl || audioError || previewLoadingFailed}
                     >
-                      {audioError ? <RefreshCw size={14} className="animate-spin" /> : 
+                      {(uploadError || previewLoadingFailed || audioError) ? <AlertTriangle size={14} /> : 
                         isAudioPlaying ? <Pause size={14} /> : <Play size={14} />}
                     </button>
                     <div className="flex-1 overflow-hidden">
                       <p className="text-xs sm:text-sm font-medium truncate">
-                        {audioError ? "Error loading preview" : 
+                        {(uploadError || previewLoadingFailed || audioError) ? "Preview failed to load" : 
                           previewFile && isFile(previewFile) ? previewFile.name : "Preview.mp3"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {audioError ? (
+                        {(uploadError || previewLoadingFailed || audioError) ? (
                           <span className="text-destructive flex items-center">
                             <AlertTriangle size={12} className="mr-1" />
-                            Failed to load audio. Click to retry.
-                            {retryCount > 0 && ` (${retryCount}/3)`}
+                            Failed to generate preview. Please upload manually.
                           </span>
                         ) : previewFile && isFile(previewFile) ? 
                           `${(previewFile.size / (1024 * 1024)).toFixed(2)} MB` : 
@@ -468,13 +497,12 @@ export const FilesTab = ({
                         renderProgressBar(previewFile, uploadProgress[previewFile.name])
                       )}
                     </div>
-                    {regeneratePreview && (
+                    {regeneratePreview && !previewLoadingFailed && !audioError && !uploadError && (
                       <Button 
-                        variant={audioError ? "destructive" : "outline"}
+                        variant="outline"
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setRetryCount(0);
                           regeneratePreview();
                         }}
                         className="mr-1"
@@ -487,6 +515,26 @@ export const FilesTab = ({
                         )}
                       </Button>
                     )}
+                    
+                    {(uploadError || previewLoadingFailed || audioError) && (
+                      <Button 
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => document.getElementById("previewTrack")?.click()}
+                        className="mr-1 px-2 sm:px-3"
+                      >
+                        <span className="hidden sm:inline">Upload Preview</span>
+                        <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
+                      </Button>
+                    )}
+                    <input 
+                      id="previewTrack" 
+                      type="file" 
+                      className="hidden" 
+                      accept="audio/mpeg"
+                      onChange={handlePreviewUploadInternal}
+                    />
+                    
                     <Button 
                       variant="ghost" 
                       size="sm"
@@ -503,20 +551,26 @@ export const FilesTab = ({
                     <FileAudio className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
                     <div className="flex-1">
                       <p className="text-xs sm:text-sm font-medium">
-                        {processingFiles ? "Generating preview..." : "Preview will be auto-generated"}
+                        {processingFiles ? "Generating preview..." : "Upload or generate preview"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {processingFiles ? (
+                        {processingFiles && !previewLoadingFailed ? (
                           <span className="flex items-center">
                             <span className="w-3 h-3 mr-2 rounded-full border-2 border-t-transparent border-primary animate-spin inline-block"></span>
                             Processing audio...
                           </span>
                         ) : (
-                          "30-second watermarked MP3 sample"
+                          "Automatic preview generation available, or upload a 30-second MP3"
                         )}
                       </p>
+                      {(uploadError || previewLoadingFailed) && !processingFiles && (
+                        <p className="text-xs text-destructive mt-1 flex items-center gap-1">
+                          <AlertTriangle size={12} />
+                          Preview generation failed. Please upload a preview manually.
+                        </p>
+                      )}
                     </div>
-                    {processingFiles ? (
+                    {processingFiles && !previewLoadingFailed ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -526,38 +580,38 @@ export const FilesTab = ({
                         Processing
                       </Button>
                     ) : (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => document.getElementById("previewTrack")?.click()}
-                        className="px-2 sm:px-3"
-                      >
-                        <span className="hidden sm:inline">Upload</span>
-                        <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
-                      </Button>
+                      <>
+                        <Button 
+                          variant={(uploadError || previewLoadingFailed) ? "destructive" : "outline"}
+                          size="sm"
+                          onClick={() => document.getElementById("previewTrack")?.click()}
+                          className="px-2 sm:px-3"
+                        >
+                          <span className="hidden sm:inline">Upload Preview</span>
+                          <Upload className="h-4 w-4 sm:ml-2 sm:hidden" />
+                        </Button>
+                        <input 
+                          id="previewTrack" 
+                          type="file" 
+                          className="hidden" 
+                          accept="audio/mpeg"
+                          onChange={handlePreviewUploadInternal}
+                        />
+                      </>
                     )}
-                    <input 
-                      id="previewTrack" 
-                      type="file" 
-                      className="hidden" 
-                      accept="audio/mpeg"
-                      onChange={handlePreviewUploadInternal}
-                    />
                   </>
                 )}
               </div>
-              {processingFiles && (
+              {processingFiles && !previewLoadingFailed && (
                 <p className="text-xs text-muted-foreground mt-2 italic">
-                  Preview generation can take up to 30 seconds. Please be patient.
+                  Preview generation can take up to 30 seconds. Please be patient or upload manually.
                 </p>
               )}
-              {audioError && (
-                <Alert variant="destructive" className="mt-2 py-2">
-                  <AlertDescription className="text-xs">
-                    Preview may not work properly in this browser with WAV files. 
-                    Try uploading an MP3 file instead or use a different browser.
-                  </AlertDescription>
-                </Alert>
+              {previewLoadingFailed && (
+                <p className="text-xs text-destructive mt-2 flex items-center gap-1">
+                  <AlertTriangle size={12} />
+                  Automatic preview generation failed. Please upload a 30-second MP3 manually.
+                </p>
               )}
             </div>
 
@@ -567,11 +621,11 @@ export const FilesTab = ({
                 <div 
                   className={`border rounded-lg p-3 flex items-center gap-3 ${
                     hasStemsData ? "bg-primary/5 border-primary/30" : "border-muted"
-                  } transition-colors`}
+                  } ${stemUploadError ? "border-destructive/50" : ""} transition-colors`}
                 >
                   {hasStemsData ? (
                     <>
-                      <FileUp className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
+                      <FileUp className={`h-6 w-6 sm:h-8 sm:w-8 ${stemUploadError ? "text-destructive" : "text-primary"}`} />
                       <div className="flex-1 overflow-hidden">
                         <p className="text-xs sm:text-sm font-medium truncate">
                           {getStemsFileName()}
@@ -590,6 +644,7 @@ export const FilesTab = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           handleStemsClear();
+                          setStemUploadError(null);
                         }}
                       >
                         <X size={16} />
@@ -622,6 +677,14 @@ export const FilesTab = ({
                     </>
                   )}
                 </div>
+                {stemUploadError && (
+                  <Alert variant="destructive" className="mt-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="ml-2 text-xs">
+                      Stems upload error: {stemUploadError}
+                    </AlertDescription>
+                  </Alert>
+                )}
               </div>
             )}
           </div>
@@ -633,11 +696,11 @@ export const FilesTab = ({
           </Alert>
         )}
 
-        {uploadError && (
+        {uploadError && !stemUploadError && (
           <Alert variant="destructive" className="mt-2">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="ml-2 text-xs">
-              Upload error: {uploadError}. Please try again or use a smaller file.
+              Upload error: {uploadError}
             </AlertDescription>
           </Alert>
         )}

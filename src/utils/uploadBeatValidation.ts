@@ -1,23 +1,39 @@
 
-import { BeatDetails, Collaborator } from "@/hooks/useBeatUpload";
-import { isFile } from "@/lib/storage";
+import { toast } from "sonner";
+import { FileOrUrl, isFile } from "@/lib/storage";
+import { Collaborator } from "@/hooks/useBeatUpload";
 
-type ValidationProps = {
+type ValidationArgs = {
   activeTab: string;
-  beatDetails: BeatDetails;
+  beatDetails: {
+    title: string;
+    description: string;
+    genre: string;
+    trackType: string;
+    licenseType: string;
+    licenseTerms: string;
+    basicLicensePriceLocal: number;
+    basicLicensePriceDiaspora: number;
+    premiumLicensePriceLocal: number;
+    premiumLicensePriceDiaspora: number;
+    exclusiveLicensePriceLocal: number;
+    exclusiveLicensePriceDiaspora: number;
+    customLicensePriceLocal: number;
+    customLicensePriceDiaspora: number;
+  };
   selectedLicenseTypes: string[];
-  imageFile: any;
-  uploadedFile: any;
+  imageFile: FileOrUrl | null;
+  uploadedFile: FileOrUrl | null;
   uploadedFileUrl: string;
-  previewFile: any;
+  previewFile: FileOrUrl | null;
   previewUrl: string | null;
-  stems: any;
+  stems: FileOrUrl | null;
   collaborators: Collaborator[];
-  setValidationErrors: (errs: { [key: string]: string }) => void;
-  toast: any;
+  setValidationErrors: React.Dispatch<React.SetStateAction<{ [key: string]: string }>>;
+  toast: typeof toast;
 };
 
-export function validateCurrentTab({
+export const validateCurrentTab = ({
   activeTab,
   beatDetails,
   selectedLicenseTypes,
@@ -30,62 +46,125 @@ export function validateCurrentTab({
   collaborators,
   setValidationErrors,
   toast
-}: ValidationProps) {
-  const newErrors: { [key: string]: string } = {};
+}: ValidationArgs): boolean => {
+  const errors: { [key: string]: string } = {};
 
-  if (activeTab === "details") {
-    if (!beatDetails.title) newErrors.title = "Beat title is required";
-    if (!beatDetails.genre) newErrors.genre = "Genre is required";
-    if (!beatDetails.trackType) newErrors.trackType = "Track type is required";
-  } else if (activeTab === "licensing") {
-    if (!selectedLicenseTypes.length) newErrors.licenseType = "At least one license type is required";
-    if (selectedLicenseTypes.includes("custom") && !beatDetails.licenseTerms)
-      newErrors.licenseTerms = "Custom license terms are required";
-  } else if (activeTab === "files") {
-    if (!imageFile) newErrors.coverImage = "Cover image is required";
-    if (!uploadedFile && !uploadedFileUrl) newErrors.fullTrack = "Full track is required";
+  switch (activeTab) {
+    case "details":
+      if (!beatDetails.title) {
+        errors.title = "Beat title is required";
+      }
+      if (!beatDetails.genre) {
+        errors.genre = "Genre is required";
+      }
+      if (!beatDetails.trackType) {
+        errors.trackType = "Track type is required";
+      }
+      break;
 
-    const requiresWavFormat =
-      selectedLicenseTypes.includes("premium") || selectedLicenseTypes.includes("exclusive");
+    case "licensing":
+      if (selectedLicenseTypes.length === 0) {
+        errors.licenseType = "At least one license type is required";
+      }
+      if (selectedLicenseTypes.includes('custom') && !beatDetails.licenseTerms) {
+        errors.licenseTerms = "Custom license terms are required";
+      }
+      break;
 
-    if (requiresWavFormat && uploadedFile && isFile(uploadedFile)) {
-      const fileType = uploadedFile.type;
-      const fileName = uploadedFile.name;
-      if (fileType !== "audio/wav" && !fileName.endsWith(".wav"))
-        newErrors.fullTrack = "Premium and exclusive licenses require WAV format";
-    }
-  } else if (activeTab === "pricing") {
-    selectedLicenseTypes.forEach((license) => {
-      if (license === "basic" && (!beatDetails.basicLicensePriceLocal || !beatDetails.basicLicensePriceDiaspora))
-        newErrors.basicPrice = "Basic license prices are required";
-      if (license === "premium" && (!beatDetails.premiumLicensePriceLocal || !beatDetails.premiumLicensePriceDiaspora))
-        newErrors.premiumPrice = "Premium license prices are required";
-      if (
-        license === "exclusive" &&
-        (!beatDetails.exclusiveLicensePriceLocal || !beatDetails.exclusiveLicensePriceDiaspora)
-      )
-        newErrors.exclusivePrice = "Exclusive license prices are required";
-      if (
-        license === "custom" &&
-        (!beatDetails.customLicensePriceLocal || !beatDetails.customLicensePriceDiaspora)
-      )
-        newErrors.customPrice = "Custom license prices are required";
-    });
-  } else if (activeTab === "royalties") {
-    const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
-    if (totalPercentage !== 100) newErrors.royalties = "Collaborator percentages must sum to 100%";
-    collaborators.forEach((c, idx) => {
-      if (!c.name) newErrors[`collaborator_${idx}_name`] = "Name is required";
-      if (!c.role) newErrors[`collaborator_${idx}_role`] = "Role is required";
-    });
+    case "files":
+      if (!imageFile) {
+        errors.coverImage = "Cover image is required";
+      }
+      if (!uploadedFile && !uploadedFileUrl) {
+        errors.fullTrack = "Full track file is required";
+      }
+      if (!previewFile && !previewUrl) {
+        errors.preview = "Preview track is required";
+      }
+      
+      // For stems, we only validate the format if one is provided, but don't require it
+      if (stems && isFile(stems) && 
+          stems.type !== "application/zip" && 
+          !stems.name.endsWith('.zip')) {
+        errors.stems = "Stems must be a ZIP file";
+      }
+      
+      // Check WAV format requirement for premium/exclusive licenses
+      const requiresWavFormat = selectedLicenseTypes.includes('premium') || 
+                              selectedLicenseTypes.includes('exclusive');
+      
+      if (requiresWavFormat && uploadedFile && isFile(uploadedFile) &&
+          uploadedFile.type !== "audio/wav" && 
+          !uploadedFile.name.endsWith('.wav')) {
+        errors.fullTrackFormat = "Premium and exclusive licenses require WAV format";
+      }
+      break;
+
+    case "pricing":
+      if (selectedLicenseTypes.includes('basic')) {
+        if (!beatDetails.basicLicensePriceLocal || beatDetails.basicLicensePriceLocal <= 0) {
+          errors.basicPrice = "Basic license local price must be greater than 0";
+        }
+        if (!beatDetails.basicLicensePriceDiaspora || beatDetails.basicLicensePriceDiaspora <= 0) {
+          errors.basicPrice = "Basic license diaspora price must be greater than 0";
+        }
+      }
+      
+      if (selectedLicenseTypes.includes('premium')) {
+        if (!beatDetails.premiumLicensePriceLocal || beatDetails.premiumLicensePriceLocal <= 0) {
+          errors.premiumPrice = "Premium license local price must be greater than 0";
+        }
+        if (!beatDetails.premiumLicensePriceDiaspora || beatDetails.premiumLicensePriceDiaspora <= 0) {
+          errors.premiumPrice = "Premium license diaspora price must be greater than 0";
+        }
+      }
+      
+      if (selectedLicenseTypes.includes('exclusive')) {
+        if (!beatDetails.exclusiveLicensePriceLocal || beatDetails.exclusiveLicensePriceLocal <= 0) {
+          errors.exclusivePrice = "Exclusive license local price must be greater than 0";
+        }
+        if (!beatDetails.exclusiveLicensePriceDiaspora || beatDetails.exclusiveLicensePriceDiaspora <= 0) {
+          errors.exclusivePrice = "Exclusive license diaspora price must be greater than 0";
+        }
+      }
+      
+      if (selectedLicenseTypes.includes('custom')) {
+        if (!beatDetails.customLicensePriceLocal || beatDetails.customLicensePriceLocal <= 0) {
+          errors.customPrice = "Custom license local price must be greater than 0";
+        }
+        if (!beatDetails.customLicensePriceDiaspora || beatDetails.customLicensePriceDiaspora <= 0) {
+          errors.customPrice = "Custom license diaspora price must be greater than 0";
+        }
+      }
+      break;
+
+    case "royalties":
+      const totalPercentage = collaborators.reduce((sum, c) => sum + c.percentage, 0);
+      if (totalPercentage !== 100) {
+        errors.royalties = "Collaborator percentages must sum to 100%";
+      }
+      
+      collaborators.forEach((collab, index) => {
+        if (!collab.name) {
+          errors[`collaborator_${index}_name`] = `Collaborator #${index + 1} name is required`;
+        }
+        if (!collab.role) {
+          errors[`collaborator_${index}_role`] = `Collaborator #${index + 1} role is required`;
+        }
+        if (collab.percentage <= 0) {
+          errors[`collaborator_${index}_percentage`] = `Collaborator #${index + 1} percentage must be greater than 0`;
+        }
+      });
+      break;
   }
 
-  if (Object.keys(newErrors).length > 0) {
-    setValidationErrors(newErrors);
-    const firstError = Object.values(newErrors)[0];
-    toast.error(firstError);
+  setValidationErrors(errors);
+
+  if (Object.keys(errors).length > 0) {
+    const errorMessage = Object.values(errors)[0];
+    toast.error(errorMessage);
     return false;
   }
-  setValidationErrors({});
+
   return true;
-}
+};

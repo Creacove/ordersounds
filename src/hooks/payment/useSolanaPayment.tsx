@@ -1,7 +1,7 @@
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { processPurchase, isValidSolanaAddress, processMultiplePayments } from '@/utils/payment/solanaTranscations';
+import { processPurchase, isValidSolanaAddress, processMultiplePayments } from '@/utils/payment/solanaTransactions';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProductData {
@@ -71,10 +71,12 @@ export const useSolanaPayment = () => {
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .insert({
-            user_id: userData.user.id,
-            total_amount: amount,
-            status: 'completed',
-            transaction_signatures: [signature]
+            buyer_id: userData.user.id,
+            total_price: amount,
+            status: 'completed', // Ensure status is always completed for successful purchases
+            transaction_signatures: [signature],
+            payment_method: 'solana',
+            currency_used: 'USDC'
           })
           .select()
           .single();

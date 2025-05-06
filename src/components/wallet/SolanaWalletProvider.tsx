@@ -1,49 +1,58 @@
 
-import React, { useMemo } from 'react';
+import React, { FC, ReactNode, useMemo } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
-import { 
-  PhantomWalletAdapter, 
-  SolflareWalletAdapter, 
-  TorusWalletAdapter,
-  LedgerWalletAdapter,
-  CoinbaseWalletAdapter
+import {
+    PhantomWalletAdapter,
+    SolflareWalletAdapter,
+    CoinbaseWalletAdapter,
+    CloverWalletAdapter,
+    SalmonWalletAdapter,
+    TorusWalletAdapter,
+    LedgerWalletAdapter,
+    MathWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { clusterApiUrl } from '@solana/web3.js';
 
-// Import the styles
-import '@solana/wallet-adapter-react-ui/styles.css';
+interface SolanaWalletProviderProps {
+    children: ReactNode;
+}
 
-export const SolanaWalletProvider = ({ children }: { children: React.ReactNode }) => {
-  // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'
-  const network = WalletAdapterNetwork.Devnet;
+const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
+    // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'.
+    const network = WalletAdapterNetwork.Devnet;
 
-  // You can also provide a custom RPC endpoint
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
+    // You can also provide a custom RPC endpoint.
+    const endpoint = useMemo(() => 
+        process.env.NODE_ENV === 'production' 
+            ? 'https://api.mainnet-beta.solana.com'
+            : 'https://api.devnet.solana.com', 
+        []
+    );
 
-  // @solana/wallet-adapter-wallets includes all the adapters but supports tree shaking and lazy loading
-  // We're removing BackpackWalletAdapter and SlopeWalletAdapter as they don't exist in the current version
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-      new CoinbaseWalletAdapter(),
-      new LedgerWalletAdapter(),
-      new TorusWalletAdapter()
-    ],
-    [network]
-  );
+    // @solana/wallet-adapter-wallets imports all the adapters but supports tree shaking 
+    // and lazy loading --only the wallets you configure here will be compiled into your app
+    const wallets = useMemo(
+        () => [
+            new PhantomWalletAdapter(),
+            new SolflareWalletAdapter({ network }),
+            new CoinbaseWalletAdapter(),
+            new CloverWalletAdapter(),
+            new SalmonWalletAdapter(),
+            new TorusWalletAdapter(),
+            new LedgerWalletAdapter(),
+            new MathWalletAdapter(),
+        ],
+        [network]
+    );
 
-  return (
-    <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          {children}
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
-  );
+    return (
+        <ConnectionProvider endpoint={endpoint}>
+            <WalletProvider wallets={wallets} autoConnect>
+                <WalletModalProvider>{children}</WalletModalProvider>
+            </WalletProvider>
+        </ConnectionProvider>
+    );
 };
 
 export default SolanaWalletProvider;

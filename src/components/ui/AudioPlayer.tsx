@@ -20,7 +20,6 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -60,7 +59,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
     };
     
     const handleError = (e: ErrorEvent) => {
-      console.error("Audio playback error:", e);
+      console.error("Error playing audio:", e);
       setIsLoading(false);
       setHasError(true);
       setIsPlaying(false);
@@ -68,18 +67,6 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       
       if (onError) {
         onError();
-      }
-      
-      // Auto retry a few times
-      if (retryCount < 2 && src) {
-        setRetryCount(prev => prev + 1);
-        console.log(`Auto-retrying audio load (${retryCount + 1}/3)...`);
-        setTimeout(() => {
-          if (audioRef.current) {
-            audioRef.current.load();
-            audioRef.current.play().catch(console.error);
-          }
-        }, 1000);
       }
     };
     
@@ -113,7 +100,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
     };
-  }, [retryCount, onError]);
+  }, [onError]);
 
   // Update source when src prop changes
   useEffect(() => {
@@ -126,7 +113,6 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       setIsPlaying(false);
       setActuallyPlaying(false);
       setHasError(false);
-      setRetryCount(0);
       
       audio.src = src;
       audio.load();
@@ -158,16 +144,20 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
     
     if (hasError) {
       // Try to reload the audio if there was an error
-      setRetryCount(0);
       audio.load();
       setHasError(false);
       setIsLoading(true);
       
       setTimeout(() => {
         if (audioRef.current) {
-          audioRef.current.play().catch(() => {
+          audioRef.current.play().catch((error) => {
+            console.error("Error playing audio after retry:", error);
             setHasError(true);
             setIsLoading(false);
+            
+            if (onError) {
+              onError();
+            }
           });
         }
       }, 500);
@@ -240,28 +230,6 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const handleRetry = () => {
-    if (!audioRef.current || !src) return;
-    
-    setRetryCount(0);
-    setHasError(false);
-    setIsLoading(true);
-    
-    // Force reload by creating a cache-busting URL
-    const cacheBuster = `${src}${src.includes('?') ? '&' : '?'}cb=${Date.now()}`;
-    audioRef.current.src = cacheBuster;
-    audioRef.current.load();
-    
-    setTimeout(() => {
-      if (audioRef.current) {
-        audioRef.current.play().catch(() => {
-          setHasError(true);
-          setIsLoading(false);
-        });
-      }
-    }, 500);
-  };
-
   if (compact) {
     return (
       <div className={cn("flex items-center gap-2", className)}>
@@ -269,15 +237,16 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
         <button 
           className={cn(
             "flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105",
-            isLoading && "opacity-70"
+            isLoading && "opacity-70",
+            hasError && "bg-destructive hover:bg-destructive/90"
           )}
-          onClick={hasError ? handleRetry : togglePlay}
-          disabled={isLoading && !hasError}
+          onClick={togglePlay}
+          disabled={isLoading}
         >
           {isLoading ? (
             <div className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
           ) : hasError ? (
-            <RefreshCw size={14} />
+            <RefreshCw size={14} className="animate-spin" />
           ) : actuallyPlaying ? (
             <Pause size={16} />
           ) : (
@@ -310,7 +279,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             (isLoading || hasError) && "opacity-70",
             hasError && "bg-destructive hover:bg-destructive/90"
           )}
-          onClick={hasError ? handleRetry : togglePlay}
+          onClick={togglePlay}
           disabled={isLoading && !hasError}
         >
           {isLoading ? (

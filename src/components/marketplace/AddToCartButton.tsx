@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Heart, ShoppingCart, Loader2 } from 'lucide-react';
+import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useCart } from '@/context/CartContext';
 import { Beat } from '@/types';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -19,6 +20,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   const [isFavorite, setIsFavorite] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   const { user } = useAuth();
+  const { addToCart, isInCart, removeFromCart } = useCart();
   const navigate = useNavigate();
 
   // Check if beat is in favorites
@@ -58,16 +60,32 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   }, [beat.id, user]);
 
   const handleAddToCart = async () => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    
+    const isAlreadyInCart = isInCart(beat.id);
+    
     setIsAdding(true);
     try {
-      // Add to cart - simplified for this example
-      // Your actual cart logic will go here
-      setTimeout(() => {
-        toast("Added to cart");
-      }, 500);
+      console.log("Add to cart clicked for beat:", beat.id, beat.title);
+      
+      if (isAlreadyInCart) {
+        console.log("Removing from cart:", beat.id);
+        await removeFromCart(beat.id);
+        toast.success("Removed from cart");
+      } else {
+        console.log("Adding to cart:", beat.id);
+        await addToCart({
+          ...beat, 
+          selected_license: 'basic'
+        });
+        toast.success("Added to cart");
+      }
     } catch (error) {
-      toast.error("Failed to add item to cart.");
-      console.error("Error adding item to cart:", error);
+      toast.error("Failed to update cart.");
+      console.error("Error updating cart:", error);
     } finally {
       setIsAdding(false);
     }
@@ -149,6 +167,8 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       setIsFavoriting(false);
     }
   };
+  
+  const isItemInCart = isInCart(beat.id);
 
   if (iconOnly) {
     return (
@@ -159,7 +179,13 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         onClick={handleAddToCart}
         disabled={isAdding}
       >
-        {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="h-4 w-4" />}
+        {isAdding ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : isItemInCart ? (
+          <Check className="h-4 w-4" />
+        ) : (
+          <ShoppingCart className="h-4 w-4" />
+        )}
       </Button>
     );
   }
@@ -170,9 +196,21 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         className={className}
         onClick={handleAddToCart}
         disabled={isAdding}
+        variant={isItemInCart ? "secondary" : "default"}
       >
-        {isAdding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShoppingCart className="mr-2 h-4 w-4" />}
-        Add to Cart
+        {isAdding ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : isItemInCart ? (
+          <>
+            <Check className="mr-2 h-4 w-4" />
+            In Cart
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Add to Cart
+          </>
+        )}
       </Button>
       <Button
         variant="ghost"

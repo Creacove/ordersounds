@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -31,7 +30,6 @@ import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
-// Fallback featured beat for when network fails
 const fallbackFeaturedBeat: Beat = {
   id: "fallback-featured",
   title: "Featured Demo Beat",
@@ -43,14 +41,14 @@ const fallbackFeaturedBeat: Beat = {
   basic_license_price_local: 5000,
   basic_license_price_diaspora: 15,
   genre: "Afrobeat",
-  track_type: "Single", // Added missing required property
+  track_type: "Single",
   bpm: 100,
   status: "published",
   is_featured: true,
   created_at: new Date().toISOString(),
   tags: ["demo", "featured"],
-  favorites_count: 0, // Added missing required property
-  purchase_count: 0, // Added missing required property
+  favorites_count: 0,
+  purchase_count: 0,
 };
 
 export default function IndexPage() {
@@ -67,7 +65,6 @@ export default function IndexPage() {
 
   const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
 
-  // Check for user data issues on page load
   useEffect(() => {
     if (user && (!user.role || !user.name)) {
       console.log("Incomplete user data detected, may need refresh");
@@ -77,9 +74,7 @@ export default function IndexPage() {
     }
   }, [user]);
 
-  // Preload producers data when the page loads
   useEffect(() => {
-    // This will trigger the producers data fetch in the background
     prefetchProducers();
   }, [prefetchProducers]);
 
@@ -90,13 +85,11 @@ export default function IndexPage() {
     }
   };
 
-  // Manual refresh function that users can trigger
   const handleRefreshData = async () => {
     setIsRefreshing(true);
     setNetworkError(false);
     
     try {
-      // First refresh user data if needed
       if (userDataError && user) {
         const userRefreshed = await forceUserDataRefresh();
         if (userRefreshed) {
@@ -104,7 +97,6 @@ export default function IndexPage() {
         }
       }
       
-      // Then refresh beats
       await fetchBeats();
       toast.success("Content refreshed successfully");
       setUserDataError(false);
@@ -125,7 +117,7 @@ export default function IndexPage() {
 
   return (
     <MainLayoutWithPlayer>
-      <div className="pb-8 px-0 mx-0">
+      <div className="container mx-auto px-2 xs:px-4 sm:px-6 pb-8">
         <div className="mb-8">
           <form onSubmit={handleSearch} className="relative">
             <div className="flex items-center">
@@ -178,7 +170,7 @@ export default function IndexPage() {
         )}
 
         {displayedFeaturedBeat && (
-          <section className="mb-6 px-0 mx-0">
+          <section className="mb-6">
             <SectionTitle 
               title="Featured Beat" 
               icon={<Star className="h-5 w-5" />}
@@ -195,7 +187,7 @@ export default function IndexPage() {
           </section>
         )}
 
-        <section className="mb-6 px-0 mx-0">
+        <section className="mb-6">
           <SectionTitle 
             title="Producer of the Week" 
             icon={<Star className="h-5 w-5" />}
@@ -206,10 +198,9 @@ export default function IndexPage() {
           </div>
         </section>
 
-        {/* Recommended Beats section */}
         <RecommendedBeats />
 
-        <section className="mb-6 px-0 mx-0">
+        <section className="mb-6">
           <SectionTitle 
             title="Trending Beats" 
             icon={<TrendingUp className="h-5 w-5" />} 
@@ -229,7 +220,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-6 px-0 mx-0">
+        <section className="mb-6">
           <SectionTitle 
             title="Weekly Picks" 
             icon={<Calendar className="h-5 w-5" />}
@@ -245,7 +236,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-6 px-0 mx-0">
+        <section className="mb-6">
           <SectionTitle 
             title="New Releases" 
             icon={<Flame className="h-5 w-5" />}
@@ -264,7 +255,7 @@ export default function IndexPage() {
           </div>
         </section>
 
-        <section className="mb-6 px-0 mx-0">
+        <section className="mb-6">
           <SectionTitle title="Featured Playlists" icon={<ListMusic className="h-5 w-5" />} />
           <div className="grid grid-cols-2 gap-2 mt-3">
             {featuredPlaylists.map((playlist) => (

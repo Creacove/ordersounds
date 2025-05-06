@@ -287,12 +287,6 @@ export function useBeats() {
       }
       
       setLoadingError(`Failed to load complete beat collection: ${error.message || 'Unknown error'}`);
-      
-      if (error.message?.includes("timed out")) {
-        toast.error('Beat loading timed out. Please check your connection and try again.');
-      } else {
-        toast.error('Failed to load all beats. Only showing initial content.');
-      }
     } finally {
       setFetchInProgress(false);
       setIsLoading(false);

@@ -15,6 +15,7 @@ export interface User {
   verified_account_name?: string;
   paystack_subaccount_code?: string;
   paystack_split_code?: string;
+  wallet_address?: string; // Solana wallet address
   settings?: {
     emailNotifications?: boolean;
     pushNotifications?: boolean;
@@ -30,6 +31,8 @@ export interface User {
   status?: 'active' | 'inactive';
   // Add music_interests field
   music_interests?: string[];
+  // Add favorites field
+  favorites?: Array<{beat_id: string, added_at: string}>;
 }
 
 export interface Beat {
@@ -68,12 +71,20 @@ export interface Beat {
   producer?: {
     full_name?: string;
     stage_name?: string;
+    wallet_address?: string; // Added wallet_address property explicitly
+    id?: string; // Add ID for easier lookup
   };
   // For backward compatibility with existing code
   users?: {
     full_name?: string;
     stage_name?: string;
+    wallet_address?: string; // Added wallet_address property
+    id?: string; // Add ID for easier lookup
   };
+  // Add selected_license for cart functionality
+  selected_license?: string;
+  // Add producer_wallet_address to allow direct access for payments
+  producer_wallet_address?: string;
 }
 
 export interface Playlist {

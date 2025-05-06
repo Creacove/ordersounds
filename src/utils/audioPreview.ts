@@ -8,7 +8,7 @@ export async function createMp3Preview(file: File): Promise<Blob> {
   const AudioContext = window.AudioContext || (window as any).webkitAudioContext as typeof AudioContext;
   
   if (!AudioContext) {
-    throw new Error('Web Audio API not supported in this browser');
+    throw new Error('Web Audio API not supported');
   }
   
   const audioContext = new AudioContext();
@@ -16,71 +16,83 @@ export async function createMp3Preview(file: File): Promise<Blob> {
   try {
     // Read file as ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
+    console.log(`Processing ${file.name}, size: ${(file.size / 1024 / 1024).toFixed(2)} MB`);
     
     // Decode audio data
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log(`Audio decoded successfully. Duration: ${audioBuffer.duration}s, Sample rate: ${audioBuffer.sampleRate}`);
     
     // Calculate preview length (30% of total)
     const previewLength = Math.floor(audioBuffer.length * 0.3);
+    console.log(`Creating preview with ${previewLength} samples (30% of original)`);
     
-    // Get audio data (use first channel for both mono and stereo)
-    const channelData = audioBuffer.getChannelData(0);
-    const previewData = channelData.slice(0, previewLength);
-    
-    // Simple conversion to MP3 format for wider compatibility
-    const sampleRate = audioBuffer.sampleRate;
-    
-    // Use PCM format for wider compatibility
-    const buffer = new ArrayBuffer(44 + previewData.length * 2);
-    const view = new DataView(buffer);
-    
-    // Write WAV header (as MP3 direct conversion is complex without libraries)
-    writeWavHeader(view, previewData.length, sampleRate);
-    
-    // Write audio data
-    let index = 44;
-    for (let i = 0; i < previewData.length; i++) {
-      // Convert float32 to int16
-      const sample = Math.max(-1, Math.min(1, previewData[i]));
-      const value = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
-      view.setInt16(index, value, true);
-      index += 2;
+    // Get audio data (combine channels for stereo files)
+    let previewData: Float32Array;
+    if (audioBuffer.numberOfChannels > 1) {
+      // Mix down to mono if stereo
+      const channel1 = audioBuffer.getChannelData(0);
+      const channel2 = audioBuffer.getChannelData(1);
+      previewData = new Float32Array(previewLength);
+      for (let i = 0; i < previewLength; i++) {
+        previewData[i] = (channel1[i] + channel2[i]) / 2;
+      }
+      console.log("Mixed stereo channels to mono for preview");
+    } else {
+      previewData = audioBuffer.getChannelData(0).slice(0, previewLength);
+      console.log("Using mono channel for preview");
     }
     
-    // Create Blob with audio/mpeg type to help browsers interpret it better
-    return new Blob([buffer], { type: 'audio/mpeg' });
-    
+    // Create WAV file structure (better browser support than MP3 conversion)
+    const wavBuffer = createWavFile(previewData, audioBuffer.sampleRate);
+    const previewBlob = new Blob([wavBuffer], { type: 'audio/wav' });
+    console.log(`Preview created successfully, size: ${(previewBlob.size / 1024 / 1024).toFixed(2)} MB`);
+    return previewBlob;
   } catch (error) {
     console.error('Error creating audio preview:', error);
     throw error;
   } finally {
-    // Clean up audio context
     if (audioContext.state !== 'closed') {
       await audioContext.close();
     }
   }
 }
 
-// Helper function to write WAV header
-function writeWavHeader(view: DataView, sampleLength: number, sampleRate: number): void {
-  // "RIFF" chunk descriptor
+// Helper function to create a proper WAV file structure
+function createWavFile(audioData: Float32Array, sampleRate: number): ArrayBuffer {
+  const bytesPerSample = 2;
+  const numberOfChannels = 1; // Mono output
+  
+  // Create buffer with WAV header
+  const buffer = new ArrayBuffer(44 + audioData.length * bytesPerSample);
+  const view = new DataView(buffer);
+  
+  // Write WAV header
   writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + sampleLength * 2, true);
+  view.setUint32(4, 36 + audioData.length * bytesPerSample, true);
   writeString(view, 8, 'WAVE');
-  
-  // "fmt " sub-chunk
   writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true); // fmt chunk size
-  view.setUint16(20, 1, true); // audio format (PCM)
-  view.setUint16(22, 1, true); // channels (mono)
-  view.setUint32(24, sampleRate, true); // sample rate
-  view.setUint32(28, sampleRate * 1 * 16 / 8, true); // byte rate
-  view.setUint16(32, 1 * 16 / 8, true); // block align
-  view.setUint16(34, 16, true); // bits per sample
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, numberOfChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numberOfChannels * bytesPerSample, true);
+  view.setUint16(32, numberOfChannels * bytesPerSample, true);
+  view.setUint16(34, bytesPerSample * 8, true);
   
-  // "data" sub-chunk
+  // Write audio data
   writeString(view, 36, 'data');
-  view.setUint32(40, sampleLength * 2, true); // data chunk size
+  view.setUint32(40, audioData.length * bytesPerSample, true);
+  
+  // Convert and write actual audio data
+  const volume = 0.8; // Prevent clipping
+  let offset = 44;
+  for (let i = 0; i < audioData.length; i++) {
+    const sample = Math.max(-1, Math.min(1, audioData[i] * volume));
+    view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+    offset += bytesPerSample;
+  }
+  
+  return buffer;
 }
 
 // Helper function to write strings to DataView

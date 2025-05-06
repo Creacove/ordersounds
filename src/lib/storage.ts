@@ -57,9 +57,19 @@ export const uploadFile = async (
     const isLargeFile = realFile.size > 50 * 1024 * 1024; // Over 50MB
     const isStems = path === 'stems';
 
-    // Extended timeout for large files - 5 minutes for large files, especially stems
-    // For stems we're using 5 minutes (300000ms) instead of the default 60s
-    const uploadTimeoutMs = (isLargeFile || isStems) ? 300000 : 60000; 
+    // Extended timeout for large files
+    // For stems/large files we're using 15 minutes (900000ms) instead of 60s
+    // For medium files 10 minutes (600000ms)
+    // For small files 5 minutes (300000ms)
+    let uploadTimeoutMs = 300000; // Default 5 minutes
+    
+    if (isStems || realFile.size > 200 * 1024 * 1024) {
+      uploadTimeoutMs = 900000; // 15 minutes for stems or very large files
+    } else if (isLargeFile) {
+      uploadTimeoutMs = 600000; // 10 minutes for large files
+    }
+    
+    console.log(`Setting upload timeout to ${uploadTimeoutMs/1000} seconds for ${realFile.size/(1024*1024)} MB file`);
     
     // If progress callback is provided, we need to track progress
     if (progressCallback) {
@@ -73,56 +83,76 @@ export const uploadFile = async (
           // Initial progress indication
           progressCallback(5);
           
-          // Track upload start time for progress estimation
-          const startTime = Date.now();
-          const fileSize = realFile.size;
-          let lastProgressUpdate = 5;
+          // Set up XMLHttpRequest for tracking upload progress
+          const xhr = new XMLHttpRequest();
           
-          // Setup progress polling for larger files
-          const progressInterval = setInterval(() => {
-            if (lastProgressUpdate >= 95) {
-              clearInterval(progressInterval);
-              return;
+          // Construct the upload URL
+          // Get the base URL from Supabase storage endpoint
+          const { data } = await supabase.storage.from(bucket).getPublicUrl('dummy');
+          const baseUrl = new URL(data.publicUrl).origin;
+          const uploadUrl = `${baseUrl}/storage/v1/object/${bucket}/${filePath}`;
+          
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              // Calculate progress as percentage - make sure we have a smooth progression
+              const progress = Math.round((event.loaded / event.total) * 90) + 5; // Range from 5-95%
+              progressCallback(Math.min(95, progress));
             }
-            
-            // Calculate progress based on elapsed time and file size
-            const elapsedMs = Date.now() - startTime;
-            const estimatedProgress = Math.min(
-              95, // Cap at 95% until we get completion confirmation
-              Math.max(
-                lastProgressUpdate + 5, // Always increase by at least 5%
-                Math.round((elapsedMs / (fileSize / 50000)) * 85) + 5 // Estimate based on size
-              )
-            );
-            
-            lastProgressUpdate = estimatedProgress;
-            progressCallback(estimatedProgress);
-          }, 1000); // Update every second
+          };
           
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(filePath, realFile, {
-              contentType: contentType,
-              cacheControl: '3600',
-              upsert: true
-            });
+          xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                // Get public URL for the file
+                const { data: publicUrlData } = supabase.storage
+                  .from(bucket)
+                  .getPublicUrl(filePath);
+                
+                console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
+                progressCallback(100); // Signal completion
+                resolve(publicUrlData.publicUrl);
+              } catch (error) {
+                console.error("Error getting public URL:", error);
+                reject(error);
+              }
+            } else {
+              console.error(`Upload failed with status ${xhr.status}`);
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          };
           
-          // Clear the progress interval
-          clearInterval(progressInterval);
+          xhr.onerror = () => {
+            console.error("XHR upload failed");
+            reject(new Error("Network error during upload"));
+          };
           
-          if (error) {
-            console.error(`Error uploading to ${bucket}/${filePath}:`, error);
-            throw error;
+          xhr.ontimeout = () => {
+            console.error(`Upload timed out after ${uploadTimeoutMs}ms`);
+            reject(new Error(`Upload timed out after ${uploadTimeoutMs/1000} seconds`));
+          };
+          
+          xhr.timeout = uploadTimeoutMs;
+          xhr.open("POST", uploadUrl, true);
+          
+          // Set required headers - Get the session from Supabase auth
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          // Get the API key from localStorage or URL parameters
+          const apiKey = window.localStorage.getItem('supabase.auth.token.access_token') || 
+                        new URLSearchParams(window.location.search).get('apikey') ||
+                        '';
+          
+          if (session?.access_token) {
+            xhr.setRequestHeader("Authorization", `Bearer ${session.access_token}`);
           }
+          xhr.setRequestHeader("apikey", apiKey);
+          xhr.setRequestHeader("Content-Type", contentType);
+          xhr.setRequestHeader("Cache-Control", "3600");
+          xhr.setRequestHeader("x-upsert", "true");
           
-          // Get public URL for the file
-          const { data: publicUrlData } = supabase.storage
-            .from(bucket)
-            .getPublicUrl(data.path);
+          // Send the file
+          xhr.send(realFile);
           
-          console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
-          progressCallback(100); // Signal completion
-          resolve(publicUrlData.publicUrl);
         } catch (error) {
           console.error("Error in upload:", error);
           reject(error);
@@ -173,7 +203,7 @@ async function uploadLargeFileManually(
   filePath: string,
   contentType: string,
   progressCallback: (progress: number) => void,
-  timeoutMs: number = 300000
+  timeoutMs: number = 900000  // Default to 15 minutes
 ): Promise<string> {
   try {
     // Used for tracking overall progress
@@ -181,47 +211,121 @@ async function uploadLargeFileManually(
     let uploadedBytes = 0;
     progressCallback(1); // Start with 1%
     
-    // Calculate optimal chunk size (5-10MB based on file size)
-    const chunkSize = file.size > 100 * 1024 * 1024 ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    // Calculate optimal chunk size based on file size
+    // Larger files get larger chunks to reduce the number of requests
+    let chunkSize = 5 * 1024 * 1024; // Default 5MB chunks
+    if (file.size > 200 * 1024 * 1024) {
+      chunkSize = 20 * 1024 * 1024; // 20MB chunks for files > 200MB
+    } else if (file.size > 100 * 1024 * 1024) {
+      chunkSize = 10 * 1024 * 1024; // 10MB chunks for files > 100MB
+    }
+    
     const chunks = Math.ceil(file.size / chunkSize);
+    const chunkTimeoutMs = Math.max(120000, timeoutMs / chunks); // At least 2 minutes per chunk
     
     console.log(`File will be uploaded in ${chunks} chunks of ${(chunkSize/1024/1024).toFixed(2)}MB each`);
+    console.log(`Each chunk will have a timeout of ${chunkTimeoutMs/1000} seconds`);
     progressCallback(5); // Update to 5% after initialization
+    
+    // Get storage URL once at the beginning
+    const { data: urlData } = await supabase.storage.from(bucket).getPublicUrl('dummy');
+    const baseUrl = new URL(urlData.publicUrl).origin;
+    const storageApiUrl = `${baseUrl}/storage/v1`;
+    
+    // Get auth information once
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token || '';
+    
+    // Get the API key from localStorage
+    const apiKey = window.localStorage.getItem('supabase.auth.token.access_token') || '';
     
     if (chunks === 1) {
       // For files that fit in a single chunk, use standard upload
       console.log("File size allows for single upload");
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file, {
-          contentType: contentType,
-          cacheControl: '3600',
-          upsert: true
-        });
       
-      if (error) {
-        console.error(`Error uploading file:`, error);
-        throw error;
-      }
-      
-      // Get public URL for the file
-      const { data: publicUrlData } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(data.path);
-      
-      progressCallback(100); // Signal completion
-      return publicUrlData.publicUrl;
+      return new Promise<string>(async (resolve, reject) => {
+        try {
+          // Set up XMLHttpRequest for tracking upload progress
+          const xhr = new XMLHttpRequest();
+          
+          // Construct the upload URL
+          const uploadUrl = `${storageApiUrl}/object/${bucket}/${filePath}`;
+          
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              // Calculate progress as percentage
+              const progress = Math.round((event.loaded / event.total) * 95) + 5; // Range from 5-100%
+              progressCallback(Math.min(100, progress));
+            }
+          };
+          
+          xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              try {
+                // Get public URL for the file
+                const { data: publicUrlData } = supabase.storage
+                  .from(bucket)
+                  .getPublicUrl(filePath);
+                
+                console.log(`File uploaded successfully: ${publicUrlData.publicUrl}`);
+                progressCallback(100); // Signal completion
+                resolve(publicUrlData.publicUrl);
+              } catch (error) {
+                console.error("Error getting public URL:", error);
+                reject(error);
+              }
+            } else {
+              console.error(`Upload failed with status ${xhr.status}`);
+              reject(new Error(`Upload failed with status ${xhr.status}`));
+            }
+          };
+          
+          xhr.onerror = () => {
+            console.error("XHR upload failed");
+            reject(new Error("Network error during upload"));
+          };
+          
+          xhr.ontimeout = () => {
+            console.error(`Upload timed out after ${timeoutMs}ms`);
+            reject(new Error(`Upload timed out after ${timeoutMs/1000} seconds`));
+          };
+          
+          xhr.timeout = timeoutMs;
+          xhr.open("POST", uploadUrl, true);
+          
+          // Set required headers
+          if (accessToken) {
+            xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+          }
+          xhr.setRequestHeader("apikey", apiKey);
+          xhr.setRequestHeader("Content-Type", contentType);
+          xhr.setRequestHeader("Cache-Control", "3600");
+          xhr.setRequestHeader("x-upsert", "true");
+          
+          // Send the file
+          xhr.send(file);
+          
+        } catch (error) {
+          console.error("Error in single chunk upload:", error);
+          reject(error);
+        }
+      });
     }
     
     // For multiple chunks, we need to break it into parts
     
     // First, create temporary file parts
-    const partPromises = [];
+    const partPromises: Promise<{ path: string; size: number }>[] = [];
     const partFiles: { path: string; size: number }[] = [];
     
     toast.info(`Uploading large file (${(file.size / (1024 * 1024)).toFixed(2)} MB) in ${chunks} chunks...`, {
-      duration: 5000,
+      duration: 10000, // Show for longer for large files
     });
+    
+    // Use a smaller batch size for large files to avoid overwhelming the connection
+    const maxConcurrent = file.size > 100 * 1024 * 1024 ? 2 : 3;
+    let activeBatch = 0;
+    let completedChunks = 0;
     
     for (let i = 0; i < chunks; i++) {
       const start = i * chunkSize;
@@ -231,55 +335,125 @@ async function uploadLargeFileManually(
       // Create a part filename
       const partPath = `${filePath}.part${i}`;
       
-      // Upload this chunk as its own file
-      const uploadPromise = (async () => {
+      // Upload this chunk as its own file - batch control to prevent overwhelming
+      while (activeBatch >= maxConcurrent) {
+        // Wait for some existing uploads to complete before starting new ones
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Check if any promises have completed
+        const pendingCount = partPromises.filter(p => !p.hasOwnProperty('resolved')).length;
+        activeBatch = pendingCount;
+      }
+      
+      activeBatch++;
+      
+      const uploadPromise = new Promise<{ path: string; size: number }>(async (resolve, reject) => {
         try {
-          const { data, error } = await supabase.storage
-            .from(bucket)
-            .upload(partPath, chunk, {
-              contentType: 'application/octet-stream', // Use binary for parts
-              upsert: true
-            });
+          const chunkNumber = i + 1;
+          const xhr = new XMLHttpRequest();
           
-          if (error) {
-            console.error(`Error uploading chunk ${i}:`, error);
-            throw error;
-          }
+          // Construct the upload URL
+          const uploadUrl = `${storageApiUrl}/object/${bucket}/${partPath}`;
           
-          uploadedBytes += chunk.size;
-          const progress = Math.round((uploadedBytes / totalSize) * 90) + 5; // Reserve 5% for start, 5% for end
-          progressCallback(Math.min(95, progress));
-          
-          console.log(`Chunk ${i+1}/${chunks} uploaded (${progress}% complete)`);
-          
-          return { 
-            path: partPath,
-            size: chunk.size 
+          xhr.upload.onprogress = (event) => {
+            if (event.lengthComputable) {
+              const chunkProgress = event.loaded / event.total;
+              uploadedBytes = Math.min(
+                totalSize,
+                (i * chunkSize) + (chunk.size * chunkProgress)
+              );
+              const overallProgress = Math.round((uploadedBytes / totalSize) * 90) + 5;
+              
+              // Only update progress occasionally to avoid too many DOM updates
+              if (Math.round(chunkProgress * 100) % 10 === 0) {
+                console.log(`Chunk ${chunkNumber}/${chunks} progress: ${Math.round(chunkProgress * 100)}%`);
+                progressCallback(Math.min(95, overallProgress));
+              }
+            }
           };
+          
+          xhr.onload = async () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              completedChunks++;
+              console.log(`Chunk ${chunkNumber}/${chunks} uploaded successfully`);
+              
+              // Update the overall progress
+              const exactProgress = ((i * chunkSize) + chunk.size) / totalSize;
+              const overallProgress = Math.round(exactProgress * 90) + 5;
+              progressCallback(Math.min(95, overallProgress));
+              
+              // Update toast for major milestones
+              if (completedChunks === 1 || completedChunks === Math.ceil(chunks/2) || completedChunks === chunks) {
+                toast.loading(`Uploaded ${completedChunks}/${chunks} chunks (${Math.round(exactProgress * 100)}%)`, { 
+                  id: "stems-upload" 
+                });
+              }
+              
+              // Mark this promise as resolved to help track concurrency
+              Object.defineProperty(uploadPromise, 'resolved', { value: true });
+              activeBatch--;
+              
+              resolve({
+                path: partPath,
+                size: chunk.size
+              });
+            } else {
+              console.error(`Chunk ${chunkNumber}/${chunks} upload failed with status ${xhr.status}`);
+              reject(new Error(`Chunk upload failed with status ${xhr.status}`));
+            }
+          };
+          
+          xhr.onerror = () => {
+            console.error(`Chunk ${chunkNumber}/${chunks} XHR upload failed`);
+            activeBatch--;
+            reject(new Error("Network error during chunk upload"));
+          };
+          
+          xhr.ontimeout = () => {
+            console.error(`Chunk ${chunkNumber}/${chunks} upload timed out after ${chunkTimeoutMs}ms`);
+            activeBatch--;
+            reject(new Error(`Chunk upload timed out after ${chunkTimeoutMs/1000} seconds`));
+          };
+          
+          xhr.timeout = chunkTimeoutMs; // Use chunk-specific timeout
+          xhr.open("POST", uploadUrl, true);
+          
+          // Set required headers
+          if (accessToken) {
+            xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+          }
+          xhr.setRequestHeader("apikey", apiKey);
+          xhr.setRequestHeader("Content-Type", "application/octet-stream"); // Use binary for parts
+          xhr.setRequestHeader("Cache-Control", "3600");
+          xhr.setRequestHeader("x-upsert", "true");
+          
+          // Send the chunk
+          xhr.send(chunk);
+          
         } catch (error) {
-          console.error(`Error uploading chunk ${i}:`, error);
-          throw error;
+          console.error(`Error in chunk ${i+1}/${chunks} upload:`, error);
+          activeBatch--;
+          reject(error);
         }
-      })();
+      });
       
       partPromises.push(uploadPromise);
-      
-      // Process chunks in batches to avoid overwhelming the server
-      if (partPromises.length >= 3 || i === chunks - 1) {
-        const results = await Promise.all(partPromises);
-        partFiles.push(...results);
-        partPromises.length = 0; // Clear the array
-      }
     }
     
-    // Wait for any remaining part uploads
-    if (partPromises.length > 0) {
+    // Wait for all uploads to complete
+    try {
+      toast.loading("Processing all uploaded chunks...", { id: "stems-upload" });
       const results = await Promise.all(partPromises);
       partFiles.push(...results);
+    } catch (error) {
+      console.error("Error uploading chunks:", error);
+      toast.error("Some chunks failed to upload. Please try again.", { id: "stems-upload" });
+      throw error;
     }
     
     console.log(`All ${chunks} chunks uploaded successfully. Now creating final file.`);
     progressCallback(95);
+    toast.loading("Finalizing upload...", { id: "stems-upload" });
     
     // Use a server function or direct API call to concatenate the parts
     // For this example, we're simulating concatenation by just keeping the first part
@@ -295,10 +469,12 @@ async function uploadLargeFileManually(
       
     if (moveError) {
       console.error('Error creating final file:', moveError);
+      toast.error("Failed to finalize file upload.", { id: "stems-upload" });
       throw moveError;
     }
     
     console.log('Final file created at', finalPath);
+    toast.success("Upload complete!", { id: "stems-upload" });
     
     // Clean up the parts (don't wait for completion to avoid timeout)
     const cleanup = async () => {
