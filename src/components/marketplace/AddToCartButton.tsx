@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
@@ -68,7 +67,8 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         
         if (error || !isMountedRef.current) return;
         
-        const favorites = userData?.favorites || [];
+        // Fixed: Handle favorites in a type-safe way
+        const favorites = userData && typeof userData === 'object' ? userData.favorites || [] : [];
         
         if (Array.isArray(favorites)) {
           setIsFavorite(favorites.some((fav: any) => fav.beat_id === beat.id));
@@ -237,7 +237,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       <Button
         variant="outline"
         size="icon"
-        className={className}
+        className={`rounded-full transition-all hover:scale-105 shadow-sm hover:shadow ${className}`}
         onClick={handleAddToCart}
         disabled={isAdding}
         aria-label={isItemInCart ? "Remove from cart" : "Add to cart"}
@@ -245,7 +245,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         {isAdding ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : isItemInCart ? (
-          <Check className="h-4 w-4" />
+          <Check className="h-4 w-4 text-green-500" />
         ) : (
           <ShoppingCart className="h-4 w-4" />
         )}
@@ -257,7 +257,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   return (
     <div className="flex items-center space-x-2">
       <Button
-        className={className}
+        className={`font-medium transition-all hover:shadow-md ${isItemInCart ? 'hover:bg-secondary/90' : 'hover:bg-primary/90'} ${className}`}
         onClick={handleAddToCart}
         disabled={isAdding}
         variant={isItemInCart ? "secondary" : "default"}
@@ -281,13 +281,14 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         size="icon"
         onClick={handleFavoriteClick}
         disabled={isFavoriting}
+        className="rounded-full hover:bg-secondary/20 transition-all"
         aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
       >
         {isFavoriting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Heart
-            className={`h-5 w-5 ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-500'}`}
+            className={`h-5 w-5 transition-colors ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-500 hover:text-red-400'}`}
           />
         )}
       </Button>

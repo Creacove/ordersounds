@@ -329,10 +329,10 @@ export const SolanaCheckoutDialog = ({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md border-purple-100 dark:border-purple-900/40 shadow-lg backdrop-blur-sm">
         <DialogHeader>
-          <DialogTitle>Complete your purchase</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-indigo-600 dark:from-purple-400 dark:to-indigo-300">Complete your purchase</DialogTitle>
+          <DialogDescription className="text-muted-foreground">
             You are about to purchase {cartItems.length} digital item(s) for ${totalPrice.toFixed(2)}
           </DialogDescription>
         </DialogHeader>
@@ -340,7 +340,7 @@ export const SolanaCheckoutDialog = ({
         <div className="space-y-4 py-4">
           {!wallet.connected && (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center p-2 rounded bg-amber-50 border border-amber-200 text-amber-800">
+              <div className="flex items-center p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-300">
                 <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
                 <p className="text-sm">Please connect your Solana wallet to complete this purchase</p>
               </div>
@@ -349,34 +349,41 @@ export const SolanaCheckoutDialog = ({
           )}
           
           {validationError ? (
-            <div className="flex items-center p-2 rounded bg-red-50 border border-red-200 text-red-800">
+            <div className="flex items-center p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700/50 dark:text-red-300">
               <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
               <p className="text-sm">{validationError}</p>
             </div>
           ) : validationComplete ? (
-            <div className="flex items-center p-2 rounded bg-green-50 border border-green-200 text-green-800">
+            <div className="flex items-center p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700/50 dark:text-green-300">
               <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
               <p className="text-sm">All producer wallet addresses verified</p>
             </div>
           ) : (
-            <div className="flex items-center p-2 rounded bg-blue-50 border border-blue-200 text-blue-800">
+            <div className="flex items-center p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700/50 dark:text-blue-300">
               <Loader2 className="h-4 w-4 mr-2 animate-spin flex-shrink-0" />
               <p className="text-sm">Verifying producer wallet addresses...</p>
             </div>
           )}
           
-          <p>Your items will be available for download immediately after purchase.</p>
-          <p className="text-sm text-muted-foreground">
-            This checkout will process individual payments to each producer, with platform fees calculated per item.
-          </p>
+          <div className="p-4 rounded-lg bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/30">
+            <p className="mb-2">Your items will be available for download immediately after purchase.</p>
+            <p className="text-sm text-muted-foreground">
+              This checkout will process individual payments to each producer, with platform fees calculated per item.
+            </p>
+          </div>
         </div>
         
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCheckingOut}>
+        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)} 
+            disabled={isCheckingOut}
+            className="w-full sm:w-auto transition-all hover:bg-background/80 border-gray-300 dark:border-gray-700"
+          >
             Cancel
           </Button>
           <Button 
-            className="button-gradient" 
+            className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-none transition-all hover:shadow-md" 
             onClick={handleCheckout} 
             disabled={isCheckingOut || !wallet.connected || !validationComplete || !!validationError}
           >
