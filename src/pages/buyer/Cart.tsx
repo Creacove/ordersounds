@@ -4,7 +4,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingCart, AlertCircle, Music, Play, Pause, Trash2 } from 'lucide-react';
+import { ShoppingCart, AlertCircle, Music, Play, Pause, Trash2, RefreshCw } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import { toast } from 'sonner';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -364,6 +364,23 @@ export default function Cart() {
             <ShoppingCart className="mr-2 h-6 w-6" />
             <h1 className="text-2xl font-bold">Your Cart ({cartItems?.length || 0} items)</h1>
           </div>
+          
+          {cartItems && cartItems.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefreshCart}
+              disabled={isLoading}
+              className="flex items-center gap-1 min-w-[80px] justify-center"
+            >
+              {isLoading ? (
+                <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-1" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              <span>{isLoading ? "Refreshing" : "Refresh"}</span>
+            </Button>
+          )}
         </div>
 
         {isError && (
