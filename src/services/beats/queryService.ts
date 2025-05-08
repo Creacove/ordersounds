@@ -27,8 +27,7 @@ export const fetchCurrentFeaturedBeat = async (): Promise<Beat | null> => {
 export const fetchGenreCounts = async (): Promise<{ name: string; count: number }[]> => {
   const { data, error } = await supabase
     .from('genres')
-    .select('name')
-    .order('name', { ascending: true });
+    .select('name');
 
   if (error) {
     console.error("Error fetching genres:", error);
@@ -94,7 +93,7 @@ export const fetchTrendingBeats = async (count: number = 10): Promise<Beat[]> =>
   // Otherwise fetch from database
   const { data, error } = await supabase
     .from('beats')
-    .select('*, producers(name, username, avatar_url), genres(name)')
+    .select('*')
     .eq('status', 'published')
     .order('favorites_count', { ascending: false })
     .limit(count);
@@ -119,7 +118,7 @@ export const fetchNewBeats = async (count: number = 10): Promise<Beat[]> => {
   // Otherwise fetch from database
   const { data, error } = await supabase
     .from('beats')
-    .select('*, producers(name, username, avatar_url), genres(name)')
+    .select('*')
     .eq('status', 'published')
     .order('upload_date', { ascending: false })
     .limit(count);
@@ -156,7 +155,7 @@ export const fetchAllBeats = async (options?: {
   // Build the query
   let query = supabase
     .from('beats')
-    .select('*, producers(name, username, avatar_url), genres(name)');
+    .select('*');
   
   // Apply filters
   if (!options?.includeDrafts) {
@@ -200,7 +199,7 @@ export const fetchRandomBeats = async (count: number = 3): Promise<Beat[]> => {
 
   const { data, error } = await supabase
     .from('beats')
-    .select('*, producers(name, username, avatar_url), genres(name)')
+    .select('*')
     .limit(count);
 
   if (error) {
@@ -221,7 +220,7 @@ export const fetchBeatById = async (id: string): Promise<Beat | null> => {
 
   const { data, error } = await supabase
     .from('beats')
-    .select('*, producers(name, username, avatar_url), genres(name)')
+    .select('*')
     .eq('id', id)
     .single();
 
@@ -247,7 +246,7 @@ export const fetchFeaturedBeats = async (count: number = 6): Promise<Beat[]> => 
 
   const { data, error } = await supabase
     .from('beats')
-    .select('*, producers(name, username, avatar_url), genres(name)')
+    .select('*')
     .eq('is_featured', true)
     .limit(count);
 
@@ -278,7 +277,7 @@ export const fetchWeeklyPicks = async (): Promise<Beat[]> => {
   // If no valid cached data, fetch from database
   const { data: weeklyPicksData, error } = await supabase
     .from('beats')
-    .select('*, producers(name, username, avatar_url), genres(name)')
+    .select('*')
     .eq('is_weekly_pick', true)
     .limit(6);
   
