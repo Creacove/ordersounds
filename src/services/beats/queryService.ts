@@ -127,6 +127,51 @@ export const fetchAllBeats = async (options: {
   }
 };
 
+export const fetchWeeklyPicks = async (): Promise<Beat[]> => {
+  const weeklyPicksCacheKey = 'weekly-picks';
+  
+  // Create a new cache for weekly picks
+  const weeklyPicksCache = new Map<string, { data: Beat[], timestamp: number }>();
+  
+  // Check if we have cached data that's still valid
+  if (weeklyPicksCache.has(weeklyPicksCacheKey)) {
+    const cached = weeklyPicksCache.get(weeklyPicksCacheKey)!;
+    
+    if (isCacheValid(cached.timestamp)) {
+      console.log('Using cached weekly picks data');
+      return cached.data;
+    }
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('status', 'published')
+      .eq('is_weekly_pick', true)
+      .limit(6);
+      
+    if (error) {
+      console.error("Error fetching weekly picks:", error);
+      uniqueToast.error("Failed to load weekly picks");
+      throw error;
+    }
+    
+    const mappedBeats = data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
+    
+    // Cache the result
+    weeklyPicksCache.set(weeklyPicksCacheKey, { 
+      data: mappedBeats, 
+      timestamp: Date.now() 
+    });
+    
+    return mappedBeats;
+  } catch (error) {
+    console.error('Error fetching weekly picks:', error);
+    throw error;
+  }
+};
+
 export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
   if (trendingCache.has(limit)) {
     return trendingCache.get(limit) || [];
