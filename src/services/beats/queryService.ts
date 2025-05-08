@@ -59,7 +59,11 @@ const beatsByGenreCache = new Map<string, { data: Beat[], timestamp: number }>()
 const randomBeatsCache = new Map<number, Beat[]>();
 const beatCache = new Map<string, Beat | null>();
 const featuredBeatsCache = new Map<number, Beat[]>();
-// Weekly picks cache (moved to global scope)
+// Cache maps for new functions
+const trendingBeatsCache = new Map<number, Beat[]>();
+const allBeatsCache = new Map<string, { data: Beat[], timestamp: number }>();
+const newBeatsCache = new Map<number, Beat[]>();
+// Weekly picks cache (global scope)
 const weeklyPicksCache = new Map<string, { data: Beat[], timestamp: number }>();
 
 // Maximum age for cached results in milliseconds (5 minutes)
@@ -78,6 +82,114 @@ export const fetchGenres = async (): Promise<{ id: number; name: string }[]> => 
   }
 
   return data || [];
+};
+
+// Function to fetch trending beats
+export const fetchTrendingBeats = async (count: number = 10): Promise<Beat[]> => {
+  // Return from cache if available
+  if (trendingBeatsCache.has(count)) {
+    return trendingBeatsCache.get(count)!;
+  }
+
+  // Otherwise fetch from database
+  const { data, error } = await supabase
+    .from('beats')
+    .select('*, producers(name, username, avatar_url), genres(name)')
+    .eq('status', 'published')
+    .order('favorites_count', { ascending: false })
+    .limit(count);
+
+  if (error) {
+    console.error("Error fetching trending beats:", error);
+    return [];
+  }
+
+  const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+  trendingBeatsCache.set(count, beats);
+  return beats;
+};
+
+// Function to fetch new beats
+export const fetchNewBeats = async (count: number = 10): Promise<Beat[]> => {
+  // Return from cache if available
+  if (newBeatsCache.has(count)) {
+    return newBeatsCache.get(count)!;
+  }
+
+  // Otherwise fetch from database
+  const { data, error } = await supabase
+    .from('beats')
+    .select('*, producers(name, username, avatar_url), genres(name)')
+    .eq('status', 'published')
+    .order('upload_date', { ascending: false })
+    .limit(count);
+
+  if (error) {
+    console.error("Error fetching new beats:", error);
+    return [];
+  }
+
+  const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+  newBeatsCache.set(count, beats);
+  return beats;
+};
+
+// Function to fetch all beats with optional filters
+export const fetchAllBeats = async (options?: { 
+  includeDrafts?: boolean, 
+  producerId?: string, 
+  limit?: number,
+  skipCache?: boolean
+}): Promise<Beat[]> => {
+  const cacheKey = `all_beats_${options?.includeDrafts}_${options?.producerId}_${options?.limit}`;
+  
+  // Return from cache if available and not explicitly skipping cache
+  if (!options?.skipCache && allBeatsCache.has(cacheKey)) {
+    const cached = allBeatsCache.get(cacheKey)!;
+    const now = Date.now();
+    
+    if (now - cached.timestamp < MAX_CACHE_AGE) {
+      return cached.data;
+    }
+  }
+
+  // Build the query
+  let query = supabase
+    .from('beats')
+    .select('*, producers(name, username, avatar_url), genres(name)');
+  
+  // Apply filters
+  if (!options?.includeDrafts) {
+    query = query.eq('status', 'published');
+  }
+  
+  if (options?.producerId) {
+    query = query.eq('producer_id', options.producerId);
+  }
+  
+  if (options?.limit) {
+    query = query.limit(options.limit);
+  }
+
+  // Execute query
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching all beats:", error);
+    return [];
+  }
+
+  const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+  
+  // Cache the results if not explicitly skipping cache
+  if (!options?.skipCache) {
+    allBeatsCache.set(cacheKey, {
+      data: beats,
+      timestamp: Date.now()
+    });
+  }
+  
+  return beats;
 };
 
 // Function to fetch random beats
@@ -185,4 +297,17 @@ export const fetchWeeklyPicks = async (): Promise<Beat[]> => {
   });
   
   return weeklyPicks;
+};
+
+// Clear all caches
+export const clearBeatsCache = (): void => {
+  beatsByGenreCache.clear();
+  randomBeatsCache.clear();
+  beatCache.clear();
+  featuredBeatsCache.clear();
+  weeklyPicksCache.clear();
+  trendingBeatsCache.clear();
+  allBeatsCache.clear();
+  newBeatsCache.clear();
+  console.log('All beats caches cleared');
 };
