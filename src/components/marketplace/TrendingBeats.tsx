@@ -4,7 +4,7 @@ import { TrendingUp, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useQuery } from "@tanstack/react-query";
 import { BeatCardCompact } from "./BeatCardCompact";
-import { fetchTrendingBeats } from "@/services/beats/queryService";
+import { fetchTrendingBeats } from "@/services/beats";
 
 export const TrendingBeats = () => {
   const { data: trendingBeats = [], isLoading } = useQuery({
