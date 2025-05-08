@@ -1,8 +1,8 @@
-
 import { useEffect, useState, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
+import { fetchProducerBeats } from "@/services/beats";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
@@ -25,12 +25,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogFooter, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
+import { Beat } from "@/types";
 
 type ViewMode = "grid" | "list" | "table";
 
 export default function ProducerBeats() {
   const { user } = useAuth();
-  const { beats, isLoading, isPurchased, isFavorite, fetchBeats, forceRefreshBeats } = useBeats();
+  const { isPurchased, isFavorite } = useBeats();
   const { isInCart } = useCart();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -42,65 +43,53 @@ export default function ProducerBeats() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [selectedBeatId, setSelectedBeatId] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
-  const [dataFetchedRef, setDataFetchedRef] = useState(false);
-  const hasInitialLoadBeenTriggered = useRef(false);
-  
-  // Check for refresh flags in sessionStorage
-  const checkForRefreshFlags = useCallback(() => {
-    const needsRefresh = sessionStorage.getItem('beats_needs_refresh');
-    if (needsRefresh === 'true') {
-      console.log("Found refresh flag in sessionStorage, refreshing beats");
-      forceRefreshBeats();
-      // Clear the flag after refresh
-      sessionStorage.removeItem('beats_needs_refresh');
-      return true;
+  const [producerBeats, setProducerBeats] = useState<Beat[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load producer beats directly
+  const loadProducerBeats = useCallback(async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const producerId = user.id;
+      console.log(`Loading beats for producer ${producerId}`);
+      const beats = await fetchProducerBeats(producerId, true);
+      setProducerBeats(beats);
+    } catch (error) {
+      console.error('Error loading producer beats:', error);
+      toast.error('Failed to load your beats');
+    } finally {
+      setIsLoading(false);
     }
-    return false;
-  }, [forceRefreshBeats]);
+  }, [user]);
 
   useEffect(() => {
     document.title = "My Beats | OrderSOUNDS";
+    
+    // Initial load
+    loadProducerBeats();
+    
     const timer = setTimeout(() => {
       setInitialLoading(false);
     }, 800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Load beats data only once when component mounts or when user changes
-  useEffect(() => {
-    const loadBeats = async () => {
-      if (hasInitialLoadBeenTriggered.current) return;
-      
-      console.log("Initial beats data fetch on page load");
-      const hasRefreshed = checkForRefreshFlags();
-      
-      // Only force refresh if no refresh flag was found
-      if (!hasRefreshed && user) {
-        await forceRefreshBeats();
-      }
-      
-      setDataFetchedRef(true);
-      hasInitialLoadBeenTriggered.current = true;
-    };
     
-    if (user) {
-      loadBeats();
-    }
-  }, [user, forceRefreshBeats, checkForRefreshFlags]);
-  
+    return () => clearTimeout(timer);
+  }, [loadProducerBeats]);
+
   // Listen for storage events to detect changes from other tabs/windows
   useEffect(() => {
     const handleStorageEvent = (event: StorageEvent) => {
       if (event.key === 'beats_needs_refresh' && event.newValue === 'true') {
         console.log("Refresh triggered from another tab/component");
-        forceRefreshBeats();
+        loadProducerBeats();
         sessionStorage.removeItem('beats_needs_refresh');
       }
     };
     
     window.addEventListener('storage', handleStorageEvent);
     return () => window.removeEventListener('storage', handleStorageEvent);
-  }, [forceRefreshBeats]);
+  }, [loadProducerBeats]);
 
   useEffect(() => {
     if (isMobile && viewMode === "table") {
@@ -108,8 +97,6 @@ export default function ProducerBeats() {
     }
   }, [isMobile, viewMode]);
 
-  const producerId = user ? user.id : 'anonymous-producer';
-  const producerBeats = beats.filter(beat => beat.producer_id === producerId);
   const draftBeats = producerBeats.filter(beat => beat.status === 'draft');
   const publishedBeats = producerBeats.filter(beat => beat.status === 'published');
 
@@ -140,8 +127,8 @@ export default function ProducerBeats() {
       }
       
       toast.success('Beat deleted successfully');
-      // Force refresh the beats data after deletion
-      await forceRefreshBeats();
+      // Update the local beats list after deletion
+      setProducerBeats(prev => prev.filter(beat => beat.id !== selectedBeatId));
       // Set flag for other components/tabs
       sessionStorage.setItem('beats_needs_refresh', 'true');
     } catch (error) {
@@ -167,8 +154,16 @@ export default function ProducerBeats() {
       }
       
       toast.success('Beat published successfully');
-      // Force refresh the beats data after publishing
-      await forceRefreshBeats();
+      
+      // Update the local beats list after publishing
+      setProducerBeats(prev => 
+        prev.map(beat => 
+          beat.id === selectedBeatId 
+            ? {...beat, status: 'published'} 
+            : beat
+        )
+      );
+      
       // Set flag for other components/tabs
       sessionStorage.setItem('beats_needs_refresh', 'true');
     } catch (error) {
@@ -207,7 +202,7 @@ export default function ProducerBeats() {
     </Card>
   );
 
-  const showSkeleton = initialLoading || (isLoading && beats.length === 0);
+  const showSkeleton = initialLoading || (isLoading && producerBeats.length === 0);
 
   return (
     <MainLayout activeTab="beats">

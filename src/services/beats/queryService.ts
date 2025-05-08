@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -301,6 +300,44 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
     return mappedBeats;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
+    throw error;
+  }
+};
+
+/**
+ * Fetch beats created by a specific producer directly from the database
+ * @param producerId The ID of the producer whose beats to fetch
+ * @param includeDrafts Whether to include unpublished beats
+ * @returns Promise resolving to an array of Beat objects
+ */
+export const fetchProducerBeats = async (producerId: string, includeDrafts = true): Promise<Beat[]> => {
+  console.log(`Fetching beats directly for producer ${producerId}`);
+  
+  try {
+    let query = supabase
+      .from('beats')
+      .select(BEAT_QUERY_FIELDS)
+      .eq('producer_id', producerId);
+      
+    if (!includeDrafts) {
+      query = query.eq('status', 'published');
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error("Error fetching producer beats:", error);
+      throw error;
+    }
+    
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
+    const mappedBeats = data.map((beat) => mapSupabaseBeatToBeat(beat as SupabaseBeat));
+    return mappedBeats;
+  } catch (error) {
+    console.error('Error fetching producer beats:', error);
     throw error;
   }
 };
