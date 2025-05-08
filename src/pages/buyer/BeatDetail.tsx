@@ -70,7 +70,7 @@ const BeatDetail = () => {
     queryFn: async () => {
       if (!beatId) throw new Error('Beat ID is required');
       
-      const result = await fetchBeatById(beatId);
+      const result = await fetchBeatById(beatId, false);
       
       if (!result) throw new Error('Beat not found');
       
