@@ -54,6 +54,8 @@ export interface Beat {
   purchase_count: number;
   status: 'draft' | 'published';
   is_featured?: boolean;
+  is_trending?: boolean;
+  is_weekly_pick?: boolean;
   license_type?: 'basic' | 'premium' | 'exclusive' | string;
   license_terms?: string;
   basic_license_price_local?: number;
@@ -65,25 +67,21 @@ export interface Beat {
   custom_license_price_local?: number;
   custom_license_price_diaspora?: number;
   plays?: number;
-  key?: string; // Added key property to the Beat interface
-  duration?: string; // Added duration property to the Beat interface
-  // Add producer field to represent the joined user data
+  key?: string;
+  duration?: string;
   producer?: {
     full_name?: string;
     stage_name?: string;
-    wallet_address?: string; // Added wallet_address property explicitly
-    id?: string; // Add ID for easier lookup
+    wallet_address?: string;
+    id?: string;
   };
-  // For backward compatibility with existing code
   users?: {
     full_name?: string;
     stage_name?: string;
-    wallet_address?: string; // Added wallet_address property
-    id?: string; // Add ID for easier lookup
+    wallet_address?: string;
+    id?: string;
   };
-  // Add selected_license for cart functionality
   selected_license?: string;
-  // Add producer_wallet_address to allow direct access for payments
   producer_wallet_address?: string;
 }
 

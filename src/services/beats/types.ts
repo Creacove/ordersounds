@@ -32,5 +32,6 @@ export interface SupabaseBeat {
   key?: string | null;
   plays?: number | null;
   is_trending?: boolean | null;
+  is_featured?: boolean | null;
   is_weekly_pick?: boolean | null;
 }
