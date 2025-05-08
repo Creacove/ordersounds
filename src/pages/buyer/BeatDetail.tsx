@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getLicensePrice, getAvailableLicenseTypes } from '@/utils/licenseUtils';
 import { supabase } from '@/integrations/supabase/client';
+import { fetchBeatById } from '@/services/beats/queryService';
 
 const createLightweightBeat = (beat) => {
   return {
@@ -49,7 +50,7 @@ const createLightweightBeat = (beat) => {
 
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
-  const { getBeatById, toggleFavorite, isFavorite, isPurchased, beats } = useBeats();
+  const { toggleFavorite, isFavorite, isPurchased, beats } = useBeats();
   const { isPlaying, currentBeat, playBeat, togglePlayPause } = usePlayer();
   const { addToCart, isInCart } = useCart();
   const { user, currency } = useAuth();
@@ -68,7 +69,9 @@ const BeatDetail = () => {
     queryKey: ['beat', beatId],
     queryFn: async () => {
       if (!beatId) throw new Error('Beat ID is required');
-      const result = await getBeatById(beatId);
+      
+      const result = await fetchBeatById(beatId, false);
+      
       if (!result) throw new Error('Beat not found');
       
       setPlayCount(result.plays || 0);
@@ -79,6 +82,7 @@ const BeatDetail = () => {
       return result;
     },
     enabled: !!beatId,
+    staleTime: 60000,
   });
 
   useEffect(() => {
@@ -95,33 +99,96 @@ const BeatDetail = () => {
     }
   }, [beat]);
 
+  useEffect(() => {
+    const fetchSimilarBeats = async () => {
+      if (beat) {
+        try {
+          const BEAT_QUERY_FIELDS = `
+            id,
+            title,
+            producer_id,
+            users (
+              full_name,
+              stage_name
+            ),
+            cover_image,
+            audio_preview,
+            basic_license_price_local,
+            basic_license_price_diaspora,
+            genre,
+            track_type,
+            bpm,
+            tags,
+            upload_date,
+            favorites_count,
+            purchase_count,
+            status,
+            is_trending,
+            is_weekly_pick,
+            is_featured
+          `;
+          
+          const { data } = await supabase
+            .from('beats')
+            .select(BEAT_QUERY_FIELDS)
+            .eq('status', 'published')
+            .or(`producer_id.eq.${beat.producer_id},genre.eq.${beat.genre}`)
+            .neq('id', beat.id)
+            .limit(5);
+            
+          if (data) {
+            const mapSupabaseBeatToBeat = (beat: any): Beat => {
+              const userData = beat.users;
+              const producerName = userData && userData.stage_name ? userData.stage_name : 
+                                 userData && userData.full_name ? userData.full_name : 'Unknown Producer';
+              
+              const status = beat.status === 'published' ? 'published' : 'draft';
+              
+              return {
+                id: beat.id,
+                title: beat.title,
+                producer_id: beat.producer_id,
+                producer_name: producerName,
+                cover_image_url: beat.cover_image || '',
+                preview_url: beat.audio_preview || '',
+                full_track_url: beat.audio_file || '',
+                basic_license_price_local: beat.basic_license_price_local || 0,
+                basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+                premium_license_price_local: beat.premium_license_price_local || 0,
+                premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
+                exclusive_license_price_local: beat.exclusive_license_price_local || 0,
+                exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
+                custom_license_price_local: beat.custom_license_price_local || 0,
+                custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
+                genre: beat.genre || '',
+                track_type: beat.track_type || 'Beat',
+                bpm: beat.bpm || 0,
+                tags: beat.tags || [],
+                description: beat.description,
+                created_at: beat.upload_date || new Date().toISOString(),
+                favorites_count: beat.favorites_count || 0,
+                purchase_count: beat.purchase_count || 0,
+                status: status,
+                is_featured: false,
+              };
+            };
+            
+            const mappedBeats = data.map(b => mapSupabaseBeatToBeat(b as any));
+            setSimilarBeats(mappedBeats);
+          }
+        } catch (error) {
+          console.error('Error fetching similar beats:', error);
+        }
+      }
+    };
+    
+    fetchSimilarBeats();
+  }, [beat]);
+
   const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat?.id;
   const isBeatFavorite = beat ? isFavorite(beat.id) : false;
   const isBeatPurchased = beat ? isPurchased(beat.id) : false;
   const beatInCart = beat ? isInCart(beat.id) : false;
-
-  useEffect(() => {
-    if (beat && beats && beats.length > 0) {
-      const producerBeats = beats
-        .filter(b => b.producer_id === beat.producer_id && b.id !== beat.id)
-        .slice(0, 2);
-      
-      const genreBeats = beats
-        .filter(b => b.genre === beat.genre && b.id !== beat.id && !producerBeats.some(pb => pb.id === b.id))
-        .slice(0, 2);
-      
-      const bpmBeats = beats
-        .filter(b => 
-          Math.abs(b.bpm - beat.bpm) <= 5 && 
-          b.id !== beat.id && 
-          !producerBeats.some(pb => pb.id === b.id) && 
-          !genreBeats.some(gb => gb.id === b.id)
-        )
-        .slice(0, 2);
-      
-      setSimilarBeats([...producerBeats, ...genreBeats, ...bpmBeats].slice(0, 5));
-    }
-  }, [beat, beats]);
 
   const incrementPlayCount = async () => {
     try {

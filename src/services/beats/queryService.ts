@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -216,10 +215,14 @@ export const fetchRandomBeats = async (limit = 5): Promise<Beat[]> => {
   }
 };
 
-export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
-  if (beatCache.has(beatId)) {
+export const fetchBeatById = async (beatId: string, skipCache: boolean = false): Promise<Beat | null> => {
+  // Only check cache if skipCache is false
+  if (!skipCache && beatCache.has(beatId)) {
+    console.log(`Using cached data for beat ${beatId}`);
     return beatCache.get(beatId) || null;
   }
+  
+  console.log(`Fetching beat ${beatId} directly from database`);
   
   try {
     const { data, error } = await supabase
@@ -251,7 +254,12 @@ export const fetchBeatById = async (beatId: string): Promise<Beat | null> => {
     }
     
     const mappedBeat = data ? mapSupabaseBeatToBeat(data as SupabaseBeat) : null;
-    beatCache.set(beatId, mappedBeat);
+    
+    // Only cache if skipCache is false
+    if (!skipCache) {
+      beatCache.set(beatId, mappedBeat);
+    }
+    
     return mappedBeat;
   } catch (error) {
     console.error('Error fetching beat by ID:', error);
