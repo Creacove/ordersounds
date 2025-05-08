@@ -1,3 +1,4 @@
+
 import { Link } from "react-router-dom";
 import { Play, ShoppingCart } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -12,6 +13,7 @@ import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton"
 import { PriceTag } from "@/components/ui/PriceTag";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCart } from "@/context/CartContext";
+import { fetchWeeklyPicks } from "@/services/beats/queryService";
 
 export const WeeklyPicks = () => {
   const { currentBeat, isPlaying, playBeat } = usePlayer();
@@ -19,39 +21,9 @@ export const WeeklyPicks = () => {
   
   const { data: weeklyPicks = [], isLoading } = useQuery({
     queryKey: ['weekly-picks'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('beats')
-        .select(`
-          id,
-          title,
-          producer_id,
-          users (
-            full_name,
-            stage_name
-          ),
-          cover_image,
-          audio_preview,
-          basic_license_price_local,
-          basic_license_price_diaspora,
-          genre,
-          track_type,
-          bpm,
-          tags,
-          upload_date,
-          favorites_count,
-          purchase_count,
-          status,
-          is_weekly_pick
-        `)
-        .eq('status', 'published')
-        .eq('is_weekly_pick', true)
-        .limit(6);
-
-      if (error) throw error;
-
-      return data.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat));
-    }
+    queryFn: fetchWeeklyPicks,
+    staleTime: 1000 * 60 * 10, // 10 minutes
+    refetchOnWindowFocus: false
   });
 
   return (
@@ -95,7 +67,10 @@ export const WeeklyPicks = () => {
                     size="icon"
                     variant="secondary"
                     className="absolute inset-0 m-auto h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 hover:bg-black/75"
-                    onClick={() => playBeat(beat)}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      playBeat(beat);
+                    }}
                   >
                     <Play className="h-4 w-4" />
                   </Button>
@@ -123,7 +98,10 @@ export const WeeklyPicks = () => {
                     size="icon"
                     variant="ghost"
                     className="h-6 w-6"
-                    onClick={() => toggleCartItem(beat, 'basic')}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toggleCartItem(beat, 'basic');
+                    }}
                   >
                     <ShoppingCart className="h-3 w-3" />
                   </Button>
