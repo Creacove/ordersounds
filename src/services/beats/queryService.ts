@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -39,6 +40,8 @@ const newBeatsCache = new Map<string, Beat[]>();
 const randomBeatsCache = new Map<number, Beat[]>();
 const beatCache = new Map<string, Beat | null>();
 const featuredBeatsCache = new Map<number, Beat[]>();
+// Weekly picks cache
+const weeklyPicksCache = new Map<string, { data: Beat[], timestamp: number }>();
 
 // Maximum age for cached results in milliseconds (5 minutes)
 const MAX_CACHE_AGE = 5 * 60 * 1000; 
@@ -129,9 +132,6 @@ export const fetchAllBeats = async (options: {
 
 export const fetchWeeklyPicks = async (): Promise<Beat[]> => {
   const weeklyPicksCacheKey = 'weekly-picks';
-  
-  // Create a new cache for weekly picks
-  const weeklyPicksCache = new Map<string, { data: Beat[], timestamp: number }>();
   
   // Check if we have cached data that's still valid
   if (weeklyPicksCache.has(weeklyPicksCacheKey)) {
