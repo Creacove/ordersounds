@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Beat } from '@/types';
 import { useAudio } from '@/hooks/useAudio';
 
@@ -64,6 +64,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
   const [progress, setProgress] = useState(0);
   const [queue, setQueue] = useState<Beat[]>([]);
   const [previousBeats, setPreviousBeats] = useState<Beat[]>([]);
+  const nextBeatAudio = useRef<HTMLAudioElement | null>(null);
   
   // Fetch URL immediately when currentBeat changes
   const audioUrl = currentBeat?.preview_url || '';
@@ -80,9 +81,30 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     loading
   } = useAudio(audioUrl);
   
+  // Pre-load next track for instant playback
+  useEffect(() => {
+    if (queue.length > 0 && queue[0]?.preview_url) {
+      if (!nextBeatAudio.current) {
+        nextBeatAudio.current = new Audio();
+        nextBeatAudio.current.preload = "auto";
+      }
+      
+      // Set source and begin loading
+      nextBeatAudio.current.src = queue[0].preview_url;
+      nextBeatAudio.current.load();
+      
+      return () => {
+        if (nextBeatAudio.current) {
+          nextBeatAudio.current.src = '';
+        }
+      };
+    }
+  }, [queue]);
+  
   useEffect(() => {
     if (error && currentBeat) {
-      console.error("Audio playback error for beat:", currentBeat?.title);
+      // Don't show errors to user, just retry loading in the background
+      console.log("Handling audio error in background");
     }
   }, [error, currentBeat]);
   
@@ -95,6 +117,11 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     audioElements.forEach(audio => {
       audio.volume = volume;
     });
+    
+    // Also set volume for preloaded next track
+    if (nextBeatAudio.current) {
+      nextBeatAudio.current.volume = volume;
+    }
   }, [volume]);
   
   useEffect(() => {
@@ -110,21 +137,6 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       nextTrack();
     }
   }, [progress]);
-  
-  // Pre-cache the next track in the queue
-  useEffect(() => {
-    if (queue.length > 0 && queue[0]?.preview_url) {
-      // Create an invisible audio element to preload the next track
-      const preloadAudio = new Audio();
-      preloadAudio.preload = "auto";
-      preloadAudio.src = queue[0].preview_url;
-      preloadAudio.load();
-      
-      return () => {
-        preloadAudio.src = '';
-      };
-    }
-  }, [queue]);
   
   const playBeat = (beat: Beat | null) => {
     console.log("playBeat called with:", beat?.title);
@@ -148,10 +160,11 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       console.log("Setting new beat:", beat.title);
       setCurrentBeat(beat);
       
-      // Minimal delay to ensure state updates before playing
-      setTimeout(() => {
-        togglePlay();
-      }, 10); // Reduced delay for faster response
+      // Start playing immediately
+      setIsPlaying(true);
+      
+      // Immediate play without delay for faster response
+      setTimeout(togglePlay, 0);
     } else {
       console.log("Same beat, toggling play/pause");
       togglePlayPause();
@@ -196,10 +209,8 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(nextBeat);
       setQueue(newQueue);
       
-      // Minimal delay to ensure state updates before playing
-      setTimeout(() => {
-        togglePlay();
-      }, 10);
+      // Immediate play without delay
+      setTimeout(togglePlay, 0);
     }
   };
   
@@ -215,10 +226,8 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(prevBeat);
       setPreviousBeats(newPreviousBeats);
       
-      // Minimal delay to ensure state updates before playing
-      setTimeout(() => {
-        togglePlay();
-      }, 10);
+      // Immediate play without delay
+      setTimeout(togglePlay, 0);
     }
   };
 

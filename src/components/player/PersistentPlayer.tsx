@@ -1,8 +1,8 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
-import { Play, Pause, SkipBack, SkipForward, Loader2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Loader } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QueuePopover } from './QueuePopover';
@@ -26,10 +26,24 @@ export function PersistentPlayer() {
     previousTrack,
     error = false,
     loading = false,
-    reload
+    reload,
+    progress
   } = usePlayer();
   
   const isMobile = useIsMobile();
+
+  // Preload next track when queue changes
+  useEffect(() => {
+    if (queue.length > 0 && queue[0]?.preview_url) {
+      const audio = new Audio();
+      audio.preload = "auto";
+      audio.src = queue[0].preview_url;
+      
+      return () => {
+        audio.src = '';
+      };
+    }
+  }, [queue]);
 
   // Even when no beat is selected, we render a hidden player to maintain the layout
   if (!currentBeat) {
@@ -47,18 +61,10 @@ export function PersistentPlayer() {
     seek(percentage * duration);
   };
 
-  // Calculate progress percentage
-  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
-  
-  // Use a very subtle pulse animation when loading to indicate activity
-  const progressBarClass = loading 
-    ? "h-full transition-all bg-amber-500 animate-pulse" 
-    : "h-full transition-all bg-primary";
-
   return (
     <div className={cn(
       "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-40",
-      isMobile ? "bottom-16" : "bottom-0" // Position above mobile nav when on mobile
+      isMobile ? "bottom-16" : "bottom-0"
     )}>
       {/* Spotify-like progress bar at the very top of the player */}
       <div 
@@ -66,8 +72,8 @@ export function PersistentPlayer() {
         onClick={handleProgressBarClick}
       >
         <div 
-          className={progressBarClass}
-          style={{ width: `${error ? 100 : progressPercentage}%`, opacity: error ? 0.3 : 1 }}
+          className={loading ? "h-full transition-all bg-amber-500 animate-pulse" : "h-full transition-all bg-primary"}
+          style={{ width: `${progress || (duration > 0 ? (currentTime / duration) * 100 : 0)}%` }}
         />
         {/* Make the input cover the entire area for better touch targets */}
         {!error && (
@@ -125,14 +131,14 @@ export function PersistentPlayer() {
           )}
           
           <Button 
-            variant="default"
+            variant={error ? "destructive" : "default"}
             size="icon" 
-            className="h-10 w-10 rounded-full" 
+            className="h-10 w-10 rounded-full flex items-center justify-center" 
             onClick={error && reload ? reload : togglePlayPause}
             disabled={loading && !error}
           >
             {loading ? (
-              <Loader2 size={18} className="animate-spin" />
+              <Loader size={18} className="animate-spin" />
             ) : isPlaying ? (
               <Pause size={18} />
             ) : (

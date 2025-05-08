@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { Loader } from 'lucide-react';
 
 interface TimeProgressBarProps {
   currentTime: number;
@@ -29,12 +29,12 @@ export function TimeProgressBar({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  // If there's an error or loading state, show loading indicator instead of error
+  // Always show loading indicator instead of error
   if (error || loading) {
     return (
       <div className={cn("flex items-center gap-2", isMobile ? "hidden" : "flex")}>
         <span className="text-xs text-amber-500 flex items-center">
-          <Loader2 size={12} className="mr-1 animate-spin" />
+          <Loader size={12} className="mr-1 animate-spin" />
           Loading audio...
         </span>
       </div>
