@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
@@ -127,19 +128,28 @@ export const fetchAllBeats = async (options: {
   }
 };
 
-export const fetchTrendingBeats = async (limit = 30): Promise<Beat[]> => {
+export const fetchTrendingBeats = async (limit = 30, markedOnly = false): Promise<Beat[]> => {
+  const cacheKey = `trending_${limit}_${markedOnly}`;
   if (trendingCache.has(limit)) {
     return trendingCache.get(limit) || [];
   }
   
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('beats')
       .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published')
-      .order('favorites_count', { ascending: false })
-      .order('purchase_count', { ascending: false })
-      .limit(limit);
+      .eq('status', 'published');
+      
+    if (markedOnly) {
+      query = query.eq('is_trending', true);
+    } else {
+      query = query.order('favorites_count', { ascending: false })
+                  .order('purchase_count', { ascending: false });
+    }
+    
+    query = query.limit(limit);
+      
+    const { data, error } = await query;
       
     if (error) {
       console.error("Error fetching trending beats:", error);
@@ -291,27 +301,6 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
     return mappedBeats;
   } catch (error) {
     console.error('Error fetching featured beats:', error);
-    throw error;
-  }
-};
-
-export const fetchMarkedTrendingBeats = async (limit = 5): Promise<Beat[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('beats')
-      .select(BEAT_QUERY_FIELDS)
-      .eq('status', 'published')
-      .eq('is_trending', true)
-      .limit(limit);
-      
-    if (error) {
-      console.error("Error fetching marked trending beats:", error);
-      throw error;
-    }
-    
-    return data?.map(beat => mapSupabaseBeatToBeat(beat as SupabaseBeat)) || [];
-  } catch (error) {
-    console.error('Error fetching marked trending beats:', error);
     throw error;
   }
 };

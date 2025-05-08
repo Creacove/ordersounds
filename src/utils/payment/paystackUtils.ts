@@ -50,7 +50,14 @@ export const createOrder = async (user: any, totalAmount: number, orderItemsData
   try {
     console.log('Creating order with items:', orderItemsData);
     
-    // Create an order record first
+    if (!user || !user.id) {
+      throw new Error('User not authenticated. Please sign in.');
+    }
+    
+    // Verify the user has an id
+    console.log('Creating order for user ID:', user.id);
+    
+    // Create an order record with RLS enabled user
     const { data: orderData, error: orderError } = await supabase
       .from('orders')
       .insert({

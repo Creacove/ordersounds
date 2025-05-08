@@ -344,7 +344,16 @@ export function usePaystackCheckout({
         }));
       }
       
-      // Create order in database
+      // Important: Make sure we have a user
+      if (!user || !user.id) {
+        toast.error('User authentication required. Please sign in.');
+        setIsProcessing(false);
+        return;
+      }
+      
+      console.log('Creating order for user:', user.id);
+      
+      // Create order in database - fixed to use authenticated user
       const { orderId, error: orderError } = await createOrder(user, totalAmount, orderItemsData);
       
       if (orderError) {
