@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 
 interface TimeProgressBarProps {
   currentTime: number;
@@ -9,6 +9,7 @@ interface TimeProgressBarProps {
   seek: (time: number) => void;
   isMobile: boolean;
   error?: boolean;
+  loading?: boolean;
   onRetry?: () => void;
 }
 
@@ -18,6 +19,7 @@ export function TimeProgressBar({
   seek, 
   isMobile, 
   error = false,
+  loading = false,
   onRetry
 }: TimeProgressBarProps) {
   const formatTime = (time: number) => {
@@ -41,6 +43,17 @@ export function TimeProgressBar({
           <RefreshCw size={12} className="mr-1" />
           Retry
         </button>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className={cn("flex items-center gap-2", isMobile ? "hidden" : "flex")}>
+        <span className="text-xs text-amber-500 flex items-center">
+          <Loader2 size={12} className="mr-1 animate-spin" />
+          Loading audio...
+        </span>
       </div>
     );
   }

@@ -13,6 +13,7 @@ interface UseAudioReturn {
   actuallyPlaying: boolean;
   reload: () => void;
   url: string;
+  loading: boolean;
 }
 
 export const useAudio = (url: string): UseAudioReturn => {
@@ -23,44 +24,61 @@ export const useAudio = (url: string): UseAudioReturn => {
   const [error, setError] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [actuallyPlaying, setActuallyPlaying] = useState(false);
-  const [readyState, setReadyState] = useState<number | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const previousUrl = useRef<string | null>(null);
 
-  // Initialize audio element and event listeners
+  // Initialize audio element
   useEffect(() => {
-    if (!url) {
-      return;
-    }
-    
     if (!audioRef.current) {
       audioRef.current = new Audio();
+      audioRef.current.preload = "metadata"; // More efficient initial loading
     }
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+    };
+  }, []);
+
+  // Handle URL changes and set up event listeners
+  useEffect(() => {
+    if (!url || url === previousUrl.current) return;
     
-    // Reset state for new audio source
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    // Reset state when URL changes
     setIsReady(false);
     setPlaying(false);
     setActuallyPlaying(false);
     setError(false);
+    setLoading(true);
+    setDuration(0);
+    setCurrentTime(0);
+    
+    // Store current URL to compare against future changes
+    previousUrl.current = url;
     
     // Set up event listeners
     const handleLoadedMetadata = () => {
-      setDuration(audioRef.current?.duration || 0);
+      setDuration(audio.duration || 0);
       setIsReady(true);
       setError(false);
-      setReadyState(audioRef.current?.readyState);
-      console.log("Audio metadata loaded successfully", { url, duration: audioRef.current?.duration });
+      setLoading(false);
+      console.log("Audio metadata loaded successfully", { url, duration: audio.duration });
     };
     
     const handleCanPlay = () => {
       setIsReady(true);
-      setReadyState(audioRef.current?.readyState);
-      setError(false); // Clear any errors if can play
+      setError(false);
+      setLoading(false);
       console.log("Audio can play now", { url });
     };
     
     const handleTimeUpdate = () => {
-      // If we're getting time updates, audio is definitely playing
-      setCurrentTime(audioRef.current?.currentTime || 0);
-      if (!actuallyPlaying && audioRef.current?.currentTime > 0.5) {
+      setCurrentTime(audio.currentTime || 0);
+      if (!actuallyPlaying && audio.currentTime > 0.5) {
         setActuallyPlaying(true);
       }
     };
@@ -69,6 +87,7 @@ export const useAudio = (url: string): UseAudioReturn => {
       console.log("Audio is now playing");
       setActuallyPlaying(true);
       setPlaying(true);
+      setLoading(false);
     };
     
     const handlePause = () => {
@@ -83,46 +102,64 @@ export const useAudio = (url: string): UseAudioReturn => {
     };
     
     const handleError = (e: any) => {
-      console.error("Error playing audio:", audioRef.current?.error, e);
+      console.error("Error playing audio:", audio?.error, e);
       setError(true);
       setPlaying(false);
       setActuallyPlaying(false);
+      setLoading(false);
     };
     
-    // Set the source and attach event listeners
-    console.log("Setting audio source:", url);
-    audioRef.current.src = url;
-    audioRef.current.load(); // Explicitly load the audio
-    audioRef.current.volume = 0.7; // Set a default volume
-    audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audioRef.current.addEventListener('canplay', handleCanPlay);
-    audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
-    audioRef.current.addEventListener('ended', handleEnded);
-    audioRef.current.addEventListener('error', handleError);
-    audioRef.current.addEventListener('playing', handlePlaying);
-    audioRef.current.addEventListener('pause', handlePause);
+    const handleWaiting = () => {
+      setLoading(true);
+    };
     
-    // Set initial state in case audio is already loaded
-    if (audioRef.current.readyState >= 2) {
+    const handleStalled = () => {
+      // Only set error if we've been stalled for a while
+      setTimeout(() => {
+        if (audio.readyState < 3 && !audio.paused) {
+          setError(true);
+          setLoading(false);
+        }
+      }, 5000);
+    };
+
+    // Attach event listeners
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('playing', handlePlaying);
+    audio.addEventListener('pause', handlePause);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('stalled', handleStalled);
+    
+    // Set source and load
+    console.log("Setting audio source:", url);
+    audio.src = url;
+    audio.load();
+    audio.volume = 0.7; // Set default volume
+    
+    // If already loaded, trigger the loaded event
+    if (audio.readyState >= 2) {
       handleLoadedMetadata();
     }
     
-    // Cleanup function
+    // Cleanup
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
-        audioRef.current.removeEventListener('canplay', handleCanPlay);
-        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
-        audioRef.current.removeEventListener('ended', handleEnded);
-        audioRef.current.removeEventListener('error', handleError);
-        audioRef.current.removeEventListener('playing', handlePlaying);
-        audioRef.current.removeEventListener('pause', handlePause);
-      }
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('playing', handlePlaying);
+      audio.removeEventListener('pause', handlePause);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('stalled', handleStalled);
     };
-  }, [url]);
+  }, [url, actuallyPlaying]);
   
-  // Play/pause toggle function
+  // Toggle play/pause
   const togglePlay = () => {
     console.log("Toggle play called", { url, playing, isReady });
     if (!audioRef.current || !url) {
@@ -131,60 +168,47 @@ export const useAudio = (url: string): UseAudioReturn => {
       return;
     }
     
+    const audio = audioRef.current;
+    
     if (playing) {
       console.log("Pausing audio");
-      audioRef.current.pause();
+      audio.pause();
       setPlaying(false);
       setActuallyPlaying(false);
     } else {
       console.log("Attempting to play audio");
       setError(false); // Clear any previous errors
+      setLoading(true);
       
-      const playAudio = async () => {
-        if (!audioRef.current) return;
-        
+      // Using a more robust play method with retry
+      const attemptPlay = async (retries = 2) => {
         try {
-          console.log("Calling play() method");
-          const playPromise = audioRef.current.play();
+          const playPromise = audio.play();
           
           if (playPromise !== undefined) {
-            playPromise.then(() => {
-              console.log("Audio playing successfully");
-              setPlaying(true);
-              // We won't set actuallyPlaying here - we'll wait for the 'playing' event
-              // or for timeUpdate to confirm audio is actually playing
-            }).catch(error => {
-              console.error("Error playing audio:", error);
-              setError(true);
-              setPlaying(false);
-              setActuallyPlaying(false);
-            });
+            await playPromise;
+            console.log("Audio playing successfully");
+            setPlaying(true);
+            setLoading(false);
+            // actuallyPlaying will be set by the 'playing' event
           }
         } catch (error) {
-          console.error("Exception playing audio:", error);
-          setError(true);
-          setPlaying(false);
-          setActuallyPlaying(false);
+          console.error("Error playing audio:", error);
+          
+          // Auto-retry with exponential backoff
+          if (retries > 0) {
+            console.log(`Retrying playback (${retries} attempts left)...`);
+            setTimeout(() => attemptPlay(retries - 1), 1000);
+          } else {
+            setError(true);
+            setPlaying(false);
+            setActuallyPlaying(false);
+            setLoading(false);
+          }
         }
       };
       
-      // If audio is ready, play it immediately; otherwise wait for canplay event
-      if (isReady) {
-        playAudio();
-      } else {
-        console.log("Audio not ready, waiting for canplay event");
-        // Add a temporary event listener for canplay that will be removed after first trigger
-        const handleCanPlayToStart = () => {
-          console.log("Can play event triggered for delayed playback");
-          playAudio();
-          audioRef.current?.removeEventListener('canplay', handleCanPlayToStart);
-        };
-        
-        audioRef.current.addEventListener('canplay', handleCanPlayToStart);
-        
-        // Also try to load the audio again
-        audioRef.current.load();
-      }
+      attemptPlay();
     }
   };
 
@@ -200,7 +224,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     setCurrentTime(0);
   };
 
-  // Seek function to set current playback position
+  // Seek function
   const seek = (time: number) => {
     if (!audioRef.current) return;
     
@@ -208,16 +232,28 @@ export const useAudio = (url: string): UseAudioReturn => {
     setCurrentTime(time);
   };
   
-  // Reload function to handle errors
+  // Reload function for handling errors
   const reload = () => {
     if (!audioRef.current || !url) return;
     
     console.log("Reloading audio");
     setError(false);
-    audioRef.current.load();
+    setLoading(true);
+    
+    const audio = audioRef.current;
+    audio.pause();
+    audio.currentTime = 0;
+    audio.load();
+    
+    // Try playing after a short delay
+    setTimeout(() => {
+      if (audioRef.current) {
+        togglePlay();
+      }
+    }, 500);
   };
 
-  // Add debugging information for development
+  // For debugging
   useEffect(() => {
     console.log("Audio state:", {
       url,
@@ -227,9 +263,10 @@ export const useAudio = (url: string): UseAudioReturn => {
       currentTime,
       error,
       isReady,
+      loading,
       readyState: audioRef.current?.readyState
     });
-  }, [url, playing, actuallyPlaying, duration, currentTime, error, isReady]);
+  }, [url, playing, actuallyPlaying, duration, currentTime, error, isReady, loading]);
 
   return {
     playing: actuallyPlaying, // Return actuallyPlaying instead of playing
@@ -242,6 +279,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     error,
     isReady,
     reload,
-    url
+    url,
+    loading
   };
 };

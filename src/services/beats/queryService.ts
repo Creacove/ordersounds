@@ -305,13 +305,15 @@ export const fetchFeaturedBeats = async (limit = 6): Promise<Beat[]> => {
 };
 
 /**
- * Fetch beats created by a specific producer directly from the database
- * @param producerId The ID of the producer whose beats to fetch
- * @param includeDrafts Whether to include unpublished beats
- * @returns Promise resolving to an array of Beat objects
+ * Fetch beats created by a specific producer directly from the database with improved error handling
  */
 export const fetchProducerBeats = async (producerId: string, includeDrafts = true): Promise<Beat[]> => {
   console.log(`Fetching beats directly for producer ${producerId}`);
+  
+  if (!producerId) {
+    console.warn('Producer ID is required to fetch producer beats');
+    return [];
+  }
   
   try {
     let query = supabase
@@ -338,7 +340,8 @@ export const fetchProducerBeats = async (producerId: string, includeDrafts = tru
     return mappedBeats;
   } catch (error) {
     console.error('Error fetching producer beats:', error);
-    throw error;
+    uniqueToast.error('Failed to load your beats. Please try again.');
+    return [];
   }
 };
 

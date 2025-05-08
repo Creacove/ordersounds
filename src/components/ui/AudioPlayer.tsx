@@ -1,6 +1,6 @@
 
 import { useState, useRef, useEffect } from "react";
-import { Play, Pause, Volume2, VolumeX, RefreshCw } from "lucide-react";
+import { Play, Pause, Volume2, VolumeX, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AudioPlayerProps {
@@ -20,6 +20,18 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const previousSrc = useRef<string>('');
+
+  // Reset state when source changes
+  useEffect(() => {
+    if (src !== previousSrc.current) {
+      setCurrentTime(0);
+      setActuallyPlaying(false);
+      setIsPlaying(false);
+      setHasError(false);
+      previousSrc.current = src;
+    }
+  }, [src]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -37,6 +49,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       // If we're getting time updates and current time is advancing, audio is definitely playing
       if (!actuallyPlaying && audio.currentTime > 0.5) {
         setActuallyPlaying(true);
+        setIsLoading(false);
       }
     };
     
@@ -44,6 +57,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       setActuallyPlaying(true);
       setIsPlaying(true);
       setHasError(false);
+      setIsLoading(false);
     };
     
     const handlePause = () => {
@@ -79,6 +93,10 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       setIsLoading(false);
       setHasError(false);
     };
+    
+    const handleWaiting = () => {
+      setIsLoading(true);
+    };
 
     // Events
     audio.addEventListener('loadeddata', setAudioData);
@@ -89,6 +107,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
     audio.addEventListener('error', handleError as EventListener);
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('waiting', handleWaiting);
 
     return () => {
       audio.removeEventListener('loadeddata', setAudioData);
@@ -99,6 +118,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       audio.removeEventListener('error', handleError as EventListener);
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('waiting', handleWaiting);
     };
   }, [onError]);
 
@@ -113,27 +133,32 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       setIsPlaying(false);
       setActuallyPlaying(false);
       setHasError(false);
+      setIsLoading(true);
       
       audio.src = src;
       audio.load();
       
       if (wasPlaying) {
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.then(() => {
-            setIsPlaying(true);
-            // Don't set actuallyPlaying here - wait for the 'playing' event
-          }).catch((error) => {
-            console.error("Error playing audio:", error);
-            setHasError(true);
-            setIsPlaying(false);
-            setActuallyPlaying(false);
-            
-            if (onError) {
-              onError();
-            }
-          });
-        }
+        // Small delay before attempting to play to allow browser to initialize
+        setTimeout(() => {
+          const playPromise = audio.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              setIsPlaying(true);
+              // Don't set actuallyPlaying here - wait for the 'playing' event
+            }).catch((error) => {
+              console.error("Error playing audio:", error);
+              setHasError(true);
+              setIsPlaying(false);
+              setActuallyPlaying(false);
+              setIsLoading(false);
+              
+              if (onError) {
+                onError();
+              }
+            });
+          }
+        }, 100);
       }
     }
   }, [src, isPlaying, onError]);
@@ -170,24 +195,35 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
       setActuallyPlaying(false);
     } else {
       setIsLoading(true);
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.then(() => {
-          setIsPlaying(true);
-          setIsLoading(false);
-          // Don't set actuallyPlaying here - wait for the 'playing' event or timeupdate
-        }).catch(error => {
-          console.error("Error playing audio:", error);
-          setIsLoading(false);
-          setHasError(true);
-          setIsPlaying(false);
-          setActuallyPlaying(false);
-          
-          if (onError) {
-            onError();
-          }
-        });
-      }
+      
+      // Implement play with retry logic
+      const attemptPlay = (retryCount = 2) => {
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            setIsPlaying(true);
+            // Don't set actuallyPlaying here - wait for the 'playing' event or timeupdate
+          }).catch(error => {
+            console.error("Error playing audio:", error);
+            
+            if (retryCount > 0) {
+              console.log(`Retrying playback (${retryCount} attempts left)`);
+              setTimeout(() => attemptPlay(retryCount - 1), 1000);
+            } else {
+              setIsLoading(false);
+              setHasError(true);
+              setIsPlaying(false);
+              setActuallyPlaying(false);
+              
+              if (onError) {
+                onError();
+              }
+            }
+          });
+        }
+      };
+      
+      attemptPlay();
     }
   };
 
@@ -241,12 +277,12 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             hasError && "bg-destructive hover:bg-destructive/90"
           )}
           onClick={togglePlay}
-          disabled={isLoading}
+          disabled={isLoading && !hasError}
         >
-          {isLoading ? (
-            <div className="w-3 h-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+          {isLoading && !hasError ? (
+            <Loader2 size={14} className="animate-spin" />
           ) : hasError ? (
-            <RefreshCw size={14} className="animate-spin" />
+            <RefreshCw size={14} />
           ) : actuallyPlaying ? (
             <Pause size={16} />
           ) : (
@@ -256,12 +292,16 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
         <div className="w-full max-w-[100px]">
           <input
             type="range"
-            className={cn("audio-progress w-full", hasError && "opacity-50")}
+            className={cn(
+              "audio-progress w-full",
+              hasError && "opacity-50",
+              isLoading && "opacity-75"
+            )}
             min={0}
             max={duration || 0}
             value={currentTime}
             onChange={handleProgress}
-            disabled={hasError}
+            disabled={hasError || isLoading}
           />
         </div>
       </div>
@@ -276,14 +316,14 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
         <button 
           className={cn(
             "flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform hover:scale-105",
-            (isLoading || hasError) && "opacity-70",
+            (isLoading && !hasError) && "opacity-70",
             hasError && "bg-destructive hover:bg-destructive/90"
           )}
           onClick={togglePlay}
           disabled={isLoading && !hasError}
         >
-          {isLoading ? (
-            <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+          {isLoading && !hasError ? (
+            <Loader2 size={18} className="animate-spin" />
           ) : hasError ? (
             <RefreshCw size={18} />
           ) : actuallyPlaying ? (
@@ -300,12 +340,16 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
         <div className="flex-grow">
           <input
             type="range"
-            className={cn("audio-progress w-full", hasError && "opacity-50")}
+            className={cn(
+              "audio-progress w-full", 
+              hasError && "opacity-50",
+              isLoading && "opacity-75"
+            )}
             min={0}
             max={duration || 0}
             value={currentTime}
             onChange={handleProgress}
-            disabled={hasError}
+            disabled={hasError || isLoading}
           />
         </div>
         
@@ -314,7 +358,11 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
         </div>
 
         <div className="flex items-center gap-1 ml-2">
-          <button onClick={toggleMute} className="text-muted-foreground hover:text-foreground">
+          <button 
+            onClick={toggleMute} 
+            className="text-muted-foreground hover:text-foreground"
+            disabled={isLoading}
+          >
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           
@@ -326,6 +374,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             step={0.01}
             value={isMuted ? 0 : volume}
             onChange={handleVolume}
+            disabled={isLoading}
           />
         </div>
       </div>

@@ -2,7 +2,7 @@
 import React from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
-import { Play, Pause, SkipBack, SkipForward } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { QueuePopover } from './QueuePopover';
@@ -25,6 +25,7 @@ export function PersistentPlayer() {
     nextTrack,
     previousTrack,
     error = false, // Default to false if not provided by context
+    loading = false,
     reload
   } = usePlayer();
   
@@ -65,7 +66,7 @@ export function PersistentPlayer() {
         <div 
           className={cn(
             "h-full transition-all",
-            error ? "bg-destructive" : "bg-primary"
+            error ? "bg-destructive" : loading ? "bg-amber-500" : "bg-primary"
           )}
           style={{ width: `${error ? 100 : progressPercentage}%`, opacity: error ? 0.3 : 1 }}
         />
@@ -79,7 +80,7 @@ export function PersistentPlayer() {
             onChange={(e) => seek(parseFloat(e.target.value))}
             className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
             style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile
-            disabled={duration <= 0}
+            disabled={duration <= 0 || loading}
           />
         )}
       </div>
@@ -118,6 +119,7 @@ export function PersistentPlayer() {
               size="icon" 
               className="h-8 w-8 rounded-full"
               onClick={previousTrack}
+              disabled={loading}
             >
               <SkipBack size={16} />
             </Button>
@@ -128,8 +130,15 @@ export function PersistentPlayer() {
             size="icon" 
             className="h-10 w-10 rounded-full" 
             onClick={error && reload ? reload : togglePlayPause}
+            disabled={loading && !error}
           >
-            {isPlaying && !error ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+            {loading && !error ? (
+              <Loader2 size={18} className="animate-spin" />
+            ) : isPlaying && !error ? (
+              <Pause size={18} />
+            ) : (
+              <Play size={18} className="ml-0.5" />
+            )}
           </Button>
           
           {!isMobile && (
@@ -138,6 +147,7 @@ export function PersistentPlayer() {
               size="icon" 
               className="h-8 w-8 rounded-full"
               onClick={nextTrack}
+              disabled={loading}
             >
               <SkipForward size={16} />
             </Button>
@@ -153,6 +163,7 @@ export function PersistentPlayer() {
               seek={seek} 
               isMobile={isMobile} 
               error={error}
+              loading={loading}
               onRetry={reload}
             />
             <VolumeControl volume={volume} setVolume={setVolume} />

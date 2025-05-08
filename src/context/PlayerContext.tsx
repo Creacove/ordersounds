@@ -12,6 +12,7 @@ interface PlayerContextType {
   duration: number;
   queue: Beat[];
   error?: boolean;
+  loading?: boolean;
   playBeat: (beat: Beat | null) => void;
   setIsPlaying: (isPlaying: boolean) => void;
   setVolume: (volume: number) => void;
@@ -37,6 +38,7 @@ const PlayerContext = createContext<PlayerContextType>({
   duration: 0,
   queue: [],
   error: false,
+  loading: false,
   playBeat: () => {},
   setIsPlaying: () => {},
   setVolume: () => {},
@@ -74,7 +76,8 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     seek,
     stop,
     error,
-    reload
+    reload,
+    loading
   } = useAudio(audioUrl);
   
   useEffect(() => {
@@ -104,7 +107,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
   }, [currentTime, duration]);
   
   useEffect(() => {
-    if (progress >= 100 && queue.length > 0) {
+    if (progress >= 99.5 && queue.length > 0) {
       nextTrack();
     }
   }, [progress]);
@@ -131,9 +134,10 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       console.log("Setting new beat:", beat.title);
       setCurrentBeat(beat);
       
-      requestAnimationFrame(() => {
+      // Small delay to ensure state updates before playing
+      setTimeout(() => {
         togglePlay();
-      });
+      }, 50);
     } else {
       console.log("Same beat, toggling play/pause");
       togglePlayPause();
@@ -178,7 +182,10 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(nextBeat);
       setQueue(newQueue);
       
-      requestAnimationFrame(() => togglePlay());
+      // Small delay to ensure state updates before playing
+      setTimeout(() => {
+        togglePlay();
+      }, 50);
     }
   };
   
@@ -194,7 +201,10 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(prevBeat);
       setPreviousBeats(newPreviousBeats);
       
-      requestAnimationFrame(() => togglePlay());
+      // Small delay to ensure state updates before playing
+      setTimeout(() => {
+        togglePlay();
+      }, 50);
     }
   };
 
@@ -208,6 +218,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       duration,
       queue,
       error,
+      loading,
       playBeat,
       setIsPlaying,
       setVolume,
