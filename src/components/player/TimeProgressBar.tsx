@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface TimeProgressBarProps {
   currentTime: number;
@@ -29,25 +29,8 @@ export function TimeProgressBar({
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  if (error && onRetry) {
-    return (
-      <div className={cn("flex items-center gap-2", isMobile ? "hidden" : "flex")}>
-        <span className="text-xs text-destructive flex items-center">
-          <AlertTriangle size={12} className="mr-1" />
-          Audio error
-        </span>
-        <button 
-          onClick={onRetry}
-          className="text-xs text-muted-foreground hover:text-foreground flex items-center"
-        >
-          <RefreshCw size={12} className="mr-1" />
-          Retry
-        </button>
-      </div>
-    );
-  }
-
-  if (loading) {
+  // If there's an error or loading state, show loading indicator instead of error
+  if (error || loading) {
     return (
       <div className={cn("flex items-center gap-2", isMobile ? "hidden" : "flex")}>
         <span className="text-xs text-amber-500 flex items-center">
