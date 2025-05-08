@@ -65,8 +65,8 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
   const [queue, setQueue] = useState<Beat[]>([]);
   const [previousBeats, setPreviousBeats] = useState<Beat[]>([]);
   
+  // Fetch URL immediately when currentBeat changes
   const audioUrl = currentBeat?.preview_url || '';
-  console.log("Current audio URL:", audioUrl);
   
   const { 
     playing, 
@@ -95,7 +95,6 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     audioElements.forEach(audio => {
       audio.volume = volume;
     });
-    console.log("Set volume to:", volume);
   }, [volume]);
   
   useEffect(() => {
@@ -111,6 +110,21 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       nextTrack();
     }
   }, [progress]);
+  
+  // Pre-cache the next track in the queue
+  useEffect(() => {
+    if (queue.length > 0 && queue[0]?.preview_url) {
+      // Create an invisible audio element to preload the next track
+      const preloadAudio = new Audio();
+      preloadAudio.preload = "auto";
+      preloadAudio.src = queue[0].preview_url;
+      preloadAudio.load();
+      
+      return () => {
+        preloadAudio.src = '';
+      };
+    }
+  }, [queue]);
   
   const playBeat = (beat: Beat | null) => {
     console.log("playBeat called with:", beat?.title);
@@ -134,10 +148,10 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       console.log("Setting new beat:", beat.title);
       setCurrentBeat(beat);
       
-      // Small delay to ensure state updates before playing
+      // Minimal delay to ensure state updates before playing
       setTimeout(() => {
         togglePlay();
-      }, 50);
+      }, 10); // Reduced delay for faster response
     } else {
       console.log("Same beat, toggling play/pause");
       togglePlayPause();
@@ -182,10 +196,10 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(nextBeat);
       setQueue(newQueue);
       
-      // Small delay to ensure state updates before playing
+      // Minimal delay to ensure state updates before playing
       setTimeout(() => {
         togglePlay();
-      }, 50);
+      }, 10);
     }
   };
   
@@ -201,10 +215,10 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       setCurrentBeat(prevBeat);
       setPreviousBeats(newPreviousBeats);
       
-      // Small delay to ensure state updates before playing
+      // Minimal delay to ensure state updates before playing
       setTimeout(() => {
         togglePlay();
-      }, 50);
+      }, 10);
     }
   };
 

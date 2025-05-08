@@ -31,7 +31,7 @@ export const useAudio = (url: string): UseAudioReturn => {
   useEffect(() => {
     if (!audioRef.current) {
       audioRef.current = new Audio();
-      audioRef.current.preload = "metadata"; // More efficient initial loading
+      audioRef.current.preload = "auto"; // Changed to auto for faster loading
     }
     return () => {
       if (audioRef.current) {
@@ -78,7 +78,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     
     const handleTimeUpdate = () => {
       setCurrentTime(audio.currentTime || 0);
-      if (!actuallyPlaying && audio.currentTime > 0.5) {
+      if (!actuallyPlaying && audio.currentTime > 0.1) {
         setActuallyPlaying(true);
       }
     };
@@ -107,6 +107,13 @@ export const useAudio = (url: string): UseAudioReturn => {
       setPlaying(false);
       setActuallyPlaying(false);
       setLoading(false);
+      
+      // Automatically try to reload once
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.load();
+        }
+      }, 300);
     };
     
     const handleWaiting = () => {
@@ -117,10 +124,9 @@ export const useAudio = (url: string): UseAudioReturn => {
       // Only set error if we've been stalled for a while
       setTimeout(() => {
         if (audio.readyState < 3 && !audio.paused) {
-          setError(true);
-          setLoading(false);
+          setLoading(true);
         }
-      }, 5000);
+      }, 2000); // Reduced timeout
     };
 
     // Attach event listeners
@@ -164,7 +170,7 @@ export const useAudio = (url: string): UseAudioReturn => {
     console.log("Toggle play called", { url, playing, isReady });
     if (!audioRef.current || !url) {
       console.error("No audio element or URL available");
-      setError(true);
+      setLoading(true);
       return;
     }
     
@@ -180,9 +186,14 @@ export const useAudio = (url: string): UseAudioReturn => {
       setError(false); // Clear any previous errors
       setLoading(true);
       
-      // Using a more robust play method with retry
-      const attemptPlay = async (retries = 2) => {
+      // Using a more robust play method with quick retries
+      const attemptPlay = async (retries = 3) => {
         try {
+          // Pre-load a small part of the audio before playing
+          if (audio.readyState < 2) {
+            audio.load();
+          }
+          
           const playPromise = audio.play();
           
           if (playPromise !== undefined) {
@@ -195,15 +206,12 @@ export const useAudio = (url: string): UseAudioReturn => {
         } catch (error) {
           console.error("Error playing audio:", error);
           
-          // Auto-retry with exponential backoff
+          // Auto-retry with short delay
           if (retries > 0) {
             console.log(`Retrying playback (${retries} attempts left)...`);
-            setTimeout(() => attemptPlay(retries - 1), 1000);
+            setTimeout(() => attemptPlay(retries - 1), 300); // Faster retry
           } else {
-            setError(true);
-            setPlaying(false);
-            setActuallyPlaying(false);
-            setLoading(false);
+            setLoading(true); // Keep showing loading state instead of error
           }
         }
       };
@@ -250,23 +258,8 @@ export const useAudio = (url: string): UseAudioReturn => {
       if (audioRef.current) {
         togglePlay();
       }
-    }, 500);
+    }, 300); // Faster reload
   };
-
-  // For debugging
-  useEffect(() => {
-    console.log("Audio state:", {
-      url,
-      playing,
-      actuallyPlaying,
-      duration,
-      currentTime,
-      error,
-      isReady,
-      loading,
-      readyState: audioRef.current?.readyState
-    });
-  }, [url, playing, actuallyPlaying, duration, currentTime, error, isReady, loading]);
 
   return {
     playing: actuallyPlaying, // Return actuallyPlaying instead of playing

@@ -19,12 +19,12 @@ export function PersistentPlayer() {
     seek,
     volume,
     setVolume,
-    queue = [], // Default empty array
+    queue = [],
     removeFromQueue,
     clearQueue,
     nextTrack,
     previousTrack,
-    error = false, // Default to false if not provided by context
+    error = false,
     loading = false,
     reload
   } = usePlayer();
@@ -38,7 +38,7 @@ export function PersistentPlayer() {
 
   // Handle clicking on the top progress bar
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (error || duration <= 0) return; // Don't allow seeking if there's an error
+    if (error || duration <= 0) return;
     
     const container = e.currentTarget;
     const rect = container.getBoundingClientRect();
@@ -49,6 +49,11 @@ export function PersistentPlayer() {
 
   // Calculate progress percentage
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+  
+  // Use a very subtle pulse animation when loading to indicate activity
+  const progressBarClass = loading 
+    ? "h-full transition-all bg-amber-500 animate-pulse" 
+    : "h-full transition-all bg-primary";
 
   return (
     <div className={cn(
@@ -57,17 +62,11 @@ export function PersistentPlayer() {
     )}>
       {/* Spotify-like progress bar at the very top of the player */}
       <div 
-        className={cn(
-          "w-full h-1 bg-muted relative cursor-pointer",
-          error ? "bg-destructive/30" : "bg-muted"
-        )}
+        className="w-full h-1 bg-muted relative cursor-pointer"
         onClick={handleProgressBarClick}
       >
         <div 
-          className={cn(
-            "h-full transition-all",
-            error ? "bg-destructive" : loading ? "bg-amber-500" : "bg-primary"
-          )}
+          className={progressBarClass}
           style={{ width: `${error ? 100 : progressPercentage}%`, opacity: error ? 0.3 : 1 }}
         />
         {/* Make the input cover the entire area for better touch targets */}
@@ -126,15 +125,15 @@ export function PersistentPlayer() {
           )}
           
           <Button 
-            variant={error ? "destructive" : "default"}
+            variant="default"
             size="icon" 
             className="h-10 w-10 rounded-full" 
             onClick={error && reload ? reload : togglePlayPause}
             disabled={loading && !error}
           >
-            {loading && !error ? (
+            {loading ? (
               <Loader2 size={18} className="animate-spin" />
-            ) : isPlaying && !error ? (
+            ) : isPlaying ? (
               <Pause size={18} />
             ) : (
               <Play size={18} className="ml-0.5" />
