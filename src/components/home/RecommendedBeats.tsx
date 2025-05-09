@@ -13,14 +13,18 @@ import { usePlayer } from '@/context/PlayerContext';
 import { BeatCardCompact } from '@/components/marketplace/BeatCardCompact';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { SupabaseBeat } from '@/services/beats/types';
 
 export function RecommendedBeats() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { useRecommendedBeats } = useFollows();
-  const { data: recommendedBeats, isLoading } = useRecommendedBeats();
+  const { data: recommendedBeatsData, isLoading } = useRecommendedBeats();
   const [showRecommendations, setShowRecommendations] = useState(false);
   const { playBeat } = usePlayer();
+  
+  // Cast the recommendedBeats data to the correct type or provide an empty array if it's undefined
+  const recommendedBeats = recommendedBeatsData as SupabaseBeat[] | undefined || [];
 
   useEffect(() => {
     // Only show recommendations if we have user and beats
@@ -35,7 +39,7 @@ export function RecommendedBeats() {
     return null; // Don't render anything if there are no recommendations
   }
 
-  const handlePlayBeat = (beat: any) => {
+  const handlePlayBeat = (beat: SupabaseBeat) => {
     if (playBeat && beat) {
       playBeat(beat);
     }
@@ -46,7 +50,7 @@ export function RecommendedBeats() {
   };
 
   // Helper to get producer name from beat data
-  const getProducerName = (beat: any) => {
+  const getProducerName = (beat: SupabaseBeat) => {
     // Check for the producer object first
     if (beat.producer) {
       return beat.producer.full_name || beat.producer.stage_name || 'Producer';
@@ -90,7 +94,7 @@ export function RecommendedBeats() {
           <div className="hidden md:block">
             <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
               <ScrollArea className="max-h-[320px]">
-                {recommendedBeats?.slice(0, 5).map((beat, index) => (
+                {recommendedBeats.slice(0, 5).map((beat, index) => (
                   <div 
                     key={beat.id} 
                     className={cn(
@@ -153,7 +157,7 @@ export function RecommendedBeats() {
           
           {/* Mobile view: Card grid */}
           <div className="grid grid-cols-2 gap-4 md:hidden mt-3">
-            {recommendedBeats?.slice(0, 4).map((beat) => (
+            {recommendedBeats.slice(0, 4).map((beat) => (
               <BeatCardCompact 
                 key={beat.id} 
                 beat={{

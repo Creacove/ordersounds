@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Notification } from '@/types';
 
@@ -65,6 +66,10 @@ export async function notifyBeatSold(
     notificationType: 'sale',
     relatedEntityId: beatId,
     relatedEntityType: 'beat'
+  }).catch(err => {
+    console.error('Failed to send beat sold notification:', err);
+    // Don't throw, this is non-critical functionality
+    return null;
   });
 }
 
@@ -83,6 +88,10 @@ export async function notifyPaymentSuccess(
     notificationType: 'payment',
     relatedEntityId: orderId,
     relatedEntityType: 'order'
+  }).catch(err => {
+    console.error('Failed to send payment success notification:', err);
+    // Don't throw, this is non-critical functionality
+    return null;
   });
 }
 
@@ -100,6 +109,10 @@ export async function notifyBeatFavorited(
     notificationType: 'favorite',
     relatedEntityId: beatId,
     relatedEntityType: 'beat'
+  }).catch(err => {
+    console.error('Failed to send beat favorited notification:', err);
+    // Don't throw, this is non-critical functionality
+    return null;
   });
 }
 
@@ -117,6 +130,10 @@ export async function notifyBeatFeatured(
     notificationType: 'feature',
     relatedEntityId: beatId,
     relatedEntityType: 'beat'
+  }).catch(err => {
+    console.error('Failed to send beat featured notification:', err);
+    // Don't throw, this is non-critical functionality
+    return null;
   });
 }
 
@@ -153,7 +170,11 @@ export async function sendSystemNotification(
         .from('notifications')
         .insert(batch);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error in batch notification:', error);
+        // Continue with other batches even if one fails
+        continue;
+      }
       
       // Add a small delay between batches to reduce load
       if (batches.length > 1) {
@@ -164,6 +185,7 @@ export async function sendSystemNotification(
     return true;
   } catch (error) {
     console.error('Error sending system notifications:', error);
-    throw error;
+    // Don't throw, just log and return false
+    return false;
   }
 }
