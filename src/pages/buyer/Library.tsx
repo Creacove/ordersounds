@@ -12,7 +12,6 @@ import { UserPlaylists } from "@/components/library/UserPlaylists";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useBeats } from "@/hooks/useBeats";
-import { supabase } from '@/integrations/supabase/client';
 
 export default function Library() {
   const { user } = useAuth();
@@ -22,37 +21,6 @@ export default function Library() {
   const [activeTab, setActiveTab] = useState("purchased");
   const isMobile = useIsMobile();
   const { fetchPurchasedBeats } = useBeats();
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const channel = supabase
-      .channel('library-purchase-channel')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'user_purchased_beats',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('New purchase detected in Library:', payload);
-          fetchPurchasedBeats();
-          setActiveTab("purchased");
-          setShowPurchaseSuccess(true);
-          
-          setTimeout(() => {
-            setShowPurchaseSuccess(false);
-          }, 10000);
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, fetchPurchasedBeats]);
 
   useEffect(() => {
     if (location.pathname.includes("/favorites")) {

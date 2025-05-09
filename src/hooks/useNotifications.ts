@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
@@ -162,6 +161,7 @@ export function useNotifications() {
           filter: `recipient_id=eq.${user.id}`
         },
         (payload) => {
+          console.log('Real-time notification received:', payload);
           const newNotification = payload.new as unknown as Notification;
           // Add the new notification to the beginning of the list
           setNotifications(prev => [newNotification, ...prev]);
@@ -171,10 +171,22 @@ export function useNotifications() {
           toast(newNotification.body);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        // Log connection status for debugging
+        console.log('Notifications channel status:', status);
+        
+        // Fallback to polling if WebSocket connection fails
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.log('WebSocket connection failed, using polling fallback');
+          // Set up a polling interval as fallback (every 60 seconds)
+          const pollingInterval = setInterval(fetchNotifications, 60000);
+          return () => clearInterval(pollingInterval);
+        }
+      });
     
     // Clean up the subscription when the component unmounts
     return () => {
+      console.log('Cleaning up notification channel subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { useBeats } from '@/hooks/useBeats';
 import { useAuth } from '@/context/AuthContext';
@@ -15,34 +14,6 @@ export function usePurchasedBeats() {
   const [purchaseDetails, setPurchaseDetails] = useState<Record<string, { licenseType: string, purchaseDate: string }>>({});
   const [beatsLoaded, setBeatsLoaded] = useState(false);
   const location = useLocation();
-  
-  // Set up a subscription to real-time database changes for purchases
-  useEffect(() => {
-    if (!user) return;
-    
-    // Set up a subscription to purchased_beats for the current user
-    const channel = supabase
-      .channel('purchased-beats-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'user_purchased_beats',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('New purchase detected in PurchasedBeats component:', payload);
-          // When a new purchase is detected, refresh the purchased beats list
-          refreshPurchasedBeats();
-        }
-      )
-      .subscribe();
-      
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
   
   // Use memoization to prevent unnecessary re-renders
   const purchasedBeats = useMemo(() => {

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Notification } from '@/types';
 
@@ -121,7 +120,8 @@ export async function notifyBeatFeatured(
   });
 }
 
-// Helper function to send a system message to all users or a specific role
+// Modified helper function to send a system message to all users or a specific role
+// Now using batched requests to reduce DB load
 export async function sendSystemNotification(
   userIds: string[],
   title: string,
@@ -129,20 +129,37 @@ export async function sendSystemNotification(
   type: NotificationType = 'info'
 ) {
   try {
-    const notifications = userIds.map(userId => ({
-      recipient_id: userId,
-      title,
-      body,
-      notification_type: 'system',
-      is_read: false,
-      created_date: new Date().toISOString()
-    }));
+    // Batch notifications in groups of 50 to avoid large payload issues
+    const batchSize = 50;
+    const batches = [];
     
-    const { error } = await supabase
-      .from('notifications')
-      .insert(notifications);
+    for (let i = 0; i < userIds.length; i += batchSize) {
+      const batchUserIds = userIds.slice(i, i + batchSize);
+      const notifications = batchUserIds.map(userId => ({
+        recipient_id: userId,
+        title,
+        body,
+        notification_type: 'system',
+        is_read: false,
+        created_date: new Date().toISOString()
+      }));
+      
+      batches.push(notifications);
+    }
     
-    if (error) throw error;
+    // Process batches sequentially to not overwhelm the database
+    for (const batch of batches) {
+      const { error } = await supabase
+        .from('notifications')
+        .insert(batch);
+      
+      if (error) throw error;
+      
+      // Add a small delay between batches to reduce load
+      if (batches.length > 1) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
     
     return true;
   } catch (error) {

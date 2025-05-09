@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
@@ -68,7 +67,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         
         if (error || !isMountedRef.current) return;
         
-        // Fixed: Type-safe way to access favorites 
+        // Type-safe way to access favorites 
         if (userData && 
             typeof userData === 'object' && 
             'favorites' in userData && 
