@@ -147,6 +147,15 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       return;
     }
 
+    // Create a minimal beat object with only what's needed
+    const minimalBeat = {
+      id: beat.id,
+      title: beat.title,
+      producer_name: beat.producer_name,
+      preview_url: beat.preview_url,
+      cover_image_url: beat.cover_image_url,
+    } as Beat;
+
     if (!currentBeat || currentBeat.id !== beat.id) {
       if (isPlaying) {
         console.log("Stopping current audio before playing new beat");
@@ -158,7 +167,7 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       }
       
       console.log("Setting new beat:", beat.title);
-      setCurrentBeat(beat);
+      setCurrentBeat(minimalBeat);
       
       // Start playing immediately
       setIsPlaying(true);
@@ -186,7 +195,16 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
   };
   
   const addToQueue = (beat: Beat) => {
-    setQueue(prev => [...prev, beat]);
+    // Create a minimal beat object for the queue
+    const minimalBeat = {
+      id: beat.id,
+      title: beat.title,
+      producer_name: beat.producer_name,
+      preview_url: beat.preview_url,
+      cover_image_url: beat.cover_image_url,
+    } as Beat;
+    
+    setQueue(prev => [...prev, minimalBeat]);
   };
   
   const removeFromQueue = (beatId: string) => {

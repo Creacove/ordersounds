@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface UseAudioReturn {
@@ -26,6 +25,7 @@ export const useAudio = (url: string): UseAudioReturn => {
   const [actuallyPlaying, setActuallyPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const previousUrl = useRef<string | null>(null);
+  const timeUpdateInterval = useRef<number | null>(null);
   
   // Initialize audio element with higher priority
   useEffect(() => {
@@ -49,8 +49,33 @@ export const useAudio = (url: string): UseAudioReturn => {
         audioRef.current.pause();
         audioRef.current.src = '';
       }
+      
+      if (timeUpdateInterval.current) {
+        window.clearInterval(timeUpdateInterval.current);
+      }
     };
   }, []);
+
+  // Use a more frequent update interval for smoother progress updates
+  useEffect(() => {
+    if (timeUpdateInterval.current) {
+      window.clearInterval(timeUpdateInterval.current);
+    }
+
+    if (playing && audioRef.current) {
+      timeUpdateInterval.current = window.setInterval(() => {
+        if (audioRef.current) {
+          setCurrentTime(audioRef.current.currentTime || 0);
+        }
+      }, 100); // Update 10 times per second for smoother progress
+    }
+
+    return () => {
+      if (timeUpdateInterval.current) {
+        window.clearInterval(timeUpdateInterval.current);
+      }
+    };
+  }, [playing]);
 
   // Handle URL changes and set up event listeners with optimizations
   useEffect(() => {
@@ -148,7 +173,7 @@ export const useAudio = (url: string): UseAudioReturn => {
         if (audio.readyState < 3 && !audio.paused) {
           setLoading(true);
         }
-      }, 1000); // Reduced timeout
+      }, 500); // Reduced timeout for faster response
     };
 
     // Attach event listeners
@@ -185,7 +210,7 @@ export const useAudio = (url: string): UseAudioReturn => {
       audio.removeEventListener('waiting', handleWaiting);
       audio.removeEventListener('stalled', handleStalled);
     };
-  }, [url, playing]);
+  }, [url, playing, actuallyPlaying]);
   
   // Toggle play/pause with optimized handling
   const togglePlay = useCallback(() => {
@@ -209,7 +234,7 @@ export const useAudio = (url: string): UseAudioReturn => {
       setLoading(true);
       
       // Immediate attempt to play with auto-retry
-      const attemptPlay = async (retries = 3) => {
+      const attemptPlay = async (retries = 2) => {
         try {
           // Force load if not ready
           if (audio.readyState < 2) {
@@ -225,9 +250,10 @@ export const useAudio = (url: string): UseAudioReturn => {
           
           if (retries > 0) {
             console.log(`Retrying playback (${retries} attempts left)...`);
-            setTimeout(() => attemptPlay(retries - 1), 150); // Faster retry
+            setTimeout(() => attemptPlay(retries - 1), 100); // Faster retry
           } else {
             setLoading(false);
+            // Don't set error state - just keep loading state
           }
         }
       };
@@ -248,12 +274,12 @@ export const useAudio = (url: string): UseAudioReturn => {
     setCurrentTime(0);
   }, []);
 
-  // Seek function
+  // Seek function with immediate time update
   const seek = useCallback((time: number) => {
     if (!audioRef.current) return;
     
     audioRef.current.currentTime = time;
-    setCurrentTime(time);
+    setCurrentTime(time); // Update immediately for UI responsiveness
   }, []);
   
   // Reload function - faster with less delay
@@ -280,7 +306,7 @@ export const useAudio = (url: string): UseAudioReturn => {
             // Silent catch, will retry in background
           });
       }
-    }, 100);
+    }, 50); // Even faster retry
   }, [url]);
 
   return {

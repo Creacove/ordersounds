@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
 import { Play, Pause, SkipBack, SkipForward, Loader } from 'lucide-react';
@@ -26,11 +26,14 @@ export function PersistentPlayer() {
     previousTrack,
     error = false,
     loading = false,
-    reload,
-    progress
+    reload
   } = usePlayer();
   
   const isMobile = useIsMobile();
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  // Calculate progress percentage safely
+  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   // Preload next track when queue changes
   useEffect(() => {
@@ -68,12 +71,13 @@ export function PersistentPlayer() {
     )}>
       {/* Spotify-like progress bar at the very top of the player */}
       <div 
+        ref={progressRef}
         className="w-full h-1 bg-muted relative cursor-pointer"
         onClick={handleProgressBarClick}
       >
         <div 
           className={loading ? "h-full transition-all bg-amber-500 animate-pulse" : "h-full transition-all bg-primary"}
-          style={{ width: `${progress || (duration > 0 ? (currentTime / duration) * 100 : 0)}%` }}
+          style={{ width: `${progressPercentage}%` }}
         />
         {/* Make the input cover the entire area for better touch targets */}
         {!error && (
@@ -81,7 +85,7 @@ export function PersistentPlayer() {
             type="range"
             min={0}
             max={duration || 0}
-            value={currentTime}
+            value={currentTime || 0}
             onChange={(e) => seek(parseFloat(e.target.value))}
             className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
             style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile

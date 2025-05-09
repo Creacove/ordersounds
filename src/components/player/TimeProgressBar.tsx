@@ -65,7 +65,7 @@ export function TimeProgressBar({
           type="range"
           min={0}
           max={duration || 0}
-          value={currentTime}
+          value={currentTime || 0}
           onChange={(e) => seek(parseFloat(e.target.value))}
           className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
           disabled={duration <= 0}
