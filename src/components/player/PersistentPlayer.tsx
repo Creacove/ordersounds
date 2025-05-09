@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
 import { Play, Pause, SkipBack, SkipForward, Loader } from 'lucide-react';
@@ -31,22 +31,17 @@ export function PersistentPlayer() {
   
   const isMobile = useIsMobile();
   const progressRef = useRef<HTMLDivElement>(null);
-
-  // Calculate progress percentage safely
-  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  // Preload next track when queue changes
+  const [progressPercentage, setProgressPercentage] = useState(0);
+  
+  // Update progress percentage whenever currentTime or duration changes
   useEffect(() => {
-    if (queue.length > 0 && queue[0]?.preview_url) {
-      const audio = new Audio();
-      audio.preload = "auto";
-      audio.src = queue[0].preview_url;
-      
-      return () => {
-        audio.src = '';
-      };
+    if (duration > 0) {
+      const newProgress = (currentTime / duration) * 100;
+      setProgressPercentage(newProgress > 100 ? 100 : newProgress);
+    } else {
+      setProgressPercentage(0);
     }
-  }, [queue]);
+  }, [currentTime, duration]);
 
   // Even when no beat is selected, we render a hidden player to maintain the layout
   if (!currentBeat) {
@@ -55,7 +50,7 @@ export function PersistentPlayer() {
 
   // Handle clicking on the top progress bar
   const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (error || duration <= 0) return;
+    if (error || duration <= 0 || loading) return;
     
     const container = e.currentTarget;
     const rect = container.getBoundingClientRect();
@@ -80,18 +75,16 @@ export function PersistentPlayer() {
           style={{ width: `${progressPercentage}%` }}
         />
         {/* Make the input cover the entire area for better touch targets */}
-        {!error && (
-          <input 
-            type="range"
-            min={0}
-            max={duration || 0}
-            value={currentTime || 0}
-            onChange={(e) => seek(parseFloat(e.target.value))}
-            className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
-            style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile
-            disabled={duration <= 0 || loading}
-          />
-        )}
+        <input 
+          type="range"
+          min={0}
+          max={duration || 0}
+          value={currentTime || 0}
+          onChange={(e) => seek(parseFloat(e.target.value))}
+          className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
+          style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile
+          disabled={duration <= 0 || loading || error}
+        />
       </div>
       
       <div className="container mx-auto px-4 py-3 md:py-4 flex items-center gap-4">
