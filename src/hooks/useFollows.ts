@@ -1,8 +1,9 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { SupabaseBeat } from '@/services/beats/types';
+import { SupabaseBeat, isSupabaseBeatArray } from '@/services/beats/types';
 
 export const useFollows = () => {
   const { user } = useAuth();
@@ -25,8 +26,8 @@ export const useFollows = () => {
         throw error;
       }
 
-      // Ensure data is an array (recommended beats)
-      return Array.isArray(data) ? data : [];
+      // Ensure data is an array (recommended beats) and validate it
+      return isSupabaseBeatArray(data) ? data : [];
     } catch (error) {
       console.error('Error fetching recommended beats:', error);
       return [];
@@ -198,11 +199,23 @@ export const useFollows = () => {
     });
   };
 
+  // Add a toggleFollow function that decides whether to follow or unfollow
+  const toggleFollow = async (producerId: string, isCurrentlyFollowing: boolean): Promise<boolean> => {
+    if (isCurrentlyFollowing) {
+      await unfollowProducer(producerId);
+      return false;
+    } else {
+      await followProducer(producerId);
+      return true;
+    }
+  };
+
   return {
     useFollowStatus,
     useFollowProducer,
     useUnfollowProducer,
     useFollowedProducers,
     useRecommendedBeats,
+    toggleFollow, // Export the new function
   };
 };

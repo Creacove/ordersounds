@@ -12,10 +12,13 @@ import { CreatePlaylistForm } from './CreatePlaylistForm';
 import { PlaylistCard } from './PlaylistCard';
 import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Database } from '@/integrations/supabase/types';
+
+type Playlist = Database['public']['Tables']['playlists']['Row'];
 
 export function UserPlaylists() {
   const { user } = useAuth();
-  const [playlists, setPlaylists] = useState([]);
+  const [playlists, setPlaylists] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -30,7 +33,7 @@ export function UserPlaylists() {
       const { data, error } = await supabase
         .from('playlists')
         .select('*')
-        .eq('owner_id', user.id)
+        .filter('owner_id', 'eq', user.id)
         .order('created_date', { ascending: false }); // Changed from created_at to created_date
         
       if (error) throw error;
@@ -61,17 +64,19 @@ export function UserPlaylists() {
     }
   };
 
-  const handleCreatePlaylist = async (playlistData) => {
+  const handleCreatePlaylist = async (playlistData: any) => {
     try {
+      const newPlaylist = {
+        name: playlistData.name,
+        owner_id: user?.id,
+        is_public: playlistData.isPublic,
+        cover_image: playlistData.coverImage || null,
+        beats: []
+      };
+      
       const { data, error } = await supabase
         .from('playlists')
-        .insert({
-          name: playlistData.name,
-          owner_id: user.id,
-          is_public: playlistData.isPublic,
-          cover_image: playlistData.coverImage || null,
-          beats: []
-        })
+        .insert(newPlaylist)
         .select()
         .single();
         
@@ -86,7 +91,7 @@ export function UserPlaylists() {
     }
   };
 
-  const handlePlaylistClick = (playlistId) => {
+  const handlePlaylistClick = (playlistId: string) => {
     navigate(`/my-playlists/${playlistId}`);
   };
 
@@ -158,8 +163,17 @@ export function UserPlaylists() {
           {playlists.map((playlist) => (
             <PlaylistCard 
               key={playlist.id} 
-              playlist={playlist} 
-              onClick={handlePlaylistClick}
+              playlist={{
+                id: playlist.id,
+                name: playlist.name,
+                owner_id: playlist.owner_id,
+                cover_image: playlist.cover_image,
+                is_public: playlist.is_public,
+                beats: playlist.beats || [],
+                created_at: playlist.created_date || new Date().toISOString(),
+                updated_at: playlist.created_date || new Date().toISOString()
+              }} 
+              onClick={() => handlePlaylistClick(playlist.id)}
             />
           ))}
         </div>

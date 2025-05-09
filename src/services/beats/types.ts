@@ -36,3 +36,12 @@ export interface SupabaseBeat {
   is_weekly_pick?: boolean | null;
   license_type?: string | null;
 }
+
+// Add type guards for safer type checking
+export function isSupabaseBeat(obj: any): obj is SupabaseBeat {
+  return obj && typeof obj === 'object' && 'id' in obj && 'title' in obj;
+}
+
+export function isSupabaseBeatArray(obj: any): obj is SupabaseBeat[] {
+  return Array.isArray(obj) && (obj.length === 0 || isSupabaseBeat(obj[0]));
+}

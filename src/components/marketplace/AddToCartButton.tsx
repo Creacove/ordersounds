@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
@@ -46,7 +47,7 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         const queryPromise = supabase
           .from('users')
           .select('favorites')
-          .eq('id', user.id)
+          .filter('id', 'eq', user.id)
           .single();
           
         const response = await Promise.race([
@@ -54,18 +55,11 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
           timeoutPromise
         ]);
         
-        // Type-safe response handling
-        const userData = response && 
-          typeof response === 'object' && 
-          'data' in response ? 
-          response.data : null;
+        if (!response || !('data' in response) || response.error || !isMountedRef.current) {
+          return;
+        }
           
-        const error = response && 
-          typeof response === 'object' && 
-          'error' in response ? 
-          response.error : null;
-        
-        if (error || !isMountedRef.current) return;
+        const userData = response.data;
         
         // Type-safe way to access favorites 
         if (userData && 
@@ -139,28 +133,17 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
       setIsFavoriting(true);
       
       // Get current favorites
-      const response = await supabase
+      const { data, error } = await supabase
         .from('users')
         .select('favorites')
-        .eq('id', user.id)
+        .filter('id', 'eq', user.id)
         .single();
       
-      // Type-safe response handling
-      const userData = response && 
-        typeof response === 'object' && 
-        'data' in response ? 
-        response.data : null;
-        
-      const userError = response && 
-        typeof response === 'object' && 
-        'error' in response ? 
-        response.error : null;
-      
-      if (userError) {
-        throw userError;
+      if (error || !data) {
+        throw error || new Error("No user data returned");
       }
       
-      let favorites = userData?.favorites || [];
+      let favorites = data.favorites || [];
       
       if (!Array.isArray(favorites)) {
         favorites = [];
@@ -198,18 +181,23 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         
         // Create notification for beat owner if present
         if (beat.producer_id) {
-          await supabase
-            .from('notifications')
-            .insert({
-              recipient_id: beat.producer_id,
-              sender_id: user.id,
-              notification_type: 'favorite',
-              title: 'New favorite',
-              body: `Someone favorited your beat "${beat.title}"`,
-              is_read: false,
-              related_entity_id: beat.id,
-              related_entity_type: 'beat'
-            });
+          try {
+            await supabase
+              .from('notifications')
+              .insert({
+                recipient_id: beat.producer_id,
+                sender_id: user.id,
+                notification_type: 'favorite',
+                title: 'New favorite',
+                body: `Someone favorited your beat "${beat.title}"`,
+                is_read: false,
+                related_entity_id: beat.id,
+                related_entity_type: 'beat'
+              });
+          } catch (notifyError) {
+            console.error("Error creating notification:", notifyError);
+            // Don't fail the whole operation if just the notification fails
+          }
         }
         
         if (isMountedRef.current) {

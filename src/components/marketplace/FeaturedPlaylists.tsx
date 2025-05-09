@@ -16,7 +16,7 @@ export const FeaturedPlaylists = () => {
         const { data, error } = await supabase
           .from('playlists')
           .select('*')
-          .eq('is_public', true)
+          .filter('is_public', 'eq', true)
           .limit(4);
           
         if (error) {
@@ -25,11 +25,21 @@ export const FeaturedPlaylists = () => {
           return [];
         }
         
+        if (!data || !Array.isArray(data)) {
+          return [];
+        }
+        
         // Map the data to match the Playlist type
-        return (data || []).map(playlist => ({
-          ...playlist,
+        return data.map(playlist => ({
+          id: playlist.id,
+          name: playlist.name,
+          owner_id: playlist.owner_id,
+          cover_image: playlist.cover_image,
+          is_public: playlist.is_public,
+          beats: playlist.beats || [],
           created_at: playlist.created_date || new Date().toISOString(),
-        })) as Playlist[];
+          updated_at: playlist.created_date || new Date().toISOString()
+        } as Playlist));
       } catch (err) {
         console.error("Exception fetching playlists:", err);
         uniqueToast.error("Failed to load playlists");

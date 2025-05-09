@@ -1,7 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { User, Beat } from '@/types';
-import { SupabaseBeat } from '@/services/beats/types';
+import { SupabaseBeat, isSupabaseBeat } from '@/services/beats/types';
 
 // Use the correct Supabase URL and anon key from the integrations folder
 import { supabase as integrationClient } from '@/integrations/supabase/client';
@@ -43,6 +43,10 @@ export const mapSupabaseUser = (user: any): User => {
 
 // Add a helper function to map database beat objects to Beat interface
 export const mapSupabaseBeat = (beat: SupabaseBeat): Beat => {
+  if (!isSupabaseBeat(beat)) {
+    throw new Error('Invalid beat data structure');
+  }
+
   // Get producer name with proper fallbacks
   const getProducerName = (): string => {
     if (beat.users) {
@@ -96,5 +100,15 @@ export const mapSupabaseBeat = (beat: SupabaseBeat): Beat => {
 // Helper function to convert an array of database beats to our Beat interface
 export const mapSupabaseBeats = (beats: SupabaseBeat[]): Beat[] => {
   if (!beats || !Array.isArray(beats)) return [];
-  return beats.map(mapSupabaseBeat);
+  return beats.filter(isSupabaseBeat).map(mapSupabaseBeat);
+};
+
+// Type-safe helper functions for checking if Supabase responses contain data
+export const hasData = <T>(response: { data: T | null; error: any | null }): response is { data: T; error: null } => {
+  return response.data !== null && !response.error;
+};
+
+export const isUUID = (id: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
 };

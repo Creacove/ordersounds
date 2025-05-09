@@ -39,9 +39,9 @@ export function FollowButton({
     
     setIsLoading(true);
     try {
-      const result = await toggleFollow(producerId, followState);
-      if (result && onFollowChange) {
-        onFollowChange(!followState);
+      const newFollowState = await toggleFollow(producerId, followState);
+      if (onFollowChange) {
+        onFollowChange(newFollowState);
       }
     } catch (error) {
       console.error("Follow toggle error:", error);
