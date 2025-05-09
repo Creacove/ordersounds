@@ -4,8 +4,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.tsx'
 import './index.css'
+import { AuthProvider } from './context/AuthContext'
 import SolanaWalletProvider from './components/wallet/SolanaWalletProvider.tsx'
-
 
 //Polyfills for Solana wallet adapter
 import { Buffer } from 'buffer';
@@ -17,8 +17,10 @@ if (!rootElement) throw new Error('Root element not found');
 const root = createRoot(rootElement);
 root.render(
   <BrowserRouter>
-    <SolanaWalletProvider>
-      <App />
-    </SolanaWalletProvider>
+    <AuthProvider>
+      <SolanaWalletProvider>
+        <App />
+      </SolanaWalletProvider>
+    </AuthProvider>
   </BrowserRouter>
 );
