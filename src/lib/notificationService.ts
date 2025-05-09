@@ -66,10 +66,6 @@ export async function notifyBeatSold(
     notificationType: 'sale',
     relatedEntityId: beatId,
     relatedEntityType: 'beat'
-  }).catch(err => {
-    console.error('Failed to send beat sold notification:', err);
-    // Don't throw, this is non-critical functionality
-    return null;
   });
 }
 
@@ -88,10 +84,6 @@ export async function notifyPaymentSuccess(
     notificationType: 'payment',
     relatedEntityId: orderId,
     relatedEntityType: 'order'
-  }).catch(err => {
-    console.error('Failed to send payment success notification:', err);
-    // Don't throw, this is non-critical functionality
-    return null;
   });
 }
 
@@ -109,10 +101,6 @@ export async function notifyBeatFavorited(
     notificationType: 'favorite',
     relatedEntityId: beatId,
     relatedEntityType: 'beat'
-  }).catch(err => {
-    console.error('Failed to send beat favorited notification:', err);
-    // Don't throw, this is non-critical functionality
-    return null;
   });
 }
 
@@ -130,15 +118,10 @@ export async function notifyBeatFeatured(
     notificationType: 'feature',
     relatedEntityId: beatId,
     relatedEntityType: 'beat'
-  }).catch(err => {
-    console.error('Failed to send beat featured notification:', err);
-    // Don't throw, this is non-critical functionality
-    return null;
   });
 }
 
-// Modified helper function to send a system message to all users or a specific role
-// Now using batched requests to reduce DB load
+// Helper function to send a system message to all users or a specific role
 export async function sendSystemNotification(
   userIds: string[],
   title: string,
@@ -146,46 +129,24 @@ export async function sendSystemNotification(
   type: NotificationType = 'info'
 ) {
   try {
-    // Batch notifications in groups of 50 to avoid large payload issues
-    const batchSize = 50;
-    const batches = [];
+    const notifications = userIds.map(userId => ({
+      recipient_id: userId,
+      title,
+      body,
+      notification_type: 'system',
+      is_read: false,
+      created_date: new Date().toISOString()
+    }));
     
-    for (let i = 0; i < userIds.length; i += batchSize) {
-      const batchUserIds = userIds.slice(i, i + batchSize);
-      const notifications = batchUserIds.map(userId => ({
-        recipient_id: userId,
-        title,
-        body,
-        notification_type: 'system',
-        is_read: false,
-        created_date: new Date().toISOString()
-      }));
-      
-      batches.push(notifications);
-    }
+    const { error } = await supabase
+      .from('notifications')
+      .insert(notifications);
     
-    // Process batches sequentially to not overwhelm the database
-    for (const batch of batches) {
-      const { error } = await supabase
-        .from('notifications')
-        .insert(batch);
-      
-      if (error) {
-        console.error('Error in batch notification:', error);
-        // Continue with other batches even if one fails
-        continue;
-      }
-      
-      // Add a small delay between batches to reduce load
-      if (batches.length > 1) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-    }
+    if (error) throw error;
     
     return true;
   } catch (error) {
     console.error('Error sending system notifications:', error);
-    // Don't throw, just log and return false
-    return false;
+    throw error;
   }
 }

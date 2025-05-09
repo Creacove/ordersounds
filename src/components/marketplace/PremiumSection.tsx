@@ -5,9 +5,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
 export const PremiumSection = () => {
-  // Safe access using optional chaining and default value
-  const auth = useAuth();
-  const user = auth?.user || null;
+  const { user } = useAuth();
   
   if (user) {
     return (

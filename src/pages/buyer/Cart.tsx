@@ -12,6 +12,7 @@ import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from '@/components/ui/badge';
 import { getLicensePrice } from '@/utils/licenseUtils';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
+import { supabase } from '@/integrations/supabase/client';
 import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
 import WalletButton from "@/components/wallet/WalletButton";
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -94,9 +95,38 @@ export default function Cart() {
     
     initializeCart();
     
-    // REMOVED real-time subscription to reduce WebSocket connections
-    // Using refresh button instead for on-demand updates
+    // Setup purchase listener
+    const setupPurchaseListener = () => {
+      if (!user) return { unsubscribe: () => {} };
+      
+      return supabase
+        .channel('purchased-beats-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'user_purchased_beats',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            console.log('New purchase detected in Cart:', payload);
+            clearCart();
+            localStorage.setItem('purchaseSuccess', 'true');
+            localStorage.setItem('purchaseTime', Date.now().toString());
+            
+            // Redirect to library
+            window.location.href = '/library';
+          }
+        )
+        .subscribe();
+    };
     
+    const subscription = setupPurchaseListener();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [user, clearCart, refreshCart]);
   
   // Handle remove item with optimistic UI update

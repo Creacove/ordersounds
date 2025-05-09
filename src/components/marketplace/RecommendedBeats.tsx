@@ -12,22 +12,14 @@ import { EmptyState } from '@/components/library/EmptyState';
 import { usePlayer } from '@/context/PlayerContext';
 import { toast } from 'sonner';
 import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
-import { SupabaseBeat, isSupabaseBeat, isSupabaseBeatArray } from '@/services/beats/types';
-import { mapSupabaseBeat } from '@/lib/supabase';
-import { Beat } from '@/types';
 
 export function RecommendedBeats() {
   const { user } = useAuth();
   const { useRecommendedBeats } = useFollows();
-  const { data: recommendedBeatsData, isLoading } = useRecommendedBeats();
+  const { data: recommendedBeats, isLoading } = useRecommendedBeats();
   const [viewAll, setViewAll] = useState(false);
   const { playBeat } = usePlayer();
   const { isDuplicate, addNotification } = useUniqueNotifications();
-  
-  // Process and validate the incoming data
-  const recommendedBeats = isSupabaseBeatArray(recommendedBeatsData) 
-    ? recommendedBeatsData
-    : [];
   
   // If not logged in, don't show anything
   if (!user) {
@@ -84,49 +76,22 @@ export function RecommendedBeats() {
   };
   
   // Helper function to get producer name
-  const getProducerName = (beat: SupabaseBeat): string => {
-    if (!isSupabaseBeat(beat)) return 'Unknown Producer';
-    
+  const getProducerName = (beat: any) => {
     // Check for the producer object first
+    if (beat.producer) {
+      return beat.producer.full_name || beat.producer.stage_name || 'Producer';
+    }
+    
+    // Check for the users object (backward compatibility)
     if (beat.users) {
-      if (typeof beat.users === 'object') {
-        if (beat.users.stage_name) return beat.users.stage_name;
-        if (beat.users.full_name) return beat.users.full_name;
-      }
+      return beat.users.full_name || beat.users.stage_name || 'Producer';
     }
     
     // Fallback to direct properties
-    if (beat.producer_id) return `Producer ${beat.producer_id.substring(0, 8)}`;
+    if (beat.full_name) return beat.full_name;
+    if (beat.producer_name) return beat.producer_name;
     
     return 'Producer';
-  };
-  
-  // Convert SupabaseBeat to Beat
-  const convertToBeat = (beat: SupabaseBeat): Beat => {
-    try {
-      return mapSupabaseBeat(beat);
-    } catch (error) {
-      console.error("Error mapping beat:", error);
-      // Return a minimal valid Beat object
-      return {
-        id: beat.id,
-        title: beat.title,
-        producer_id: beat.producer_id,
-        producer_name: getProducerName(beat),
-        cover_image_url: beat.cover_image || '',
-        preview_url: beat.audio_preview || '',
-        full_track_url: beat.audio_file || '',
-        genre: beat.genre || '',
-        track_type: beat.track_type || '',
-        bpm: beat.bpm || 0,
-        tags: beat.tags || [],
-        status: (beat.status as 'draft' | 'published') || 'published',
-        created_at: beat.upload_date || new Date().toISOString(),
-        favorites_count: beat.favorites_count || 0,
-        purchase_count: beat.purchase_count || 0,
-        plays: beat.plays || 0
-      };
-    }
   };
   
   return (
@@ -150,91 +115,100 @@ export function RecommendedBeats() {
       {/* Desktop view: Modern table layout without column headers */}
       <div className="hidden md:block rounded-xl border bg-card overflow-hidden mt-3 shadow-sm">
         <div className="max-h-[400px] overflow-y-auto">
-          {beatsToShow.map((beat, index) => {
-            // Skip invalid beat data
-            if (!isSupabaseBeat(beat)) return null;
-            
-            return (
-              <Link
-                key={beat.id}
-                to={`/beat/${beat.id}`}
-                className={cn(
-                  "flex items-center px-4 py-3 hover:bg-muted/50 cursor-pointer group transition-colors",
-                  index !== 0 && "border-t border-border"
-                )}
-              >
-                <div className="flex-1 flex items-center gap-3 min-w-0">
-                  <div className="relative w-10 h-10 rounded-md bg-muted flex-shrink-0">
-                    {beat.cover_image ? (
-                      <img 
-                        src={beat.cover_image} 
-                        alt={beat.title} 
-                        className="w-full h-full object-cover rounded-md"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/placeholder.svg';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-primary/10 rounded-md">
-                        <ShoppingCart className="h-5 w-5 text-primary" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="truncate">
-                    <div className="font-medium truncate">{beat.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {beat.license_type ? `${beat.license_type} License` : 'Basic License'}
+          {beatsToShow.map((beat, index) => (
+            <Link
+              key={beat.id}
+              to={`/beat/${beat.id}`}
+              className={cn(
+                "flex items-center px-4 py-3 hover:bg-muted/50 cursor-pointer group transition-colors",
+                index !== 0 && "border-t border-border"
+              )}
+            >
+              <div className="flex-1 flex items-center gap-3 min-w-0">
+                <div className="relative w-10 h-10 rounded-md bg-muted flex-shrink-0">
+                  {beat.cover_image ? (
+                    <img 
+                      src={beat.cover_image} 
+                      alt={beat.title} 
+                      className="w-full h-full object-cover rounded-md"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder.svg';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-primary/10 rounded-md">
+                      <ShoppingCart className="h-5 w-5 text-primary" />
                     </div>
+                  )}
+                </div>
+                <div className="truncate">
+                  <div className="font-medium truncate">{beat.title}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {beat.license_type ? `${beat.license_type} License` : 'Basic License'}
                   </div>
                 </div>
-                
-                <div className="w-1/4 truncate text-sm px-2">
-                  {getProducerName(beat)}
-                </div>
-                
-                <div className="w-1/6 truncate text-sm capitalize px-2">
-                  {beat.genre?.toLowerCase() || 'Various'}
-                </div>
-                
-                <div className="w-[60px] text-center text-sm px-2">
-                  {beat.bpm || '-'}
-                </div>
-                
-                <div className="w-[80px] text-right flex items-center justify-end">
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="h-7 w-7 rounded-full hover:bg-primary/10"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // Add to cart functionality
-                      handleAddToCart(beat.id, beat.title);
-                    }}
-                  >
-                    <ShoppingCart className="h-4 w-4" />
-                  </Button>
-                </div>
-              </Link>
-            );
-          })}
+              </div>
+              
+              <div className="w-1/4 truncate text-sm px-2">
+                {getProducerName(beat)}
+              </div>
+              
+              <div className="w-1/6 truncate text-sm capitalize px-2">
+                {beat.genre?.toLowerCase() || 'Various'}
+              </div>
+              
+              <div className="w-[60px] text-center text-sm px-2">
+                {beat.bpm || '-'}
+              </div>
+              
+              <div className="w-[80px] text-right flex items-center justify-end">
+                <Button 
+                  size="icon" 
+                  variant="ghost" 
+                  className="h-7 w-7 rounded-full hover:bg-primary/10"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    // Add to cart functionality
+                    handleAddToCart(beat.id, beat.title);
+                  }}
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                </Button>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
 
       {/* Mobile view: Grid of BeatCardCompact */}
       <div className="grid grid-cols-2 gap-2 md:hidden mt-3">
-        {beatsToShow.map((beat) => {
-          // Skip invalid beat data
-          if (!isSupabaseBeat(beat)) return null;
-          
-          return (
-            <BeatCardCompact 
-              key={beat.id} 
-              beat={convertToBeat(beat)}
-            />
-          );
-        })}
+        {beatsToShow.map((beat) => (
+          <BeatCardCompact 
+            key={beat.id} 
+            beat={{
+              id: beat.id,
+              title: beat.title,
+              producer_id: beat.producer_id,
+              producer_name: getProducerName(beat),
+              cover_image_url: beat.cover_image,
+              basic_license_price_local: beat.basic_license_price_local || 0,
+              basic_license_price_diaspora: beat.basic_license_price_diaspora || beat.basic_license_price_local || 0,
+              genre: beat.genre || '',
+              created_at: beat.upload_date || '',
+              favorites_count: beat.favorites_count || 0,
+              purchase_count: beat.purchase_count || 0,
+              plays: beat.plays || 0,
+              preview_url: beat.audio_preview || '',
+              full_track_url: beat.audio_file || '',
+              bpm: beat.bpm || 0,
+              track_type: beat.track_type || '',
+              tags: beat.tags || [],
+              status: (beat.status as 'draft' | 'published') || 'published',
+            }} 
+          />
+        ))}
       </div>
       
       {recommendedBeats.length > 5 && viewAll && (

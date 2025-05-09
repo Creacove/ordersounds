@@ -30,22 +30,6 @@ export const supabase = createClient<Database>(
         };
         return fetch(url, requestOptions);
       }
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 1 // Reduce WebSocket message frequency
-      },
-      // Set a reasonable timeout for WebSocket connections (10 seconds)
-      timeout: 10000,
-      // Implement an exponential backoff strategy for reconnections
-      retryAfter: (attempts) => {
-        // Start with 2 seconds, then 4, 8, 16, 32 (max)
-        const retryDelay = Math.min(32000, 2000 * Math.pow(2, attempts));
-        console.log(`WebSocket reconnect attempt ${attempts}, retry in ${retryDelay}ms`);
-        return retryDelay;
-      },
-      // Limit max reconnection attempts to 5 (instead of default 20)
-      maxRetryAttempts: 5
     }
   }
 );

@@ -1,185 +1,205 @@
 
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
-export const useFollows = () => {
+export function useFollows() {
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
   const queryClient = useQueryClient();
-  const auth = useAuth();
-  const userId = auth?.user?.id;
-
-  // Check if a user is following a producer
-  const useFollowStatus = (producerId: string) => {
+  
+  // Get follow status for a specific producer
+  const useFollowStatus = (producerId: string | undefined) => {
     return useQuery({
-      queryKey: ['follow-status', producerId],
+      queryKey: ['followStatus', producerId],
       queryFn: async () => {
-        if (!userId) return false;
-
+        if (!producerId) return false;
+        
         try {
-          const { data, error } = await supabase.rpc('is_following', {
-            follower_id: userId,
-            following_id: producerId
+          const { data: session } = await supabase.auth.getSession();
+          if (!session || !session.session) return false;
+          
+          // Direct database query instead of edge function to check follow status
+          const { data, error } = await supabase.rpc('check_follow_status', {
+            p_follower_id: session.session.user.id,
+            p_followee_id: producerId,
           });
-
-          if (error) throw error;
+          
+          if (error) {
+            console.error('Error checking follow status:', error);
+            return false;
+          }
+          
           return !!data;
         } catch (error) {
-          console.error('Follow status error:', error);
+          console.error('Error getting follow status:', error);
           return false;
         }
       },
-      enabled: !!userId && !!producerId
+      enabled: !!producerId,
     });
   };
-
-  // Follow producer mutation
-  const useFollowProducer = () => {
-    return useMutation({
-      mutationFn: async (producerId: string) => {
-        if (!userId) throw new Error('User must be logged in to follow');
-        
-        const { data, error } = await supabase
-          .rpc('follow_producer', {
-            follower_id: userId,
-            producer_id: producerId
-          });
-          
-        if (error) throw error;
-        return true;
-      },
-      onSuccess: (_, producerId) => {
-        queryClient.invalidateQueries({ queryKey: ['follow-status', producerId] });
-        queryClient.invalidateQueries({ queryKey: ['followed-producers'] });
-      }
-    });
-  };
-
-  // Unfollow producer mutation
-  const useUnfollowProducer = () => {
-    return useMutation({
-      mutationFn: async (producerId: string) => {
-        if (!userId) throw new Error('User must be logged in to unfollow');
-        
-        const { data, error } = await supabase
-          .rpc('unfollow_producer', {
-            follower_id: userId,
-            producer_id: producerId
-          });
-          
-        if (error) throw error;
-        return false;
-      },
-      onSuccess: (_, producerId) => {
-        queryClient.invalidateQueries({ queryKey: ['follow-status', producerId] });
-        queryClient.invalidateQueries({ queryKey: ['followed-producers'] });
-      }
-    });
-  };
-
-  // Get list of producers the user follows
-  const useFollowedProducers = () => {
-    return useQuery({
-      queryKey: ['followed-producers'],
-      queryFn: async () => {
-        if (!userId) return [];
-
-        try {
-          const { data, error } = await supabase
-            .from('follows')
-            .select('following_id, users!follows_following_id_fkey(id, full_name, stage_name, profile_picture)')
-            .eq('follower_id', userId);
-
-          if (error) throw error;
-          
-          return data.map(item => ({
-            id: item.following_id,
-            name: item.users?.stage_name || item.users?.full_name || 'Unknown Producer',
-            avatar_url: item.users?.profile_picture || null
-          }));
-        } catch (error) {
-          console.error('Fetch followed producers error:', error);
-          return [];
-        }
-      },
-      enabled: !!userId
-    });
-  };
-
-  // Get recommended beats based on followed producers
-  const useRecommendedBeats = () => {
-    return useQuery({
-      queryKey: ['recommended-beats'],
-      queryFn: async () => {
-        if (!userId) return [];
-        
-        try {
-          const { data, error } = await supabase.functions.invoke('get-recommended-beats', {
-            body: { userId }
-          });
-          
-          if (error) throw error;
-          return data || [];
-        } catch (error) {
-          console.error('Fetch recommended beats error:', error);
-          return [];
-        }
-      },
-      enabled: !!userId
-    });
-  };
-
-  // Toggle follow status
-  const toggleFollow = async (producerId: string, isCurrentlyFollowing: boolean) => {
-    if (!userId) {
-      toast.error("Please sign in to follow producers");
-      return isCurrentlyFollowing;
-    }
+  
+  // Follow a producer
+  const followProducer = async (producerId: string) => {
+    if (!producerId) return false;
+    
+    setIsFollowLoading(true);
     
     try {
-      if (isCurrentlyFollowing) {
-        // Unfollow
-        const { error } = await supabase
-          .rpc('unfollow_producer', {
-            follower_id: userId,
-            producer_id: producerId
-          });
-          
-        if (error) throw error;
-        
-        // Invalidate queries
-        queryClient.invalidateQueries({ queryKey: ['follow-status', producerId] });
-        queryClient.invalidateQueries({ queryKey: ['followed-producers'] });
+      const { data: session } = await supabase.auth.getSession();
+      if (!session || !session.session) {
+        toast.error("You must be logged in to follow a producer");
         return false;
-      } else {
-        // Follow
-        const { error } = await supabase
-          .rpc('follow_producer', {
-            follower_id: userId,
-            producer_id: producerId
-          });
-          
-        if (error) throw error;
-        
-        // Invalidate queries
-        queryClient.invalidateQueries({ queryKey: ['follow-status', producerId] });
-        queryClient.invalidateQueries({ queryKey: ['followed-producers'] });
-        return true;
       }
-    } catch (error) {
-      console.error('Toggle follow error:', error);
-      toast.error("Failed to update follow status");
-      return isCurrentlyFollowing;
+      
+      // Direct database call instead of edge function
+      const { error } = await supabase.rpc('follow_producer', {
+        p_follower_id: session.session.user.id,
+        p_followee_id: producerId,
+      });
+      
+      if (error) {
+        if (error.message.includes("Already following")) {
+          toast.error("You're already following this producer");
+          return false;
+        }
+        throw new Error(error.message);
+      }
+      
+      // Invalidate follow status query after successful follow
+      queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
+      // Update the producer's follower count in the cache
+      queryClient.invalidateQueries({ queryKey: ['producer', producerId] });
+      // Update the producers list to refresh follower counts
+      queryClient.invalidateQueries({ queryKey: ['producers'] });
+      
+      toast.success("You're now following this producer");
+      return true;
+    } catch (error: any) {
+      console.error('Error following producer:', error);
+      toast.error(error.message || 'Failed to follow producer');
+      return false;
+    } finally {
+      setIsFollowLoading(false);
     }
   };
-
-  return {
-    useFollowStatus,
-    useFollowProducer,
-    useUnfollowProducer,
-    useFollowedProducers,
-    useRecommendedBeats,
-    toggleFollow
+  
+  // Unfollow a producer
+  const unfollowProducer = async (producerId: string) => {
+    if (!producerId) return false;
+    
+    setIsFollowLoading(true);
+    
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      if (!session || !session.session) {
+        toast.error("You must be logged in to unfollow a producer");
+        return false;
+      }
+      
+      // Direct database call instead of edge function
+      const { error } = await supabase.rpc('unfollow_producer', {
+        p_follower_id: session.session.user.id,
+        p_followee_id: producerId,
+      });
+      
+      if (error) {
+        if (error.message.includes("Not following")) {
+          toast.error("You're not following this producer");
+          return false;
+        }
+        throw new Error(error.message);
+      }
+      
+      // Invalidate follow status query after successful unfollow
+      queryClient.invalidateQueries({ queryKey: ['followStatus', producerId] });
+      // Update the producer's follower count in the cache
+      queryClient.invalidateQueries({ queryKey: ['producer', producerId] });
+      // Update the producers list to refresh follower counts
+      queryClient.invalidateQueries({ queryKey: ['producers'] });
+      
+      toast.success("You've unfollowed this producer");
+      return true;
+    } catch (error: any) {
+      console.error('Error unfollowing producer:', error);
+      toast.error(error.message || 'Failed to unfollow producer');
+      return false;
+    } finally {
+      setIsFollowLoading(false);
+    }
   };
-};
+  
+  // Toggle follow status (follow or unfollow)
+  const toggleFollow = async (producerId: string, isCurrentlyFollowing: boolean) => {
+    if (isCurrentlyFollowing) {
+      return await unfollowProducer(producerId);
+    } else {
+      return await followProducer(producerId);
+    }
+  };
+  
+  // Mutation for toggling follow status
+  const useToggleFollowMutation = () => {
+    return useMutation({
+      mutationFn: ({ producerId, isFollowing }: { producerId: string; isFollowing: boolean }) => 
+        toggleFollow(producerId, isFollowing),
+      onSuccess: () => {
+        // You can handle any additional success logic here
+      },
+    });
+  };
+  
+  // Get recommended beats from followed producers
+  const useRecommendedBeats = () => {
+    return useQuery({
+      queryKey: ['recommendedBeats'],
+      queryFn: async () => {
+        try {
+          const { data: session } = await supabase.auth.getSession();
+          if (!session || !session.session) return [];
+          
+          // Get producers the user follows
+          const { data: followedProducers, error: followError } = await supabase
+            .from('followers')
+            .select('followee_id')
+            .eq('follower_id', session.session.user.id);
+            
+          if (followError || !followedProducers.length) {
+            return [];
+          }
+          
+          // Get beats from those producers
+          const producerIds = followedProducers.map(f => f.followee_id);
+          const { data: beats, error: beatsError } = await supabase
+            .from('beats')
+            .select('*')
+            .in('producer_id', producerIds)
+            .eq('status', 'published')
+            .order('upload_date', { ascending: false })
+            .limit(8);
+            
+          if (beatsError) {
+            console.error('Error fetching recommended beats:', beatsError);
+            return [];
+          }
+          
+          return beats;
+        } catch (error) {
+          console.error('Error getting recommended beats:', error);
+          return [];
+        }
+      },
+    });
+  };
+  
+  return {
+    isFollowLoading,
+    useFollowStatus,
+    followProducer,
+    unfollowProducer,
+    toggleFollow,
+    useToggleFollowMutation,
+    useRecommendedBeats,
+  };
+}
