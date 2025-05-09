@@ -1,6 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { User, Beat } from '@/types';
+import { SupabaseBeat } from '@/services/beats/types';
 
 // Use the correct Supabase URL and anon key from the integrations folder
 import { supabase as integrationClient } from '@/integrations/supabase/client';
@@ -40,17 +41,28 @@ export const mapSupabaseUser = (user: any): User => {
   };
 };
 
-// Add a helper function to map database beat objects to our Beat interface
-export const mapSupabaseBeat = (beat: any): Beat => {
+// Add a helper function to map database beat objects to Beat interface
+export const mapSupabaseBeat = (beat: SupabaseBeat): Beat => {
+  // Get producer name with proper fallbacks
+  const getProducerName = (): string => {
+    if (beat.users) {
+      if (typeof beat.users === 'object') {
+        if (beat.users.stage_name) return beat.users.stage_name;
+        if (beat.users.full_name) return beat.users.full_name;
+      }
+    }
+    
+    // Fallback to direct properties
+    if (beat.producer_id) return `Producer ${beat.producer_id.substring(0, 8)}`;
+    
+    return 'Unknown Producer';
+  };
+
   return {
     id: beat.id,
     title: beat.title || '',
     producer_id: beat.producer_id || '',
-    producer_name: beat.producer_name || 
-                  (beat.users?.stage_name || 
-                   beat.users?.full_name || 
-                   beat.producer?.stage_name || 
-                   beat.producer?.full_name || 'Unknown Producer'),
+    producer_name: getProducerName(),
     cover_image_url: beat.cover_image || '',
     preview_url: beat.audio_preview || '',
     full_track_url: beat.audio_file || '',
@@ -59,16 +71,14 @@ export const mapSupabaseBeat = (beat: any): Beat => {
     bpm: beat.bpm || 0,
     tags: beat.tags || [],
     description: beat.description || '',
-    created_at: beat.upload_date || beat.created_at || new Date().toISOString(),
-    updated_at: beat.updated_at || '',
+    created_at: beat.upload_date || new Date().toISOString(),
+    updated_at: '',
     favorites_count: beat.favorites_count || 0,
     purchase_count: beat.purchase_count || 0,
-    status: (beat.status === 'draft' || beat.status === 'published') 
-            ? beat.status 
-            : 'published',
+    status: (beat.status as 'draft' | 'published') || 'published',
     is_featured: beat.is_featured || false,
     license_type: beat.license_type || '',
-    license_terms: beat.license_terms || '',
+    license_terms: '',
     basic_license_price_local: beat.basic_license_price_local || 0,
     basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
     premium_license_price_local: beat.premium_license_price_local || 0,
@@ -77,15 +87,14 @@ export const mapSupabaseBeat = (beat: any): Beat => {
     exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
     plays: beat.plays || 0,
     key: beat.key || '',
-    duration: beat.duration || '',
+    duration: '',
     // Preserve the original producer object for context
-    producer: beat.producer || beat.users,
-    users: beat.users
+    producer: beat.users
   };
 };
 
 // Helper function to convert an array of database beats to our Beat interface
-export const mapSupabaseBeats = (beats: any[]): Beat[] => {
-  if (!beats) return [];
+export const mapSupabaseBeats = (beats: SupabaseBeat[]): Beat[] => {
+  if (!beats || !Array.isArray(beats)) return [];
   return beats.map(mapSupabaseBeat);
 };

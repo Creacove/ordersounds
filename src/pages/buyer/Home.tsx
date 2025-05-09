@@ -2,7 +2,7 @@
 import { TrendingBeats } from "@/components/marketplace/TrendingBeats";
 import { WeeklyPicks } from "@/components/marketplace/WeeklyPicks";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
-import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
+import { RecommendedBeats } from "@/components/home/RecommendedBeats";
 import { TopProducers } from "@/components/marketplace/TopProducers";
 import { FeaturedPlaylists } from "@/components/marketplace/FeaturedPlaylists";
 import { PremiumSection } from "@/components/marketplace/PremiumSection";

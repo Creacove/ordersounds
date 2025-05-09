@@ -14,6 +14,8 @@ import { BeatCardCompact } from '@/components/marketplace/BeatCardCompact';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SupabaseBeat } from '@/services/beats/types';
+import { Beat } from '@/types';
+import { mapSupabaseBeat } from '@/lib/supabase';
 
 export function RecommendedBeats() {
   const { user } = useAuth();
@@ -23,8 +25,10 @@ export function RecommendedBeats() {
   const [showRecommendations, setShowRecommendations] = useState(false);
   const { playBeat } = usePlayer();
   
-  // Cast the recommendedBeats data to the correct type or provide an empty array if it's undefined
-  const recommendedBeats = recommendedBeatsData as SupabaseBeat[] | undefined || [];
+  // Safely cast the data and ensure we have a valid array
+  const recommendedBeats: SupabaseBeat[] = Array.isArray(recommendedBeatsData) 
+    ? recommendedBeatsData as SupabaseBeat[] 
+    : [];
 
   useEffect(() => {
     // Only show recommendations if we have user and beats
@@ -39,9 +43,30 @@ export function RecommendedBeats() {
     return null; // Don't render anything if there are no recommendations
   }
 
+  // Type safe handler with proper conversion to Beat object
   const handlePlayBeat = (beat: SupabaseBeat) => {
     if (playBeat && beat) {
-      playBeat(beat);
+      // Convert SupabaseBeat to Beat type if needed
+      const beatForPlayer: Beat = {
+        id: beat.id,
+        title: beat.title,
+        producer_id: beat.producer_id,
+        producer_name: getProducerName(beat),
+        cover_image_url: beat.cover_image || '',
+        preview_url: beat.audio_preview || '',
+        full_track_url: beat.audio_file || '',
+        genre: beat.genre || '',
+        track_type: beat.track_type || '',
+        bpm: beat.bpm || 0,
+        tags: beat.tags || [],
+        status: (beat.status as 'draft' | 'published') || 'published',
+        created_at: beat.upload_date || new Date().toISOString(),
+        favorites_count: beat.favorites_count || 0,
+        purchase_count: beat.purchase_count || 0,
+        plays: beat.plays || 0
+      };
+      
+      playBeat(beatForPlayer);
     }
   };
 
@@ -50,22 +75,17 @@ export function RecommendedBeats() {
   };
 
   // Helper to get producer name from beat data
-  const getProducerName = (beat: SupabaseBeat) => {
-    // Check for the producer object first
-    if (beat.producer) {
-      return beat.producer.full_name || beat.producer.stage_name || 'Producer';
-    }
-    
-    // Check for the users object (backward compatibility)
-    if (beat.users) {
-      return beat.users.full_name || beat.users.stage_name || 'Producer';
+  const getProducerName = (beat: SupabaseBeat): string => {
+    // Check for the users object first (backward compatibility)
+    if (beat.users && typeof beat.users === 'object') {
+      if (beat.users.full_name) return beat.users.full_name;
+      if (beat.users.stage_name) return beat.users.stage_name;
     }
     
     // Fallback to direct properties
-    if (beat.full_name) return beat.full_name;
-    if (beat.producer_name) return beat.producer_name;
+    if (beat.producer_id) return `Producer ${beat.producer_id.substring(0, 8)}`;
     
-    return 'Producer';
+    return 'Unknown Producer';
   };
 
   return (
