@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -105,7 +104,7 @@ export function Topbar({ sidebarVisible = false }) {
               alt="OrderSOUNDS"
               className="h-36 w-auto"
             />
-            <Badge variant="purple" className="absolute -top-1 right-0 bg-purple-600 text-white">BETA</Badge>
+            <Badge variant="secondary" className="absolute -top-1 right-0 bg-purple-600 text-white">BETA</Badge>
           </Link>
         </div>
         
