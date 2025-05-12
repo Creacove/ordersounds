@@ -2,11 +2,14 @@
 import React from 'react';
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { User } from "@/types";
 import { useProducers } from "@/hooks/useProducers";
 import { useState } from "react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import WalletButton from "@/components/wallet/WalletButton";
 
 interface UnifiedSidebarProps {
   isOpen: boolean;
@@ -147,8 +150,25 @@ export function UnifiedSidebar({
           ))}
         </div>
 
-        {!isMobile && (
-          <div className="flex items-center justify-center p-4 border-t border-[#272727]">
+        <div className={cn(
+          "flex items-center justify-center p-4 border-t border-[#272727]",
+          "flex-col gap-3"
+        )}>
+          {/* Wallet Button */}
+          <div className={cn(
+            "w-full flex justify-center mb-2", 
+            isCollapsed ? "px-1" : ""
+          )}>
+            <WalletButton 
+              buttonClass={cn(
+                "w-full rounded-md p-2 text-sm",
+                isCollapsed && "p-1"
+              )} 
+              showLabel={!isCollapsed}
+            />
+          </div>
+          
+          {!isMobile && (
             <Button
               variant="ghost"
               size="icon"
@@ -157,8 +177,8 @@ export function UnifiedSidebar({
             >
               {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
     </>
   );

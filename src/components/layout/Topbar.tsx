@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -36,7 +37,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { toast } from "sonner";
 import { NotificationCenter } from "@/components/notifications/NotificationCenter";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 
 export function Topbar({ sidebarVisible = false }) {
   const { user, logout, currency, setCurrency } = useAuth();
@@ -99,19 +99,19 @@ export function Topbar({ sidebarVisible = false }) {
         isMobile ? "container mx-auto px-2 xs:px-4 sm:px-6" : "pr-6 pl-2"
       )}>
         <div className="flex items-center gap-2">          
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2 relative">
             <img 
               src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
               alt="OrderSOUNDS"
               className="h-36 w-auto"
             />
+            <Badge variant="purple" className="absolute -top-1 right-0 bg-purple-600 text-white">BETA</Badge>
           </Link>
         </div>
         
         <div className="flex items-center gap-3">
           {(!isAuthPage || user) && (
             <>
-              <WalletMultiButton className="bg-primary"/>
             <div className="flex bg-muted/80 p-0.5 rounded-full shadow-sm">
             
               <Button

@@ -6,6 +6,10 @@ import App from './App.tsx'
 import './index.css'
 import SolanaWalletProvider from './components/wallet/SolanaWalletProvider.tsx'
 
+// BETA version notice
+console.log('%c OrderSOUNDS BETA', 'background: #8855FF; color: white; padding: 5px; border-radius: 3px; font-weight: bold;');
+console.log('This is a beta version. Please report any issues you encounter.');
+
 // Log environment loading (can be removed in production)
 if (import.meta.env.DEV) {
   console.log('Environment variables loaded:', {
