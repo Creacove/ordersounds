@@ -103,10 +103,10 @@ export function Topbar({ sidebarVisible = false }) {
             <img 
               src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
               alt="OrderSOUNDS"
-              className="h-36 w-auto"
+              className={isMobile ? "h-24 w-auto" : "h-36 w-auto"}
             />
             <div className="flex flex-col items-start">
-              <Badge variant="secondary" className="bg-purple-600 text-white text-xs">BETA</Badge>
+              <Badge variant="secondary" className="bg-purple-600 text-white text-[10px] xs:text-xs">BETA</Badge>
             </div>
           </Link>
         </div>
