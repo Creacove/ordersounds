@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { useBeats } from "@/hooks/useBeats";
@@ -19,16 +19,16 @@ export function ToggleFavoriteButton({
 }: ToggleFavoriteButtonProps) {
   const { isFavorite, toggleFavorite } = useBeats();
   const { user } = useAuth();
-  const [favorite, setFavorite] = useState(false);
   const [isButtonClicked, setIsButtonClicked] = useState(false);
 
-  useEffect(() => {
-    setFavorite(isFavorite(beatId));
-  }, [beatId, isFavorite]);
+  // Get the current favorite status directly from the global state
+  const favorite = isFavorite(beatId);
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    
+    console.log('ToggleFavoriteButton: Handle toggle favorite clicked for beat:', beatId);
     
     if (!user) {
       toast.error("Please log in to add favorites");
@@ -36,14 +36,19 @@ export function ToggleFavoriteButton({
     }
     
     // Prevent double clicks
-    if (isButtonClicked) return;
+    if (isButtonClicked) {
+      console.log('ToggleFavoriteButton: Button click prevented (already processing)');
+      return;
+    }
+    
     setIsButtonClicked(true);
     
     try {
+      console.log('ToggleFavoriteButton: Calling toggleFavorite for beat:', beatId);
       const newFavoriteStatus = await toggleFavorite(beatId);
-      setFavorite(newFavoriteStatus);
+      console.log('ToggleFavoriteButton: Toggle favorite completed, new status:', newFavoriteStatus);
     } catch (error) {
-      console.error('Error toggling favorite:', error);
+      console.error('ToggleFavoriteButton: Error toggling favorite:', error);
       toast.error('Failed to update favorite status');
     } finally {
       // Re-enable after a short delay
@@ -64,6 +69,8 @@ export function ToggleFavoriteButton({
     md: "h-4 w-4",
     lg: "h-5 w-5"
   };
+
+  console.log('ToggleFavoriteButton: Rendering for beat:', beatId, 'favorite:', favorite, 'user:', !!user);
 
   return (
     <Button

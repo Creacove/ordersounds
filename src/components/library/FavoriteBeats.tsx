@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBeats } from '@/hooks/useBeats';
 import { EmptyState } from './EmptyState';
 import { Button } from '@/components/ui/button';
@@ -11,30 +11,47 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export function FavoriteBeats() {
-  const { getUserFavoriteBeats, toggleFavorite, isLoading } = useBeats();
+  const { getUserFavoriteBeats, toggleFavorite, isLoading, refreshUserFavorites, userFavorites } = useBeats();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const favoriteBeats = getUserFavoriteBeats();
   const isMobile = useIsMobile();
 
+  console.log('FavoriteBeats: Component rendered with favorites:', userFavorites);
+  console.log('FavoriteBeats: Favorite beats found:', favoriteBeats);
+
+  // Refresh favorites when component mounts or when userFavorites changes
+  useEffect(() => {
+    console.log('FavoriteBeats: useEffect triggered, refreshing favorites');
+    refreshUserFavorites();
+  }, [refreshUserFavorites]);
+
   const refreshFavorites = async () => {
+    console.log('FavoriteBeats: Manual refresh triggered');
     setIsRefreshing(true);
     try {
-      // Just re-fetch the beats data which includes favorites
-      await new Promise(resolve => setTimeout(resolve, 500)); // Short delay for UX
+      await refreshUserFavorites();
       toast.success('Your favorites have been refreshed');
+      console.log('FavoriteBeats: Manual refresh completed successfully');
     } catch (error) {
-      console.error('Error refreshing favorites:', error);
+      console.error('FavoriteBeats: Error refreshing favorites:', error);
       toast.error('Failed to refresh your favorites');
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const handleRemoveFavorite = async (beatId) => {
-    await toggleFavorite(beatId);
+  const handleRemoveFavorite = async (beatId: string) => {
+    console.log('FavoriteBeats: Remove favorite clicked for beat:', beatId);
+    try {
+      await toggleFavorite(beatId);
+      console.log('FavoriteBeats: Remove favorite completed for beat:', beatId);
+    } catch (error) {
+      console.error('FavoriteBeats: Error removing favorite:', error);
+    }
   };
 
   if (isLoading) {
+    console.log('FavoriteBeats: Showing loading state');
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -51,6 +68,7 @@ export function FavoriteBeats() {
   }
 
   if (!favoriteBeats || favoriteBeats.length === 0) {
+    console.log('FavoriteBeats: Showing empty state');
     return (
       <EmptyState
         icon={Heart}
@@ -62,10 +80,12 @@ export function FavoriteBeats() {
     );
   }
 
+  console.log('FavoriteBeats: Rendering favorite beats list with', favoriteBeats.length, 'beats');
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 mb-4">
-        <h2 className="text-xl font-bold">Your Favorite Beats</h2>
+        <h2 className="text-xl font-bold">Your Favorite Beats ({favoriteBeats.length})</h2>
         <Button 
           variant="outline" 
           size={isMobile ? "sm" : "default"}

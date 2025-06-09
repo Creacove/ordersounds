@@ -1,13 +1,13 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
+import { useBeats } from '@/hooks/useBeats';
 import { Beat } from '@/types';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 
 interface AddToCartButtonProps {
   beat: Beat;
@@ -17,71 +17,11 @@ interface AddToCartButtonProps {
 
 export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonProps) {
   const [isAdding, setIsAdding] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   const { user } = useAuth();
   const { addToCart, isInCart, removeFromCart } = useCart();
+  const { isFavorite, toggleFavorite } = useBeats();
   const navigate = useNavigate();
-  
-  // Use ref to track component mount state to avoid memory leaks
-  const isMountedRef = React.useRef(true);
-  
-  // Clean up function
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
-
-  // Check favorite status once on mount
-  useEffect(() => {
-    if (!user) return;
-    
-    const checkFavorite = async () => {
-      try {
-        // Use a timeout to avoid long-running operations
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 3000)
-        );
-        
-        const queryPromise = supabase
-          .from('users')
-          .select('favorites')
-          .eq('id', user.id)
-          .single();
-          
-        const response = await Promise.race([
-          queryPromise,
-          timeoutPromise
-        ]);
-        
-        // Type-safe response handling
-        const userData = response && 
-          typeof response === 'object' && 
-          'data' in response ? 
-          response.data : null;
-          
-        const error = response && 
-          typeof response === 'object' && 
-          'error' in response ? 
-          response.error : null;
-        
-        if (error || !isMountedRef.current) return;
-        
-        // Fixed: Type-safe way to access favorites 
-        if (userData && 
-            typeof userData === 'object' && 
-            'favorites' in userData && 
-            Array.isArray(userData.favorites)) {
-          setIsFavorite(userData.favorites.some((fav: any) => fav.beat_id === beat.id));
-        }
-      } catch (error) {
-        console.error('Error checking favorite status:', error);
-      }
-    };
-
-    checkFavorite();
-  }, [beat.id, user]);
 
   const handleAddToCart = async () => {
     if (!user) {
@@ -98,29 +38,20 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     try {
       if (isAlreadyInCart) {
         await removeFromCart(beat.id);
-        if (isMountedRef.current) {
-          toast.success("Removed from cart");
-        }
+        toast.success("Removed from cart");
       } else {
         await addToCart({
           ...beat, 
           selected_license: 'basic'
         });
-        if (isMountedRef.current) {
-          toast.success("Added to cart");
-        }
+        toast.success("Added to cart");
       }
     } catch (error) {
       console.error("Error updating cart:", error);
-      if (isMountedRef.current) {
-        toast.error("Failed to update cart");
-      }
+      toast.error("Failed to update cart");
     } finally {
-      // Use shorter timeout for better responsiveness
       setTimeout(() => {
-        if (isMountedRef.current) {
-          setIsAdding(false);
-        }
+        setIsAdding(false);
       }, 300);
     }
   };
@@ -138,100 +69,18 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     
     try {
       setIsFavoriting(true);
-      
-      // Get current favorites
-      const response = await supabase
-        .from('users')
-        .select('favorites')
-        .eq('id', user.id)
-        .single();
-      
-      // Type-safe response handling
-      const userData = response && 
-        typeof response === 'object' && 
-        'data' in response ? 
-        response.data : null;
-        
-      const userError = response && 
-        typeof response === 'object' && 
-        'error' in response ? 
-        response.error : null;
-      
-      if (userError) {
-        throw userError;
-      }
-      
-      let favorites = userData?.favorites || [];
-      
-      if (!Array.isArray(favorites)) {
-        favorites = [];
-      }
-      
-      // Optimistic UI update
-      const wasInFavorites = isFavorite;
-      if (isMountedRef.current) {
-        setIsFavorite(!wasInFavorites);
-      }
-      
-      if (wasInFavorites) {
-        // Remove from favorites
-        favorites = favorites.filter((fav: any) => fav.beat_id !== beat.id);
-        
-        await supabase
-          .from('users')
-          .update({ favorites })
-          .eq('id', user.id);
-        
-        if (isMountedRef.current) {
-          toast("Removed from favorites");
-        }
-      } else {
-        // Add to favorites
-        favorites.push({
-          beat_id: beat.id,
-          added_at: new Date().toISOString()
-        });
-        
-        await supabase
-          .from('users')
-          .update({ favorites })
-          .eq('id', user.id);
-        
-        // Create notification for beat owner if present
-        if (beat.producer_id) {
-          await supabase
-            .from('notifications')
-            .insert({
-              recipient_id: beat.producer_id,
-              sender_id: user.id,
-              notification_type: 'favorite',
-              title: 'New favorite',
-              body: `Someone favorited your beat "${beat.title}"`,
-              is_read: false,
-              related_entity_id: beat.id,
-              related_entity_type: 'beat'
-            });
-        }
-        
-        if (isMountedRef.current) {
-          toast("Added to favorites");
-        }
-      }
+      console.log('AddToCartButton: Toggling favorite for beat:', beat.id);
+      await toggleFavorite(beat.id);
     } catch (error) {
-      // Revert optimistic update on error
-      if (isMountedRef.current) {
-        setIsFavorite(isFavorite);
-        toast.error("Could not update favorites");
-      }
-      console.error('Error updating favorite:', error);
+      console.error('AddToCartButton: Error updating favorite:', error);
+      toast.error("Could not update favorites");
     } finally {
-      if (isMountedRef.current) {
-        setIsFavoriting(false);
-      }
+      setIsFavoriting(false);
     }
   };
   
   const isItemInCart = isInCart(beat.id);
+  const isBeatFavorite = isFavorite(beat.id);
 
   // Icon-only variant of the button (for compact displays)
   if (iconOnly) {
@@ -284,13 +133,13 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
         onClick={handleFavoriteClick}
         disabled={isFavoriting}
         className="rounded-full hover:bg-secondary/20 transition-all"
-        aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+        aria-label={isBeatFavorite ? "Remove from favorites" : "Add to favorites"}
       >
         {isFavoriting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Heart
-            className={`h-5 w-5 transition-colors ${isFavorite ? 'text-red-500 fill-red-500' : 'text-gray-500 hover:text-red-400'}`}
+            className={`h-5 w-5 transition-colors ${isBeatFavorite ? 'text-red-500 fill-red-500' : 'text-gray-500 hover:text-red-400'}`}
           />
         )}
       </Button>

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -21,7 +22,9 @@ export default function Library() {
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState("purchased");
   const isMobile = useIsMobile();
-  const { fetchPurchasedBeats } = useBeats();
+  const { fetchPurchasedBeats, refreshUserFavorites } = useBeats();
+
+  console.log('Library: Component rendered with activeTab:', activeTab);
 
   useEffect(() => {
     if (!user) return;
@@ -110,9 +113,14 @@ export default function Library() {
     localStorage.removeItem('redirectToLibrary');
   }, []);
 
-  const handleTabChange = (value) => {
+  const handleTabChange = (value: string) => {
+    console.log('Library: Tab change to:', value);
     setActiveTab(value);
+    
+    // Refresh favorites when switching to favorites tab
     if (value === "favorites") {
+      console.log('Library: Refreshing favorites for favorites tab');
+      refreshUserFavorites();
       navigate("/favorites", { replace: true });
     } else if (value === "playlists") {
       navigate("/my-playlists", { replace: true });
