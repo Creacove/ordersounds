@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -37,44 +36,82 @@ export function useBeats() {
   const [weeklyPicks, setWeeklyPicks] = useState<Beat[]>([]);
   const [fetchInProgress, setFetchInProgress] = useState(false);
   const [dataFetched, setDataFetched] = useState<boolean>(false);
+  const [favoritesFetchInProgress, setFavoritesFetchInProgress] = useState(false);
 
   const fetchUserFavoritesData = useCallback(async (forceRefresh = false) => {
-    if (!user) return;
+    console.log('=== FETCHING USER FAVORITES DATA ===');
+    console.log('User object:', user);
+    console.log('User ID:', user?.id);
+    console.log('Force refresh:', forceRefresh);
     
-    console.log('Fetching user favorites data...', { forceRefresh });
+    if (!user?.id) {
+      console.log('No user ID available, skipping favorites fetch');
+      setUserFavorites([]);
+      return;
+    }
+    
+    // Prevent multiple simultaneous fetches
+    if (favoritesFetchInProgress) {
+      console.log('Favorites fetch already in progress, skipping');
+      return;
+    }
+    
+    setFavoritesFetchInProgress(true);
     
     try {
       // Clear cache if forcing refresh
       if (forceRefresh) {
         localStorage.removeItem(CACHE_KEYS.USER_FAVORITES);
-        console.log('Cleared favorites cache');
+        console.log('Cleared favorites cache due to force refresh');
       }
       
-      const cachedFavorites = loadFromCache<string[]>(CACHE_KEYS.USER_FAVORITES);
-      if (cachedFavorites && !forceRefresh) {
-        console.log('Using cached favorites:', cachedFavorites);
-        setUserFavorites(cachedFavorites);
-        return;
+      // Try cache first unless forcing refresh
+      if (!forceRefresh) {
+        const cachedFavorites = loadFromCache<string[]>(CACHE_KEYS.USER_FAVORITES);
+        if (cachedFavorites && Array.isArray(cachedFavorites)) {
+          console.log('Using cached favorites:', cachedFavorites);
+          setUserFavorites(cachedFavorites);
+          setFavoritesFetchInProgress(false);
+          return;
+        }
       }
       
+      console.log('Fetching favorites from API for user:', user.id);
       const favorites = await fetchUserFavorites(user.id);
-      console.log('Fetched favorites from API:', favorites);
-      setUserFavorites(favorites);
+      console.log('Raw favorites response from API:', favorites);
       
-      if (favorites.length < 100) {
-        localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(favorites));
-        console.log('Saved favorites to cache');
+      // Ensure we have an array
+      const favoritesArray = Array.isArray(favorites) ? favorites : [];
+      console.log('Processed favorites array:', favoritesArray);
+      
+      setUserFavorites(favoritesArray);
+      
+      // Cache the results
+      if (favoritesArray.length < 100) {
+        localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(favoritesArray));
+        console.log('Saved favorites to cache:', favoritesArray);
       }
+      
+      console.log('Successfully set user favorites:', favoritesArray);
     } catch (error) {
       console.error('Error fetching user favorites:', error);
       
+      // Try to use cached data as fallback
       const cachedFavorites = loadFromCache<string[]>(CACHE_KEYS.USER_FAVORITES);
-      if (cachedFavorites) {
-        console.log('Using cached favorites due to error:', cachedFavorites);
+      if (cachedFavorites && Array.isArray(cachedFavorites)) {
+        console.log('Using cached favorites as fallback:', cachedFavorites);
         setUserFavorites(cachedFavorites);
+      } else {
+        console.log('No cached favorites available, setting empty array');
+        setUserFavorites([]);
       }
+      
+      // Show error to user
+      toast.error('Failed to load your favorites. Please try refreshing.');
+    } finally {
+      setFavoritesFetchInProgress(false);
     }
-  }, [user]);
+  }, [user?.id, favoritesFetchInProgress]);
 
   const fetchPurchasedBeatsData = useCallback(async () => {
     if (!user) return;
@@ -368,16 +405,21 @@ export function useBeats() {
   };
 
   const toggleFavorite = async (beatId: string): Promise<boolean> => {
-    if (!user) {
+    console.log('=== TOGGLE FAVORITE CALLED ===');
+    console.log('Beat ID:', beatId);
+    console.log('User:', user?.id);
+    console.log('Current favorites before toggle:', userFavorites);
+
+    if (!user?.id) {
+      console.log('No user available for favorites');
       toast.error('Please log in to add favorites');
       return false;
     }
 
-    console.log('Toggle favorite called for beat:', beatId);
-    console.log('Current favorites before toggle:', userFavorites);
-
-    const originalFavorites = [...userFavorites]; // Store original state
+    const originalFavorites = [...userFavorites];
     const wasFavorited = originalFavorites.includes(beatId);
+    
+    console.log('Was favorited:', wasFavorited);
     
     try {
       // Optimistic update
@@ -396,21 +438,21 @@ export function useBeats() {
       }
       
       // Make API call
+      console.log('Making API call to toggle favorite...');
       const updatedFavorites = await toggleFavoriteAPI(user.id, beatId, originalFavorites);
       console.log('API returned favorites:', updatedFavorites);
       
-      // Update with actual API response
-      setUserFavorites(updatedFavorites);
+      // Ensure we have an array
+      const favoritesArray = Array.isArray(updatedFavorites) ? updatedFavorites : [];
       
-      // Clear cache to ensure fresh data
-      localStorage.removeItem(CACHE_KEYS.USER_FAVORITES);
-      console.log('Cleared favorites cache after successful toggle');
+      // Update with actual API response
+      setUserFavorites(favoritesArray);
       
       // Update cache with new data
-      localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(updatedFavorites));
+      localStorage.setItem(CACHE_KEYS.USER_FAVORITES, JSON.stringify(favoritesArray));
       console.log('Updated favorites cache with new data');
       
-      const newFavoriteStatus = updatedFavorites.includes(beatId);
+      const newFavoriteStatus = favoritesArray.includes(beatId);
       console.log('New favorite status for beat:', beatId, newFavoriteStatus);
       
       return newFavoriteStatus;
@@ -454,9 +496,22 @@ export function useBeats() {
   };
 
   const getUserFavoriteBeats = (): Beat[] => {
-    console.log('Getting user favorite beats:', userFavorites);
+    console.log('=== GET USER FAVORITE BEATS ===');
+    console.log('Current beats array length:', beats.length);
+    console.log('Current userFavorites:', userFavorites);
+    
+    if (!userFavorites || userFavorites.length === 0) {
+      console.log('No favorites found, returning empty array');
+      return [];
+    }
+    
+    if (!beats || beats.length === 0) {
+      console.log('No beats available yet, returning empty array');
+      return [];
+    }
+    
     const favoriteBeats = getUserFavoriteBeatsService(beats, userFavorites);
-    console.log('Favorite beats found:', favoriteBeats);
+    console.log('Favorite beats found:', favoriteBeats.length, favoriteBeats);
     return favoriteBeats;
   };
 
@@ -464,11 +519,20 @@ export function useBeats() {
     return getProducerBeatsService(beats, producerId);
   };
 
-  // New function to refresh favorites specifically
+  // Refresh favorites function with better error handling
   const refreshUserFavorites = useCallback(async () => {
-    console.log('Refreshing user favorites...');
+    console.log('=== REFRESH USER FAVORITES ===');
+    console.log('User available:', !!user?.id);
+    
+    if (!user?.id) {
+      console.log('No user available, cannot refresh favorites');
+      setUserFavorites([]);
+      return;
+    }
+    
+    console.log('Starting refresh with force refresh = true');
     await fetchUserFavoritesData(true);
-  }, [fetchUserFavoritesData]);
+  }, [fetchUserFavoritesData, user?.id]);
   
   return {
     beats,

@@ -1,10 +1,12 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { SupabaseBeat } from './types';
 import { mapSupabaseBeatToBeat } from './utils';
 
 export const fetchUserFavorites = async (userId: string): Promise<string[]> => {
+  console.log('=== FETCH USER FAVORITES API ===');
+  console.log('Fetching favorites for user ID:', userId);
+  
   try {
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -12,26 +14,63 @@ export const fetchUserFavorites = async (userId: string): Promise<string[]> => {
       .eq('id', userId)
       .single();
     
-    if (!userError && userData) {
-      let favorites: string[] = [];
-      
-      if (userData.favorites) {
-        if (Array.isArray(userData.favorites)) {
-          favorites = userData.favorites as string[];
-        } else if (typeof userData.favorites === 'object') {
-          const favArray = Array.isArray(userData.favorites) 
-            ? userData.favorites 
-            : Object.values(userData.favorites || {});
-          
-          favorites = favArray.filter(id => typeof id === 'string') as string[];
-        }
-      }
-      
-      return favorites;
+    console.log('Supabase response - data:', userData);
+    console.log('Supabase response - error:', userError);
+    
+    if (userError) {
+      console.error('Supabase error fetching user favorites:', userError);
+      return [];
     }
-    return [];
+    
+    if (!userData) {
+      console.log('No user data found');
+      return [];
+    }
+    
+    console.log('Raw favorites from database:', userData.favorites);
+    
+    let favorites: string[] = [];
+    
+    if (userData.favorites) {
+      try {
+        if (Array.isArray(userData.favorites)) {
+          // Handle direct array
+          favorites = userData.favorites.filter(id => typeof id === 'string') as string[];
+          console.log('Processed as direct array:', favorites);
+        } else if (typeof userData.favorites === 'object') {
+          // Handle object with nested values
+          console.log('Processing as object:', userData.favorites);
+          
+          if (Array.isArray(userData.favorites)) {
+            favorites = userData.favorites.filter(id => typeof id === 'string') as string[];
+          } else {
+            // Try to extract values from object
+            const values = Object.values(userData.favorites || {});
+            favorites = values.filter(id => typeof id === 'string') as string[];
+          }
+          
+          console.log('Processed from object:', favorites);
+        } else if (typeof userData.favorites === 'string') {
+          // Handle string (possibly JSON)
+          try {
+            const parsed = JSON.parse(userData.favorites);
+            if (Array.isArray(parsed)) {
+              favorites = parsed.filter(id => typeof id === 'string') as string[];
+            }
+            console.log('Processed from JSON string:', favorites);
+          } catch (parseError) {
+            console.error('Failed to parse favorites string:', parseError);
+          }
+        }
+      } catch (processingError) {
+        console.error('Error processing favorites data:', processingError);
+      }
+    }
+    
+    console.log('Final processed favorites:', favorites);
+    return favorites;
   } catch (error) {
-    console.error('Error fetching user favorites:', error);
+    console.error('Error in fetchUserFavorites:', error);
     return [];
   }
 };
@@ -104,15 +143,24 @@ export const fetchPurchasedBeatDetails = async (beatIds: string[]): Promise<Beat
 };
 
 export const toggleFavoriteAPI = async (userId: string, beatId: string, currentFavorites: string[]): Promise<string[]> => {
+  console.log('=== TOGGLE FAVORITE API ===');
+  console.log('User ID:', userId);
+  console.log('Beat ID:', beatId);
+  console.log('Current favorites:', currentFavorites);
+  
   try {
     const isFav = currentFavorites.includes(beatId);
     let updatedFavorites: string[];
     
     if (isFav) {
       updatedFavorites = currentFavorites.filter(id => id !== beatId);
+      console.log('Removing from favorites, new array:', updatedFavorites);
     } else {
       updatedFavorites = [...currentFavorites, beatId];
+      console.log('Adding to favorites, new array:', updatedFavorites);
     }
+    
+    console.log('Updating database with favorites:', updatedFavorites);
     
     const { error } = await supabase
       .from('users')
@@ -120,9 +168,11 @@ export const toggleFavoriteAPI = async (userId: string, beatId: string, currentF
       .eq('id', userId);
     
     if (error) {
+      console.error('Database update error:', error);
       throw error;
     }
     
+    console.log('Successfully updated favorites in database');
     return updatedFavorites;
   } catch (error) {
     console.error('Error in toggleFavorite API:', error);

@@ -9,21 +9,53 @@ import { RefreshCw, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/context/AuthContext';
 
 export function FavoriteBeats() {
-  const { getUserFavoriteBeats, toggleFavorite, isLoading, refreshUserFavorites, userFavorites } = useBeats();
+  const { user } = useAuth();
+  const { getUserFavoriteBeats, toggleFavorite, isLoading, refreshUserFavorites, userFavorites, beats } = useBeats();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [localLoading, setLocalLoading] = useState(true);
   const favoriteBeats = getUserFavoriteBeats();
   const isMobile = useIsMobile();
 
-  console.log('FavoriteBeats: Component rendered with favorites:', userFavorites);
-  console.log('FavoriteBeats: Favorite beats found:', favoriteBeats);
+  console.log('=== FAVORITE BEATS COMPONENT ===');
+  console.log('User:', user?.id);
+  console.log('User favorites from hook:', userFavorites);
+  console.log('Total beats available:', beats.length);
+  console.log('Favorite beats found:', favoriteBeats.length);
+  console.log('Component loading state:', isLoading);
+  console.log('Local loading state:', localLoading);
 
-  // Refresh favorites when component mounts or when userFavorites changes
+  // Effect to refresh favorites when component mounts
   useEffect(() => {
-    console.log('FavoriteBeats: useEffect triggered, refreshing favorites');
-    refreshUserFavorites();
-  }, [refreshUserFavorites]);
+    console.log('FavoriteBeats: Component mounted, refreshing favorites');
+    
+    const initializeFavorites = async () => {
+      if (user?.id) {
+        setLocalLoading(true);
+        try {
+          await refreshUserFavorites();
+          console.log('Successfully refreshed favorites on mount');
+        } catch (error) {
+          console.error('Error refreshing favorites on mount:', error);
+        } finally {
+          setLocalLoading(false);
+        }
+      } else {
+        setLocalLoading(false);
+      }
+    };
+    
+    initializeFavorites();
+  }, [user?.id, refreshUserFavorites]);
+
+  // Effect to update local loading when data changes
+  useEffect(() => {
+    if (userFavorites && beats.length > 0) {
+      setLocalLoading(false);
+    }
+  }, [userFavorites, beats.length]);
 
   const refreshFavorites = async () => {
     console.log('FavoriteBeats: Manual refresh triggered');
@@ -47,10 +79,12 @@ export function FavoriteBeats() {
       console.log('FavoriteBeats: Remove favorite completed for beat:', beatId);
     } catch (error) {
       console.error('FavoriteBeats: Error removing favorite:', error);
+      toast.error('Failed to remove from favorites');
     }
   };
 
-  if (isLoading) {
+  // Show loading state
+  if (isLoading || localLoading) {
     console.log('FavoriteBeats: Showing loading state');
     return (
       <div className="space-y-4">
@@ -67,16 +101,58 @@ export function FavoriteBeats() {
     );
   }
 
-  if (!favoriteBeats || favoriteBeats.length === 0) {
-    console.log('FavoriteBeats: Showing empty state');
+  // Show empty state if no favorites or no user
+  if (!user) {
+    console.log('FavoriteBeats: No user, showing empty state');
     return (
       <EmptyState
         icon={Heart}
-        title="No favorite beats yet"
-        description="When you like beats, they will appear here for easy access."
-        actionLabel="Browse Beats"
+        title="Sign in to view favorites"
+        description="Please sign in to see your favorite beats."
+        actionLabel="Go to Home"
         actionHref="/"
       />
+    );
+  }
+
+  if (!favoriteBeats || favoriteBeats.length === 0) {
+    console.log('FavoriteBeats: No favorites found, showing empty state');
+    console.log('Debug - userFavorites:', userFavorites);
+    console.log('Debug - beats.length:', beats.length);
+    
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2 mb-4">
+          <h2 className="text-xl font-bold">Your Favorite Beats (0)</h2>
+          <Button 
+            variant="outline" 
+            size={isMobile ? "sm" : "default"}
+            onClick={refreshFavorites}
+            disabled={isRefreshing}
+            className="w-full xs:w-auto"
+          >
+            {isRefreshing ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                <span className="whitespace-nowrap">Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                <span className="whitespace-nowrap">Refresh</span>
+              </>
+            )}
+          </Button>
+        </div>
+        
+        <EmptyState
+          icon={Heart}
+          title="No favorite beats yet"
+          description="When you like beats, they will appear here for easy access."
+          actionLabel="Browse Beats"
+          actionHref="/"
+        />
+      </div>
     );
   }
 
