@@ -24,7 +24,7 @@ export default function Cart() {
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const wallet = useWallet();
-  const { isWalletSynced } = useWalletSync();
+  const { isWalletSynced, needsAuth, isConnected } = useWalletSync();
   
   // UI state management
   const [isLoading, setIsLoading] = useState(true);
@@ -185,16 +185,30 @@ export default function Cart() {
     }
   };
   
-  // Open Solana checkout with improved validation and error handling
+  // Enhanced Solana checkout with better error handling
   const handleOpenSolanaCheckout = async () => {
     if (!cartItems || cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
     
-    // Check wallet connection first
-    if (!wallet.connected) {
+    // Check authentication first
+    if (!user) {
+      toast.error('Please log in to make a purchase');
+      navigate('/login');
+      return;
+    }
+    
+    // Check wallet connection
+    if (!isConnected) {
       toast.error('Please connect your Solana wallet first');
+      return;
+    }
+    
+    // Check if wallet needs authentication
+    if (needsAuth) {
+      toast.error('Please log in to sync your wallet');
+      navigate('/login');
       return;
     }
     
@@ -526,14 +540,31 @@ export default function Cart() {
                       <div className="w-full">
                         <WalletButton buttonClass="w-full justify-center" />
                       </div>
-                      {wallet.connected && isWalletSynced && (
-                        <div className="text-xs text-green-600 dark:text-green-400 text-center">
-                          ✓ Wallet connected and synced
+                      
+                      {/* Enhanced status messages */}
+                      {!user && (
+                        <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                          ⚠️ Login required to sync wallet
                         </div>
                       )}
-                      {wallet.connected && !isWalletSynced && (
+                      {user && !isConnected && (
+                        <div className="text-xs text-gray-600 dark:text-gray-400 text-center">
+                          Connect your wallet to continue
+                        </div>
+                      )}
+                      {user && isConnected && needsAuth && (
+                        <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                          ⚠️ Please log in to sync wallet
+                        </div>
+                      )}
+                      {user && isConnected && !needsAuth && !isWalletSynced && (
                         <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
                           ⏳ Syncing wallet...
+                        </div>
+                      )}
+                      {user && isWalletSynced && (
+                        <div className="text-xs text-green-600 dark:text-green-400 text-center">
+                          ✓ Wallet connected and synced
                         </div>
                       )}
                     </div>
@@ -551,15 +582,19 @@ export default function Cart() {
                       className="w-full py-6 text-base shadow-md hover:shadow-lg transition-all duration-300"
                       variant="premium"
                       size="lg"
-                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !wallet.connected || !isWalletSynced}
+                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !user || !isConnected || needsAuth || !isWalletSynced}
                     >
                       {isPreparingCheckout ? (
                         <>
                           <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
                           Preparing...
                         </>
-                      ) : !wallet.connected ? (
+                      ) : !user ? (
+                        <>Login Required</>
+                      ) : !isConnected ? (
                         <>Connect Wallet First</>
+                      ) : needsAuth ? (
+                        <>Login to Sync Wallet</>
                       ) : !isWalletSynced ? (
                         <>Syncing Wallet...</>
                       ) : (

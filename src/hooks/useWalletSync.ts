@@ -10,7 +10,14 @@ export const useWalletSync = () => {
   const { user } = useAuth();
 
   const syncWalletToDatabase = useCallback(async (walletAddress: string | null) => {
-    if (!user?.id) return;
+    // Check if user is authenticated first
+    if (!user?.id) {
+      console.log('Cannot sync wallet: User not authenticated');
+      if (walletAddress) {
+        toast.error('Please log in to sync your wallet address');
+      }
+      return false;
+    }
 
     try {
       console.log(`Syncing wallet address to database: ${walletAddress || 'null'}`);
@@ -25,7 +32,7 @@ export const useWalletSync = () => {
       if (error) {
         console.error('Error syncing wallet to database:', error);
         toast.error('Failed to sync wallet address');
-        return;
+        return false;
       }
 
       if (walletAddress) {
@@ -33,36 +40,48 @@ export const useWalletSync = () => {
       } else {
         toast.success('Wallet disconnected');
       }
+      return true;
     } catch (error) {
       console.error('Error in wallet sync:', error);
       toast.error('Failed to sync wallet');
+      return false;
     }
   }, [user?.id]);
 
   // Sync wallet connection state to database
   useEffect(() => {
-    if (!user?.id) return;
-
     if (connected && publicKey) {
       syncWalletToDatabase(publicKey.toString());
-    } else {
-      syncWalletToDatabase(null);
+    } else if (!connected) {
+      // Only sync disconnection if user is authenticated
+      if (user?.id) {
+        syncWalletToDatabase(null);
+      }
     }
   }, [connected, publicKey, user?.id, syncWalletToDatabase]);
 
   const disconnectAndSync = useCallback(async () => {
     try {
       await disconnect();
-      await syncWalletToDatabase(null);
+      if (user?.id) {
+        await syncWalletToDatabase(null);
+      }
     } catch (error) {
       console.error('Error disconnecting wallet:', error);
       toast.error('Failed to disconnect wallet');
     }
-  }, [disconnect, syncWalletToDatabase]);
+  }, [disconnect, syncWalletToDatabase, user?.id]);
+
+  // Enhanced connection status with authentication check
+  const isWalletSynced = connected && publicKey && user?.id;
+  const needsAuth = connected && publicKey && !user?.id;
 
   return {
     syncWalletToDatabase,
     disconnectAndSync,
-    isWalletSynced: connected && publicKey && user?.id
+    isWalletSynced,
+    needsAuth,
+    isConnected: connected,
+    walletAddress: publicKey?.toString()
   };
 };
