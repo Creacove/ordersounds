@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -337,7 +336,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       const producerIds = cartItems.map(item => item.beat.producer_id);
       
       // Create promise with timeout for beat validation
-      const beatCheckPromise = async (): Promise<{ existingIds: string[] }> => {
+      const beatCheckPromise = async () => {
         try {
           const response = await supabase
             .from('beats')
@@ -357,7 +356,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       };
       
       // Create promise with timeout for wallet addresses
-      const walletCheckPromise = async (): Promise<{ walletAddressMap: Record<string, string | null> }> => {
+      const walletCheckPromise = async () => {
         try {
           const response = await supabase
             .from('users')
@@ -381,19 +380,17 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       };
       
       // Set timeout for entire operation
-      const timeoutPromise = (): Promise<'timeout'> => {
-        return new Promise(resolve => {
-          setTimeout(() => {
-            console.log('Cart refresh timed out after 3 seconds');
-            resolve('timeout');
-          }, 3000);
-        });
-      };
+      const timeoutPromise = new Promise<'timeout'>((resolve) => {
+        setTimeout(() => {
+          console.log('Cart refresh timed out after 3 seconds');
+          resolve('timeout');
+        }, 3000);
+      });
       
-      // Race the promises and handle the result properly
+      // Race the promises and handle the result properly - FIX: Handle timeout case correctly
       const result = await Promise.race([
         Promise.all([beatCheckPromise(), walletCheckPromise()]),
-        timeoutPromise()
+        timeoutPromise
       ]);
       
       let existingIds: string[];
@@ -404,7 +401,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         existingIds = beatIds;
         walletAddressMap = {};
       } else {
-        // Result is an array from Promise.all
+        // FIX: Properly handle the array result from Promise.all
         const [beatCheck, walletCheck] = result;
         existingIds = beatCheck.existingIds;
         walletAddressMap = walletCheck.walletAddressMap;
@@ -493,3 +490,5 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     </CartContext.Provider>
   );
 };
+
+export default CartProvider;

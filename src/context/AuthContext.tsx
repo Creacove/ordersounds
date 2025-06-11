@@ -80,6 +80,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) {
         console.error("Force user data refresh error:", error);
+        console.error("Error details:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         setAuthError(`User data refresh failed: ${error.message}`);
         await logSessionEvent('user_refresh_failed', { 
           error: error.message,
@@ -95,6 +101,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
       
+      // FIX: Ensure wallet_address is properly updated
       setUser({
         ...user,
         role: userData.role as 'buyer' | 'producer' | 'admin',
@@ -106,6 +113,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         producer_name: userData.stage_name || user.producer_name || '',
         wallet_address: userData.wallet_address || ''
       });
+      
+      console.log('User data refreshed successfully, wallet_address:', userData.wallet_address);
       
       setAuthError(null);
       setConsecutiveErrors(0);
