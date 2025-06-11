@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -114,6 +115,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [totalAmount, setTotalAmount] = useState(0);
   const [itemCount, setItemCount] = useState(0);
   const [initComplete, setInitComplete] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Load cart from localStorage - only once on component mount or user change
   useEffect(() => {
@@ -318,84 +320,95 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     if (!user) return;
     if (cartItems.length === 0) return;
     
+    // Prevent multiple concurrent refreshes
+    if (isRefreshing) {
+      console.log('Cart refresh already in progress, skipping...');
+      return;
+    }
+    
+    setIsRefreshing(true);
     setLoadingCart(true);
     
     try {
+      console.log('Starting cart refresh...');
+      
       // Check if beats still exist (with timeout)
       const beatIds = cartItems.map(item => item.beat.id);
       const producerIds = cartItems.map(item => item.beat.producer_id);
       
       // Create promise with timeout for beat validation
-      const beatCheckPromise = new Promise<{existingIds: string[]}>(async (resolve) => {
+      const beatCheckPromise = async (): Promise<{ existingIds: string[] }> => {
         try {
           const response = await supabase
             .from('beats')
             .select('id')
             .in('id', beatIds);
             
-          // Type-safe data extraction  
-          const existingBeats = response && 
-            typeof response === 'object' && 
-            'data' in response ? 
-            response.data : [];
+          const existingBeats = response?.data || [];
+          console.log(`Beat check: ${existingBeats.length}/${beatIds.length} beats still exist`);
           
-          resolve({ 
-            existingIds: (existingBeats as any[])?.map(beat => beat.id) || beatIds 
-          });
+          return { 
+            existingIds: existingBeats.map(beat => beat.id) 
+          };
         } catch (err) {
-          // On error, keep all beats by default (fail open)
-          resolve({ existingIds: beatIds });
+          console.warn('Beat check failed, keeping all beats:', err);
+          return { existingIds: beatIds };
         }
-      });
+      };
       
       // Create promise with timeout for wallet addresses
-      const walletCheckPromise = new Promise<{walletAddressMap: Record<string, string | null>}>(async (resolve) => {
+      const walletCheckPromise = async (): Promise<{ walletAddressMap: Record<string, string | null> }> => {
         try {
           const response = await supabase
             .from('users')
             .select('id, wallet_address')
             .in('id', producerIds);
             
-          // Type-safe data extraction
-          const producerData = response && 
-            typeof response === 'object' && 
-            'data' in response ? 
-            response.data as any[] : [];
+          const producerData = response?.data || [];
+          console.log(`Wallet check: Retrieved data for ${producerData.length}/${producerIds.length} producers`);
             
           // Create wallet address map
           const walletAddressMap: { [key: string]: string | null } = {};
-          if (producerData) {
-            producerData.forEach(producer => {
-              walletAddressMap[producer.id] = producer.wallet_address;
-            });
-          }
+          producerData.forEach(producer => {
+            walletAddressMap[producer.id] = producer.wallet_address;
+          });
           
-          resolve({ walletAddressMap });
+          return { walletAddressMap };
         } catch (err) {
-          // On error, return empty map
-          resolve({ walletAddressMap: {} });
+          console.warn('Wallet check failed, returning empty map:', err);
+          return { walletAddressMap: {} };
         }
-      });
+      };
       
       // Set timeout for entire operation
-      const timeoutPromise = new Promise(resolve => {
-        setTimeout(() => resolve({
-          existingIds: beatIds,
-          walletAddressMap: {}
-        }), 3000);
-      });
+      const timeoutPromise = (): Promise<'timeout'> => {
+        return new Promise(resolve => {
+          setTimeout(() => {
+            console.log('Cart refresh timed out after 3 seconds');
+            resolve('timeout');
+          }, 3000);
+        });
+      };
       
-      // Wait for both checks or timeout
-      const [beatCheck, walletCheck] = await Promise.race([
-        Promise.all([beatCheckPromise, walletCheckPromise]),
-        timeoutPromise
-      ]) as [
-        { existingIds: string[] },
-        { walletAddressMap: { [key: string]: string | null } }
-      ];
+      // Race the promises and handle the result properly
+      const result = await Promise.race([
+        Promise.all([beatCheckPromise(), walletCheckPromise()]),
+        timeoutPromise()
+      ]);
       
-      const { existingIds } = beatCheck;
-      const { walletAddressMap } = walletCheck;
+      let existingIds: string[];
+      let walletAddressMap: { [key: string]: string | null };
+      
+      if (result === 'timeout') {
+        console.log('Cart refresh timed out, keeping existing data');
+        existingIds = beatIds;
+        walletAddressMap = {};
+      } else {
+        // Result is an array from Promise.all
+        const [beatCheck, walletCheck] = result;
+        existingIds = beatCheck.existingIds;
+        walletAddressMap = walletCheck.walletAddressMap;
+      }
       
       // Update cart items
       let updatedCart = cartItems;
@@ -406,6 +419,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         
         const removedCount = cartItems.length - updatedCart.length;
         if (removedCount > 0) {
+          console.log(`Removed ${removedCount} unavailable items from cart`);
           toast.info(`Removed ${removedCount} unavailable item${removedCount !== 1 ? 's' : ''} from your cart.`);
         }
       }
@@ -424,10 +438,14 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       if (user) {
         safeLocalStorageSave(`cart_${user.id}`, cartWithUpdatedWallets);
       }
+      
+      console.log('Cart refresh completed successfully');
     } catch (err) {
       console.error('Error during cart refresh:', err);
+      // Don't show error toast to avoid spam
     } finally {
       setLoadingCart(false);
+      setIsRefreshing(false);
     }
   };
 

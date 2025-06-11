@@ -77,14 +77,18 @@ export default function Cart() {
       return;
     }
     
-    // Initialize cart - only refresh once
+    // Initialize cart - only refresh once and with better error handling
     const initializeCart = async () => {
       setIsLoading(true);
       
       try {
-        // Simplified cart loading - avoid excessive API calls
-        await refreshCart();
+        console.log('Initializing cart...');
+        // Only refresh if we have cart items
+        if (cartItems && cartItems.length > 0) {
+          await refreshCart();
+        }
         setRefreshAttempted(true);
+        console.log('Cart initialization completed');
       } catch (error) {
         console.error('Error loading cart:', error);
         setIsError(true);
@@ -129,7 +133,7 @@ export default function Cart() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, clearCart, refreshCart]);
+  }, [user, clearCart, refreshCart, cartItems]);
   
   // Handle remove item with optimistic UI update
   const handleRemoveItem = async (beatId) => {
@@ -325,6 +329,7 @@ export default function Cart() {
     setIsError(false);
     
     try {
+      console.log('Manual cart refresh triggered');
       await refreshCart();
       setRefreshAttempted(true);
       toast.success("Cart refreshed");

@@ -1,5 +1,5 @@
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,8 +8,16 @@ import { toast } from 'sonner';
 export const useWalletSync = () => {
   const { publicKey, connected, disconnect } = useWallet();
   const { user, forceUserDataRefresh } = useAuth();
+  const syncInProgress = useRef(false);
+  const lastSyncedWallet = useRef<string | null>(null);
 
   const syncWalletToDatabase = useCallback(async (walletAddress: string | null) => {
+    // Prevent concurrent syncs
+    if (syncInProgress.current) {
+      console.log('Wallet sync already in progress, skipping...');
+      return false;
+    }
+
     // Check if user is authenticated first
     if (!user?.id) {
       console.log('Cannot sync wallet: User not authenticated');
@@ -18,6 +26,14 @@ export const useWalletSync = () => {
       }
       return false;
     }
+
+    // Don't sync if it's the same wallet as last time
+    if (lastSyncedWallet.current === walletAddress) {
+      console.log('Wallet address unchanged, skipping sync');
+      return true;
+    }
+
+    syncInProgress.current = true;
 
     try {
       console.log(`Syncing wallet address to database: ${walletAddress || 'null'}`);
@@ -35,6 +51,9 @@ export const useWalletSync = () => {
         return false;
       }
 
+      // Update last synced wallet
+      lastSyncedWallet.current = walletAddress;
+
       // Force refresh user data to get the updated wallet address
       await forceUserDataRefresh();
 
@@ -48,19 +67,31 @@ export const useWalletSync = () => {
       console.error('Error in wallet sync:', error);
       toast.error('Failed to sync wallet');
       return false;
+    } finally {
+      syncInProgress.current = false;
     }
   }, [user?.id, forceUserDataRefresh]);
 
   // Sync wallet connection state to database
   useEffect(() => {
+    // Don't sync if sync is already in progress
+    if (syncInProgress.current) {
+      return;
+    }
+
     if (connected && publicKey) {
       const connectedWalletAddress = publicKey.toString();
       // Only sync if the connected wallet is different from stored wallet
       if (user?.wallet_address !== connectedWalletAddress) {
+        console.log('Wallet connected, syncing to database...');
         syncWalletToDatabase(connectedWalletAddress);
+      } else {
+        console.log('Wallet already synced, no action needed');
+        lastSyncedWallet.current = connectedWalletAddress;
       }
-    } else if (!connected && user?.wallet_address) {
+    } else if (!connected && user?.wallet_address && lastSyncedWallet.current) {
       // Only sync disconnection if user is authenticated and has a stored wallet
+      console.log('Wallet disconnected, syncing to database...');
       syncWalletToDatabase(null);
     }
   }, [connected, publicKey, user?.id, user?.wallet_address, syncWalletToDatabase]);
