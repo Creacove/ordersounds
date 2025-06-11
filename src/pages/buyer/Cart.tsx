@@ -451,21 +451,6 @@ export default function Cart() {
           )}
         </div>
 
-        {/* Enhanced debug information panel */}
-        {process.env.NODE_ENV === 'development' && user && (
-          <div className="mb-4 p-3 bg-gray-100 rounded text-xs font-mono">
-            <div>🔍 Debug Info:</div>
-            <div>User ID: {user.id}</div>
-            <div>User Wallet (stored): {user.wallet_address || 'NULL'}</div>
-            <div>Connected Wallet: {wallet.publicKey?.toString() || 'None'}</div>
-            <div>Is Connected: {isConnected ? 'Yes' : 'No'}</div>
-            <div>Is Synced: {isWalletSynced ? 'Yes' : 'No'}</div>
-            <div>Needs Auth: {needsAuth ? 'Yes' : 'No'}</div>
-            <div>Wallet Mismatch: {walletMismatch ? 'Yes' : 'No'}</div>
-            <div>Sync Status: {syncStatus}</div>
-          </div>
-        )}
-
         {isError && (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded mb-6 flex items-start">
             <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
