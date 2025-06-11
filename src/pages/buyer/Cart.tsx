@@ -24,7 +24,14 @@ export default function Cart() {
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const wallet = useWallet();
-  const { isWalletSynced, needsAuth, isConnected, walletMismatch, storedWalletAddress } = useWalletSync();
+  const { 
+    isWalletSynced, 
+    needsAuth, 
+    isConnected, 
+    walletMismatch, 
+    storedWalletAddress,
+    syncStatus 
+  } = useWalletSync();
   
   // UI state management
   const [isLoading, setIsLoading] = useState(true);
@@ -45,11 +52,12 @@ export default function Cart() {
       needsAuth,
       walletMismatch,
       storedWalletAddress,
+      syncStatus,
       userId: user?.id,
       userWalletFromContext: user?.wallet_address
     });
-  }, [isConnected, wallet.publicKey, isWalletSynced, needsAuth, walletMismatch, storedWalletAddress, user]);
-  
+  }, [isConnected, wallet.publicKey, isWalletSynced, needsAuth, walletMismatch, storedWalletAddress, syncStatus, user]);
+
   // Check for purchase success on mount
   useEffect(() => {
     const checkPurchaseStatus = () => {
@@ -211,7 +219,8 @@ export default function Cart() {
       isConnected,
       needsAuth,
       walletMismatch,
-      isWalletSynced
+      isWalletSynced,
+      syncStatus
     });
 
     if (!cartItems || cartItems.length === 0) {
@@ -241,13 +250,23 @@ export default function Cart() {
 
     // Check for wallet mismatch
     if (walletMismatch) {
-      toast.error(`Connected wallet doesn't match your saved wallet. Please connect the correct wallet or update your saved wallet.`);
+      toast.error(`Connected wallet doesn't match your saved wallet. Please use "Force Sync" to update your saved wallet.`);
       return;
     }
     
     // Check if wallet is synced to database
+    if (syncStatus === 'syncing') {
+      toast.error('Please wait for wallet to sync with your account');
+      return;
+    }
+    
+    if (syncStatus === 'error') {
+      toast.error('Wallet sync failed. Please try "Force Sync" or reconnect your wallet');
+      return;
+    }
+    
     if (!isWalletSynced) {
-      toast.error('Please wait for wallet to sync with your account or try the "Force Sync" option');
+      toast.error('Wallet not synced. Please try "Force Sync" or reconnect your wallet');
       return;
     }
     
@@ -432,7 +451,7 @@ export default function Cart() {
           )}
         </div>
 
-        {/* Debug information panel (only show in development) */}
+        {/* Enhanced debug information panel */}
         {process.env.NODE_ENV === 'development' && user && (
           <div className="mb-4 p-3 bg-gray-100 rounded text-xs font-mono">
             <div>🔍 Debug Info:</div>
@@ -443,6 +462,7 @@ export default function Cart() {
             <div>Is Synced: {isWalletSynced ? 'Yes' : 'No'}</div>
             <div>Needs Auth: {needsAuth ? 'Yes' : 'No'}</div>
             <div>Wallet Mismatch: {walletMismatch ? 'Yes' : 'No'}</div>
+            <div>Sync Status: {syncStatus}</div>
           </div>
         )}
 
@@ -589,7 +609,7 @@ export default function Cart() {
                         <WalletButton buttonClass="w-full justify-center" />
                       </div>
                       
-                      {/* Enhanced status messages */}
+                      {/* Enhanced status messages with sync status */}
                       {!user && (
                         <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
                           ⚠️ Login required to sync wallet
@@ -610,12 +630,17 @@ export default function Cart() {
                           ⚠️ Wallet mismatch - use "Force Sync" or connect saved wallet ({storedWalletAddress?.slice(0, 8)}...)
                         </div>
                       )}
-                      {user && isConnected && !needsAuth && !walletMismatch && !isWalletSynced && (
+                      {user && isConnected && !needsAuth && !walletMismatch && syncStatus === 'syncing' && (
                         <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
-                          ⏳ Syncing wallet... Try "Force Sync" if stuck
+                          ⏳ Syncing wallet... Please wait
                         </div>
                       )}
-                      {user && isWalletSynced && (
+                      {user && isConnected && !needsAuth && !walletMismatch && syncStatus === 'error' && (
+                        <div className="text-xs text-red-600 dark:text-red-400 text-center">
+                          ❌ Sync failed - try "Force Sync"
+                        </div>
+                      )}
+                      {user && isWalletSynced && syncStatus === 'success' && (
                         <div className="text-xs text-green-600 dark:text-green-400 text-center">
                           ✓ Wallet connected and synced
                         </div>
@@ -635,7 +660,7 @@ export default function Cart() {
                       className="w-full py-6 text-base shadow-md hover:shadow-lg transition-all duration-300"
                       variant="premium"
                       size="lg"
-                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !user || !isConnected || needsAuth || walletMismatch || !isWalletSynced}
+                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !user || !isConnected || needsAuth || walletMismatch || syncStatus === 'syncing' || syncStatus === 'error' || !isWalletSynced}
                     >
                       {isPreparingCheckout ? (
                         <>
@@ -650,8 +675,12 @@ export default function Cart() {
                         <>Login to Sync Wallet</>
                       ) : walletMismatch ? (
                         <>Wrong Wallet Connected</>
-                      ) : !isWalletSynced ? (
+                      ) : syncStatus === 'syncing' ? (
                         <>Syncing Wallet...</>
+                      ) : syncStatus === 'error' ? (
+                        <>Sync Failed - Try Force Sync</>
+                      ) : !isWalletSynced ? (
+                        <>Wallet Not Synced</>
                       ) : (
                         <>Pay with USDC (${totalAmount})</>
                       )}

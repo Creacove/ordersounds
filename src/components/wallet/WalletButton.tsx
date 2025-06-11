@@ -3,7 +3,7 @@ import React from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
-import { Wallet, AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
+import { Wallet, AlertCircle, ChevronDown, RefreshCw, CheckCircle, Clock } from 'lucide-react';
 import { useWalletSync } from '@/hooks/useWalletSync';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -30,11 +30,17 @@ const WalletButton = ({
   showLabel = true
 }: WalletButtonProps) => {
   const { publicKey, connected, connecting, wallet, select, disconnect } = useWallet();
-  const { disconnectAndSync, isWalletSynced, needsAuth, manualSyncTrigger } = useWalletSync();
+  const { 
+    disconnectAndSync, 
+    isWalletSynced, 
+    needsAuth, 
+    manualSyncTrigger,
+    syncStatus,
+    lastError
+  } = useWalletSync();
   const { user } = useAuth();
   const navigate = useNavigate();
   
-  // Get a shortened version of the wallet address
   const shortenAddress = (address: string) => {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
@@ -44,7 +50,6 @@ const WalletButton = ({
   };
 
   const handleChangeWallet = () => {
-    // This will trigger the wallet selection modal
     select(null);
   };
 
@@ -54,7 +59,42 @@ const WalletButton = ({
 
   const handleManualSync = async () => {
     console.log('🔧 Manual sync button clicked');
-    await manualSyncTrigger();
+    const success = await manualSyncTrigger();
+    if (success) {
+      console.log('✅ Manual sync completed successfully');
+    } else {
+      console.log('❌ Manual sync failed');
+    }
+  };
+
+  // Get sync status icon and text
+  const getSyncStatusDisplay = () => {
+    switch (syncStatus) {
+      case 'syncing':
+        return {
+          icon: <Clock className="h-3 w-3 animate-pulse text-amber-500" />,
+          text: 'Syncing...',
+          color: 'text-amber-600 dark:text-amber-400'
+        };
+      case 'success':
+        return {
+          icon: <CheckCircle className="h-3 w-3 text-green-500" />,
+          text: 'Synced',
+          color: 'text-green-600 dark:text-green-400'
+        };
+      case 'error':
+        return {
+          icon: <AlertCircle className="h-3 w-3 text-red-500" />,
+          text: 'Sync Failed',
+          color: 'text-red-600 dark:text-red-400'
+        };
+      default:
+        return {
+          icon: <Clock className="h-3 w-3 text-gray-500" />,
+          text: 'Ready',
+          color: 'text-gray-600 dark:text-gray-400'
+        };
+    }
   };
 
   return (
@@ -93,15 +133,17 @@ const WalletButton = ({
                         {shortenAddress(publicKey.toString())}
                       </span>
                       <div className="flex items-center gap-1">
-                        {isWalletSynced ? (
-                          <span className="text-xs text-green-600 dark:text-green-400">
-                            Synced
-                          </span>
-                        ) : (
-                          <span className="text-xs text-amber-600 dark:text-amber-400">
-                            Syncing...
-                          </span>
-                        )}
+                        {(() => {
+                          const statusDisplay = getSyncStatusDisplay();
+                          return (
+                            <>
+                              {statusDisplay.icon}
+                              <span className={`text-xs ${statusDisplay.color}`}>
+                                {statusDisplay.text}
+                              </span>
+                            </>
+                          );
+                        })()}
                         {wallet?.adapter?.name && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             • {wallet.adapter.name}
@@ -113,10 +155,15 @@ const WalletButton = ({
                   <ChevronDown className="h-3 w-3 text-purple-600 dark:text-purple-400 ml-1" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onClick={handleManualSync} className="cursor-pointer">
-                  <RefreshCw className="h-4 w-4 mr-2" />
+                  <RefreshCw className={`h-4 w-4 mr-2 ${syncStatus === 'syncing' ? 'animate-spin' : ''}`} />
                   Force Sync
+                  {lastError && (
+                    <span className="text-xs text-red-500 ml-2 truncate">
+                      ({lastError.substring(0, 20)}...)
+                    </span>
+                  )}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleChangeWallet} className="cursor-pointer">
