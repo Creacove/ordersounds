@@ -224,7 +224,7 @@ export default function Cart() {
       const response = await Promise.race([
         fetchPromise,
         timeoutPromise
-      ]);
+      ]) as { data: any[] | null; error: any };
       
       const producersData = response?.data;
       const error = response?.error;
