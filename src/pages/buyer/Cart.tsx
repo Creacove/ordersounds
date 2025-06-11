@@ -35,6 +35,20 @@ export default function Cart() {
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [refreshAttempted, setRefreshAttempted] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
+
+  // Debug logging for wallet states
+  useEffect(() => {
+    console.log('🛒 Cart - Wallet states:', {
+      isConnected,
+      publicKey: wallet.publicKey?.toString(),
+      isWalletSynced,
+      needsAuth,
+      walletMismatch,
+      storedWalletAddress,
+      userId: user?.id,
+      userWalletFromContext: user?.wallet_address
+    });
+  }, [isConnected, wallet.publicKey, isWalletSynced, needsAuth, walletMismatch, storedWalletAddress, user]);
   
   // Check for purchase success on mount
   useEffect(() => {
@@ -191,6 +205,15 @@ export default function Cart() {
   
   // Enhanced Solana checkout with better error handling
   const handleOpenSolanaCheckout = async () => {
+    console.log('🚀 Opening Solana checkout with states:', {
+      cartItems: cartItems?.length,
+      user: user?.id,
+      isConnected,
+      needsAuth,
+      walletMismatch,
+      isWalletSynced
+    });
+
     if (!cartItems || cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
@@ -224,11 +247,11 @@ export default function Cart() {
     
     // Check if wallet is synced to database
     if (!isWalletSynced) {
-      toast.error('Please wait for wallet to sync with your account');
+      toast.error('Please wait for wallet to sync with your account or try the "Force Sync" option');
       return;
     }
     
-    console.log("Opening Solana checkout dialog");
+    console.log("✅ All checks passed, opening Solana checkout dialog");
     setIsPreparingCheckout(true);
     
     try {
@@ -409,6 +432,20 @@ export default function Cart() {
           )}
         </div>
 
+        {/* Debug information panel (only show in development) */}
+        {process.env.NODE_ENV === 'development' && user && (
+          <div className="mb-4 p-3 bg-gray-100 rounded text-xs font-mono">
+            <div>🔍 Debug Info:</div>
+            <div>User ID: {user.id}</div>
+            <div>User Wallet (stored): {user.wallet_address || 'NULL'}</div>
+            <div>Connected Wallet: {wallet.publicKey?.toString() || 'None'}</div>
+            <div>Is Connected: {isConnected ? 'Yes' : 'No'}</div>
+            <div>Is Synced: {isWalletSynced ? 'Yes' : 'No'}</div>
+            <div>Needs Auth: {needsAuth ? 'Yes' : 'No'}</div>
+            <div>Wallet Mismatch: {walletMismatch ? 'Yes' : 'No'}</div>
+          </div>
+        )}
+
         {isError && (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded mb-6 flex items-start">
             <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
@@ -570,12 +607,12 @@ export default function Cart() {
                       )}
                       {user && isConnected && walletMismatch && (
                         <div className="text-xs text-red-600 dark:text-red-400 text-center">
-                          ⚠️ Wallet mismatch - connect saved wallet ({storedWalletAddress?.slice(0, 8)}...)
+                          ⚠️ Wallet mismatch - use "Force Sync" or connect saved wallet ({storedWalletAddress?.slice(0, 8)}...)
                         </div>
                       )}
                       {user && isConnected && !needsAuth && !walletMismatch && !isWalletSynced && (
                         <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
-                          ⏳ Syncing wallet...
+                          ⏳ Syncing wallet... Try "Force Sync" if stuck
                         </div>
                       )}
                       {user && isWalletSynced && (

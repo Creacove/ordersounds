@@ -3,7 +3,7 @@ import React from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
-import { Wallet, AlertCircle, ChevronDown } from 'lucide-react';
+import { Wallet, AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
 import { useWalletSync } from '@/hooks/useWalletSync';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +30,7 @@ const WalletButton = ({
   showLabel = true
 }: WalletButtonProps) => {
   const { publicKey, connected, connecting, wallet, select, disconnect } = useWallet();
-  const { disconnectAndSync, isWalletSynced, needsAuth } = useWalletSync();
+  const { disconnectAndSync, isWalletSynced, needsAuth, manualSyncTrigger } = useWalletSync();
   const { user } = useAuth();
   const navigate = useNavigate();
   
@@ -50,6 +50,11 @@ const WalletButton = ({
 
   const handleDisconnect = async () => {
     await disconnectAndSync();
+  };
+
+  const handleManualSync = async () => {
+    console.log('🔧 Manual sync button clicked');
+    await manualSyncTrigger();
   };
 
   return (
@@ -88,9 +93,13 @@ const WalletButton = ({
                         {shortenAddress(publicKey.toString())}
                       </span>
                       <div className="flex items-center gap-1">
-                        {isWalletSynced && (
+                        {isWalletSynced ? (
                           <span className="text-xs text-green-600 dark:text-green-400">
                             Synced
+                          </span>
+                        ) : (
+                          <span className="text-xs text-amber-600 dark:text-amber-400">
+                            Syncing...
                           </span>
                         )}
                         {wallet?.adapter?.name && (
@@ -105,6 +114,11 @@ const WalletButton = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleManualSync} className="cursor-pointer">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Force Sync
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleChangeWallet} className="cursor-pointer">
                   <Wallet className="h-4 w-4 mr-2" />
                   Change Wallet
