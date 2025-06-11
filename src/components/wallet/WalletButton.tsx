@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
 import { Wallet } from 'lucide-react';
+import { useWalletSync } from '@/hooks/useWalletSync';
 import '@/wallet-button.css';
 
 interface WalletButtonProps {
@@ -19,7 +20,8 @@ const WalletButton = ({
   showIcon = true,
   showLabel = true
 }: WalletButtonProps) => {
-  const { publicKey, disconnect, connected } = useWallet();
+  const { publicKey, connected } = useWallet();
+  const { disconnectAndSync, isWalletSynced } = useWalletSync();
   
   // Get a shortened version of the wallet address
   const shortenAddress = (address: string) => {
@@ -32,13 +34,20 @@ const WalletButton = ({
         <Button 
           variant="outline" 
           className={`rounded-full flex items-center gap-2 transition-all hover:shadow-md bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 border-purple-200 dark:border-purple-900 ${buttonClass}`}
-          onClick={() => disconnect()}
+          onClick={disconnectAndSync}
         >
           {showIcon && <Wallet className="h-4 w-4 text-purple-600 dark:text-purple-400" />}
           {showLabel && (
-            <span className="font-medium text-purple-700 dark:text-purple-300">
-              {shortenAddress(publicKey.toString())}
-            </span>
+            <div className="flex flex-col items-start">
+              <span className="font-medium text-purple-700 dark:text-purple-300">
+                {shortenAddress(publicKey.toString())}
+              </span>
+              {isWalletSynced && (
+                <span className="text-xs text-green-600 dark:text-green-400">
+                  Synced
+                </span>
+              )}
+            </div>
           )}
         </Button>
       ) : (

@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
 import WalletButton from "@/components/wallet/WalletButton";
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletSync } from '@/hooks/useWalletSync';
 
 export default function Cart() {
   const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
@@ -23,6 +24,7 @@ export default function Cart() {
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const wallet = useWallet();
+  const { isWalletSynced } = useWalletSync();
   
   // UI state management
   const [isLoading, setIsLoading] = useState(true);
@@ -183,16 +185,22 @@ export default function Cart() {
     }
   };
   
-  // Open Solana checkout with more reliable error handling
+  // Open Solana checkout with improved validation and error handling
   const handleOpenSolanaCheckout = async () => {
     if (!cartItems || cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
     
-    // Check if wallet is connected first
+    // Check wallet connection first
     if (!wallet.connected) {
       toast.error('Please connect your Solana wallet first');
+      return;
+    }
+    
+    // Check if wallet is synced to database
+    if (!isWalletSynced) {
+      toast.error('Please wait for wallet to sync with your account');
       return;
     }
     
@@ -200,17 +208,17 @@ export default function Cart() {
     setIsPreparingCheckout(true);
     
     try {
-      // Get producer wallet addresses only for cart items
+      // Get producer wallet addresses with improved error handling
       const beatProducerIds = cartItems.map(item => item.beat.producer_id);
       
-      // Simple fetch with timeout
+      // Fetch producer wallet addresses with timeout
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Request timeout')), 5000)
+        setTimeout(() => reject(new Error('Request timeout')), 10000)
       );
       
       const fetchPromise = supabase
         .from('users')
-        .select('id, wallet_address')
+        .select('id, wallet_address, stage_name')
         .in('id', beatProducerIds);
         
       const response = await Promise.race([
@@ -218,39 +226,32 @@ export default function Cart() {
         timeoutPromise
       ]);
       
-      // Type-safe response handling
-      const producersData = response && 
-        typeof response === 'object' && 
-        'data' in response ? 
-        response.data as any[] : null;
-        
-      const error = response && 
-        typeof response === 'object' && 
-        'error' in response ? 
-        response.error : null;
+      const producersData = response?.data;
+      const error = response?.error;
       
       if (error) {
         throw new Error('Error validating producer payment information');
       }
       
-      // Map producer IDs to wallet addresses
+      // Check for missing or invalid wallet addresses
       const producerWallets: Record<string, string> = {};
+      const producersWithoutWallets: string[] = [];
+      
       if (producersData && Array.isArray(producersData)) {
         producersData.forEach(producer => {
-          producerWallets[producer.id] = producer.wallet_address;
+          if (producer.wallet_address) {
+            producerWallets[producer.id] = producer.wallet_address;
+          } else {
+            producersWithoutWallets.push(producer.stage_name || 'Unknown Producer');
+          }
         });
       }
       
-      // Check for missing wallet addresses
-      const missingWalletProducers = cartItems.filter(item => {
-        return !producerWallets[item.beat.producer_id];
-      });
-      
-      if (missingWalletProducers.length > 0) {
-        throw new Error(`Some producers haven't set up their wallet address. Please remove these items or try again later.`);
+      if (producersWithoutWallets.length > 0) {
+        throw new Error(`The following producers haven't set up their Solana wallet addresses: ${producersWithoutWallets.join(', ')}. Please remove these items or try again later.`);
       }
       
-      // Update cart items with wallet addresses
+      // Update cart items with validated wallet addresses
       const updatedCartItems = cartItems.map(item => ({
         ...item,
         beat: {
@@ -260,7 +261,7 @@ export default function Cart() {
       }));
       
       setBeatsWithWalletAddresses(updatedCartItems);
-      console.log("Opening Solana dialog with items:", updatedCartItems);
+      console.log("Opening Solana dialog with validated items:", updatedCartItems);
       setIsSolanaDialogOpen(true);
     } catch (err) {
       console.error('Error processing Solana checkout:', err);
@@ -518,13 +519,23 @@ export default function Cart() {
                     </span>
                   </div>
 
-                  {/* Add Solana wallet button when currency is USD */}
+                  {/* Enhanced Solana wallet section for USD payments */}
                   {currency === 'USD' && (
                     <div className="mt-4 py-3 px-4 bg-secondary/30 rounded-md flex flex-col gap-3">
-                      <div className="text-sm font-medium">Connect your wallet to pay with Solana</div>
+                      <div className="text-sm font-medium">Pay with USDC on Solana</div>
                       <div className="w-full">
                         <WalletButton buttonClass="w-full justify-center" />
                       </div>
+                      {wallet.connected && isWalletSynced && (
+                        <div className="text-xs text-green-600 dark:text-green-400 text-center">
+                          ✓ Wallet connected and synced
+                        </div>
+                      )}
+                      {wallet.connected && !isWalletSynced && (
+                        <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
+                          ⏳ Syncing wallet...
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -540,17 +551,19 @@ export default function Cart() {
                       className="w-full py-6 text-base shadow-md hover:shadow-lg transition-all duration-300"
                       variant="premium"
                       size="lg"
-                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !wallet.connected}
+                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !wallet.connected || !isWalletSynced}
                     >
                       {isPreparingCheckout ? (
                         <>
                           <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-2" />
-                          Processing...
+                          Preparing...
                         </>
                       ) : !wallet.connected ? (
                         <>Connect Wallet First</>
+                      ) : !isWalletSynced ? (
+                        <>Syncing Wallet...</>
                       ) : (
-                        <>Pay with Solana ($)</>
+                        <>Pay with USDC (${totalAmount})</>
                       )}
                     </Button>
                   )}

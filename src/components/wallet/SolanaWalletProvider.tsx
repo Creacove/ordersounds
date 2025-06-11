@@ -19,19 +19,25 @@ interface SolanaWalletProviderProps {
 }
 
 const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
-    // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'.
-    const network = WalletAdapterNetwork.Devnet;
+    // Use devnet for development, mainnet for production
+    const network = useMemo(() => {
+        return process.env.NODE_ENV === 'production' 
+            ? WalletAdapterNetwork.Mainnet 
+            : WalletAdapterNetwork.Devnet;
+    }, []);
 
-    // You can also provide a custom RPC endpoint.
-    const endpoint = useMemo(() => 
-        process.env.NODE_ENV === 'production' 
-            ? 'https://api.mainnet-beta.solana.com'
-            : 'https://api.devnet.solana.com', 
-        []
-    );
+    // Configure RPC endpoints with fallbacks
+    const endpoint = useMemo(() => {
+        if (process.env.NODE_ENV === 'production') {
+            // Production - use mainnet
+            return 'https://api.mainnet-beta.solana.com';
+        } else {
+            // Development - use devnet with fallbacks
+            return 'https://api.devnet.solana.com';
+        }
+    }, []);
 
-    // @solana/wallet-adapter-wallets imports all the adapters but supports tree shaking 
-    // and lazy loading --only the wallets you configure here will be compiled into your app
+    // Configure wallet adapters
     const wallets = useMemo(
         () => [
             new PhantomWalletAdapter(),
@@ -47,9 +53,23 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
     );
 
     return (
-        <ConnectionProvider endpoint={endpoint}>
-            <WalletProvider wallets={wallets} autoConnect>
-                <WalletModalProvider>{children}</WalletModalProvider>
+        <ConnectionProvider 
+            endpoint={endpoint}
+            config={{
+                commitment: 'confirmed',
+                confirmTransactionInitialTimeout: 60000,
+            }}
+        >
+            <WalletProvider 
+                wallets={wallets} 
+                autoConnect={true}
+                onError={(error) => {
+                    console.error('Wallet error:', error);
+                }}
+            >
+                <WalletModalProvider>
+                    {children}
+                </WalletModalProvider>
             </WalletProvider>
         </ConnectionProvider>
     );

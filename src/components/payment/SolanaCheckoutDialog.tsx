@@ -14,7 +14,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Wallet } from "lucide-react";
 import WalletButton from "../wallet/WalletButton";
 
 interface CartItem {
@@ -43,7 +43,7 @@ export const SolanaCheckoutDialog = ({
   const [validatedItems, setValidatedItems] = useState<CartItem[]>([]);
   const [validationComplete, setValidationComplete] = useState(false);
   const [validationError, setValidationError] = useState('');
-  const { makePayment, isProcessing, isWalletConnected } = useSolanaPayment();
+  const { makePayment, isProcessing, isWalletConnected, network } = useSolanaPayment();
   const wallet = useWallet();
   
   // Add debug logs for dialog state
@@ -51,7 +51,8 @@ export const SolanaCheckoutDialog = ({
     console.log("SolanaCheckoutDialog - open state changed:", open);
     console.log("SolanaCheckoutDialog - cartItems count:", cartItems?.length);
     console.log("SolanaCheckoutDialog - wallet connected:", wallet.connected);
-  }, [open, cartItems, wallet.connected]);
+    console.log("SolanaCheckoutDialog - network:", network);
+  }, [open, cartItems, wallet.connected, network]);
   
   // Re-validate wallet addresses when dialog opens
   useEffect(() => {
@@ -60,7 +61,7 @@ export const SolanaCheckoutDialog = ({
       
       setValidationError('');
       setValidationComplete(false);
-      console.log("Validating wallet addresses for items:", cartItems);
+      console.log("Validating USDC wallet addresses for items:", cartItems);
 
       try {
         // Extract product IDs for database verification
@@ -91,7 +92,7 @@ export const SolanaCheckoutDialog = ({
         // Get the wallet addresses for these producers
         const { data: producersData, error: producersError } = await supabase
           .from('users')
-          .select('id, wallet_address')
+          .select('id, wallet_address, stage_name')
           .in('id', producerIds);
           
         if (producersError) {
@@ -103,9 +104,14 @@ export const SolanaCheckoutDialog = ({
         
         // Create producer wallet map
         const producerWalletMap: Record<string, string | null> = {};
+        const producersWithoutWallets: string[] = [];
+        
         producersData?.forEach(producer => {
           producerWalletMap[producer.id] = producer.wallet_address;
-          console.log(`Producer ${producer.id} wallet: ${producer.wallet_address || 'MISSING'}`);
+          if (!producer.wallet_address) {
+            producersWithoutWallets.push(producer.stage_name || 'Unknown Producer');
+          }
+          console.log(`Producer ${producer.stage_name} wallet: ${producer.wallet_address || 'MISSING'}`);
         });
         
         // Create beat-to-producer map
@@ -138,7 +144,7 @@ export const SolanaCheckoutDialog = ({
         
         if (missingWallets.length > 0) {
           console.error("Items missing wallet addresses:", missingWallets);
-          setValidationError(`${missingWallets.length} item(s) cannot be purchased due to missing wallet address`);
+          setValidationError(`Cannot process payment: ${producersWithoutWallets.join(', ')} ${producersWithoutWallets.length === 1 ? 'has' : 'have'} not set up ${producersWithoutWallets.length === 1 ? 'their' : 'their'} Solana wallet address yet.`);
           return;
         }
         
@@ -206,15 +212,17 @@ export const SolanaCheckoutDialog = ({
         throw new Error("User not authenticated");
       }
 
-      // Create order header - immediately set as completed since we're going to validate it
+      console.log(`Processing ${groupedItems.length} USDC payments on ${network} network`);
+
+      // Create order header
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           buyer_id: userData.user.id,
           total_price: totalPrice,
-          status: 'completed', // Initialize as completed, we'll delete if payments fail
+          status: 'completed',
           currency_used: 'USDC',
-          payment_method: 'solana'
+          payment_method: 'solana_usdc'
         })
         .select()
         .single();
@@ -227,7 +235,7 @@ export const SolanaCheckoutDialog = ({
       
       console.log("Created order:", order);
       
-      // Process payments for each producer
+      // Process USDC payments for each producer
       let successfulPayments = 0;
       let transactionSignatures: string[] = [];
       
@@ -238,17 +246,18 @@ export const SolanaCheckoutDialog = ({
             continue;
           }
           
-          console.log(`Processing payment of ${group.total} to wallet ${group.producerWallet}`);
+          console.log(`Processing USDC payment of $${group.total} to wallet ${group.producerWallet}`);
           
-          // Process payment for this producer's items
+          // Process USDC payment for this producer's items
           const signature = await makePayment(
             group.total,
             group.producerWallet,
             (sig) => {
               successfulPayments++;
               transactionSignatures.push(sig);
+              console.log(`USDC payment successful: ${sig}`);
             },
-            (err) => console.error(`Payment error for ${group.producerWallet}:`, err)
+            (err) => console.error(`USDC payment error for ${group.producerWallet}:`, err)
           );
           
           // Create order items for this producer's items
@@ -271,13 +280,13 @@ export const SolanaCheckoutDialog = ({
           
         } catch (error) {
           console.error("Checkout error for producer:", error);
-          toast.error(`Error processing payment to producer`);
+          toast.error(`Error processing USDC payment to producer`);
         }
       }
       
       // Update order status based on payment results
       if (successfulPayments === groupedItems.length) {
-        // All payments successful - status already set to completed
+        // All payments successful
         if (transactionSignatures.length > 0) {
           const { error: updateError } = await supabase
             .from('orders')
@@ -291,10 +300,10 @@ export const SolanaCheckoutDialog = ({
           }
         }
           
-        toast.success("Purchase completed successfully!");
+        toast.success("USDC payments completed successfully!");
         onCheckoutSuccess();
       } else if (successfulPayments > 0) {
-        // Some payments successful but not all - keep it as completed since some items were purchased
+        // Some payments successful
         const { error: updateError } = await supabase
           .from('orders')
           .update({
@@ -306,21 +315,21 @@ export const SolanaCheckoutDialog = ({
           console.error("Error updating transaction signatures:", updateError);
         }
           
-        toast.warning("Some items were purchased successfully, but others failed");
+        toast.warning("Some items were purchased successfully with USDC, but others failed");
         onCheckoutSuccess();
       } else {
-        // No payments successful - delete the order entirely since nothing was purchased
+        // No payments successful - delete the order
         await supabase
           .from('orders')
           .delete()
           .eq('id', order.id);
           
-        toast.error("Payment failed for all items");
+        toast.error("USDC payment failed for all items");
       }
       
     } catch (error) {
-      console.error("Checkout error:", error);
-      toast.error("An error occurred during checkout");
+      console.error("USDC checkout error:", error);
+      toast.error("An error occurred during USDC checkout");
     } finally {
       setIsCheckingOut(false);
       onOpenChange(false);
@@ -331,9 +340,11 @@ export const SolanaCheckoutDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md border-purple-100 dark:border-purple-900/40 shadow-lg backdrop-blur-sm">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-indigo-600 dark:from-purple-400 dark:to-indigo-300">Complete your purchase</DialogTitle>
+          <DialogTitle className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-indigo-600 dark:from-purple-400 dark:to-indigo-300">
+            Complete USDC Payment
+          </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            You are about to purchase {cartItems.length} digital item(s) for ${totalPrice.toFixed(2)}
+            You are about to purchase {cartItems.length} digital item(s) for ${totalPrice.toFixed(2)} USDC on {network} network
           </DialogDescription>
         </DialogHeader>
         
@@ -342,9 +353,19 @@ export const SolanaCheckoutDialog = ({
             <div className="flex flex-col gap-4">
               <div className="flex items-center p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-300">
                 <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
-                <p className="text-sm">Please connect your Solana wallet to complete this purchase</p>
+                <p className="text-sm">Please connect your Solana wallet to complete this USDC purchase</p>
               </div>
               <WalletButton className="w-full flex justify-center" />
+            </div>
+          )}
+          
+          {wallet.connected && (
+            <div className="flex items-center p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700/50 dark:text-blue-300">
+              <Wallet className="h-4 w-4 mr-2 flex-shrink-0" />
+              <div className="text-sm">
+                <div>Connected: {wallet.publicKey?.toString().slice(0, 8)}...{wallet.publicKey?.toString().slice(-8)}</div>
+                <div className="text-xs opacity-75">Network: {network}</div>
+              </div>
             </div>
           )}
           
@@ -356,19 +377,19 @@ export const SolanaCheckoutDialog = ({
           ) : validationComplete ? (
             <div className="flex items-center p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700/50 dark:text-green-300">
               <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
-              <p className="text-sm">All producer wallet addresses verified</p>
+              <p className="text-sm">All producer USDC wallet addresses verified</p>
             </div>
           ) : (
             <div className="flex items-center p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700/50 dark:text-blue-300">
               <Loader2 className="h-4 w-4 mr-2 animate-spin flex-shrink-0" />
-              <p className="text-sm">Verifying producer wallet addresses...</p>
+              <p className="text-sm">Verifying producer USDC wallet addresses...</p>
             </div>
           )}
           
           <div className="p-4 rounded-lg bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/30">
-            <p className="mb-2">Your items will be available for download immediately after purchase.</p>
+            <p className="mb-2">Your items will be available for download immediately after USDC payment.</p>
             <p className="text-sm text-muted-foreground">
-              This checkout will process individual payments to each producer, with platform fees calculated per item.
+              This checkout will process individual USDC payments to each producer, with platform fees calculated per item.
             </p>
           </div>
         </div>
@@ -390,10 +411,10 @@ export const SolanaCheckoutDialog = ({
             {isCheckingOut ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processing...
+                Processing USDC...
               </>
             ) : (
-              'Complete Purchase'
+              `Pay ${totalPrice.toFixed(2)} USDC`
             )}
           </Button>
         </DialogFooter>

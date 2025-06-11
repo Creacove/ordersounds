@@ -2,7 +2,7 @@
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
-import { processPurchase, isValidSolanaAddress, processMultiplePayments } from '@/utils/payment/solanaTransactions';
+import { processUSDCPayment, isValidSolanaAddress, processMultipleUSDCPayments } from '@/utils/payment/usdcTransactions';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ProductData {
@@ -17,6 +17,9 @@ export const useSolanaPayment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastTransactionSignature, setLastTransactionSignature] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(true);
+  
+  // Get current network
+  const network = process.env.NODE_ENV === 'production' ? 'mainnet-beta' : 'devnet';
   
   // Cleanup on unmount
   useEffect(() => {
@@ -66,12 +69,15 @@ export const useSolanaPayment = () => {
       // Validate inputs
       validatePaymentInputs(amount, producerWalletAddress);
 
-      // Process payment
-      const signature = await processPurchase(
+      console.log(`Processing USDC payment: $${amount} to ${producerWalletAddress}`);
+
+      // Process USDC payment instead of SOL
+      const signature = await processUSDCPayment(
         amount,
         producerWalletAddress,
         connection,
-        wallet
+        wallet,
+        network
       );
 
       // Wait for confirmation
@@ -91,7 +97,7 @@ export const useSolanaPayment = () => {
           throw new Error("USER_NOT_AUTHENTICATED: Please sign in to complete purchase");
         }
 
-        // Use transaction for data consistency
+        // Create order record
         const { data: orderData, error: orderError } = await supabase
           .from('orders')
           .insert({
@@ -99,7 +105,7 @@ export const useSolanaPayment = () => {
             total_price: amount,
             status: 'completed',
             transaction_signatures: [signature],
-            payment_method: 'solana',
+            payment_method: 'solana_usdc',
             currency_used: 'USDC'
           })
           .select()
@@ -125,12 +131,12 @@ export const useSolanaPayment = () => {
       }
       
       if (isMounted) {
-        toast.success("Payment successful!");
+        toast.success("USDC payment successful!");
       }
       onSuccess?.(signature);
       return signature;
     } catch (error: any) {
-      console.error("Payment error:", error);
+      console.error("USDC payment error:", error);
       const message = error.message.includes(':') 
         ? error.message.split(':').pop().trim() 
         : "Payment failed";
@@ -182,14 +188,16 @@ export const useSolanaPayment = () => {
         throw new Error("WALLET_NOT_CONNECTED: Please connect your wallet first");
       }
 
-      // Add retry logic
+      console.log(`Processing ${items.length} USDC payments`);
+
+      // Process multiple USDC payments
       let retries = 0;
       let lastError;
       let signatures: string[] = [];
 
       while (retries <= maxRetries) {
         try {
-          signatures = await processMultiplePayments(items, connection, wallet);
+          signatures = await processMultipleUSDCPayments(items, connection, wallet, network);
           break;
         } catch (error) {
           lastError = error;
@@ -197,7 +205,7 @@ export const useSolanaPayment = () => {
           if (retries <= maxRetries) {
             await new Promise(resolve => setTimeout(resolve, 1000 * retries));
             if (isMounted) {
-              toast.info(`Retrying payment (attempt ${retries} of ${maxRetries})...`);
+              toast.info(`Retrying payments (attempt ${retries} of ${maxRetries})...`);
             }
           }
         }
@@ -219,7 +227,7 @@ export const useSolanaPayment = () => {
               total_price: items.reduce((total, item) => total + item.price, 0),
               status: 'completed',
               transaction_signatures: signatures,
-              payment_method: 'solana',
+              payment_method: 'solana_usdc',
               currency_used: 'USDC'
             })
             .select()
@@ -245,12 +253,12 @@ export const useSolanaPayment = () => {
 
       if (isMounted) {
         setLastTransactionSignature(signatures[signatures.length - 1]);
-        toast.success(`${signatures.length} payments processed successfully!`);
+        toast.success(`${signatures.length} USDC payments processed successfully!`);
       }
       onSuccess?.(signatures);
       return signatures;
     } catch (error: any) {
-      console.error("Multiple payments error:", error);
+      console.error("Multiple USDC payments error:", error);
       const message = error.message.includes(':') 
         ? error.message.split(':').pop().trim() 
         : "Payments failed";
@@ -273,6 +281,7 @@ export const useSolanaPayment = () => {
     isProcessing,
     lastTransactionSignature,
     isWalletConnected: wallet.connected,
-    walletAddress: wallet.publicKey?.toString()
+    walletAddress: wallet.publicKey?.toString(),
+    network
   };
 };
