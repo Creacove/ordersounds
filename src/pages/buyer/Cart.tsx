@@ -24,7 +24,7 @@ export default function Cart() {
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const wallet = useWallet();
-  const { isWalletSynced, needsAuth, isConnected } = useWalletSync();
+  const { isWalletSynced, needsAuth, isConnected, walletMismatch, storedWalletAddress } = useWalletSync();
   
   // UI state management
   const [isLoading, setIsLoading] = useState(true);
@@ -209,6 +209,12 @@ export default function Cart() {
     if (needsAuth) {
       toast.error('Please log in to sync your wallet');
       navigate('/login');
+      return;
+    }
+
+    // Check for wallet mismatch
+    if (walletMismatch) {
+      toast.error(`Connected wallet doesn't match your saved wallet. Please connect the correct wallet or update your saved wallet.`);
       return;
     }
     
@@ -557,7 +563,12 @@ export default function Cart() {
                           ⚠️ Please log in to sync wallet
                         </div>
                       )}
-                      {user && isConnected && !needsAuth && !isWalletSynced && (
+                      {user && isConnected && walletMismatch && (
+                        <div className="text-xs text-red-600 dark:text-red-400 text-center">
+                          ⚠️ Wallet mismatch - connect saved wallet ({storedWalletAddress?.slice(0, 8)}...)
+                        </div>
+                      )}
+                      {user && isConnected && !needsAuth && !walletMismatch && !isWalletSynced && (
                         <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
                           ⏳ Syncing wallet...
                         </div>
@@ -582,7 +593,7 @@ export default function Cart() {
                       className="w-full py-6 text-base shadow-md hover:shadow-lg transition-all duration-300"
                       variant="premium"
                       size="lg"
-                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !user || !isConnected || needsAuth || !isWalletSynced}
+                      disabled={!cartItems || cartItems.length === 0 || isPreparingCheckout || !user || !isConnected || needsAuth || walletMismatch || !isWalletSynced}
                     >
                       {isPreparingCheckout ? (
                         <>
@@ -595,6 +606,8 @@ export default function Cart() {
                         <>Connect Wallet First</>
                       ) : needsAuth ? (
                         <>Login to Sync Wallet</>
+                      ) : walletMismatch ? (
+                        <>Wrong Wallet Connected</>
                       ) : !isWalletSynced ? (
                         <>Syncing Wallet...</>
                       ) : (

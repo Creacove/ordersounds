@@ -96,10 +96,10 @@ export const useAuthState = () => {
   // Function to fetch user data with retry logic
   const fetchUserData = async (userId: string, onSuccess: (userData: any) => void) => {
     try {
-      // Get additional user data from the users table, including status
+      // Get additional user data from the users table, including wallet_address
       const { data: userData, error: userError } = await supabase
         .from("users")
-        .select("role, status, full_name, country")
+        .select("role, status, full_name, country, wallet_address")
         .eq("id", userId)
         .maybeSingle();
 
@@ -192,13 +192,14 @@ export const useAuthState = () => {
                   ? userData.status
                   : 'inactive';
 
-              // Merge the user data with the auth data
+              // Merge the user data with the auth data, including wallet_address
               const enrichedUser: User = {
                 ...mappedUser,
                 role: validRole,
                 status: validStatus,
                 full_name: userData?.full_name || '',
                 country: userData?.country || '',
+                wallet_address: userData?.wallet_address || '',
               };
 
               setUser(enrichedUser);
@@ -267,13 +268,14 @@ export const useAuthState = () => {
                 ? userData.status
                 : 'inactive';
 
-            // Merge the user data with the auth data
+            // Merge the user data with the auth data, including wallet_address
             const enrichedUser: User = {
               ...mappedUser,
               role: validRole,
               status: validStatus,
               full_name: userData.full_name || '',
               country: userData.country || '',
+              wallet_address: userData.wallet_address || '',
             };
 
             setUser(enrichedUser);

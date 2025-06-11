@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log(`Forcing refresh of user data for ${user.id}`);
       const { data: userData, error } = await supabase
         .from('users')
-        .select('role, status, full_name, country, bio, profile_picture, stage_name')
+        .select('role, status, full_name, country, bio, profile_picture, stage_name, wallet_address')
         .eq('id', user.id)
         .maybeSingle();
       
@@ -103,7 +103,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         bio: userData.bio || user.bio || '',
         country: userData.country || user.country || '',
         avatar_url: userData.profile_picture || user.avatar_url || '',
-        producer_name: userData.stage_name || user.producer_name || ''
+        producer_name: userData.stage_name || user.producer_name || '',
+        wallet_address: userData.wallet_address || ''
       });
       
       setAuthError(null);
@@ -202,3 +203,5 @@ export const useAuth = () => {
   }
   return context;
 };
+
+export default AuthProvider;
