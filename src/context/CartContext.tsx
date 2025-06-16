@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -58,7 +57,13 @@ const CartContext = createContext<CartContextType>({
   toggleCartItem: async () => {}
 });
 
-export const useCart = () => useContext(CartContext);
+export const useCart = () => {
+  const context = useContext(CartContext);
+  if (!context) {
+    throw new Error('useCart must be used within a CartProvider');
+  }
+  return context;
+};
 
 // Generate session ID for guests
 const getSessionId = () => {
@@ -84,16 +89,17 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       console.log('CartContext: Getting or creating cart for user:', user?.id || 'guest');
       
       if (user) {
-        // For authenticated users - ensure we pass proper UUID, not string "null"
+        // For authenticated users - use correct null comparison syntax
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
           .eq('user_id', user.id)
-          .is('session_id', null)
-          .single();
+          .eq('session_id', null)
+          .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') {
           console.error('CartContext: Error finding existing user cart:', selectError);
+          throw selectError;
         }
 
         if (!existingCart) {
@@ -102,7 +108,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
             .from('carts')
             .insert({ 
               user_id: user.id,
-              session_id: null // Explicitly set to null, not string "null"
+              session_id: null
             })
             .select('id')
             .single();
@@ -126,12 +132,13 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
-          .is('user_id', null)
+          .eq('user_id', null)
           .eq('session_id', sessionId)
-          .single();
+          .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') {
           console.error('CartContext: Error finding existing guest cart:', selectError);
+          throw selectError;
         }
 
         if (!existingCart) {
@@ -139,7 +146,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           const { data: newCart, error } = await supabase
             .from('carts')
             .insert({ 
-              user_id: null, // Explicitly set to null, not string "null"
+              user_id: null,
               session_id: sessionId
             })
             .select('id')
@@ -159,6 +166,19 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       }
     } catch (error) {
       console.error('CartContext: Failed to get/create cart:', error);
+      
+      // Check if it's an RLS violation and provide helpful info
+      if (error.code === '42501') {
+        console.error('CartContext: RLS Policy violation - auth context may not be properly set');
+        // Try to get current session info for debugging
+        const { data: session } = await supabase.auth.getSession();
+        console.log('CartContext: Current session state:', {
+          hasSession: !!session?.session,
+          userId: session?.session?.user?.id,
+          isExpired: session?.session ? new Date() > new Date(session.session.expires_at * 1000) : 'no session'
+        });
+      }
+      
       throw error;
     }
   };
@@ -240,6 +260,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       setCartItems(formattedItems);
     } catch (error) {
       console.error('CartContext: Error loading cart:', error);
+      
+      // If it's an auth/RLS issue, show user-friendly message
+      if (error.code === '42501') {
+        toast.error('Unable to load cart. Please try refreshing the page.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -358,7 +383,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       await loadCartItems();
     } catch (error) {
       console.error('CartContext: Error in addToCart:', error);
-      toast.error('Failed to add item to cart. Please try again.');
+      
+      if (error.code === '42501') {
+        toast.error('Unable to add to cart. Please try refreshing the page and logging in again.');
+      } else {
+        toast.error('Failed to add item to cart. Please try again.');
+      }
     }
   };
 
