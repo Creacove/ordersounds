@@ -2,15 +2,11 @@
 import { Link } from "react-router-dom";
 import { Sparkles, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { useQuery } from "@tanstack/react-query";
 import { BeatCardCompact } from "./BeatCardCompact";
-import { fetchNewBeats } from "@/services/beats/queryService";
+import { useNewBeatsQuery } from "@/hooks/useBeatsQuery";
 
 export const NewBeats = () => {
-  const { data: newBeats = [], isLoading } = useQuery({
-    queryKey: ['new-beats'],
-    queryFn: () => fetchNewBeats(5)
-  });
+  const { data: newBeats = [], isLoading } = useNewBeatsQuery(5);
 
   return (
     <section className="w-full">

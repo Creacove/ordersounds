@@ -2,16 +2,11 @@
 import { Link } from "react-router-dom";
 import { TrendingUp, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { useQuery } from "@tanstack/react-query";
 import { BeatCardCompact } from "./BeatCardCompact";
-import { fetchTrendingBeats } from "@/services/beats";
+import { useTrendingBeatsQuery } from "@/hooks/useBeatsQuery";
 
 export const TrendingBeats = () => {
-  const { data: trendingBeats = [], isLoading } = useQuery({
-    queryKey: ['marked-trending-beats'],
-    queryFn: () => fetchTrendingBeats(5, true), // Using the second parameter to get trending marked beats
-    staleTime: 5 * 60 * 1000 // Consider data fresh for 5 minutes
-  });
+  const { data: trendingBeats = [], isLoading } = useTrendingBeatsQuery(5);
 
   return (
     <section className="w-full">
