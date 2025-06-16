@@ -43,6 +43,7 @@ export const SolanaCheckoutDialog = ({
   const [validatedItems, setValidatedItems] = useState<CartItem[]>([]);
   const [validationComplete, setValidationComplete] = useState(false);
   const [validationError, setValidationError] = useState('');
+  const [networkStatus, setNetworkStatus] = useState<'checking' | 'healthy' | 'degraded' | 'error'>('checking');
   const { makePayment, isProcessing, isWalletConnected, network } = useSolanaPayment();
   const wallet = useWallet();
   
@@ -53,6 +54,31 @@ export const SolanaCheckoutDialog = ({
     console.log("SolanaCheckoutDialog - wallet connected:", wallet.connected);
     console.log("SolanaCheckoutDialog - network:", network);
   }, [open, cartItems, wallet.connected, network]);
+
+  // Check network health when dialog opens
+  useEffect(() => {
+    const checkNetworkHealth = async () => {
+      if (!open) return;
+      
+      setNetworkStatus('checking');
+      try {
+        // Import the health check utility
+        const { getBestRpcEndpoint } = await import('@/utils/payment/rpcHealthCheck');
+        const networkKey = network === 'mainnet-beta' ? 'mainnet' : 'devnet';
+        
+        await getBestRpcEndpoint(networkKey);
+        setNetworkStatus('healthy');
+        console.log('✅ Network health check passed');
+      } catch (error) {
+        console.error('❌ Network health check failed:', error);
+        setNetworkStatus('error');
+      }
+    };
+    
+    if (open) {
+      checkNetworkHealth();
+    }
+  }, [open, network]);
   
   // Re-validate wallet addresses when dialog opens
   useEffect(() => {
@@ -181,6 +207,30 @@ export const SolanaCheckoutDialog = ({
       total: data.total
     }));
   };
+
+  const getNetworkErrorMessage = (error: any): string => {
+    const errorMsg = error.message || error.toString();
+    
+    if (errorMsg.includes('RPC_RATE_LIMITED')) {
+      return "Network is currently rate limiting requests. Please wait a moment and try again.";
+    } else if (errorMsg.includes('RPC_TIMEOUT')) {
+      return "Network connection timed out. Please check your internet connection and try again.";
+    } else if (errorMsg.includes('RPC_ERROR')) {
+      return "Unable to connect to Solana network. Please try again later.";
+    } else if (errorMsg.includes('WALLET_NOT_CONNECTED')) {
+      return "Please connect your wallet to continue.";
+    } else if (errorMsg.includes('INSUFFICIENT_FUNDS')) {
+      return "Insufficient USDC balance for this transaction.";
+    } else if (errorMsg.includes('TRANSACTION_REJECTED')) {
+      return "Transaction was cancelled.";
+    } else if (errorMsg.includes('BLOCKHASH_EXPIRED')) {
+      return "Transaction expired. Please try again.";
+    } else if (errorMsg.includes('INVALID_ADDRESS')) {
+      return "Invalid wallet address detected.";
+    } else {
+      return "Payment failed. Please try again.";
+    }
+  };
   
   const handleCheckout = async () => {
     if (!isWalletConnected) {
@@ -190,6 +240,11 @@ export const SolanaCheckoutDialog = ({
     
     if (!validationComplete) {
       toast.error("Please wait for wallet validation to complete");
+      return;
+    }
+
+    if (networkStatus === 'error') {
+      toast.error("Network connection issues detected. Please try again.");
       return;
     }
     
@@ -229,8 +284,8 @@ export const SolanaCheckoutDialog = ({
               console.log(`USDC payment successful: ${sig}`);
             },
             (err) => {
-              const errorMsg = `Payment failed for ${group.items[0].title}: ${err.message || 'Unknown error'}`;
-              paymentErrors.push(errorMsg);
+              const errorMsg = getNetworkErrorMessage(err);
+              paymentErrors.push(`${group.items[0].title}: ${errorMsg}`);
               console.error(`USDC payment error for ${group.producerWallet}:`, err);
             }
           );
@@ -241,8 +296,8 @@ export const SolanaCheckoutDialog = ({
           }
           
         } catch (error: any) {
-          const errorMsg = `Error processing payment for ${group.items[0].title}: ${error.message || 'Unknown error'}`;
-          paymentErrors.push(errorMsg);
+          const errorMsg = getNetworkErrorMessage(error);
+          paymentErrors.push(`${group.items[0].title}: ${errorMsg}`);
           console.error("Checkout error for producer:", error);
         }
       }
@@ -304,7 +359,7 @@ export const SolanaCheckoutDialog = ({
       } else if (successfulPayments > 0) {
         toast.warning(`${successfulPayments} of ${groupedItems.length} payments completed successfully`);
         if (paymentErrors.length > 0) {
-          toast.error(`Some payments failed: ${paymentErrors[0]}`);
+          toast.error(paymentErrors[0]);
         }
         onCheckoutSuccess();
       } else {
@@ -314,7 +369,7 @@ export const SolanaCheckoutDialog = ({
       
     } catch (error: any) {
       console.error("USDC checkout error:", error);
-      const errorMessage = error.message || "An error occurred during checkout";
+      const errorMessage = getNetworkErrorMessage(error);
       toast.error(errorMessage);
     } finally {
       setIsCheckingOut(false);
@@ -354,6 +409,37 @@ export const SolanaCheckoutDialog = ({
               <div className="text-sm">
                 <div className="font-medium">Connected: {wallet.publicKey?.toString().slice(0, 8)}...{wallet.publicKey?.toString().slice(-8)}</div>
                 <div className="text-xs opacity-75 mt-0.5">Network: {network}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Network Status Indicator */}
+          {networkStatus === 'checking' && (
+            <div className="flex items-center p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:border-blue-700/50 dark:text-blue-300">
+              <Loader2 className="h-5 w-5 mr-3 animate-spin flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Checking network connection...</p>
+                <p className="text-xs opacity-75 mt-0.5">Verifying Solana RPC endpoints</p>
+              </div>
+            </div>
+          )}
+
+          {networkStatus === 'error' && (
+            <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-800 dark:from-red-900/30 dark:to-pink-900/30 dark:border-red-700/50 dark:text-red-300">
+              <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium mb-1">Network Connection Issues</p>
+                <p>Unable to connect to Solana network. Please try again in a moment.</p>
+              </div>
+            </div>
+          )}
+
+          {networkStatus === 'healthy' && (
+            <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-700/50 dark:text-green-300">
+              <CheckCircle2 className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium mb-1">Network Ready</p>
+                <p>Solana network connection verified and ready for transactions</p>
               </div>
             </div>
           )}
@@ -405,7 +491,7 @@ export const SolanaCheckoutDialog = ({
           <Button 
             className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" 
             onClick={handleCheckout} 
-            disabled={isCheckingOut || !wallet.connected || !validationComplete || !!validationError}
+            disabled={isCheckingOut || !wallet.connected || !validationComplete || !!validationError || networkStatus === 'error'}
           >
             {isCheckingOut ? (
               <>
