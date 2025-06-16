@@ -1,10 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCartWithBeatDetails } from "@/hooks/useCartWithBeatDetails";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingCart, AlertCircle, Music, Play, Pause, Trash2, RefreshCw } from 'lucide-react';
+import { ShoppingCart, Music, Play, Pause, Trash2 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import { toast } from 'sonner';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +41,6 @@ export default function Cart() {
 
   // Force refresh cart on mount
   useEffect(() => {
-    console.log('🛒 Cart page mounted, forcing cart refresh...');
     if (refreshCartFromStorage) {
       refreshCartFromStorage();
     }
@@ -48,73 +48,6 @@ export default function Cart() {
     // Also dispatch event to refresh cart
     window.dispatchEvent(new CustomEvent('forceCartRefresh'));
   }, [refreshCartFromStorage]);
-
-  // Add comprehensive cart debugging
-  useEffect(() => {
-    console.log('🛒 Cart page mounted with user:', user ? { id: user.id, email: user.email } : 'No user');
-    console.log('🛒 Cart page state:', {
-      cartItemsCount: cartItems.length,
-      itemCount,
-      totalAmount,
-      isLoading,
-      cartItems: cartItems.map(item => ({
-        beatId: item.beatId,
-        beatTitle: item.beat?.title,
-        licenseType: item.licenseType
-      }))
-    });
-    
-    // Check localStorage directly
-    if (user) {
-      const cartKey = `cart_${user.id}`;
-      const rawCart = localStorage.getItem(cartKey);
-      console.log('🛒 Cart page - Raw localStorage for key', cartKey, ':', rawCart);
-      
-      if (rawCart) {
-        try {
-          const parsed = JSON.parse(rawCart);
-          console.log('🛒 Cart page - Parsed localStorage:', parsed);
-        } catch (e) {
-          console.error('🛒 Cart page - Error parsing localStorage:', e);
-        }
-      }
-    }
-  }, [cartItems, itemCount, totalAmount, isLoading, user]);
-
-  // Add force refresh functionality
-  const handleForceRefresh = () => {
-    console.log('🛒 Force refreshing cart...');
-    if (refreshCartFromStorage) {
-      refreshCartFromStorage();
-    }
-    window.location.reload();
-  };
-
-  // Add immediate cart check functionality
-  const handleImmediateCartCheck = () => {
-    console.log('🛒 Immediate cart check...');
-    if (user) {
-      const cartKey = `cart_${user.id}`;
-      const rawCart = localStorage.getItem(cartKey);
-      console.log('🛒 Raw cart in localStorage:', rawCart);
-      
-      if (rawCart) {
-        try {
-          const parsed = JSON.parse(rawCart);
-          console.log('🛒 Parsed cart data:', parsed);
-          
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log(`🛒 Found ${parsed.length} items in localStorage but displaying ${cartItems.length} items`);
-            if (refreshCartFromStorage) {
-              refreshCartFromStorage();
-            }
-          }
-        } catch (e) {
-          console.error('🛒 Error parsing cart:', e);
-        }
-      }
-    }
-  };
 
   // Check for purchase success on mount
   useEffect(() => {
@@ -188,24 +121,22 @@ export default function Cart() {
   
   // Handle remove item
   const handleRemoveItem = async (beatId: string) => {
-    console.log('🛒 Cart page - Removing item:', beatId);
     try {
       removeFromCart(beatId);
       toast.success("Item removed from cart");
     } catch (error) {
-      console.error("🛒 Cart page - Error removing item:", error);
+      console.error("Error removing item:", error);
       toast.error("Failed to remove item");
     }
   };
   
   // Handle complete cart clearing
   const handleClearCart = () => {
-    console.log('🛒 Cart page - Clearing cart');
     try {
       clearCart();
       toast.success("Cart cleared successfully");
     } catch (error) {
-      console.error("🛒 Cart page - Error clearing cart:", error);
+      console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart");
     }
   };
@@ -408,46 +339,6 @@ export default function Cart() {
             <ShoppingCart className="mr-2 h-6 w-6" />
             <h1 className="text-2xl font-bold">Your Cart ({itemCount} items)</h1>
           </div>
-          
-          <div className="flex gap-2">
-            {/* Force refresh button */}
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleForceRefresh}
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-            
-            {/* Immediate cart check button */}
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleImmediateCartCheck}
-            >
-              Check Storage
-            </Button>
-            
-            {/* Debug info button */}
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => {
-                console.log('🛒 Cart Debug Info:', {
-                  cartItems,
-                  itemCount,
-                  totalAmount,
-                  isLoading,
-                  user: user ? { id: user.id, email: user.email } : 'No user',
-                  localStorage: user ? localStorage.getItem(`cart_${user.id}`) : 'No user'
-                });
-                toast.info('Debug info logged to console');
-              }}
-            >
-              Debug Info
-            </Button>
-          </div>
         </div>
 
         {(!cartItems || cartItems.length === 0) ? (
@@ -457,17 +348,9 @@ export default function Cart() {
             <p className="text-muted-foreground mb-6">
               Browse our marketplace to find beats you'd like to purchase.
             </p>
-            <div className="space-y-4">
-              <Button onClick={handleContinueShopping}>
-                Continue Shopping
-              </Button>
-              <div className="text-sm text-muted-foreground">
-                <p>If you think there should be items here:</p>
-                <Button variant="outline" size="sm" onClick={handleImmediateCartCheck} className="mt-2">
-                  Check localStorage Now
-                </Button>
-              </div>
-            </div>
+            <Button onClick={handleContinueShopping}>
+              Continue Shopping
+            </Button>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
