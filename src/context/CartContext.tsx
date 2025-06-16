@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -77,104 +78,105 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [cartId, setCartId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get or create cart
+  // Get or create cart with improved error handling
   const getOrCreateCart = async () => {
     try {
+      console.log('CartContext: Getting or creating cart for user:', user?.id || 'guest');
+      
       if (user) {
-        // For authenticated users
+        // For authenticated users - ensure we pass proper UUID, not string "null"
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
           .eq('user_id', user.id)
-          .eq('session_id', null)
+          .is('session_id', null)
           .single();
 
         if (selectError && selectError.code !== 'PGRST116') {
-          console.error('Error finding existing cart:', selectError);
-          // If there's an auth error, try guest cart instead
-          if (selectError.code === '42501' || selectError.message.includes('Unauthorized')) {
-            console.log('Auth error, falling back to guest cart');
-            return await createGuestCart();
-          }
+          console.error('CartContext: Error finding existing user cart:', selectError);
         }
 
         if (!existingCart) {
+          console.log('CartContext: Creating new user cart');
           const { data: newCart, error } = await supabase
             .from('carts')
             .insert({ 
               user_id: user.id,
-              session_id: null
+              session_id: null // Explicitly set to null, not string "null"
             })
             .select('id')
             .single();
 
           if (error) {
-            console.error('Error creating user cart:', error);
-            // Fallback to guest cart if user cart creation fails
-            if (error.code === '42501' || error.message.includes('Unauthorized')) {
-              console.log('User cart creation failed, falling back to guest cart');
-              return await createGuestCart();
-            }
+            console.error('CartContext: Error creating user cart:', error);
             throw error;
           }
+          console.log('CartContext: Created new user cart:', newCart.id);
           existingCart = newCart;
+        } else {
+          console.log('CartContext: Using existing user cart:', existingCart.id);
         }
 
         return existingCart.id;
       } else {
-        return await createGuestCart();
+        // For guest users
+        const sessionId = getSessionId();
+        console.log('CartContext: Using session ID for guest:', sessionId);
+        
+        let { data: existingCart, error: selectError } = await supabase
+          .from('carts')
+          .select('id')
+          .is('user_id', null)
+          .eq('session_id', sessionId)
+          .single();
+
+        if (selectError && selectError.code !== 'PGRST116') {
+          console.error('CartContext: Error finding existing guest cart:', selectError);
+        }
+
+        if (!existingCart) {
+          console.log('CartContext: Creating new guest cart');
+          const { data: newCart, error } = await supabase
+            .from('carts')
+            .insert({ 
+              user_id: null, // Explicitly set to null, not string "null"
+              session_id: sessionId
+            })
+            .select('id')
+            .single();
+
+          if (error) {
+            console.error('CartContext: Error creating guest cart:', error);
+            throw error;
+          }
+          console.log('CartContext: Created new guest cart:', newCart.id);
+          existingCart = newCart;
+        } else {
+          console.log('CartContext: Using existing guest cart:', existingCart.id);
+        }
+
+        return existingCart.id;
       }
     } catch (error) {
-      console.error('Error getting/creating cart:', error);
-      // Last resort - try guest cart
-      try {
-        return await createGuestCart();
-      } catch (guestError) {
-        console.error('Failed to create guest cart:', guestError);
-        return null;
-      }
+      console.error('CartContext: Failed to get/create cart:', error);
+      throw error;
     }
-  };
-
-  // Helper function to create guest cart
-  const createGuestCart = async () => {
-    const sessionId = getSessionId();
-    let { data: existingCart, error: selectError } = await supabase
-      .from('carts')
-      .select('id')
-      .eq('session_id', sessionId)
-      .eq('user_id', null)
-      .single();
-
-    if (selectError && selectError.code !== 'PGRST116') {
-      console.error('Error finding existing guest cart:', selectError);
-    }
-
-    if (!existingCart) {
-      const { data: newCart, error } = await supabase
-        .from('carts')
-        .insert({ 
-          user_id: null,
-          session_id: sessionId
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-      existingCart = newCart;
-    }
-
-    return existingCart.id;
   };
 
   // Load cart items from database
   const loadCartItems = async () => {
     try {
       setIsLoading(true);
+      console.log('CartContext: Loading cart items');
+      
       const currentCartId = await getOrCreateCart();
-      if (!currentCartId) return;
+      if (!currentCartId) {
+        console.error('CartContext: No cart ID available');
+        return;
+      }
 
       setCartId(currentCartId);
+      console.log('CartContext: Loading items for cart:', currentCartId);
 
       const { data: items, error } = await supabase
         .from('cart_items')
@@ -206,9 +208,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         .order('added_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading cart items:', error);
+        console.error('CartContext: Error loading cart items:', error);
         return;
       }
+
+      console.log('CartContext: Loaded cart items:', items?.length || 0);
 
       const formattedItems: CartItem[] = items?.map(item => ({
         id: item.id,
@@ -235,7 +239,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
       setCartItems(formattedItems);
     } catch (error) {
-      console.error('Error loading cart:', error);
+      console.error('CartContext: Error loading cart:', error);
     } finally {
       setIsLoading(false);
     }
@@ -293,8 +297,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   const addToCart = async (beat: Beat & { selected_license?: string }) => {
     try {
+      console.log('CartContext: Adding beat to cart:', beat.title);
+      
+      // Get or create cart first
       const currentCartId = cartId || await getOrCreateCart();
       if (!currentCartId) {
+        console.error('CartContext: Failed to get cart ID');
         toast.error('Failed to create cart. Please try again.');
         return;
       }
@@ -305,39 +313,59 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       const existingItem = cartItems.find(item => item.beat_id === beat.id);
 
       if (existingItem) {
+        console.log('CartContext: Updating existing cart item');
         // Update existing item
         const { error } = await supabase
           .from('cart_items')
           .update({ license_type: licenseType })
           .eq('id', existingItem.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('CartContext: Error updating cart item:', error);
+          throw error;
+        }
+        console.log('CartContext: Successfully updated cart item');
         toast.success('Cart updated');
       } else {
+        console.log('CartContext: Adding new cart item');
         // Add new item
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('cart_items')
           .insert({
             cart_id: currentCartId,
             beat_id: beat.id,
             license_type: licenseType,
             quantity: 1
-          });
+          })
+          .select();
 
-        if (error) throw error;
-        toast.success('Added to cart');
+        if (error) {
+          console.error('CartContext: Error adding cart item:', error);
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
+          console.log('CartContext: Successfully added cart item:', data[0].id);
+          toast.success('Added to cart');
+        } else {
+          console.error('CartContext: No data returned from insert');
+          toast.error('Failed to add item to cart');
+          return;
+        }
       }
 
-      // Reload cart items
+      // Reload cart items to reflect changes
       await loadCartItems();
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('CartContext: Error in addToCart:', error);
       toast.error('Failed to add item to cart. Please try again.');
     }
   };
 
   const addMultipleToCart = useCallback(async (beats: Beat[]) => {
     try {
+      console.log('CartContext: Adding multiple beats to cart:', beats.length);
+      
       const currentCartId = cartId || await getOrCreateCart();
       if (!currentCartId) {
         toast.error('Failed to create cart');
@@ -362,34 +390,49 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         quantity: 1
       }));
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('cart_items')
-        .insert(cartItemsToInsert);
+        .insert(cartItemsToInsert)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('CartContext: Error adding multiple items:', error);
+        throw error;
+      }
 
-      toast.success(`Added ${newBeats.length} beat${newBeats.length > 1 ? 's' : ''} to cart`);
-      await loadCartItems();
+      if (data && data.length > 0) {
+        console.log('CartContext: Successfully added multiple items:', data.length);
+        toast.success(`Added ${newBeats.length} beat${newBeats.length > 1 ? 's' : ''} to cart`);
+        await loadCartItems();
+      } else {
+        toast.error('Failed to add items to cart');
+      }
     } catch (error) {
-      console.error('Error adding multiple to cart:', error);
+      console.error('CartContext: Error adding multiple to cart:', error);
       toast.error('Failed to add items to cart');
     }
   }, [cartItems, cartId]);
 
   const removeFromCart = async (beatId: string): Promise<boolean> => {
     try {
+      console.log('CartContext: Removing beat from cart:', beatId);
+      
       const { error } = await supabase
         .from('cart_items')
         .delete()
         .eq('beat_id', beatId)
         .eq('cart_id', cartId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('CartContext: Error removing from cart:', error);
+        throw error;
+      }
 
+      console.log('CartContext: Successfully removed from cart');
       await loadCartItems();
       return true;
     } catch (error) {
-      console.error('Error removing from cart:', error);
+      console.error('CartContext: Error removing from cart:', error);
       toast.error('Failed to remove item from cart');
       return false;
     }
@@ -399,18 +442,24 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     try {
       if (!cartId) return;
 
+      console.log('CartContext: Clearing cart:', cartId);
+      
       const { error } = await supabase
         .from('cart_items')
         .delete()
         .eq('cart_id', cartId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('CartContext: Error clearing cart:', error);
+        throw error;
+      }
 
+      console.log('CartContext: Successfully cleared cart');
       setCartItems([]);
       setItemCount(0);
       setTotalAmount(0);
     } catch (error) {
-      console.error('Error clearing cart:', error);
+      console.error('CartContext: Error clearing cart:', error);
       toast.error('Failed to clear cart');
     }
   }, [cartId]);
@@ -441,7 +490,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         await addToCart(beatWithLicense);
       }
     } catch (error) {
-      console.error("Error toggling cart item:", error);
+      console.error("CartContext: Error toggling cart item:", error);
       toast.error("Failed to update cart");
     }
   };
