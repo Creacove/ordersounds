@@ -13,6 +13,7 @@ export const useWalletSync = () => {
   const lastSyncAttempt = useRef<number>(0);
   const syncCooldownMs = 2000;
   
+  // Add state for better tracking
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [lastError, setLastError] = useState<string | null>(null);
 
@@ -23,17 +24,20 @@ export const useWalletSync = () => {
       userWalletInContext: user?.wallet_address 
     });
     
+    // Prevent concurrent syncs
     if (syncInProgress.current) {
       console.log('⏸️ Wallet sync already in progress, skipping...');
       return false;
     }
 
+    // Check cooldown period
     const now = Date.now();
     if (now - lastSyncAttempt.current < syncCooldownMs) {
       console.log('⏸️ Wallet sync cooldown active, skipping...');
       return false;
     }
 
+    // Check if user is authenticated
     if (!user?.id) {
       console.log('❌ Cannot sync wallet: User not authenticated');
       setLastError('User not authenticated');
@@ -43,6 +47,7 @@ export const useWalletSync = () => {
       return false;
     }
 
+    // Don't sync if it's the same wallet as last time
     if (lastSyncedWallet.current === walletAddress) {
       console.log('✅ Wallet address unchanged, skipping sync');
       return true;
@@ -56,16 +61,12 @@ export const useWalletSync = () => {
     try {
       console.log(`🔄 Attempting to sync wallet: ${walletAddress || 'null'} for user ${user.id}`);
       
-      // Enhanced database update with explicit logging
-      const updateData = { wallet_address: walletAddress };
-      console.log('📝 Updating database with:', updateData);
-      
-      const { data, error, count } = await supabase
+      // Direct update attempt with detailed error logging
+      const { data, error } = await supabase
         .from('users')
-        .update(updateData)
+        .update({ wallet_address: walletAddress })
         .eq('id', user.id)
-        .select('id, wallet_address, email')
-        .single();
+        .select('id, wallet_address');
 
       if (error) {
         console.error('❌ Database error syncing wallet:', error);
@@ -82,53 +83,39 @@ export const useWalletSync = () => {
         return false;
       }
 
-      if (!data) {
-        const errorMsg = 'No data returned from wallet update - user may not exist';
+      // Verify update success
+      if (!data || data.length === 0) {
+        const errorMsg = 'No data returned from wallet update';
         console.error('❌ ' + errorMsg);
         setLastError(errorMsg);
         setSyncStatus('error');
-        toast.error('Failed to sync wallet: User not found');
+        toast.error('Failed to sync wallet: No data returned');
         return false;
       }
 
-      const updatedWallet = data.wallet_address;
+      const updatedWallet = data[0]?.wallet_address;
       console.log('✅ Database update successful:', {
         expected: walletAddress,
         actual: updatedWallet,
-        userId: user.id,
-        userEmail: data.email
+        userId: user.id
       });
 
-      // Verify the update was successful
-      if (updatedWallet !== walletAddress) {
-        console.warn('⚠️ Database update mismatch:', {
-          expected: walletAddress,
-          actual: updatedWallet
-        });
-      }
-
+      // Update tracking
       lastSyncedWallet.current = walletAddress;
       setSyncStatus('success');
 
-      // Force refresh user data with enhanced feedback
+      // Force refresh user data
       console.log('🔄 Forcing user data refresh...');
       const refreshSuccess = await forceUserDataRefresh();
       if (!refreshSuccess) {
         console.warn('⚠️ User data refresh failed after wallet sync');
-        toast.warning('Wallet synced but profile may need refresh');
-      } else {
-        console.log('✅ User data refreshed successfully');
       }
 
-      // Enhanced success messages
       if (walletAddress) {
-        toast.success('Wallet connected and saved to your profile!', {
-          description: `Address: ${walletAddress.slice(0, 8)}...${walletAddress.slice(-8)}`
-        });
+        toast.success('Wallet connected and synced successfully');
       } else {
-        toast.success('Wallet disconnected and removed from profile');
+        toast.success('Wallet disconnected successfully');
       }
-      
       return true;
 
     } catch (error) {
@@ -141,14 +128,11 @@ export const useWalletSync = () => {
     } finally {
       syncInProgress.current = false;
     }
-  }, [user?.id, user?.wallet_address, forceUserDataRefresh]);
+  }, [user?.id, forceUserDataRefresh]);
 
+  // Manual sync trigger for debugging and force sync
   const manualSyncTrigger = useCallback(async (): Promise<boolean> => {
     console.log('🔧 Manual sync trigger called');
-    
-    // Reset cooldown for manual sync
-    lastSyncAttempt.current = 0;
-    
     if (connected && publicKey) {
       const walletAddress = publicKey.toString();
       console.log('🔧 Manual sync - wallet connected:', walletAddress);
@@ -159,6 +143,7 @@ export const useWalletSync = () => {
     }
   }, [connected, publicKey, syncWalletToDatabase]);
 
+  // Enhanced useEffect with better dependency tracking
   useEffect(() => {
     console.log('🔄 useWalletSync useEffect triggered with:', {
       connected,
@@ -169,11 +154,13 @@ export const useWalletSync = () => {
       lastSyncedWallet: lastSyncedWallet.current
     });
 
+    // Wait for user data to be fully loaded
     if (!user) {
       console.log('⏸️ No user data loaded yet, waiting...');
       return;
     }
 
+    // Skip if sync is in progress
     if (syncInProgress.current) {
       console.log('⏸️ Sync already in progress, skipping...');
       return;
@@ -188,6 +175,7 @@ export const useWalletSync = () => {
       lastSynced: lastSyncedWallet.current
     });
 
+    // Determine if sync is needed
     let shouldSync = false;
     let reason = '';
 
@@ -226,6 +214,7 @@ export const useWalletSync = () => {
     }
   }, [disconnect, syncWalletToDatabase, user?.id]);
 
+  // Enhanced connection status
   const connectedWalletAddress = publicKey?.toString();
   const storedWalletAddress = user?.wallet_address;
   
