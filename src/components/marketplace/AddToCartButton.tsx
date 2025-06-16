@@ -38,17 +38,15 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     try {
       if (isAlreadyInCart) {
         await removeFromCart(beat.id);
-        toast.success("Removed from cart");
       } else {
         await addToCart({
           ...beat, 
           selected_license: 'basic'
         });
-        toast.success("Added to cart");
       }
     } catch (error) {
       console.error("Error updating cart:", error);
-      toast.error("Failed to update cart");
+      // Error handling is done in the cart context
     } finally {
       setTimeout(() => {
         setIsAdding(false);

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -107,6 +108,7 @@ export default function Cart() {
   // Log cart items when they change
   useEffect(() => {
     console.log('Cart: Cart items updated:', cartItems?.length || 0, cartItems);
+    setIsLoading(false);
   }, [cartItems]);
   
   const handlePurchaseSuccess = () => {

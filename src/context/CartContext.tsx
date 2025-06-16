@@ -84,39 +84,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [cartId, setCartId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Debug authentication state
-  const debugAuthState = async () => {
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      console.log('CartContext: Auth debug - session:', session?.user?.id || 'No session');
-      console.log('CartContext: Auth debug - user context:', user?.id || 'No user context');
-      console.log('CartContext: Auth debug - session error:', error);
-      
-      // Test if we can access auth.uid() in the database
-      const { data: testData, error: testError } = await supabase
-        .from('users')
-        .select('id')
-        .eq('id', user?.id || '')
-        .limit(1);
-      
-      console.log('CartContext: Auth debug - database auth test:', testData, testError);
-      
-      return session;
-    } catch (error) {
-      console.error('CartContext: Auth debug error:', error);
-      return null;
-    }
-  };
-
-  // Get or create cart with improved authentication handling
+  // Get or create cart with improved error handling
   const getOrCreateCart = async () => {
     try {
       console.log('CartContext: Getting or creating cart for user:', user?.id || 'guest');
       
-      // Debug authentication state first
-      const session = await debugAuthState();
-      
-      if (user && session) {
+      if (user) {
         console.log('CartContext: Creating/finding authenticated user cart');
         
         // Try to find existing cart first
@@ -127,21 +100,13 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           .is('session_id', null)
           .maybeSingle();
 
-        if (selectError && selectError.code !== 'PGRST116') {
+        if (selectError) {
           console.error('CartContext: Error finding existing user cart:', selectError);
           throw selectError;
         }
 
         if (!existingCart) {
           console.log('CartContext: Creating new user cart');
-          
-          // Ensure we have a valid session before creating
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          
-          if (!currentSession) {
-            console.warn('CartContext: No valid session, falling back to guest cart');
-            return await createGuestCart();
-          }
           
           const { data: newCart, error } = await supabase
             .from('carts')
@@ -154,13 +119,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
           if (error) {
             console.error('CartContext: Error creating user cart:', error);
-            
-            // If RLS fails, fall back to guest cart
-            if (error.code === '42501') {
-              console.warn('CartContext: RLS policy violation, falling back to guest cart');
-              return await createGuestCart();
-            }
-            
             throw error;
           }
           
@@ -176,10 +134,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       }
     } catch (error) {
       console.error('CartContext: Failed to get/create cart:', error);
-      
-      // Always fall back to guest cart if user cart creation fails
-      console.log('CartContext: Falling back to guest cart due to error');
-      return await createGuestCart();
+      throw error;
     }
   };
 
@@ -196,7 +151,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       .eq('session_id', sessionId)
       .maybeSingle();
 
-    if (selectError && selectError.code !== 'PGRST116') {
+    if (selectError) {
       console.error('CartContext: Error finding existing guest cart:', selectError);
       throw selectError;
     }
@@ -225,7 +180,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     return existingCart.id;
   };
 
-  // Load cart items from database with proper field mapping
+  // Load cart items from database with improved error handling
   const loadCartItems = async () => {
     try {
       setIsLoading(true);
@@ -234,6 +189,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       const currentCartId = await getOrCreateCart();
       if (!currentCartId) {
         console.error('CartContext: No cart ID available');
+        setCartItems([]);
         return;
       }
 
@@ -308,6 +264,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     } catch (error) {
       console.error('CartContext: Error loading cart:', error);
       toast.error('Failed to load cart items');
+      setCartItems([]);
     } finally {
       setIsLoading(false);
     }
