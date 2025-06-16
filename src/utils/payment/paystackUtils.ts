@@ -57,33 +57,53 @@ export const createOrder = async (user: any, totalAmount: number, orderItemsData
     // Verify the user has an id
     console.log('Creating order for user ID:', user.id);
     
-    // Create an order record with RLS enabled user
-    const { data: orderData, error: orderError } = await supabase
+    // Get current session to ensure we have valid auth
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !sessionData.session) {
+      console.error('Session validation failed:', sessionError);
+      throw new Error('Authentication session expired. Please refresh and try again.');
+    }
+    
+    console.log('Session validated, user authenticated:', sessionData.session.user.id);
+    
+    // Create an order record with explicit user context
+    const orderData = {
+      buyer_id: user.id,
+      total_price: totalAmount,
+      payment_method: 'Paystack',
+      status: 'pending',
+      currency_used: 'NGN'
+    };
+    
+    console.log('Inserting order with data:', orderData);
+    
+    const { data: insertedOrder, error: orderError } = await supabase
       .from('orders')
-      .insert({
-        buyer_id: user.id,
-        total_price: totalAmount,
-        payment_method: 'Paystack',
-        status: 'pending',
-        currency_used: 'NGN'
-      })
+      .insert(orderData)
       .select('id')
       .single();
     
     if (orderError) {
       console.error('Order creation error:', orderError);
+      console.error('Error details:', {
+        message: orderError.message,
+        details: orderError.details,
+        hint: orderError.hint,
+        code: orderError.code
+      });
       throw new Error(`Order creation failed: ${orderError.message}`);
     }
     
-    if (!orderData || !orderData.id) {
+    if (!insertedOrder || !insertedOrder.id) {
       throw new Error('Failed to create order: No order ID returned');
     }
     
-    console.log('Order created with ID:', orderData.id);
+    console.log('Order created with ID:', insertedOrder.id);
     
     // Create line items for each beat in the cart
     const lineItems = orderItemsData.map(item => ({
-      order_id: orderData.id,
+      order_id: insertedOrder.id,
       beat_id: item.beat_id,
       price_charged: item.price,
       currency_code: 'NGN',
@@ -100,7 +120,7 @@ export const createOrder = async (user: any, totalAmount: number, orderItemsData
     
     console.log('Line items created successfully');
     
-    return { orderId: orderData.id };
+    return { orderId: insertedOrder.id };
   } catch (error) {
     console.error('Order creation error:', error);
     return { error: error.message };

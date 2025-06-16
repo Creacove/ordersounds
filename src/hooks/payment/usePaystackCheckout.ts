@@ -174,6 +174,14 @@ export function usePaystackCheckout({
     setValidationError(null);
 
     try {
+      // Verify session is still valid
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !sessionData.session) {
+        setValidationError('Your session has expired. Please refresh and log in again.');
+        return false;
+      }
+
       // Direct beat purchase with producer split
       if (producerId && beatId) {
         console.log('Validating direct beat purchase:', beatId);
@@ -308,6 +316,15 @@ export function usePaystackCheckout({
         return;
       }
       
+      // Verify session again before creating order
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !sessionData.session) {
+        toast.error('Your session has expired. Please refresh and log in again.');
+        setIsProcessing(false);
+        return;
+      }
+      
       // Generate a unique reference ID
       const reference = `ORDER_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
@@ -352,8 +369,9 @@ export function usePaystackCheckout({
       }
       
       console.log('Creating order for user:', user.id);
+      console.log('Session verified:', sessionData.session.user.id);
       
-      // Create order in database - fixed to use authenticated user
+      // Create order in database with verified session
       const { orderId, error: orderError } = await createOrder(user, totalAmount, orderItemsData);
       
       if (orderError) {
