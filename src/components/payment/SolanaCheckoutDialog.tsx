@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSolanaPayment } from "@/hooks/payment/useSolanaPayment";
 import { toast } from "sonner";
@@ -55,7 +54,7 @@ export const SolanaCheckoutDialog = ({
     console.log("SolanaCheckoutDialog - network:", network);
   }, [open, cartItems, wallet.connected, network]);
 
-  // Check network health when dialog opens
+  // Enhanced network health check with better error handling
   useEffect(() => {
     const checkNetworkHealth = async () => {
       if (!open) return;
@@ -66,9 +65,9 @@ export const SolanaCheckoutDialog = ({
         const { getBestRpcEndpoint } = await import('@/utils/payment/rpcHealthCheck');
         const networkKey = network === 'mainnet-beta' ? 'mainnet' : 'devnet';
         
-        await getBestRpcEndpoint(networkKey);
+        const endpoint = await getBestRpcEndpoint(networkKey);
         setNetworkStatus('healthy');
-        console.log('✅ Network health check passed');
+        console.log('✅ Network health check passed:', endpoint);
       } catch (error) {
         console.error('❌ Network health check failed:', error);
         setNetworkStatus('error');
@@ -215,7 +214,7 @@ export const SolanaCheckoutDialog = ({
       return "Network is currently rate limiting requests. Please wait a moment and try again.";
     } else if (errorMsg.includes('RPC_TIMEOUT')) {
       return "Network connection timed out. Please check your internet connection and try again.";
-    } else if (errorMsg.includes('RPC_ERROR')) {
+    } else if (errorMsg.includes('RPC_ERROR') || errorMsg.includes('RPC_CONNECTION_FAILED')) {
       return "Unable to connect to Solana network. Please try again later.";
     } else if (errorMsg.includes('WALLET_NOT_CONNECTED')) {
       return "Please connect your wallet to continue.";
@@ -413,13 +412,13 @@ export const SolanaCheckoutDialog = ({
             </div>
           )}
 
-          {/* Network Status Indicator */}
+          {/* Enhanced Network Status Indicator */}
           {networkStatus === 'checking' && (
             <div className="flex items-center p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:border-blue-700/50 dark:text-blue-300">
               <Loader2 className="h-5 w-5 mr-3 animate-spin flex-shrink-0" />
               <div className="text-sm">
-                <p className="font-medium">Checking network connection...</p>
-                <p className="text-xs opacity-75 mt-0.5">Verifying Solana RPC endpoints</p>
+                <p className="font-medium">Optimizing network connection...</p>
+                <p className="text-xs opacity-75 mt-0.5">Finding fastest Solana RPC endpoint</p>
               </div>
             </div>
           )}
@@ -429,7 +428,7 @@ export const SolanaCheckoutDialog = ({
               <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-medium mb-1">Network Connection Issues</p>
-                <p>Unable to connect to Solana network. Please try again in a moment.</p>
+                <p>Unable to connect to Solana network. Automatic failover will be used during payment.</p>
               </div>
             </div>
           )}
@@ -438,8 +437,8 @@ export const SolanaCheckoutDialog = ({
             <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-700/50 dark:text-green-300">
               <CheckCircle2 className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium mb-1">Network Ready</p>
-                <p>Solana network connection verified and ready for transactions</p>
+                <p className="font-medium mb-1">Network Optimized</p>
+                <p>Connected to fastest available Solana RPC endpoint with automatic failover</p>
               </div>
             </div>
           )}
@@ -472,9 +471,9 @@ export const SolanaCheckoutDialog = ({
           
           <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50/80 to-indigo-50/80 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200/50 dark:border-purple-800/50">
             <div className="text-sm space-y-2">
-              <p className="font-medium text-purple-800 dark:text-purple-300">✨ Instant Download Access</p>
-              <p className="text-muted-foreground">Your items will be available for download immediately after USDC payment completion.</p>
-              <p className="text-xs text-muted-foreground">This checkout processes individual USDC payments to each producer, with platform fees calculated per item.</p>
+              <p className="font-medium text-purple-800 dark:text-purple-300">✨ Enhanced Payment Reliability</p>
+              <p className="text-muted-foreground">Advanced RPC failover ensures payments succeed even during network congestion.</p>
+              <p className="text-xs text-muted-foreground">Your items will be available for download immediately after USDC payment completion.</p>
             </div>
           </div>
         </div>

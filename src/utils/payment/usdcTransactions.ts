@@ -1,4 +1,3 @@
-
 import { WalletContextState } from '@solana/wallet-adapter-react';
 import { Connection, Transaction, PublicKey, SystemProgram } from '@solana/web3.js';
 import { 
@@ -40,18 +39,31 @@ const usdToUSDCUnits = (usdAmount: number): bigint => {
   return BigInt(Math.round(usdAmount * 1_000_000)); // USDC has 6 decimals
 };
 
-// Enhanced connection health check
+// Enhanced connection health check with automatic failover
 const ensureHealthyConnection = async (connection: Connection, network: string): Promise<Connection> => {
   try {
-    // Quick health check
-    await connection.getSlot();
+    // Quick health check with timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Connection timeout')), 5000)
+    );
+    
+    await Promise.race([
+      connection.getSlot(),
+      timeoutPromise
+    ]);
+    
     return connection;
   } catch (error: any) {
     console.warn('⚠️ Connection unhealthy, getting new endpoint...', error.message);
     
-    // Get a new optimal connection
+    // Get a new optimal connection immediately
     const networkKey = network === 'mainnet-beta' ? 'mainnet' : 'devnet';
-    return await createOptimalConnection(networkKey);
+    try {
+      return await createOptimalConnection(networkKey);
+    } catch (fallbackError) {
+      console.error('❌ Failed to create fallback connection:', fallbackError);
+      throw new Error("RPC_CONNECTION_FAILED: Unable to establish connection to Solana network");
+    }
   }
 };
 
@@ -82,7 +94,7 @@ const getOrCreateAssociatedTokenAccount = async (
   }
 };
 
-// Process a single USDC payment with enhanced error handling
+// Process a single USDC payment with enhanced error handling and automatic failover
 export const processUSDCPayment = async (
   usdAmount: number,
   recipientAddress: string, 
@@ -96,8 +108,8 @@ export const processUSDCPayment = async (
     
     console.log(`🔄 Starting USDC payment: $${usdAmount} to ${recipientAddress}`);
     
-    // Ensure we have a healthy connection
-    const healthyConnection = await ensureHealthyConnection(connection, network);
+    // Ensure we have a healthy connection with automatic failover
+    let healthyConnection = await ensureHealthyConnection(connection, network);
     
     const usdcMint = getUSDCMint(network);
     const usdcAmount = usdToUSDCUnits(usdAmount);
@@ -137,53 +149,79 @@ export const processUSDCPayment = async (
     
     transaction.add(transferInstruction);
     
-    // Get the latest blockhash with retry logic
+    // Get the latest blockhash with retry logic and automatic endpoint switching
     let blockhash: string;
     let lastValidBlockHeight: number;
+    let retries = 0;
+    const maxRetries = 3;
     
-    try {
-      const blockhashInfo = await healthyConnection.getLatestBlockhash('confirmed');
-      blockhash = blockhashInfo.blockhash;
-      lastValidBlockHeight = blockhashInfo.lastValidBlockHeight;
-      console.log(`📋 Got blockhash: ${blockhash.slice(0, 8)}...`);
-    } catch (error: any) {
-      console.error('❌ Failed to get blockhash:', error);
-      
-      if (error.message.includes('403') || error.message.includes('rate limit')) {
-        throw new Error("RPC_RATE_LIMITED: The network is currently rate limiting requests. Please try again in a moment.");
-      } else if (error.message.includes('timeout')) {
-        throw new Error("RPC_TIMEOUT: Network connection timed out. Please check your internet connection and try again.");
-      } else {
-        throw new Error(`RPC_ERROR: Failed to connect to Solana network. ${error.message}`);
+    while (retries < maxRetries) {
+      try {
+        const blockhashInfo = await healthyConnection.getLatestBlockhash('confirmed');
+        blockhash = blockhashInfo.blockhash;
+        lastValidBlockHeight = blockhashInfo.lastValidBlockHeight;
+        console.log(`📋 Got blockhash: ${blockhash.slice(0, 8)}... (attempt ${retries + 1})`);
+        break;
+      } catch (error: any) {
+        retries++;
+        console.error(`❌ Blockhash attempt ${retries} failed:`, error.message);
+        
+        if (retries >= maxRetries) {
+          if (error.message.includes('403') || error.message.includes('rate limit')) {
+            throw new Error("RPC_RATE_LIMITED: The network is currently rate limiting requests. Please try again in a moment.");
+          } else if (error.message.includes('timeout')) {
+            throw new Error("RPC_TIMEOUT: Network connection timed out. Please check your internet connection and try again.");
+          } else {
+            throw new Error(`RPC_ERROR: Failed to connect to Solana network. ${error.message}`);
+          }
+        }
+        
+        // Try to get a new healthy connection for retry
+        try {
+          healthyConnection = await ensureHealthyConnection(healthyConnection, network);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retries)); // Exponential backoff
+        } catch (connectionError) {
+          console.error('❌ Failed to get new connection for retry:', connectionError);
+        }
       }
     }
     
-    transaction.recentBlockhash = blockhash;
+    transaction.recentBlockhash = blockhash!;
     transaction.feePayer = wallet.publicKey;
     
     // Sign and send the transaction with retry logic
     let signature: string;
+    retries = 0;
     
-    try {
-      console.log('✍️ Signing and sending transaction...');
-      signature = await wallet.sendTransaction(transaction, healthyConnection, {
-        maxRetries: 3,
-        skipPreflight: false,
-        preflightCommitment: 'confirmed'
-      });
-      
-      console.log(`📝 Transaction signature: ${signature}`);
-    } catch (error: any) {
-      console.error('❌ Transaction failed:', error);
-      
-      if (error.message.includes('User rejected')) {
-        throw new Error("TRANSACTION_REJECTED: Transaction was cancelled by user");
-      } else if (error.message.includes('insufficient funds')) {
-        throw new Error("INSUFFICIENT_FUNDS: Insufficient USDC balance for this transaction");
-      } else if (error.message.includes('blockhash not found')) {
-        throw new Error("BLOCKHASH_EXPIRED: Transaction expired. Please try again.");
-      } else {
-        throw new Error(`TRANSACTION_FAILED: ${error.message}`);
+    while (retries < maxRetries) {
+      try {
+        console.log(`✍️ Signing and sending transaction... (attempt ${retries + 1})`);
+        signature = await wallet.sendTransaction(transaction, healthyConnection, {
+          maxRetries: 2,
+          skipPreflight: false,
+          preflightCommitment: 'confirmed'
+        });
+        
+        console.log(`📝 Transaction signature: ${signature}`);
+        break;
+      } catch (error: any) {
+        retries++;
+        console.error(`❌ Transaction attempt ${retries} failed:`, error.message);
+        
+        if (retries >= maxRetries) {
+          if (error.message.includes('User rejected')) {
+            throw new Error("TRANSACTION_REJECTED: Transaction was cancelled by user");
+          } else if (error.message.includes('insufficient funds')) {
+            throw new Error("INSUFFICIENT_FUNDS: Insufficient USDC balance for this transaction");
+          } else if (error.message.includes('blockhash not found')) {
+            throw new Error("BLOCKHASH_EXPIRED: Transaction expired. Please try again.");
+          } else {
+            throw new Error(`TRANSACTION_FAILED: ${error.message}`);
+          }
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
       }
     }
     
@@ -191,9 +229,9 @@ export const processUSDCPayment = async (
     try {
       console.log('⏳ Waiting for transaction confirmation...');
       const confirmation = await healthyConnection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight
+        signature: signature!,
+        blockhash: blockhash!,
+        lastValidBlockHeight: lastValidBlockHeight!
       }, 'confirmed');
       
       if (confirmation.value.err) {
@@ -201,10 +239,10 @@ export const processUSDCPayment = async (
       }
       
       console.log('✅ Transaction confirmed successfully!');
-      return signature;
+      return signature!;
     } catch (error: any) {
       console.error('❌ Confirmation failed:', error);
-      throw new Error(`CONFIRMATION_TIMEOUT: Transaction may have succeeded but confirmation timed out. Signature: ${signature}`);
+      throw new Error(`CONFIRMATION_TIMEOUT: Transaction may have succeeded but confirmation timed out. Signature: ${signature!}`);
     }
     
   } catch (error: any) {

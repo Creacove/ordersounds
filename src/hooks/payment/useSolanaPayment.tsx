@@ -1,9 +1,9 @@
-
 import { useWallet, useConnection } from '@solana/wallet-adapter-react';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { processUSDCPayment, isValidSolanaAddress, processMultipleUSDCPayments } from '@/utils/payment/usdcTransactions';
 import { supabase } from '@/integrations/supabase/client';
+import { createOptimalConnection } from '@/utils/payment/rpcHealthCheck';
 
 interface ProductData {
   id: string;
@@ -12,14 +12,32 @@ interface ProductData {
 }
 
 export const useSolanaPayment = () => {
-  const { connection } = useConnection();
+  const { connection: walletConnection } = useConnection();
   const wallet = useWallet();
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastTransactionSignature, setLastTransactionSignature] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(true);
+  const [optimalConnection, setOptimalConnection] = useState(walletConnection);
   
   // Get current network
   const network = process.env.NODE_ENV === 'production' ? 'mainnet-beta' : 'devnet';
+  
+  // Initialize optimal connection
+  useEffect(() => {
+    const initOptimalConnection = async () => {
+      try {
+        const networkKey = network === 'mainnet-beta' ? 'mainnet' : 'devnet';
+        const connection = await createOptimalConnection(networkKey);
+        setOptimalConnection(connection);
+        console.log('✅ Optimal connection initialized for payments');
+      } catch (error) {
+        console.warn('⚠️ Could not create optimal connection, using wallet connection', error);
+        setOptimalConnection(walletConnection);
+      }
+    };
+
+    initOptimalConnection();
+  }, [network, walletConnection]);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -71,20 +89,14 @@ export const useSolanaPayment = () => {
 
       console.log(`Processing USDC payment: $${amount} to ${producerWalletAddress}`);
 
-      // Process USDC payment instead of SOL
+      // Use optimal connection for payment processing
       const signature = await processUSDCPayment(
         amount,
         producerWalletAddress,
-        connection,
+        optimalConnection,
         wallet,
         network
       );
-
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-      if (!confirmation.value) {
-        throw new Error("TRANSACTION_NOT_CONFIRMED: Transaction failed to confirm");
-      }
 
       if (isMounted) {
         setLastTransactionSignature(signature);
@@ -190,14 +202,14 @@ export const useSolanaPayment = () => {
 
       console.log(`Processing ${items.length} USDC payments`);
 
-      // Process multiple USDC payments
+      // Use optimal connection for multiple payments
       let retries = 0;
       let lastError;
       let signatures: string[] = [];
 
       while (retries <= maxRetries) {
         try {
-          signatures = await processMultipleUSDCPayments(items, connection, wallet, network);
+          signatures = await processMultipleUSDCPayments(items, optimalConnection, wallet, network);
           break;
         } catch (error) {
           lastError = error;
