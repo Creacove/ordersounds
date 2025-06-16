@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCartWithBeatDetails } from "@/hooks/useCartWithBeatDetails";
@@ -38,6 +37,38 @@ export default function Cart() {
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
+
+  // Add comprehensive cart debugging
+  useEffect(() => {
+    console.log('🛒 Cart page mounted with user:', user ? { id: user.id, email: user.email } : 'No user');
+    console.log('🛒 Cart page state:', {
+      cartItemsCount: cartItems.length,
+      itemCount,
+      totalAmount,
+      isLoading,
+      cartItems: cartItems.map(item => ({
+        beatId: item.beatId,
+        beatTitle: item.beat?.title,
+        licenseType: item.licenseType
+      }))
+    });
+    
+    // Check localStorage directly
+    if (user) {
+      const cartKey = `cart_${user.id}`;
+      const rawCart = localStorage.getItem(cartKey);
+      console.log('🛒 Cart page - Raw localStorage for key', cartKey, ':', rawCart);
+      
+      if (rawCart) {
+        try {
+          const parsed = JSON.parse(rawCart);
+          console.log('🛒 Cart page - Parsed localStorage:', parsed);
+        } catch (e) {
+          console.error('🛒 Cart page - Error parsing localStorage:', e);
+        }
+      }
+    }
+  }, [cartItems, itemCount, totalAmount, isLoading, user]);
 
   // Check for purchase success on mount
   useEffect(() => {
@@ -111,22 +142,24 @@ export default function Cart() {
   
   // Handle remove item
   const handleRemoveItem = async (beatId: string) => {
+    console.log('🛒 Cart page - Removing item:', beatId);
     try {
       removeFromCart(beatId);
       toast.success("Item removed from cart");
     } catch (error) {
-      console.error("Error removing item:", error);
+      console.error("🛒 Cart page - Error removing item:", error);
       toast.error("Failed to remove item");
     }
   };
   
   // Handle complete cart clearing
   const handleClearCart = () => {
+    console.log('🛒 Cart page - Clearing cart');
     try {
       clearCart();
       toast.success("Cart cleared successfully");
     } catch (error) {
-      console.error("Error clearing cart:", error);
+      console.error("🛒 Cart page - Error clearing cart:", error);
       toast.error("Failed to clear cart");
     }
   };
@@ -329,6 +362,25 @@ export default function Cart() {
             <ShoppingCart className="mr-2 h-6 w-6" />
             <h1 className="text-2xl font-bold">Your Cart ({itemCount} items)</h1>
           </div>
+          
+          {/* Debug info button */}
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => {
+              console.log('🛒 Cart Debug Info:', {
+                cartItems,
+                itemCount,
+                totalAmount,
+                isLoading,
+                user: user ? { id: user.id, email: user.email } : 'No user',
+                localStorage: user ? localStorage.getItem(`cart_${user.id}`) : 'No user'
+              });
+              toast.info('Debug info logged to console');
+            }}
+          >
+            Debug Info
+          </Button>
         </div>
 
         {(!cartItems || cartItems.length === 0) ? (

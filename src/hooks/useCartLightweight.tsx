@@ -13,8 +13,12 @@ export function useCartLightweight() {
   const [cartItems, setCartItems] = useState<LightweightCartItem[]>([]);
   const [itemCount, setItemCount] = useState(0);
 
+  console.log('🛒 useCartLightweight hook initialized with user:', user ? { id: user.id, email: user.email } : 'No user');
+
   // Load cart from localStorage immediately (no async operations)
   useEffect(() => {
+    console.log('🛒 useCartLightweight useEffect triggered with user:', user ? { id: user.id } : 'No user');
+    
     if (!user) {
       console.log('🛒 No user, clearing cart');
       setCartItems([]);
@@ -92,6 +96,10 @@ export function useCartLightweight() {
       console.log('🛒 Saving cart to localStorage:', cartItems);
       localStorage.setItem(cartKey, JSON.stringify(cartItems));
       console.log('🛒 Cart saved successfully to key:', cartKey);
+      
+      // Verify the save worked
+      const verification = localStorage.getItem(cartKey);
+      console.log('🛒 Verification - cart saved as:', verification);
     } catch (error) {
       console.error('🛒 Error saving lightweight cart:', error);
     }
@@ -99,19 +107,23 @@ export function useCartLightweight() {
 
   const isInCart = useCallback((beatId: string): boolean => {
     const result = cartItems.some(item => item.beatId === beatId);
-    console.log(`🛒 Checking if beat ${beatId} is in cart:`, result);
+    console.log(`🛒 Checking if beat ${beatId} is in cart:`, result, 'Current cart items:', cartItems);
     return result;
   }, [cartItems]);
 
   const addToCart = useCallback((beatId: string, licenseType: string = 'basic') => {
+    console.log(`🛒 addToCart called with beatId: ${beatId}, licenseType: ${licenseType}`);
+    
     if (!user) {
       console.log('🛒 Cannot add to cart - no user');
       return;
     }
 
-    console.log(`🛒 Adding beat ${beatId} with license ${licenseType} to cart`);
+    console.log('🛒 Current cartItems before adding:', cartItems);
+    console.log('🛒 User ID:', user.id);
     
     const existingIndex = cartItems.findIndex(item => item.beatId === beatId);
+    console.log('🛒 Existing item index:', existingIndex);
     
     if (existingIndex >= 0) {
       console.log('🛒 Beat already in cart, updating license type');
@@ -121,6 +133,7 @@ export function useCartLightweight() {
         ...updatedItems[existingIndex],
         licenseType
       };
+      console.log('🛒 Updated items array:', updatedItems);
       setCartItems(updatedItems);
     } else {
       console.log('🛒 Adding new beat to cart');
@@ -130,21 +143,29 @@ export function useCartLightweight() {
         licenseType,
         addedAt: new Date().toISOString()
       };
+      console.log('🛒 New item created:', newItem);
+      
       const newItems = [...cartItems, newItem];
+      console.log('🛒 New items array:', newItems);
+      
       setCartItems(newItems);
       setItemCount(newItems.length);
+      
+      console.log('🛒 State updated - new cart items length:', newItems.length);
     }
   }, [cartItems, user]);
 
   const removeFromCart = useCallback((beatId: string) => {
     console.log(`🛒 Removing beat ${beatId} from cart`);
+    console.log('🛒 Current cart items before removal:', cartItems);
+    
     setCartItems(prev => {
       const filtered = prev.filter(item => item.beatId !== beatId);
       setItemCount(filtered.length);
       console.log('🛒 Cart after removal:', filtered);
       return filtered;
     });
-  }, []);
+  }, [cartItems]);
 
   const clearCart = useCallback(() => {
     console.log('🛒 Clearing entire cart');
@@ -154,6 +175,12 @@ export function useCartLightweight() {
       localStorage.removeItem(`cart_${user.id}`);
     }
   }, [user]);
+
+  console.log('🛒 useCartLightweight returning:', {
+    cartItemsLength: cartItems.length,
+    itemCount,
+    userId: user?.id
+  });
 
   return {
     cartItems,
