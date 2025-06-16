@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -10,7 +11,6 @@ import { PurchasedBeats } from "@/components/library/PurchasedBeats";
 import { FavoriteBeats } from "@/components/library/FavoriteBeats";
 import { UserPlaylists } from "@/components/library/UserPlaylists";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
 import { useBeats } from "@/hooks/useBeats";
 import { supabase } from '@/integrations/supabase/client';
 
@@ -21,7 +21,7 @@ export default function Library() {
   const [showPurchaseSuccess, setShowPurchaseSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState("purchased");
   const isMobile = useIsMobile();
-  const { fetchPurchasedBeats, refreshUserFavorites } = useBeats();
+  const { refreshUserFavorites } = useBeats();
 
   console.log('Library: Component rendered with activeTab:', activeTab);
 
@@ -44,8 +44,7 @@ export default function Library() {
         (payload) => {
           console.log('Library: New purchase detected:', payload);
           
-          // Force immediate update
-          fetchPurchasedBeats();
+          // Switch to purchased tab and show success
           setActiveTab("purchased");
           setShowPurchaseSuccess(true);
           
@@ -68,11 +67,10 @@ export default function Library() {
         (payload) => {
           console.log('Library: Order updated:', payload);
           if (payload.new?.status === 'completed') {
-            console.log('Library: Order completed, refreshing data...');
+            console.log('Library: Order completed, switching to purchased tab...');
             
             // Delay to ensure all related data is inserted
             setTimeout(() => {
-              fetchPurchasedBeats();
               setActiveTab("purchased");
             }, 1000);
           }
@@ -84,7 +82,7 @@ export default function Library() {
       console.log('Library: Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
-  }, [user, fetchPurchasedBeats]);
+  }, [user]);
 
   useEffect(() => {
     if (location.pathname.includes("/favorites")) {
@@ -123,14 +121,9 @@ export default function Library() {
       localStorage.removeItem('redirectToLibrary');
       localStorage.removeItem('paymentInProgress');
       
-      // Force refresh purchased beats data
-      fetchPurchasedBeats().then(() => {
-        console.log('Library: Purchased beats refreshed after successful purchase');
-        toast.success('Your purchase was successful! Your beats are now in your library.', {
-          duration: 5000,
-        });
-      }).catch(error => {
-        console.error('Library: Error refreshing purchased beats:', error);
+      // Show success message
+      toast.success('Your purchase was successful! Your beats are now in your library.', {
+        duration: 5000,
       });
       
       const timer = setTimeout(() => {
@@ -139,7 +132,7 @@ export default function Library() {
       
       return () => clearTimeout(timer);
     }
-  }, [location, navigate, fetchPurchasedBeats]);
+  }, [location, navigate]);
 
   useEffect(() => {
     localStorage.removeItem('pendingOrderId');

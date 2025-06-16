@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useMemo } from 'react';
 import { useBeats } from '@/hooks/useBeats';
 import { useAuth } from '@/context/AuthContext';
@@ -7,13 +8,14 @@ import { toast } from 'sonner';
 import { Beat } from '@/types';
 
 export function usePurchasedBeats() {
-  const { getUserPurchasedBeats, fetchPurchasedBeats, isPurchased, isLoading } = useBeats();
+  const { isPurchased, isLoading } = useBeats();
   const { user } = useAuth();
   const [downloadUrls, setDownloadUrls] = useState<Record<string, string>>({});
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [purchaseDetails, setPurchaseDetails] = useState<Record<string, { licenseType: string, purchaseDate: string }>>({});
   const [beatsLoaded, setBeatsLoaded] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const [purchasedBeatsData, setPurchasedBeatsData] = useState<Beat[]>([]);
   const location = useLocation();
   
   // Enhanced real-time subscription for purchases
@@ -68,13 +70,96 @@ export function usePurchasedBeats() {
     };
   }, [user]);
   
-  // Use memoization to prevent unnecessary re-renders
+  // Fetch purchased beat details directly from database
+  const fetchPurchasedBeatDetails = async () => {
+    if (!user) return [];
+    
+    try {
+      console.log('Fetching purchased beat details for user:', user.id);
+      
+      // Get purchased beat IDs and purchase details
+      const { data: purchasedData, error: purchasedError } = await supabase
+        .from('user_purchased_beats')
+        .select('beat_id, license_type, purchase_date')
+        .eq('user_id', user.id);
+        
+      if (purchasedError) {
+        console.error('Error fetching purchased beats:', purchasedError);
+        throw purchasedError;
+      }
+      
+      if (!purchasedData || purchasedData.length === 0) {
+        console.log('No purchased beats found');
+        return [];
+      }
+      
+      // Extract beat IDs
+      const beatIds = purchasedData.map(item => item.beat_id);
+      console.log('Found purchased beat IDs:', beatIds);
+      
+      // Fetch full beat details
+      const { data: beatsData, error: beatsError } = await supabase
+        .from('beats')
+        .select(`
+          id,
+          title,
+          producer_id,
+          producer_name:users!beats_producer_id_fkey(stage_name),
+          cover_image_url:cover_image,
+          full_track_url:audio_file,
+          basic_license_price_local,
+          basic_license_price_diaspora,
+          premium_license_price_local,
+          premium_license_price_diaspora,
+          exclusive_license_price_local,
+          exclusive_license_price_diaspora,
+          bpm,
+          genre,
+          tags,
+          upload_date,
+          plays,
+          purchase_count,
+          favorites_count
+        `)
+        .in('id', beatIds);
+        
+      if (beatsError) {
+        console.error('Error fetching beat details:', beatsError);
+        throw beatsError;
+      }
+      
+      // Transform the data to match Beat interface
+      const transformedBeats: Beat[] = (beatsData || []).map(beat => ({
+        ...beat,
+        producer_name: Array.isArray(beat.producer_name) 
+          ? beat.producer_name[0]?.stage_name || 'Unknown Producer'
+          : beat.producer_name?.stage_name || 'Unknown Producer'
+      }));
+      
+      // Create purchase details map
+      const detailsMap: Record<string, { licenseType: string, purchaseDate: string }> = {};
+      purchasedData.forEach(item => {
+        detailsMap[item.beat_id] = {
+          licenseType: item.license_type || 'basic',
+          purchaseDate: item.purchase_date
+        };
+      });
+      
+      console.log('Successfully fetched', transformedBeats.length, 'purchased beats with details');
+      setPurchaseDetails(detailsMap);
+      setPurchasedBeatsData(transformedBeats);
+      
+      return transformedBeats;
+    } catch (error) {
+      console.error('Error in fetchPurchasedBeatDetails:', error);
+      throw error;
+    }
+  };
+
+  // Use the fetched beats data directly
   const purchasedBeats = useMemo(() => {
-    if (!user || !beatsLoaded) return [];
-    const beats = getUserPurchasedBeats();
-    console.log('Purchased beats from getUserPurchasedBeats:', beats.length);
-    return beats;
-  }, [user, getUserPurchasedBeats, beatsLoaded, lastRefresh]);
+    return purchasedBeatsData;
+  }, [purchasedBeatsData, lastRefresh]);
 
   // Enhanced initial loading
   useEffect(() => {
@@ -83,7 +168,7 @@ export function usePurchasedBeats() {
       
       const loadData = async () => {
         try {
-          await fetchPurchasedBeats();
+          await fetchPurchasedBeatDetails();
           setBeatsLoaded(true);
           console.log('Initial purchased beats loaded successfully');
         } catch (error) {
@@ -103,42 +188,7 @@ export function usePurchasedBeats() {
         }, 1500);
       }
     }
-  }, [user, location.state, fetchPurchasedBeats]);
-
-  // Load purchase details when beats are available
-  useEffect(() => {
-    if (user && beatsLoaded && purchasedBeats.length > 0) {
-      fetchPurchaseDetails();
-    }
-  }, [user, beatsLoaded, purchasedBeats.length]);
-
-  const fetchPurchaseDetails = async () => {
-    if (!user) return;
-    
-    try {
-      console.log('Fetching purchase details for user:', user.id);
-      const { data, error } = await supabase
-        .from('user_purchased_beats')
-        .select('beat_id, license_type, purchase_date')
-        .eq('user_id', user.id);
-        
-      if (error) throw error;
-      
-      // Create a map of beat_id to license details
-      const detailsMap: Record<string, { licenseType: string, purchaseDate: string }> = {};
-      data.forEach(item => {
-        detailsMap[item.beat_id] = {
-          licenseType: item.license_type || 'basic',
-          purchaseDate: item.purchase_date
-        };
-      });
-      
-      console.log('Purchase details fetched:', Object.keys(detailsMap).length, 'items');
-      setPurchaseDetails(detailsMap);
-    } catch (error) {
-      console.error('Error fetching purchase details:', error);
-    }
-  };
+  }, [user, location.state]);
 
   const refreshPurchasedBeats = async () => {
     if (isRefreshing) {
@@ -151,8 +201,7 @@ export function usePurchasedBeats() {
       console.log('Refreshing purchased beats...');
       
       // Force fetch fresh data
-      await fetchPurchasedBeats();
-      await fetchPurchaseDetails();
+      await fetchPurchasedBeatDetails();
       
       // Update timestamp to trigger re-render
       setLastRefresh(Date.now());
