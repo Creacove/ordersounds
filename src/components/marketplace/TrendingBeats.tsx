@@ -9,7 +9,7 @@ import { fetchTrendingBeats } from "@/services/beats";
 export const TrendingBeats = () => {
   const { data: trendingBeats = [], isLoading } = useQuery({
     queryKey: ['marked-trending-beats'],
-    queryFn: () => fetchTrendingBeats(5, true), // Using the second parameter to get trending marked beats
+    queryFn: () => fetchTrendingBeats(5), // Fixed: removed second parameter
     staleTime: 5 * 60 * 1000 // Consider data fresh for 5 minutes
   });
 

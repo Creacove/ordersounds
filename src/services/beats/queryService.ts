@@ -122,6 +122,44 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
   }
 }
 
+export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
+  try {
+    console.log('Fetching featured beats...');
+    
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        *,
+        users!beats_producer_id_fkey (
+          full_name,
+          stage_name
+        )
+      `)
+      .eq('status', 'published')
+      .eq('is_featured', true)
+      .order('upload_date', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching featured beats:', error);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      // If no featured beats, return trending beats as fallback
+      return fetchTrendingBeats(limit);
+    }
+
+    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+    console.log(`Successfully fetched ${beats.length} featured beats`);
+    
+    return beats;
+  } catch (error) {
+    console.error('Failed to fetch featured beats:', error);
+    throw error;
+  }
+}
+
 export async function fetchNewBeats(limit: number = 20): Promise<Beat[]> {
   try {
     console.log('Fetching new beats...');
@@ -255,6 +293,43 @@ export async function fetchBeatsByProducer(producerId: string, limit: number = 2
     return beats;
   } catch (error) {
     console.error('Failed to fetch beats by producer:', error);
+    throw error;
+  }
+}
+
+export async function fetchProducerBeats(producerId: string, includeDrafts: boolean = false): Promise<Beat[]> {
+  try {
+    console.log('Fetching producer beats:', producerId, 'includeDrafts:', includeDrafts);
+    
+    let query = supabase
+      .from('beats')
+      .select(`
+        *,
+        users!beats_producer_id_fkey (
+          full_name,
+          stage_name
+        )
+      `)
+      .eq('producer_id', producerId)
+      .order('upload_date', { ascending: false });
+
+    if (!includeDrafts) {
+      query = query.eq('status', 'published');
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching producer beats:', error);
+      throw error;
+    }
+
+    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
+    console.log(`Successfully fetched ${beats.length} producer beats`);
+    
+    return beats;
+  } catch (error) {
+    console.error('Failed to fetch producer beats:', error);
     throw error;
   }
 }

@@ -1,8 +1,9 @@
+
 import { useEffect, useState, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
-import { fetchProducerBeats } from "@/services/beats";
+import { fetchProducerBeats } from "@/services/beats"; // Fixed: updated import
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BeatCard } from "@/components/ui/BeatCard";
