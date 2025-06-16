@@ -149,8 +149,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           beats!inner(
             id,
             title,
-            producer_name,
-            cover_image_url,
+            cover_image,
             basic_license_price_local,
             basic_license_price_diaspora,
             premium_license_price_local,
@@ -159,7 +158,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
             exclusive_license_price_diaspora,
             genre,
             producer_id,
-            users!beats_producer_id_fkey(wallet_address)
+            users!beats_producer_id_fkey(
+              stage_name,
+              wallet_address
+            )
           )
         `)
         .eq('cart_id', currentCartId)
@@ -180,10 +182,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           id: item.beats.id,
           title: item.beats.title,
           producer_id: item.beats.producer_id,
-          producer_name: item.beats.producer_name,
-          cover_image_url: item.beats.cover_image_url,
-          basic_license_price_local: item.beats.basic_license_price_local,
-          basic_license_price_diaspora: item.beats.basic_license_price_diaspora,
+          producer_name: item.beats.users?.stage_name || 'Unknown Producer',
+          cover_image_url: item.beats.cover_image || '',
+          basic_license_price_local: item.beats.basic_license_price_local || 0,
+          basic_license_price_diaspora: item.beats.basic_license_price_diaspora || 0,
           premium_license_price_local: item.beats.premium_license_price_local,
           premium_license_price_diaspora: item.beats.premium_license_price_diaspora,
           exclusive_license_price_local: item.beats.exclusive_license_price_local,

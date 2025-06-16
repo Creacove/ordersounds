@@ -229,7 +229,7 @@ export function usePaystackCheckout({
         return false;
       }
 
-      const beatIds = cartItems.map(item => item.beat.id);
+      const beatIds = cartItems.map(item => item.beat?.id).filter(Boolean);
       const { data: beatsData, error: beatsError } = await supabase
         .from('beats')
         .select('id, status')
@@ -266,8 +266,8 @@ export function usePaystackCheckout({
 
       if (purchasedData && purchasedData.length > 0) {
         const alreadyPurchasedTitles = cartItems
-          .filter(item => purchasedData.some(p => p.beat_id === item.beat.id))
-          .map(item => item.beat.title);
+          .filter(item => item.beat && purchasedData.some(p => p.beat_id === item.beat!.id))
+          .map(item => item.beat!.title);
           
         setValidationError(
           `You've already purchased: ${alreadyPurchasedTitles.join(', ')}`
@@ -335,13 +335,13 @@ export function usePaystackCheckout({
           license: 'basic'
         }];
       } else {
-        // Cart purchase
+        // Cart purchase - use the beat data from cart items
         orderItemsData = cartItems.map(item => ({
-          beat_id: item.beat.id,
-          title: item.beat.title,
-          price: item.beat.basic_license_price_local,
-          license: item.beat.selected_license || 'basic'
-        }));
+          beat_id: item.beat?.id,
+          title: item.beat?.title,
+          price: item.beat?.basic_license_price_local,
+          license: item.license_type || 'basic'
+        })).filter(item => item.beat_id); // Filter out invalid items
       }
       
       // Important: Make sure we have a user
