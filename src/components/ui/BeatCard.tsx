@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
 import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
-import { usePlayer } from '@/context/PlayerContext';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useCart } from '@/context/CartContext';
 import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
@@ -60,20 +59,22 @@ export function BeatCard({
   onPublish
 }: BeatCardProps) {
   const { user, currency } = useAuth();
-  const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
+  const { handlePlayBeat, isCurrentlyPlaying } = useAudioPlayer();
   const { addToCart, isInCart: checkIsInCart } = useCart();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
-  const isCurrentlyPlaying = isPlaying && currentBeat?.id === beat.id;
+  const isCurrentlyPlayingThisBeat = isCurrentlyPlaying(beat.id);
   const inCart = isInCart || (checkIsInCart && checkIsInCart(beat.id));
 
-  const handlePlay = (e: React.MouseEvent) => {
+  const handlePlay = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    playBeat(beat);
+    
+    await handlePlayBeat(beat);
+    
     if (onPlay) {
       onPlay(beat.id);
     }
@@ -248,13 +249,13 @@ export function BeatCard({
           <button
             onClick={handlePlay}
             className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-110 shadow-xl"
-            aria-label={isCurrentlyPlaying ? "Pause" : "Play"}
+            aria-label={isCurrentlyPlayingThisBeat ? "Pause" : "Play"}
           >
-            {isCurrentlyPlaying ? <Pause size={22} /> : <Play size={22} className="ml-1" />}
+            {isCurrentlyPlayingThisBeat ? <Pause size={22} /> : <Play size={22} className="ml-1" />}
           </button>
         </div>
         
-        {isCurrentlyPlaying && (
+        {isCurrentlyPlayingThisBeat && (
           <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
             Playing
           </div>
@@ -434,7 +435,7 @@ export function BeatCard({
               )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handlePlay} className="cursor-pointer text-xs">
-                {isCurrentlyPlaying ? "Pause" : "Play"}
+                {isCurrentlyPlayingThisBeat ? "Pause" : "Play"}
               </DropdownMenuItem>
               {isPurchased && (
                 <DropdownMenuItem onClick={downloadBeat} className="cursor-pointer text-xs">

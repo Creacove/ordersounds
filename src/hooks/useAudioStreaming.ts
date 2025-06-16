@@ -51,6 +51,9 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
   useEffect(() => {
     if (!url || url === previousUrl.current) return;
     
+    // Stop any currently playing audio before switching
+    audioManager.stopAllAudio();
+    
     previousUrl.current = url;
     setError(false);
     setLoading(true);
@@ -58,7 +61,7 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
     setCurrentTime(0);
     setDuration(0);
 
-    // Get audio from manager
+    // Get audio from manager (this will handle singleton behavior)
     const audio = audioManager.getAudio(url);
     audioRef.current = audio;
 
@@ -134,6 +137,9 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
     if (playing) {
       audio.pause();
     } else {
+      // Stop any other playing audio first
+      audioManager.stopAllAudio();
+      
       setLoading(true);
       try {
         await audio.play();
@@ -143,7 +149,7 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
         setLoading(false);
       }
     }
-  }, [url, playing]);
+  }, [url, playing, audioManager]);
 
   const stop = useCallback(() => {
     if (!audioRef.current) return;

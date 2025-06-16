@@ -3,9 +3,11 @@ import { usePlayer } from '@/context/PlayerContext';
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useCallback, useMemo } from 'react';
+import { AudioManager } from '@/lib/audioManager';
 
 export function useAudioPlayer() {
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
+  const audioManager = AudioManager.getInstance();
   
   const incrementPlayCount = useCallback(async (beatId: string) => {
     try {
@@ -37,6 +39,9 @@ export function useAudioPlayer() {
           return;
         }
         
+        // Ensure we stop any other playing audio first
+        audioManager.stopAllAudio();
+        
         playBeat(beat);
         
         // Increment play count only when starting a new track
@@ -45,7 +50,7 @@ export function useAudioPlayer() {
     } catch (error) {
       console.error("Error handling play:", error);
     }
-  }, [currentBeat, togglePlayPause, playBeat, incrementPlayCount]);
+  }, [currentBeat, togglePlayPause, playBeat, incrementPlayCount, audioManager]);
 
   const isCurrentBeat = useCallback((beatId: string): boolean => {
     return currentBeat?.id === beatId;

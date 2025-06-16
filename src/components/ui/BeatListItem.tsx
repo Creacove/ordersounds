@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import { usePlayer } from '@/context/PlayerContext';
+import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useCart } from '@/context/CartContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart, Download, Pencil, Upload } from 'lucide-react';
@@ -51,14 +50,13 @@ export function BeatListItem({
   onPublish
 }: BeatListItemProps) {
   const { currency } = useAuth();
-  const { playBeat, isPlaying, currentBeat, addToQueue } = usePlayer();
+  const { handlePlayBeat, isCurrentlyPlaying } = useAudioPlayer();
   const { addToCart } = useCart();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
-  const isCurrentBeat = currentBeat?.id === beat.id;
-  const isCurrentlyPlaying = isCurrentBeat && isPlaying;
+  const isCurrentlyPlayingThisBeat = isCurrentlyPlaying(beat.id);
 
   const handlePlay = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -69,8 +67,7 @@ export function BeatListItem({
     if (onPlay) {
       onPlay();
     } else {
-      playBeat(beat);
-      await incrementPlayCount(beat.id);
+      await handlePlayBeat(beat);
     }
     
     setTimeout(() => {
@@ -197,13 +194,13 @@ export function BeatListItem({
           disabled={isPlayButtonClicked}
           className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity"
         >
-          {isCurrentlyPlaying ? 
+          {isCurrentlyPlayingThisBeat ? 
             <Pause className="h-6 w-6 text-white" /> : 
             <Play className="h-6 w-6 text-white" />
           }
         </button>
         
-        {isCurrentlyPlaying && (
+        {isCurrentlyPlayingThisBeat && (
           <div className="absolute top-1 right-1 bg-primary/80 text-primary-foreground text-[10px] px-1 py-0.5 rounded-full">
             Playing
           </div>
@@ -371,7 +368,7 @@ export function BeatListItem({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handlePlay} className="cursor-pointer">
-              {isCurrentlyPlaying ? (
+              {isCurrentlyPlayingThisBeat ? (
                 <>
                   <Pause className="mr-2 h-4 w-4" />
                   <span>Pause</span>

@@ -120,19 +120,26 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
 
     const minimalBeat = createMinimalBeat(beat);
 
-    if (!currentBeat || currentBeat.id !== beat.id) {
-      if (currentBeat) {
-        setPreviousBeats(prev => [currentBeat, ...prev.slice(0, 9)]); // Keep last 10
-      }
+    // Always stop current audio first when switching beats
+    if (currentBeat && currentBeat.id !== beat.id) {
+      audioManager.stopAllAudio();
+      
+      // Add current beat to previous beats
+      setPreviousBeats(prev => [currentBeat, ...prev.slice(0, 9)]);
       
       setCurrentBeat(minimalBeat);
       
       // Start playing after a minimal delay for better UX
       setTimeout(togglePlay, 50);
+    } else if (!currentBeat) {
+      // First time playing
+      setCurrentBeat(minimalBeat);
+      setTimeout(togglePlay, 50);
     } else {
+      // Same beat, just toggle
       togglePlay();
     }
-  }, [currentBeat, createMinimalBeat, stop, togglePlay]);
+  }, [currentBeat, createMinimalBeat, stop, togglePlay, audioManager]);
 
   const togglePlayPause = useCallback(() => {
     if (currentBeat) {
@@ -163,6 +170,9 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     if (queue.length > 0) {
       const nextBeat = queue[0];
       
+      // Stop current audio before switching
+      audioManager.stopAllAudio();
+      
       if (currentBeat) {
         setPreviousBeats(prev => [currentBeat, ...prev.slice(0, 9)]);
       }
@@ -172,11 +182,14 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       
       setTimeout(togglePlay, 50);
     }
-  }, [queue, currentBeat, togglePlay]);
+  }, [queue, currentBeat, togglePlay, audioManager]);
   
   const previousTrack = useCallback(() => {
     if (previousBeats.length > 0) {
       const prevBeat = previousBeats[0];
+      
+      // Stop current audio before switching
+      audioManager.stopAllAudio();
       
       if (currentBeat) {
         setQueue(prev => [currentBeat, ...prev]);
@@ -187,7 +200,14 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
       
       setTimeout(togglePlay, 50);
     }
-  }, [previousBeats, currentBeat, togglePlay]);
+  }, [previousBeats, currentBeat, togglePlay, audioManager]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      audioManager.cleanup();
+    };
+  }, [audioManager]);
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
