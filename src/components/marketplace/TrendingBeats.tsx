@@ -4,9 +4,14 @@ import { TrendingUp, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { BeatCardCompact } from "./BeatCardCompact";
 import { useTrendingBeatsQuery } from "@/hooks/useBeatsQuery";
+import { usePerformanceTest } from "@/hooks/usePerformanceTest";
 
 export const TrendingBeats = () => {
   const { data: trendingBeats = [], isLoading } = useTrendingBeatsQuery(5);
+  const { measureRender } = usePerformanceTest('TrendingBeats');
+
+  // Measure render performance
+  measureRender('trending_beats_render');
 
   return (
     <section className="w-full">

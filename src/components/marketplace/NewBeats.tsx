@@ -4,9 +4,14 @@ import { Sparkles, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { BeatCardCompact } from "./BeatCardCompact";
 import { useNewBeatsQuery } from "@/hooks/useBeatsQuery";
+import { usePerformanceTest } from "@/hooks/usePerformanceTest";
 
 export const NewBeats = () => {
   const { data: newBeats = [], isLoading } = useNewBeatsQuery(5);
+  const { measureRender } = usePerformanceTest('NewBeats');
+
+  // Measure render performance
+  measureRender('new_beats_render');
 
   return (
     <section className="w-full">
