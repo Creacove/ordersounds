@@ -3,12 +3,12 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, Check } from "lucide-react";
 import { Beat } from "@/types";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { useCart } from "@/context/CartContext";
+import { useAddToCart } from "@/hooks/useAddToCart";
 import { LicenseSelector } from "@/components/marketplace/LicenseSelector";
 import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,23 +23,22 @@ interface BeatCardProps {
 
 export function BeatCard({ 
   beat, 
-  isInCart, 
   onAddToCart, 
   showLicenseSelector = true,
   featured = false
 }: BeatCardProps) {
   const { currency } = useAuth();
-  const { toggleCartItem } = useCart();
+  const { handleAddToCart, isInCart } = useAddToCart();
   const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive' | 'custom'>('basic');
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
-  const handleAddToCart = () => {
-    toggleCartItem(beat, selectedLicense);
+  const handleCartClick = async () => {
+    console.log('BeatCard: Cart button clicked for beat:', beat.title);
+    await handleAddToCart(beat);
   };
 
   const incrementPlayCount = async (beatId: string) => {
     try {
-      // Use type assertion to fix the TypeScript error
       await supabase.rpc("increment_counter" as any, {
         p_table_name: "beats",
         p_column_name: "plays",
@@ -52,13 +51,11 @@ export function BeatCard({
   };
   
   const handleBeatClick = async () => {
-    // Prevent double-clicks
     if (isPlayButtonClicked) return;
     
     setIsPlayButtonClicked(true);
     await incrementPlayCount(beat.id);
     
-    // Re-enable after a short delay
     setTimeout(() => {
       setIsPlayButtonClicked(false);
     }, 300);
@@ -95,6 +92,7 @@ export function BeatCard({
   };
   
   const price = getPriceForLicense();
+  const inCart = isInCart(beat.id);
 
   return (
     <Card className={`group overflow-hidden h-full ${featured ? 'border-primary bg-primary/5' : ''}`}>
@@ -146,16 +144,17 @@ export function BeatCard({
               </p>
             </div>
             <Button 
-              onClick={handleAddToCart}
-              disabled={isInCart}
+              onClick={handleCartClick}
+              variant={inCart ? "secondary" : "default"}
             >
-              {isInCart ? (
+              {inCart ? (
                 <>
-                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  <Check className="w-4 h-4 mr-2" />
                   <span>In Cart</span>
                 </>
               ) : (
                 <>
+                  <ShoppingCart className="w-4 h-4 mr-2" />
                   Add to Cart
                 </>
               )}
