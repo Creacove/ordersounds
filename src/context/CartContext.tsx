@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -199,6 +200,8 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
             id,
             title,
             cover_image,
+            audio_preview,
+            audio_file,
             basic_license_price_local,
             basic_license_price_diaspora,
             premium_license_price_local,
