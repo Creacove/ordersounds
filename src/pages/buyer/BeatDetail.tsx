@@ -1,10 +1,10 @@
 
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { MainLayout } from "@/components/layout/MainLayout";
-import { BeatCard } from "@/components/ui/BeatCard";
+import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBeatQuery } from "@/hooks/useBeatsQuery";
+import { BeatDetailLayout } from "@/components/beat-detail/BeatDetailLayout";
 
 const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
@@ -17,7 +17,7 @@ const BeatDetail = () => {
 
   if (isLoading) {
     return (
-      <MainLayout>
+      <MainLayoutWithPlayer>
         <div className="container py-4 md:py-8 px-4 md:px-6">
           <Skeleton className="h-[300px] w-full rounded-md mb-4" />
           <Skeleton className="h-8 w-1/2 mb-2" />
@@ -26,40 +26,38 @@ const BeatDetail = () => {
           <Skeleton className="h-5 w-full mb-2" />
           <Skeleton className="h-5 w-full mb-2" />
         </div>
-      </MainLayout>
+      </MainLayoutWithPlayer>
     );
   }
 
   if (error) {
     return (
-      <MainLayout>
+      <MainLayoutWithPlayer>
         <div className="container py-4 md:py-8 px-4 md:px-6">
           <div className="text-center text-red-500">
             Error: Could not load beat details.
           </div>
         </div>
-      </MainLayout>
+      </MainLayoutWithPlayer>
     );
   }
 
   if (!beat) {
     return (
-      <MainLayout>
+      <MainLayoutWithPlayer>
         <div className="container py-4 md:py-8 px-4 md:px-6">
           <div className="text-center text-muted-foreground">
             Beat not found.
           </div>
         </div>
-      </MainLayout>
+      </MainLayoutWithPlayer>
     );
   }
 
   return (
-    <MainLayout>
-      <div className="container py-4 md:py-8 px-4 md:px-6">
-        <BeatCard beat={beat} />
-      </div>
-    </MainLayout>
+    <MainLayoutWithPlayer>
+      <BeatDetailLayout beat={beat} />
+    </MainLayoutWithPlayer>
   );
 };
 
