@@ -3,6 +3,7 @@ import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useCart } from '@/context/CartContext';
+import { usePlayer } from '@/context/PlayerContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Play, Pause, Heart, Trash2, MoreVertical, Plus, ShoppingCart, Download, Pencil, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -52,6 +53,7 @@ export function BeatListItem({
   const { currency } = useAuth();
   const { handlePlayBeat, isCurrentlyPlaying } = useAudioPlayer();
   const { addToCart } = useCart();
+  const { addToQueue } = usePlayer();
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);

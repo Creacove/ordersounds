@@ -5,6 +5,7 @@ import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useCart } from '@/context/CartContext';
+import { usePlayer } from '@/context/PlayerContext';
 import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -61,6 +62,7 @@ export function BeatCard({
   const { user, currency } = useAuth();
   const { handlePlayBeat, isCurrentlyPlaying } = useAudioPlayer();
   const { addToCart, isInCart: checkIsInCart } = useCart();
+  const { addToQueue } = usePlayer();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const navigate = useNavigate();
