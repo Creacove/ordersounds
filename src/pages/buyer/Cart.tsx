@@ -9,6 +9,7 @@ import { PaymentHandler } from "@/components/payment/PaymentHandler";
 import { WalletAuthPrompt } from "@/components/wallet/WalletAuthPrompt";
 import { WalletDependentWrapper } from "@/components/wallet/WalletDependentWrapper";
 import { useWallet } from "@solana/wallet-adapter-react";
+import { useAuth } from "@/context/AuthContext";
 
 const CartContent = () => {
   const { 
@@ -18,6 +19,7 @@ const CartContent = () => {
     removeFromCart, 
     clearCart 
   } = useCartWithBeatDetailsOptimized();
+  const { currency } = useAuth();
 
   let wallet;
   try {
@@ -25,6 +27,26 @@ const CartContent = () => {
   } catch (error) {
     wallet = { connected: false, publicKey: null };
   }
+
+  // Helper function to calculate price based on license type and currency
+  const calculatePrice = (item: any) => {
+    const licenseType = item.licenseType;
+    const beat = item.beat;
+    
+    if (currency === 'NGN') {
+      // Use local prices for NGN
+      if (licenseType === 'basic') return beat.basic_license_price_local || 0;
+      if (licenseType === 'premium') return beat.premium_license_price_local || 0;
+      if (licenseType === 'exclusive') return beat.exclusive_license_price_local || 0;
+    } else {
+      // Use diaspora prices for USD
+      if (licenseType === 'basic') return beat.basic_license_price_diaspora || 0;
+      if (licenseType === 'premium') return beat.premium_license_price_diaspora || 0;
+      if (licenseType === 'exclusive') return beat.exclusive_license_price_diaspora || 0;
+    }
+    
+    return 0;
+  };
 
   if (isLoading) {
     return (
@@ -84,7 +106,7 @@ const CartContent = () => {
             <CartItemCard
               key={`${item.beatId}-${item.licenseType}`}
               item={item}
-              price={item.price}
+              price={calculatePrice(item)}
               onRemove={removeFromCart}
             />
           ))}
@@ -107,7 +129,7 @@ const CartContent = () => {
                 
                 <WalletDependentWrapper>
                   <PaymentHandler 
-                    totalPrice={totalAmount}
+                    totalAmount={totalAmount}
                     onPaymentSuccess={clearCart}
                   />
                 </WalletDependentWrapper>
