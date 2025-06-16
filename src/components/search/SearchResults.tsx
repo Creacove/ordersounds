@@ -1,3 +1,4 @@
+
 import React, { memo } from 'react';
 import { BeatCard } from '@/components/ui/BeatCard';
 import { Beat } from '@/types';
@@ -9,7 +10,7 @@ import { useInView } from '@/hooks/useIntersectionObserver';
 interface SearchResultsProps {
   beats: Beat[];
   producers: any[];
-  activeTab: string;
+  activeTab: 'all' | 'beats' | 'producers';
   isLoading: boolean;
   isFetchingNextPage?: boolean;
   hasNextPage?: boolean;
@@ -130,7 +131,7 @@ export const SearchResults = memo(({
           </div>
           
           {/* Infinite scroll trigger for beats */}
-          {activeTab !== 'producers' && (
+          {activeTab === 'beats' && (
             <InfiniteLoadTrigger 
               onLoadMore={onLoadMore}
               hasNextPage={hasNextPage}

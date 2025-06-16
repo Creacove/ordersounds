@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useDebounce } from '@/hooks/useDebounce';
-import { searchBeats, searchProducers, getPopularSearchTerms, getGenres, SearchParams } from '@/services/search/searchService';
+import { searchBeats, searchProducers, getPopularSearchTerms, getGenres, SearchParams, SearchResults } from '@/services/search/searchService';
 
 export function useOptimizedSearch() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,9 +32,10 @@ export function useOptimizedSearch() {
       searchBeats({ 
         ...searchParams, 
         limit: 20, 
-        offset: pageParam * 20 
+        offset: (pageParam as number) * 20 
       }),
-    getNextPageParam: (lastPage, allPages) => 
+    initialPageParam: 0,
+    getNextPageParam: (lastPage: SearchResults, allPages) => 
       lastPage.hasMore ? allPages.length : undefined,
     enabled: debouncedSearchTerm.length >= 2 || Object.keys(filters).length > 0,
     staleTime: 5 * 60 * 1000, // 5 minutes
