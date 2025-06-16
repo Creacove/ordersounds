@@ -20,7 +20,10 @@ export function useCartWithBeatDetails() {
   // Fetch beat details for cart items
   useEffect(() => {
     const fetchBeatDetails = async () => {
+      console.log('🛒 Starting fetchBeatDetails with lightweight items:', lightweightItems);
+      
       if (lightweightItems.length === 0) {
+        console.log('🛒 No lightweight items, clearing cart details');
         setCartItemsWithDetails([]);
         setTotalAmount(0);
         return;
@@ -28,7 +31,9 @@ export function useCartWithBeatDetails() {
 
       setIsLoading(true);
       try {
+        // Extract beat IDs from lightweight items (FIX: use beatId directly)
         const beatIds = lightweightItems.map(item => item.beatId);
+        console.log('🛒 Beat IDs to fetch:', beatIds);
         
         const { data: beats, error } = await supabase
           .from('beats')
@@ -53,22 +58,31 @@ export function useCartWithBeatDetails() {
           .in('id', beatIds);
 
         if (error) {
-          console.error('Error fetching beat details:', error);
+          console.error('🛒 Error fetching beat details:', error);
           return;
         }
 
-        // Map lightweight items with beat details
-        const itemsWithDetails = lightweightItems.map(item => {
-          const beat = beats?.find(b => b.id === item.beatId);
-          if (!beat) return null;
+        console.log('🛒 Fetched beats from database:', beats);
+
+        // Map lightweight items with beat details (FIX: correct mapping logic)
+        const itemsWithDetails = lightweightItems.map(lightweightItem => {
+          console.log('🛒 Processing lightweight item:', lightweightItem);
+          
+          const beat = beats?.find(b => b.id === lightweightItem.beatId);
+          if (!beat) {
+            console.warn('🛒 Beat not found for ID:', lightweightItem.beatId);
+            return null;
+          }
+
+          console.log('🛒 Found beat for item:', beat);
 
           const userData = beat.users;
           const producerName = userData?.stage_name || userData?.full_name || 'Unknown Producer';
           
-          return {
-            beatId: item.beatId,
-            licenseType: item.licenseType,
-            addedAt: item.addedAt,
+          const detailedItem = {
+            beatId: lightweightItem.beatId,
+            licenseType: lightweightItem.licenseType,
+            addedAt: lightweightItem.addedAt,
             beat: {
               id: beat.id,
               title: beat.title,
@@ -91,12 +105,16 @@ export function useCartWithBeatDetails() {
               premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
               exclusive_license_price_local: beat.exclusive_license_price_local || 0,
               exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
-              selected_license: item.licenseType,
+              selected_license: lightweightItem.licenseType,
               producer_wallet_address: userData?.wallet_address
             } as Beat
           };
+
+          console.log('🛒 Created detailed item:', detailedItem);
+          return detailedItem;
         }).filter((item): item is CartItemWithDetails => item !== null);
 
+        console.log('🛒 Final items with details:', itemsWithDetails);
         setCartItemsWithDetails(itemsWithDetails);
 
         // Calculate total amount
@@ -117,9 +135,10 @@ export function useCartWithBeatDetails() {
           return sum + price;
         }, 0);
         
+        console.log('🛒 Calculated total amount:', total);
         setTotalAmount(total);
       } catch (error) {
-        console.error('Error fetching beat details:', error);
+        console.error('🛒 Error fetching beat details:', error);
       } finally {
         setIsLoading(false);
       }
@@ -127,6 +146,15 @@ export function useCartWithBeatDetails() {
 
     fetchBeatDetails();
   }, [lightweightItems]);
+
+  // Add debugging for state changes
+  useEffect(() => {
+    console.log('🛒 Cart items with details updated:', cartItemsWithDetails);
+  }, [cartItemsWithDetails]);
+
+  useEffect(() => {
+    console.log('🛒 Item count updated:', itemCount);
+  }, [itemCount]);
 
   return {
     cartItems: cartItemsWithDetails,
