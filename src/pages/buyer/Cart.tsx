@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useCart } from "@/context/CartContext";
@@ -35,19 +34,20 @@ export default function Cart() {
     syncStatus 
   } = useWalletSync();
   
-  // Simplified UI state management
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
-  // Initialize cart with simplified loading
+  // Initialize cart with better loading and error handling
   useEffect(() => {
     const initializeCart = async () => {
       try {
         setIsLoading(true);
         setError(null);
+        
+        console.log('Cart: Initializing cart...');
         
         // Check for recent purchase success
         const purchaseSuccess = localStorage.getItem('purchaseSuccess');
@@ -59,7 +59,6 @@ export default function Cart() {
             handlePurchaseSuccess();
             return;
           } else {
-            // Clear stale purchase data
             localStorage.removeItem('purchaseSuccess');
             localStorage.removeItem('purchaseTime');
             localStorage.removeItem('pendingOrderId');
@@ -68,12 +67,12 @@ export default function Cart() {
           }
         }
         
-        // Refresh cart if needed
-        if (cartItems && cartItems.length > 0) {
-          await refreshCart();
-        }
+        // Force refresh cart data
+        console.log('Cart: Refreshing cart data...');
+        await refreshCart();
+        console.log('Cart: Cart refreshed, items count:', cartItems?.length || 0);
       } catch (err) {
-        console.error('Error initializing cart:', err);
+        console.error('Cart: Error initializing cart:', err);
         setError('Failed to load cart. Please refresh the page.');
       } finally {
         setIsLoading(false);
@@ -94,7 +93,7 @@ export default function Cart() {
           filter: `user_id=eq.${user?.id}`
         },
         () => {
-          console.log('New purchase detected');
+          console.log('Cart: New purchase detected');
           handlePurchaseSuccess();
         }
       )
@@ -104,6 +103,11 @@ export default function Cart() {
       subscription.unsubscribe();
     };
   }, [user?.id]);
+
+  // Log cart items when they change
+  useEffect(() => {
+    console.log('Cart: Cart items updated:', cartItems?.length || 0, cartItems);
+  }, [cartItems]);
   
   const handlePurchaseSuccess = () => {
     clearCart();
@@ -122,23 +126,23 @@ export default function Cart() {
     }, 1500);
   };
   
-  // Simplified item removal
   const handleRemoveItem = async (beatId: string) => {
     try {
+      console.log('Cart: Removing item:', beatId);
       await removeFromCart(beatId);
       toast.success("Item removed from cart");
     } catch (error) {
+      console.error('Cart: Error removing item:', error);
       toast.error("Failed to remove item");
     }
   };
   
-  // Simplified cart clearing
   const handleClearCart = () => {
+    console.log('Cart: Clearing cart');
     clearCart();
     toast.success("Cart cleared successfully");
   };
   
-  // Beat playback control
   const handlePlayBeat = (beat: any) => {
     if (currentBeat?.id === beat.id) {
       playBeat(isPlaying ? null : beat);
@@ -147,7 +151,6 @@ export default function Cart() {
     }
   };
   
-  // Simplified Solana checkout
   const handleOpenSolanaCheckout = async () => {
     if (!cartItems || cartItems.length === 0) {
       toast.error('Your cart is empty');
@@ -173,7 +176,6 @@ export default function Cart() {
     setIsProcessingPayment(true);
     
     try {
-      // Get producer wallet addresses from cart items
       const beatProducerIds = cartItems.map(item => item.beat?.producer_id).filter(Boolean);
       
       const { data: producersData, error } = await supabase
@@ -185,7 +187,6 @@ export default function Cart() {
         throw new Error('Failed to validate producer payment information');
       }
       
-      // Check for missing wallet addresses
       const producerWallets: Record<string, string> = {};
       const producersWithoutWallets: string[] = [];
       
@@ -203,14 +204,13 @@ export default function Cart() {
         throw new Error(`Some producers haven't set up their Solana wallets: ${producersWithoutWallets.join(', ')}`);
       }
       
-      // Update cart items with wallet addresses
       const updatedCartItems = cartItems.map(item => ({
         ...item,
         beat: item.beat ? {
           ...item.beat,
           producer_wallet_address: producerWallets[item.beat.producer_id]
         } : undefined
-      })).filter(item => item.beat); // Filter out items without beat data
+      })).filter(item => item.beat);
       
       setBeatsWithWalletAddresses(updatedCartItems);
       setIsSolanaDialogOpen(true);
@@ -247,7 +247,6 @@ export default function Cart() {
     }).filter(Boolean);
   };
   
-  // Wallet connection status for USD payments
   const getWalletStatus = () => {
     if (!user) return { disabled: true, text: 'Login Required' };
     if (!isConnected) return { disabled: true, text: 'Connect Wallet First' };
@@ -345,7 +344,10 @@ export default function Cart() {
               <div className="space-y-3">
                 {cartItems.map((item) => {
                   const beat = item.beat;
-                  if (!beat) return null;
+                  if (!beat) {
+                    console.warn('Cart: Item missing beat data:', item);
+                    return null;
+                  }
                   
                   return (
                     <div key={item.id} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-4 flex gap-4">
@@ -450,7 +452,6 @@ export default function Cart() {
                     </span>
                   </div>
 
-                  {/* Solana wallet section for USD payments */}
                   {currency === 'USD' && (
                     <div className="mt-4 py-3 px-4 bg-secondary/30 rounded-md flex flex-col gap-3">
                       <div className="text-sm font-medium">Pay with USDC on Solana</div>
@@ -458,7 +459,6 @@ export default function Cart() {
                         <WalletButton buttonClass="w-full justify-center" />
                       </div>
                       
-                      {/* Status messages */}
                       <div className="text-xs text-center">
                         {!user && (
                           <span className="text-amber-600 dark:text-amber-400">⚠️ Login required to sync wallet</span>

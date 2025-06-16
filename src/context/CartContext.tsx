@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -84,18 +83,19 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [cartId, setCartId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get or create cart with improved error handling
+  // Get or create cart with improved logic
   const getOrCreateCart = async () => {
     try {
       console.log('CartContext: Getting or creating cart for user:', user?.id || 'guest');
       
       if (user) {
-        // For authenticated users - use correct PostgREST syntax
+        console.log('CartContext: Creating/finding authenticated user cart');
+        // For authenticated users
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
           .eq('user_id', user.id)
-          .is('session_id', null) // Use .is() for null checks
+          .is('session_id', null)
           .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') {
@@ -126,6 +126,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
         return existingCart.id;
       } else {
+        console.log('CartContext: Creating/finding guest cart');
         // For guest users
         const sessionId = getSessionId();
         console.log('CartContext: Using session ID for guest:', sessionId);
@@ -133,7 +134,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
-          .is('user_id', null) // Use .is() for null checks
+          .is('user_id', null)
           .eq('session_id', sessionId)
           .maybeSingle();
 
@@ -167,48 +168,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       }
     } catch (error) {
       console.error('CartContext: Failed to get/create cart:', error);
-      
-      // Enhanced debugging for RLS issues
-      if (error.code === '42501') {
-        console.error('CartContext: RLS Policy violation - checking auth context...');
-        const { data: session } = await supabase.auth.getSession();
-        console.log('CartContext: Session debug info:', {
-          hasSession: !!session?.session,
-          userId: session?.session?.user?.id,
-          userIdType: typeof session?.session?.user?.id,
-          isExpired: session?.session ? new Date() > new Date(session.session.expires_at * 1000) : 'no session',
-          accessToken: session?.session?.access_token ? 'present' : 'missing'
-        });
-        
-        // If user exists but RLS fails, try falling back to guest cart
-        if (user && session?.session) {
-          console.log('CartContext: RLS failed for authenticated user, attempting guest fallback...');
-          const sessionId = getSessionId();
-          try {
-            const { data: guestCart, error: guestError } = await supabase
-              .from('carts')
-              .insert({ 
-                user_id: null,
-                session_id: sessionId
-              })
-              .select('id')
-              .single();
-            
-            if (!guestError && guestCart) {
-              console.log('CartContext: Successfully created guest fallback cart:', guestCart.id);
-              return guestCart.id;
-            }
-          } catch (fallbackError) {
-            console.error('CartContext: Guest fallback also failed:', fallbackError);
-          }
-        }
-      }
-      
       throw error;
     }
   };
 
-  // Load cart items from database
+  // Load cart items from database with proper field mapping
   const loadCartItems = async () => {
     try {
       setIsLoading(true);
@@ -254,10 +218,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
       if (error) {
         console.error('CartContext: Error loading cart items:', error);
-        return;
+        throw error;
       }
 
-      console.log('CartContext: Loaded cart items:', items?.length || 0);
+      console.log('CartContext: Loaded cart items raw data:', items);
 
       const formattedItems: CartItem[] = items?.map(item => ({
         id: item.id,
@@ -282,14 +246,11 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         }
       })) || [];
 
+      console.log('CartContext: Formatted cart items:', formattedItems);
       setCartItems(formattedItems);
     } catch (error) {
       console.error('CartContext: Error loading cart:', error);
-      
-      // If it's an auth/RLS issue, show user-friendly message
-      if (error.code === '42501') {
-        toast.error('Unable to load cart. Please try refreshing the page.');
-      }
+      toast.error('Failed to load cart items');
     } finally {
       setIsLoading(false);
     }
@@ -334,7 +295,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           filter: `cart_id=eq.${cartId}`
         },
         () => {
-          // Reload cart items when changes occur
+          console.log('CartContext: Real-time cart update detected');
           loadCartItems();
         }
       )
@@ -347,42 +308,23 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
   const addToCart = async (beat: Beat & { selected_license?: string }) => {
     try {
-      console.log('CartContext: Adding beat to cart:', beat.title);
+      console.log('CartContext: Adding beat to cart:', beat.title, 'License:', beat.selected_license);
       
-      // Get or create cart first with retry logic
-      let currentCartId = cartId;
-      let attempts = 0;
-      const maxAttempts = 3;
-      
-      while (!currentCartId && attempts < maxAttempts) {
-        try {
-          currentCartId = await getOrCreateCart();
-          break;
-        } catch (error) {
-          attempts++;
-          console.log(`CartContext: Cart creation attempt ${attempts} failed:`, error);
-          if (attempts >= maxAttempts) {
-            throw error;
-          }
-          // Wait a bit before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-      
+      const currentCartId = cartId || await getOrCreateCart();
       if (!currentCartId) {
-        console.error('CartContext: Failed to get cart ID after multiple attempts');
+        console.error('CartContext: Failed to get cart ID');
         toast.error('Failed to create cart. Please try again.');
         return;
       }
 
       const licenseType = beat.selected_license || 'basic';
+      console.log('CartContext: Using license type:', licenseType);
 
-      // Check if item already exists
+      // Check if item already exists in cart
       const existingItem = cartItems.find(item => item.beat_id === beat.id);
 
       if (existingItem) {
         console.log('CartContext: Updating existing cart item');
-        // Update existing item
         const { error } = await supabase
           .from('cart_items')
           .update({ license_type: licenseType })
@@ -396,7 +338,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         toast.success('Cart updated');
       } else {
         console.log('CartContext: Adding new cart item');
-        // Add new item
         const { data, error } = await supabase
           .from('cart_items')
           .insert({
@@ -426,12 +367,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       await loadCartItems();
     } catch (error) {
       console.error('CartContext: Error in addToCart:', error);
-      
-      if (error.code === '42501') {
-        toast.error('Unable to add to cart. Please try refreshing the page and logging in again.');
-      } else {
-        toast.error('Failed to add item to cart. Please try again.');
-      }
+      toast.error('Failed to add item to cart. Please try again.');
     }
   };
 
@@ -445,7 +381,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         return;
       }
 
-      // Filter out beats already in cart
       const newBeats = beats.filter(beat => 
         !cartItems.some(item => item.beat_id === beat.id)
       );
@@ -455,7 +390,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         return;
       }
 
-      // Prepare cart items for insertion
       const cartItemsToInsert = newBeats.map(beat => ({
         cart_id: currentCartId,
         beat_id: beat.id,

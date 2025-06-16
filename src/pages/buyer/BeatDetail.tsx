@@ -263,10 +263,39 @@ const BeatDetail = () => {
       return;
     }
 
-    const lightweightBeat = createLightweightBeat(beat);
-    lightweightBeat.selected_license = licenseType;
+    // Create a properly structured beat object with correct field mapping
+    const beatForCart = {
+      id: beat.id,
+      title: beat.title,
+      producer_id: beat.producer_id,
+      producer_name: beat.producer_name,
+      cover_image_url: beat.cover_image_url || beat.cover_image || '', // Handle both field names
+      preview_url: beat.preview_url || beat.audio_preview || '',
+      full_track_url: beat.full_track_url || beat.audio_file || '',
+      basic_license_price_local: beat.basic_license_price_local || 0,
+      basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+      premium_license_price_local: beat.premium_license_price_local || 0,
+      premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
+      exclusive_license_price_local: beat.exclusive_license_price_local || 0,
+      exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
+      custom_license_price_local: beat.custom_license_price_local || 0,
+      custom_license_price_diaspora: beat.custom_license_price_diaspora || 0,
+      genre: beat.genre || '',
+      track_type: beat.track_type || 'Beat',
+      bpm: beat.bpm || 0,
+      tags: beat.tags || [],
+      description: beat.description,
+      created_at: beat.created_at || new Date().toISOString(),
+      favorites_count: beat.favorites_count || 0,
+      purchase_count: beat.purchase_count || 0,
+      status: beat.status || 'published',
+      is_featured: beat.is_featured || false,
+      selected_license: licenseType
+    };
+
+    console.log('BeatDetail: Adding beat to cart with data:', beatForCart);
     
-    addToCart(lightweightBeat as any);
+    addToCart(beatForCart);
     toast.success(`Added "${beat.title}" (${licenseType} license) to cart`);
   };
 
