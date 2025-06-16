@@ -4,7 +4,7 @@ import { Beat } from '@/types';
 import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
-import { useCart } from '@/context/CartContext';
+import { useCartLightweight } from '@/hooks/useCartLightweight';
 import { usePlayer } from '@/context/PlayerContext';
 import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
@@ -61,7 +61,7 @@ export function BeatCard({
 }: BeatCardProps) {
   const { user, currency } = useAuth();
   const { handlePlayBeat, isCurrentlyPlaying } = useAudioPlayer();
-  const { addToCart, isInCart: checkIsInCart } = useCart();
+  const { addToCart, removeFromCart, isInCart: checkIsInCart } = useCartLightweight();
   const { addToQueue } = usePlayer();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
@@ -69,7 +69,7 @@ export function BeatCard({
   const isMobile = useIsMobile();
   
   const isCurrentlyPlayingThisBeat = isCurrentlyPlaying(beat.id);
-  const inCart = isInCart || (checkIsInCart && checkIsInCart(beat.id));
+  const inCart = isInCart || checkIsInCart(beat.id);
 
   const handlePlay = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -101,11 +101,7 @@ export function BeatCard({
       onAddToCart(beat);
     } 
     else if (!inCart) {
-      const beatWithLicense = {
-        ...beat,
-        selected_license: licenseType
-      };
-      addToCart(beatWithLicense);
+      addToCart(beat.id, licenseType);
       toast.success(`Added "${beat.title}" (${licenseType} license) to cart`);
     } else {
       navigate('/cart');

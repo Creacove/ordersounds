@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -8,7 +7,7 @@ import { Beat } from "@/types";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { useCart } from "@/context/CartContext";
+import { useCartLightweight } from "@/hooks/useCartLightweight";
 import { LicenseSelector } from "@/components/marketplace/LicenseSelector";
 import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,12 +28,20 @@ export function BeatCard({
   featured = false
 }: BeatCardProps) {
   const { currency } = useAuth();
-  const { toggleCartItem } = useCart();
+  const { addToCart, removeFromCart, isInCart: checkIsInCart } = useCartLightweight();
   const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive' | 'custom'>('basic');
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
+  const itemInCart = isInCart || checkIsInCart(beat.id);
+  
   const handleAddToCart = () => {
-    toggleCartItem(beat, selectedLicense);
+    if (onAddToCart) {
+      onAddToCart();
+    } else if (itemInCart) {
+      removeFromCart(beat.id);
+    } else {
+      addToCart(beat.id, selectedLicense);
+    }
   };
 
   const incrementPlayCount = async (beatId: string) => {
@@ -147,9 +154,9 @@ export function BeatCard({
             </div>
             <Button 
               onClick={handleAddToCart}
-              disabled={isInCart}
+              disabled={false}
             >
-              {isInCart ? (
+              {itemInCart ? (
                 <>
                   <ShoppingCart className="w-4 h-4 mr-2" />
                   <span>In Cart</span>
