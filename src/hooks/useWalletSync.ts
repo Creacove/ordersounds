@@ -1,12 +1,39 @@
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { useWallet } from '@solana/wallet-adapter-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 export const useWalletSync = () => {
-  const { publicKey, connected, disconnect } = useWallet();
+  // Safe wallet context access with fallbacks
+  let publicKey = null;
+  let connected = false;
+  let disconnect = async () => {};
+
+  try {
+    const { useWallet } = require('@solana/wallet-adapter-react');
+    const wallet = useWallet();
+    publicKey = wallet.publicKey;
+    connected = wallet.connected;
+    disconnect = wallet.disconnect;
+  } catch (error) {
+    console.warn('Wallet context not available in useWalletSync:', error);
+    // Return safe defaults when wallet context is not available
+    return {
+      syncWalletToDatabase: async () => false,
+      disconnectAndSync: async () => {},
+      manualSyncTrigger: async () => false,
+      isWalletSynced: false,
+      needsAuth: false,
+      walletMismatch: false,
+      isConnected: false,
+      walletAddress: undefined,
+      storedWalletAddress: undefined,
+      syncStatus: 'idle' as const,
+      lastError: null
+    };
+  }
+
   const { user, forceUserDataRefresh } = useAuth();
   const syncInProgress = useRef(false);
   const lastSyncedWallet = useRef<string | null>(null);

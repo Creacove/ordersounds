@@ -32,13 +32,22 @@ const ConditionalSolanaProvider: React.FC<ConditionalSolanaProviderProps> = ({ c
     }
   }, [location.pathname, needsWallet]);
 
-  // Don't load Solana provider unless needed
+  // Don't load Solana provider unless needed - just render children directly
   if (!needsWallet) {
     return <>{children}</>;
   }
 
   return (
-    <React.Suspense fallback={<div>Loading wallet...</div>}>
+    <React.Suspense 
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
+            <div className="text-sm text-muted-foreground">Loading wallet...</div>
+          </div>
+        </div>
+      }
+    >
       <SolanaWalletProvider>
         {children}
       </SolanaWalletProvider>

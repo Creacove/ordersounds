@@ -14,17 +14,63 @@ interface WalletButtonProps {
 }
 
 const WalletButton: React.FC<WalletButtonProps> = ({ className, buttonClass }) => {
-  const { connected, connecting, publicKey, disconnect } = useWallet();
-  const { setVisible } = useWalletModal();
+  // Safe wallet context access with fallbacks
+  let connected = false;
+  let connecting = false;
+  let publicKey = null;
+  let disconnect = async () => {};
+
+  try {
+    const wallet = useWallet();
+    connected = wallet.connected;
+    connecting = wallet.connecting;
+    publicKey = wallet.publicKey;
+    disconnect = wallet.disconnect;
+  } catch (error) {
+    console.warn('WalletContext not available:', error);
+    // Return basic UI when wallet context is not available
+    return (
+      <div className={cn("flex flex-col items-center", className)}>
+        <Button 
+          disabled 
+          className={cn("gap-2 opacity-50", buttonClass)}
+        >
+          <Wallet className="h-4 w-4" />
+          Wallet Unavailable
+        </Button>
+      </div>
+    );
+  }
+
+  let setVisible: (visible: boolean) => void = () => {};
+  try {
+    const walletModal = useWalletModal();
+    setVisible = walletModal.setVisible;
+  } catch (error) {
+    console.warn('WalletModal not available:', error);
+  }
+
   const { user } = useAuth();
-  const { 
-    isWalletSynced, 
-    needsAuth, 
-    walletMismatch, 
-    syncStatus, 
-    manualSyncTrigger,
-    storedWalletAddress 
-  } = useWalletSync();
+  
+  // Safe wallet sync hook usage
+  let isWalletSynced = false;
+  let needsAuth = false;
+  let walletMismatch = false;
+  let syncStatus = 'idle';
+  let manualSyncTrigger = async () => {};
+  let storedWalletAddress = '';
+
+  try {
+    const walletSync = useWalletSync();
+    isWalletSynced = walletSync.isWalletSynced;
+    needsAuth = walletSync.needsAuth;
+    walletMismatch = walletSync.walletMismatch;
+    syncStatus = walletSync.syncStatus;
+    manualSyncTrigger = walletSync.manualSyncTrigger;
+    storedWalletAddress = walletSync.storedWalletAddress || '';
+  } catch (error) {
+    console.warn('WalletSync hook not available:', error);
+  }
 
   const handleConnect = () => {
     if (!connected && !connecting) {
