@@ -269,9 +269,9 @@ const BeatDetail = () => {
       title: beat.title,
       producer_id: beat.producer_id,
       producer_name: beat.producer_name,
-      cover_image_url: beat.cover_image_url || beat.cover_image || '', // Handle both field names
-      preview_url: beat.preview_url || beat.audio_preview || '',
-      full_track_url: beat.full_track_url || beat.audio_file || '',
+      cover_image_url: beat.cover_image_url || '',
+      preview_url: beat.preview_url || '',
+      full_track_url: beat.full_track_url || '',
       basic_license_price_local: beat.basic_license_price_local || 0,
       basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
       premium_license_price_local: beat.premium_license_price_local || 0,
