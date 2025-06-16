@@ -21,7 +21,7 @@ export const LicenseOptionCards = ({
   onLicenseSelect, 
   selectedLicense 
 }: LicenseOptionCardsProps) => {
-  const { toggleCartItem, isInCart } = useCart();
+  const { addToCart, isInCart } = useCart();
 
   const getLicensePrice = (licenseType: 'basic' | 'premium' | 'exclusive') => {
     if (currency === 'NGN') {
@@ -98,7 +98,12 @@ export const LicenseOptionCards = ({
   ];
 
   const handleAddToCart = (licenseType: 'basic' | 'premium' | 'exclusive') => {
-    toggleCartItem(beat, licenseType);
+    const cartItem = {
+      beat,
+      licenseType,
+      price: getLicensePrice(licenseType)
+    };
+    addToCart(cartItem);
   };
 
   return (
