@@ -103,8 +103,8 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
         )
       `)
       .eq('status', 'published')
-      .order('favorites_count', { ascending: false })
-      .order('purchase_count', { ascending: false })
+      .eq('is_trending', true)
+      .order('upload_date', { ascending: false })
       .limit(limit);
 
     if (error) {
