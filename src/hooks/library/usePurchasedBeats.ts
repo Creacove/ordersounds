@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useMemo } from 'react';
 import { useBeats } from '@/hooks/useBeats';
 import { useAuth } from '@/context/AuthContext';
@@ -14,15 +13,17 @@ export function usePurchasedBeats() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [purchaseDetails, setPurchaseDetails] = useState<Record<string, { licenseType: string, purchaseDate: string }>>({});
   const [beatsLoaded, setBeatsLoaded] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
   const location = useLocation();
   
-  // Set up a subscription to real-time database changes for purchases
+  // Enhanced real-time subscription for purchases
   useEffect(() => {
     if (!user) return;
     
-    // Set up a subscription to purchased_beats for the current user
+    console.log('Setting up real-time subscription for purchases for user:', user.id);
+    
     const channel = supabase
-      .channel('purchased-beats-changes')
+      .channel('purchased-beats-realtime')
       .on(
         'postgres_changes',
         {
@@ -32,14 +33,37 @@ export function usePurchasedBeats() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('New purchase detected in PurchasedBeats component:', payload);
-          // When a new purchase is detected, refresh the purchased beats list
+          console.log('Real-time: New purchase detected:', payload);
+          // Force immediate refresh of purchased beats
           refreshPurchasedBeats();
+          
+          // Show success message
+          toast.success('New beat added to your library!');
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `buyer_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Real-time: Order status updated:', payload);
+          if (payload.new?.status === 'completed') {
+            // Delay refresh slightly to ensure all related data is inserted
+            setTimeout(() => {
+              console.log('Order completed, refreshing library...');
+              refreshPurchasedBeats();
+            }, 1000);
+          }
         }
       )
       .subscribe();
       
     return () => {
+      console.log('Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);
@@ -47,42 +71,52 @@ export function usePurchasedBeats() {
   // Use memoization to prevent unnecessary re-renders
   const purchasedBeats = useMemo(() => {
     if (!user || !beatsLoaded) return [];
-    return getUserPurchasedBeats();
-  }, [user, getUserPurchasedBeats, beatsLoaded]);
+    const beats = getUserPurchasedBeats();
+    console.log('Purchased beats from getUserPurchasedBeats:', beats.length);
+    return beats;
+  }, [user, getUserPurchasedBeats, beatsLoaded, lastRefresh]);
 
-  // Split initial loading into separate effects for better performance
+  // Enhanced initial loading
   useEffect(() => {
     if (user) {
-      console.log('Initial load of purchased beats');
-      // Force fetch purchased beats on initial load to make sure we have the latest data
-      fetchPurchasedBeats().then(() => {
-        console.log('Purchased beats fetched successfully');
-        setBeatsLoaded(true);
-      }).catch(error => {
-        console.error('Error fetching purchased beats:', error);
-      });
+      console.log('Initial load of purchased beats for user:', user.id);
       
-      // If we came from a purchase, make sure to refresh the list
+      const loadData = async () => {
+        try {
+          await fetchPurchasedBeats();
+          setBeatsLoaded(true);
+          console.log('Initial purchased beats loaded successfully');
+        } catch (error) {
+          console.error('Error in initial purchased beats load:', error);
+          setBeatsLoaded(true); // Set to true even on error to prevent infinite loading
+        }
+      };
+      
+      loadData();
+      
+      // If we came from a purchase, force refresh after a short delay
       const fromPurchase = location.state?.fromPurchase || localStorage.getItem('purchaseSuccess') === 'true';
       if (fromPurchase) {
-        console.log('Coming from a purchase, refreshing beats list');
-        refreshPurchasedBeats();
+        console.log('Coming from a purchase, forcing refresh...');
+        setTimeout(() => {
+          refreshPurchasedBeats();
+        }, 1500);
       }
     }
   }, [user, location.state, fetchPurchasedBeats]);
 
-  // Load purchase details separately from beats to improve performance
+  // Load purchase details when beats are available
   useEffect(() => {
     if (user && beatsLoaded && purchasedBeats.length > 0) {
       fetchPurchaseDetails();
     }
-  }, [user, beatsLoaded, purchasedBeats]);
+  }, [user, beatsLoaded, purchasedBeats.length]);
 
   const fetchPurchaseDetails = async () => {
     if (!user) return;
     
     try {
-      console.log('Fetching purchase details');
+      console.log('Fetching purchase details for user:', user.id);
       const { data, error } = await supabase
         .from('user_purchased_beats')
         .select('beat_id, license_type, purchase_date')
@@ -99,7 +133,7 @@ export function usePurchasedBeats() {
         };
       });
       
-      console.log('Purchase details fetched:', detailsMap);
+      console.log('Purchase details fetched:', Object.keys(detailsMap).length, 'items');
       setPurchaseDetails(detailsMap);
     } catch (error) {
       console.error('Error fetching purchase details:', error);
@@ -107,12 +141,24 @@ export function usePurchasedBeats() {
   };
 
   const refreshPurchasedBeats = async () => {
+    if (isRefreshing) {
+      console.log('Refresh already in progress, skipping...');
+      return;
+    }
+    
     setIsRefreshing(true);
     try {
       console.log('Refreshing purchased beats...');
+      
+      // Force fetch fresh data
       await fetchPurchasedBeats();
       await fetchPurchaseDetails();
+      
+      // Update timestamp to trigger re-render
+      setLastRefresh(Date.now());
       setBeatsLoaded(true);
+      
+      console.log('Library refresh completed successfully');
       toast.success('Your library has been refreshed');
     } catch (error) {
       console.error('Error refreshing library:', error);

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -26,11 +25,14 @@ export default function Library() {
 
   console.log('Library: Component rendered with activeTab:', activeTab);
 
+  // Enhanced real-time subscription for library updates
   useEffect(() => {
     if (!user) return;
     
+    console.log('Library: Setting up real-time subscription for user:', user.id);
+    
     const channel = supabase
-      .channel('library-purchase-channel')
+      .channel('library-updates')
       .on(
         'postgres_changes',
         {
@@ -40,19 +42,46 @@ export default function Library() {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('New purchase detected in Library:', payload);
+          console.log('Library: New purchase detected:', payload);
+          
+          // Force immediate update
           fetchPurchasedBeats();
           setActiveTab("purchased");
           setShowPurchaseSuccess(true);
           
+          // Show success message
+          toast.success('🎉 Purchase successful! Beat added to your library.');
+          
           setTimeout(() => {
             setShowPurchaseSuccess(false);
-          }, 10000);
+          }, 8000);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `buyer_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Library: Order updated:', payload);
+          if (payload.new?.status === 'completed') {
+            console.log('Library: Order completed, refreshing data...');
+            
+            // Delay to ensure all related data is inserted
+            setTimeout(() => {
+              fetchPurchasedBeats();
+              setActiveTab("purchased");
+            }, 1000);
+          }
         }
       )
       .subscribe();
       
     return () => {
+      console.log('Library: Cleaning up real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [user, fetchPurchasedBeats]);
@@ -71,6 +100,7 @@ export default function Library() {
     }
   }, [location.pathname, location.state]);
 
+  // Enhanced purchase success detection
   useEffect(() => {
     document.title = "Library | OrderSOUNDS";
     
@@ -79,22 +109,28 @@ export default function Library() {
     const redirectToLibrary = localStorage.getItem('redirectToLibrary');
     
     if (fromPurchase || purchaseSuccess === 'true' || redirectToLibrary === 'true') {
-      setShowPurchaseSuccess(true);
+      console.log('Library: Detected successful purchase, setting up UI...');
       
+      setShowPurchaseSuccess(true);
       setActiveTab("purchased");
       
       const currentPathname = location.pathname;
       navigate(currentPathname, { replace: true, state: { activeTab: "purchased" } });
       
+      // Clean up localStorage
       localStorage.removeItem('purchaseSuccess');
       localStorage.removeItem('purchaseTime');
       localStorage.removeItem('redirectToLibrary');
       localStorage.removeItem('paymentInProgress');
       
+      // Force refresh purchased beats data
       fetchPurchasedBeats().then(() => {
+        console.log('Library: Purchased beats refreshed after successful purchase');
         toast.success('Your purchase was successful! Your beats are now in your library.', {
           duration: 5000,
         });
+      }).catch(error => {
+        console.error('Library: Error refreshing purchased beats:', error);
       });
       
       const timer = setTimeout(() => {
