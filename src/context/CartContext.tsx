@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -82,7 +81,6 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [totalAmount, setTotalAmount] = useState(0);
   const [itemCount, setItemCount] = useState(0);
   const [cartId, setCartId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   // Get or create cart with improved error handling
   const getOrCreateCart = async () => {
@@ -180,11 +178,10 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     return existingCart.id;
   };
 
-  // Load cart items from database with improved error handling
+  // Load cart items from database - now non-blocking
   const loadCartItems = async () => {
     try {
-      setIsLoading(true);
-      console.log('CartContext: Loading cart items');
+      console.log('CartContext: Loading cart items in background');
       
       const currentCartId = await getOrCreateCart();
       if (!currentCartId) {
@@ -263,15 +260,14 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       setCartItems(formattedItems);
     } catch (error) {
       console.error('CartContext: Error loading cart:', error);
-      toast.error('Failed to load cart items');
+      // Don't show error toast for background loading - just log it
       setCartItems([]);
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  // Load cart on component mount and user change
+  // Load cart on component mount and user change - non-blocking
   useEffect(() => {
+    // Start loading cart in background without blocking
     loadCartItems();
   }, [user]);
 
