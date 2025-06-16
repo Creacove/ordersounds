@@ -8,89 +8,104 @@ interface LightweightCartItem {
   addedAt: string;
 }
 
+// Helper function to load cart from localStorage synchronously
+const loadCartFromStorage = (userId: string | undefined): LightweightCartItem[] => {
+  if (!userId) {
+    console.log('🛒 No user ID, returning empty cart');
+    return [];
+  }
+
+  try {
+    const cartKey = `cart_${userId}`;
+    console.log('🛒 Loading cart synchronously from localStorage with key:', cartKey);
+    
+    const savedCart = localStorage.getItem(cartKey);
+    console.log('🛒 Raw localStorage data (sync):', savedCart);
+    
+    if (savedCart) {
+      const parsed = JSON.parse(savedCart);
+      console.log('🛒 Parsed localStorage data (sync):', parsed);
+      
+      let lightweightItems: LightweightCartItem[] = [];
+      
+      // Check if it's already in lightweight format
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const firstItem = parsed[0];
+        
+        // If it has beatId property, it's already lightweight format
+        if (firstItem.beatId) {
+          console.log('🛒 Data is already in lightweight format (sync)');
+          lightweightItems = parsed.filter(item => 
+            item && 
+            typeof item.beatId === 'string' && 
+            typeof item.licenseType === 'string' && 
+            typeof item.addedAt === 'string'
+          );
+        }
+        // If it has beat.id property, it's old CartContext format
+        else if (firstItem.beat && firstItem.beat.id) {
+          console.log('🛒 Converting from old CartContext format (sync)');
+          lightweightItems = parsed.map((item: any) => ({
+            beatId: item.beat?.id || item.beatId,
+            licenseType: item.beat?.selected_license || item.licenseType || 'basic',
+            addedAt: item.added_at || item.addedAt || new Date().toISOString()
+          })).filter(item => item.beatId);
+        }
+        else {
+          console.warn('🛒 Unknown cart data format (sync):', firstItem);
+        }
+      }
+      
+      console.log('🛒 Final lightweight items (sync):', lightweightItems);
+      return lightweightItems;
+    } else {
+      console.log('🛒 No saved cart found (sync)');
+      return [];
+    }
+  } catch (error) {
+    console.error('🛒 Error loading lightweight cart (sync):', error);
+    
+    // Clear corrupted data
+    if (userId) {
+      localStorage.removeItem(`cart_${userId}`);
+    }
+    return [];
+  }
+};
+
 export function useCartLightweight() {
   const { user } = useAuth();
-  const [cartItems, setCartItems] = useState<LightweightCartItem[]>([]);
-  const [itemCount, setItemCount] = useState(0);
+  
+  // Initialize with data from localStorage synchronously
+  const [cartItems, setCartItems] = useState<LightweightCartItem[]>(() => {
+    console.log('🛒 Initializing cart state synchronously...');
+    return loadCartFromStorage(user?.id);
+  });
+  
+  const [itemCount, setItemCount] = useState(() => {
+    const initialCart = loadCartFromStorage(user?.id);
+    console.log('🛒 Initial item count:', initialCart.length);
+    return initialCart.length;
+  });
 
   console.log('🛒 useCartLightweight hook initialized with user:', user ? { id: user.id, email: user.email } : 'No user');
+  console.log('🛒 Initial cart state:', { cartItemsLength: cartItems.length, itemCount });
+
+  // Update cart when user changes
+  useEffect(() => {
+    console.log('🛒 User changed, reloading cart...');
+    const newCartItems = loadCartFromStorage(user?.id);
+    setCartItems(newCartItems);
+    setItemCount(newCartItems.length);
+  }, [user?.id]);
 
   // Force refresh cart data from localStorage
   const refreshCartFromStorage = useCallback(() => {
     console.log('🛒 Force refreshing cart from localStorage');
-    
-    if (!user) {
-      console.log('🛒 No user, clearing cart');
-      setCartItems([]);
-      setItemCount(0);
-      return;
-    }
-
-    try {
-      const cartKey = `cart_${user.id}`;
-      console.log('🛒 Loading cart from localStorage with key:', cartKey);
-      
-      const savedCart = localStorage.getItem(cartKey);
-      console.log('🛒 Raw localStorage data:', savedCart);
-      
-      if (savedCart) {
-        const parsed = JSON.parse(savedCart);
-        console.log('🛒 Parsed localStorage data:', parsed);
-        
-        let lightweightItems: LightweightCartItem[] = [];
-        
-        // Check if it's already in lightweight format
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const firstItem = parsed[0];
-          
-          // If it has beatId property, it's already lightweight format
-          if (firstItem.beatId) {
-            console.log('🛒 Data is already in lightweight format');
-            lightweightItems = parsed.filter(item => 
-              item && 
-              typeof item.beatId === 'string' && 
-              typeof item.licenseType === 'string' && 
-              typeof item.addedAt === 'string'
-            );
-          }
-          // If it has beat.id property, it's old CartContext format
-          else if (firstItem.beat && firstItem.beat.id) {
-            console.log('🛒 Converting from old CartContext format');
-            lightweightItems = parsed.map((item: any) => ({
-              beatId: item.beat?.id || item.beatId,
-              licenseType: item.beat?.selected_license || item.licenseType || 'basic',
-              addedAt: item.added_at || item.addedAt || new Date().toISOString()
-            })).filter(item => item.beatId);
-          }
-          else {
-            console.warn('🛒 Unknown cart data format:', firstItem);
-          }
-        }
-        
-        console.log('🛒 Final lightweight items:', lightweightItems);
-        setCartItems(lightweightItems);
-        setItemCount(lightweightItems.length);
-      } else {
-        console.log('🛒 No saved cart found');
-        setCartItems([]);
-        setItemCount(0);
-      }
-    } catch (error) {
-      console.error('🛒 Error loading lightweight cart:', error);
-      setCartItems([]);
-      setItemCount(0);
-      
-      // Clear corrupted data
-      if (user) {
-        localStorage.removeItem(`cart_${user.id}`);
-      }
-    }
-  }, [user]);
-
-  // Load cart from localStorage immediately (no async operations)
-  useEffect(() => {
-    refreshCartFromStorage();
-  }, [refreshCartFromStorage]);
+    const newCartItems = loadCartFromStorage(user?.id);
+    setCartItems(newCartItems);
+    setItemCount(newCartItems.length);
+  }, [user?.id]);
 
   // Save to localStorage when cart changes
   useEffect(() => {
@@ -160,24 +175,6 @@ export function useCartLightweight() {
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, [refreshCartFromStorage]);
-
-  // Add polling as fallback to ensure cart stays in sync
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!user) return;
-      
-      const cartKey = `cart_${user.id}`;
-      const currentStorage = localStorage.getItem(cartKey);
-      const currentCartString = JSON.stringify(cartItems);
-      
-      if (currentStorage !== currentCartString) {
-        console.log('🛒 Polling detected cart mismatch, refreshing...');
-        refreshCartFromStorage();
-      }
-    }, 2000); // Check every 2 seconds
-
-    return () => clearInterval(interval);
-  }, [user, cartItems, refreshCartFromStorage]);
 
   const isInCart = useCallback((beatId: string): boolean => {
     const result = cartItems.some(item => item.beatId === beatId);
