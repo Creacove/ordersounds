@@ -36,8 +36,7 @@ export function useCartWithBeatDetails() {
             id,
             title,
             producer_id,
-            producer_name,
-            cover_image_url,
+            cover_image,
             basic_license_price_local,
             basic_license_price_diaspora,
             premium_license_price_local,
@@ -47,7 +46,8 @@ export function useCartWithBeatDetails() {
             genre,
             users!beats_producer_id_fkey (
               wallet_address,
-              stage_name
+              stage_name,
+              full_name
             )
           `)
           .in('id', beatIds);
@@ -60,17 +60,42 @@ export function useCartWithBeatDetails() {
         // Map lightweight items with beat details
         const itemsWithDetails = lightweightItems.map(item => {
           const beat = beats?.find(b => b.id === item.beatId);
+          if (!beat) return null;
+
+          const userData = beat.users;
+          const producerName = userData?.stage_name || userData?.full_name || 'Unknown Producer';
+          
           return {
             beatId: item.beatId,
             licenseType: item.licenseType,
             addedAt: item.addedAt,
-            beat: beat ? {
-              ...beat,
+            beat: {
+              id: beat.id,
+              title: beat.title,
+              producer_id: beat.producer_id,
+              producer_name: producerName,
+              cover_image_url: beat.cover_image || '',
+              preview_url: '',
+              full_track_url: '',
+              genre: beat.genre || '',
+              track_type: 'Beat',
+              bpm: 0,
+              tags: [],
+              created_at: new Date().toISOString(),
+              favorites_count: 0,
+              purchase_count: 0,
+              status: 'published' as const,
+              basic_license_price_local: beat.basic_license_price_local || 0,
+              basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+              premium_license_price_local: beat.premium_license_price_local || 0,
+              premium_license_price_diaspora: beat.premium_license_price_diaspora || 0,
+              exclusive_license_price_local: beat.exclusive_license_price_local || 0,
+              exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora || 0,
               selected_license: item.licenseType,
-              producer_wallet_address: beat.users?.wallet_address
-            } : undefined
+              producer_wallet_address: userData?.wallet_address
+            } as Beat
           };
-        }).filter(item => item.beat); // Remove items where beat wasn't found
+        }).filter((item): item is CartItemWithDetails => item !== null);
 
         setCartItemsWithDetails(itemsWithDetails);
 
