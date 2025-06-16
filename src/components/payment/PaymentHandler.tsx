@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PaystackCheckout } from './PaystackCheckout';
 import { useAuth } from '@/context/AuthContext';
 import { AlertCircle, RefreshCw, Loader2 } from 'lucide-react';
-import { useCart } from '@/context/CartContext';
+import { useCartWithBeatDetailsOptimized } from '@/hooks/useCartWithBeatDetailsOptimized';
 import { toast } from 'sonner';
 import { getProducerSplitCode } from '@/utils/payment/paystackSplitUtils';
 
@@ -18,7 +18,7 @@ interface PaymentHandlerProps {
 export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: PaymentHandlerProps) {
   const [isPaystackOpen, setIsPaystackOpen] = useState(false);
   const { currency, user } = useAuth();
-  const { clearCart, cartItems } = useCart();
+  const { clearCart, cartItems } = useCartWithBeatDetailsOptimized();
   const [hasItems, setHasItems] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [scriptError, setScriptError] = useState(false);
@@ -308,7 +308,7 @@ export function PaymentHandler({ totalAmount, onSuccess, producerId, beatId }: P
             ) : loadingSplitCode ? (
               'Preparing Payment...'
             ) : (
-              'Pay with Paystack (₦)'
+              `Pay with Paystack (₦${Math.round(totalAmount).toLocaleString()})`
             )}
           </Button>
           

@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useCartLightweight } from './useCartLightweight';
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 interface CartItemWithDetails {
   beatId: string;
@@ -62,8 +63,9 @@ export function useCartWithBeatDetailsOptimized() {
   const { cartItems: lightweightItems, itemCount, removeFromCart, clearCart, addToCart, refreshCartFromStorage } = useCartLightweight();
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState<CartItemWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { currency } = useAuth();
 
-  // Calculate total amount using memoization
+  // Calculate total amount using memoization with currency consideration
   const totalAmount = useMemo(() => {
     return cartItemsWithDetails.reduce((sum, item) => {
       if (!item.beat) return sum;
@@ -71,17 +73,28 @@ export function useCartWithBeatDetailsOptimized() {
       const licenseType = item.licenseType;
       let price = 0;
       
-      if (licenseType === 'basic') {
-        price = item.beat.basic_license_price_diaspora || 0;
-      } else if (licenseType === 'premium') {
-        price = item.beat.premium_license_price_diaspora || 0;
-      } else if (licenseType === 'exclusive') {
-        price = item.beat.exclusive_license_price_diaspora || 0;
+      // Use local prices for NGN, diaspora prices for USD
+      if (currency === 'NGN') {
+        if (licenseType === 'basic') {
+          price = item.beat.basic_license_price_local || 0;
+        } else if (licenseType === 'premium') {
+          price = item.beat.premium_license_price_local || 0;
+        } else if (licenseType === 'exclusive') {
+          price = item.beat.exclusive_license_price_local || 0;
+        }
+      } else {
+        if (licenseType === 'basic') {
+          price = item.beat.basic_license_price_diaspora || 0;
+        } else if (licenseType === 'premium') {
+          price = item.beat.premium_license_price_diaspora || 0;
+        } else if (licenseType === 'exclusive') {
+          price = item.beat.exclusive_license_price_diaspora || 0;
+        }
       }
       
       return sum + price;
     }, 0);
-  }, [cartItemsWithDetails]);
+  }, [cartItemsWithDetails, currency]);
 
   // Fetch beat details with caching
   useEffect(() => {

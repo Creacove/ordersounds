@@ -17,6 +17,12 @@ interface CartItemCardProps {
       producer_name: string;
       cover_image_url: string;
       genre?: string;
+      basic_license_price_local?: number;
+      basic_license_price_diaspora?: number;
+      premium_license_price_local?: number;
+      premium_license_price_diaspora?: number;
+      exclusive_license_price_local?: number;
+      exclusive_license_price_diaspora?: number;
     };
   };
   price: number;
@@ -34,6 +40,28 @@ const CartItemCard = memo(({ item, price, onRemove }: CartItemCardProps) => {
       playBeat(item.beat);
     }
   };
+
+  // Calculate the correct price based on currency and license type
+  const getCorrectPrice = () => {
+    const licenseType = item.licenseType;
+    const beat = item.beat;
+    
+    if (currency === 'NGN') {
+      // Use local prices for NGN
+      if (licenseType === 'basic') return beat.basic_license_price_local || 0;
+      if (licenseType === 'premium') return beat.premium_license_price_local || 0;
+      if (licenseType === 'exclusive') return beat.exclusive_license_price_local || 0;
+    } else {
+      // Use diaspora prices for USD
+      if (licenseType === 'basic') return beat.basic_license_price_diaspora || 0;
+      if (licenseType === 'premium') return beat.premium_license_price_diaspora || 0;
+      if (licenseType === 'exclusive') return beat.exclusive_license_price_diaspora || 0;
+    }
+    
+    return 0;
+  };
+
+  const displayPrice = getCorrectPrice();
 
   return (
     <div className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
@@ -84,7 +112,7 @@ const CartItemCard = memo(({ item, price, onRemove }: CartItemCardProps) => {
           <div className="flex flex-col items-end">
             <span className="font-semibold text-sm">
               {currency === 'NGN' ? '₦' : '$'}
-              {Math.round(price).toLocaleString()}
+              {Math.round(displayPrice).toLocaleString()}
             </span>
             
             <Button 

@@ -251,13 +251,31 @@ export default function Cart() {
     }
   };
 
+  // Calculate individual item price for display
+  const getItemPrice = (item: any) => {
+    const licenseType = item.licenseType;
+    const beat = item.beat;
+    
+    if (currency === 'NGN') {
+      if (licenseType === 'basic') return beat.basic_license_price_local || 0;
+      if (licenseType === 'premium') return beat.premium_license_price_local || 0;
+      if (licenseType === 'exclusive') return beat.exclusive_license_price_local || 0;
+    } else {
+      if (licenseType === 'basic') return beat.basic_license_price_diaspora || 0;
+      if (licenseType === 'premium') return beat.premium_license_price_diaspora || 0;
+      if (licenseType === 'exclusive') return beat.exclusive_license_price_diaspora || 0;
+    }
+    
+    return 0;
+  };
+
   // Prepare items for Solana checkout
   const prepareSolanaCartItems = () => {
     const itemsToUse = beatsWithWalletAddresses.length > 0 ? beatsWithWalletAddresses : cartItems;
     
     return itemsToUse.map((item: any) => {
       const beat = item.beat;
-      const price = totalAmount / cartItems.length; // Simple division for now
+      const price = getItemPrice(item);
       
       return {
         id: beat?.id || '',
@@ -335,7 +353,7 @@ export default function Cart() {
                   <CartItemCard
                     key={`${item.beatId}-${item.addedAt}`}
                     item={item}
-                    price={totalAmount / cartItems.length}
+                    price={getItemPrice(item)}
                     onRemove={handleRemoveItem}
                   />
                 ))}
@@ -363,9 +381,9 @@ export default function Cart() {
                       <span className="text-muted-foreground">Subtotal ({itemCount} items)</span>
                       <span className="font-medium">
                         {currency === 'NGN' ? (
-                          <span>₦{totalAmount.toLocaleString()}</span>
+                          <span>₦{Math.round(totalAmount).toLocaleString()}</span>
                         ) : (
-                          <span>${totalAmount.toLocaleString()}</span>
+                          <span>${Math.round(totalAmount).toLocaleString()}</span>
                         )}
                       </span>
                     </div>
@@ -377,9 +395,9 @@ export default function Cart() {
                     <span>Total</span>
                     <span className="text-primary">
                       {currency === 'NGN' ? (
-                        <span>₦{totalAmount.toLocaleString()}</span>
+                        <span>₦{Math.round(totalAmount).toLocaleString()}</span>
                       ) : (
-                        <span>${totalAmount.toLocaleString()}</span>
+                        <span>${Math.round(totalAmount).toLocaleString()}</span>
                       )}
                     </span>
                   </div>
@@ -463,7 +481,7 @@ export default function Cart() {
                       ) : !isWalletSynced ? (
                         <>Wallet Not Synced</>
                       ) : (
-                        <>Pay with USDC (${totalAmount})</>
+                        <>Pay with USDC (${Math.round(totalAmount)})</>
                       )}
                     </Button>
                   )}
