@@ -56,7 +56,6 @@ export function useBeats() {
     clearFilters
   } = useBeatFilters(beats);
 
-  // Keep existing purchased beats logic (unchanged)
   const fetchPurchasedBeatsData = useCallback(async () => {
     if (!user) return;
     
@@ -68,24 +67,26 @@ export function useBeats() {
         const purchasedBeatsDetails = await fetchPurchasedBeatDetails(purchasedIds);
         
         if (purchasedBeatsDetails.length > 0) {
-          setBeats(prevBeats => {
-            const existingIds = new Set(prevBeats.map(b => b.id));
-            const newBeats = purchasedBeatsDetails.filter(b => !existingIds.has(b.id));
-            return [...prevBeats, ...newBeats];
-          });
+          // Note: We no longer directly modify beats state here as it's managed by React Query
+          console.log('Purchased beats loaded:', purchasedBeatsDetails.length);
         }
       }
     } catch (error) {
       console.error('Error fetching purchased beats:', error);
       
-      const cachedPurchases = loadFromCache<string[]>(CACHE_KEYS.USER_PURCHASES);
+      // Try to load from localStorage as fallback
+      const cachedPurchases = localStorage.getItem('user_purchases');
       if (cachedPurchases) {
-        setPurchasedBeats(cachedPurchases);
+        try {
+          const parsed = JSON.parse(cachedPurchases);
+          setPurchasedBeats(parsed);
+        } catch (parseError) {
+          console.error('Error parsing cached purchases:', parseError);
+        }
       }
     }
   }, [user, beats.length]);
 
-  // Keep existing network status logic (unchanged)
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);

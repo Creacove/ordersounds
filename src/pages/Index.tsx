@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -227,10 +228,10 @@ export default function IndexPage() {
             badge="Updated Weekly"
           />
           <div className="grid grid-cols-2 gap-2 mt-3">
-            {weeklyPicks.slice(0, 8).map((beat) => (
+            {weeklyPicks.slice(0, 6).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
-            {weeklyPicks.length === 0 && trendingBeats.slice(10, 14).map((beat) => (
+            {weeklyPicks.length === 0 && trendingBeats.slice(10, 16).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
           </div>
@@ -242,7 +243,7 @@ export default function IndexPage() {
             icon={<Flame className="h-5 w-5" />}
           />
           <div className="grid grid-cols-2 gap-2 mt-3">
-            {newBeats.slice(0, 8).map((beat) => (
+            {newBeats.slice(0, 6).map((beat) => (
               <BeatCardCompact key={beat.id} beat={beat} />
             ))}
           </div>

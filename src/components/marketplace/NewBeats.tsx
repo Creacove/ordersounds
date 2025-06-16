@@ -9,7 +9,7 @@ import { fetchNewBeats } from "@/services/beats/queryService";
 export const NewBeats = () => {
   const { data: newBeats = [], isLoading } = useQuery({
     queryKey: ['new-beats'],
-    queryFn: () => fetchNewBeats(5)
+    queryFn: () => fetchNewBeats(6)
   });
 
   return (
@@ -27,7 +27,7 @@ export const NewBeats = () => {
 
       {isLoading ? (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {Array(5).fill(0).map((_, i) => (
+          {Array(6).fill(0).map((_, i) => (
             <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
           ))}
         </div>

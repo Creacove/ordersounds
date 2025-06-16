@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useBeats } from '@/hooks/useBeats';
 import { EmptyState } from './EmptyState';
@@ -16,7 +15,7 @@ export function FavoriteBeats() {
   const { getUserFavoriteBeats, toggleFavorite, isLoading, refreshUserFavorites, userFavorites, beats } = useBeats();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [localLoading, setLocalLoading] = useState(true);
-  const favoriteBeats = getUserFavoriteBeats();
+  const favoriteBeats = getUserFavoriteBeats(beats);
   const isMobile = useIsMobile();
 
   console.log('=== FAVORITE BEATS COMPONENT ===');
