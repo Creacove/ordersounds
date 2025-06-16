@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -25,14 +24,14 @@ export default function Library() {
 
   console.log('Library: Component rendered with activeTab:', activeTab);
 
-  // Enhanced real-time subscription for library updates
+  // Real-time subscription for library updates (optimized)
   useEffect(() => {
     if (!user) return;
     
-    console.log('Library: Setting up real-time subscription for user:', user.id);
+    console.log('Library: Setting up optimized real-time subscription for user:', user.id);
     
     const channel = supabase
-      .channel('library-updates')
+      .channel('library-updates-optimized')
       .on(
         'postgres_changes',
         {
@@ -43,12 +42,8 @@ export default function Library() {
         },
         (payload) => {
           console.log('Library: New purchase detected:', payload);
-          
-          // Switch to purchased tab and show success
           setActiveTab("purchased");
           setShowPurchaseSuccess(true);
-          
-          // Show success message
           toast.success('🎉 Purchase successful! Beat added to your library.');
           
           setTimeout(() => {
@@ -56,30 +51,10 @@ export default function Library() {
           }, 8000);
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `buyer_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Library: Order updated:', payload);
-          if (payload.new?.status === 'completed') {
-            console.log('Library: Order completed, switching to purchased tab...');
-            
-            // Delay to ensure all related data is inserted
-            setTimeout(() => {
-              setActiveTab("purchased");
-            }, 1000);
-          }
-        }
-      )
       .subscribe();
       
     return () => {
-      console.log('Library: Cleaning up real-time subscription');
+      console.log('Library: Cleaning up optimized real-time subscription');
       supabase.removeChannel(channel);
     };
   }, [user]);
@@ -146,7 +121,6 @@ export default function Library() {
     console.log('Library: Tab change to:', value);
     setActiveTab(value);
     
-    // Refresh favorites when switching to favorites tab
     if (value === "favorites") {
       console.log('Library: Refreshing favorites for favorites tab');
       refreshUserFavorites();
