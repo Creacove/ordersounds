@@ -18,7 +18,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletSync } from '@/hooks/useWalletSync';
 
 export default function Cart() {
-  const { cartItems, removeFromCart, clearCart, totalAmount, itemCount, isLoading } = useCartWithBeatDetails();
+  const { cartItems, removeFromCart, clearCart, totalAmount, itemCount, isLoading, refreshCartFromStorage } = useCartWithBeatDetails();
   const { user, currency } = useAuth();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
@@ -37,6 +37,17 @@ export default function Cart() {
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
+
+  // Force refresh cart on mount
+  useEffect(() => {
+    console.log('🛒 Cart page mounted, forcing cart refresh...');
+    if (refreshCartFromStorage) {
+      refreshCartFromStorage();
+    }
+    
+    // Also dispatch event to refresh cart
+    window.dispatchEvent(new CustomEvent('forceCartRefresh'));
+  }, [refreshCartFromStorage]);
 
   // Add comprehensive cart debugging
   useEffect(() => {
@@ -73,7 +84,36 @@ export default function Cart() {
   // Add force refresh functionality
   const handleForceRefresh = () => {
     console.log('🛒 Force refreshing cart...');
+    if (refreshCartFromStorage) {
+      refreshCartFromStorage();
+    }
     window.location.reload();
+  };
+
+  // Add immediate cart check functionality
+  const handleImmediateCartCheck = () => {
+    console.log('🛒 Immediate cart check...');
+    if (user) {
+      const cartKey = `cart_${user.id}`;
+      const rawCart = localStorage.getItem(cartKey);
+      console.log('🛒 Raw cart in localStorage:', rawCart);
+      
+      if (rawCart) {
+        try {
+          const parsed = JSON.parse(rawCart);
+          console.log('🛒 Parsed cart data:', parsed);
+          
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            console.log(`🛒 Found ${parsed.length} items in localStorage but displaying ${cartItems.length} items`);
+            if (refreshCartFromStorage) {
+              refreshCartFromStorage();
+            }
+          }
+        } catch (e) {
+          console.error('🛒 Error parsing cart:', e);
+        }
+      }
+    }
   };
 
   // Check for purchase success on mount
@@ -380,6 +420,15 @@ export default function Cart() {
               Refresh
             </Button>
             
+            {/* Immediate cart check button */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleImmediateCartCheck}
+            >
+              Check Storage
+            </Button>
+            
             {/* Debug info button */}
             <Button 
               variant="outline" 
@@ -408,9 +457,17 @@ export default function Cart() {
             <p className="text-muted-foreground mb-6">
               Browse our marketplace to find beats you'd like to purchase.
             </p>
-            <Button onClick={handleContinueShopping}>
-              Continue Shopping
-            </Button>
+            <div className="space-y-4">
+              <Button onClick={handleContinueShopping}>
+                Continue Shopping
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                <p>If you think there should be items here:</p>
+                <Button variant="outline" size="sm" onClick={handleImmediateCartCheck} className="mt-2">
+                  Check localStorage Now
+                </Button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

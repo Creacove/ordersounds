@@ -15,9 +15,9 @@ export function useCartLightweight() {
 
   console.log('🛒 useCartLightweight hook initialized with user:', user ? { id: user.id, email: user.email } : 'No user');
 
-  // Load cart from localStorage immediately (no async operations)
-  useEffect(() => {
-    console.log('🛒 useCartLightweight useEffect triggered with user:', user ? { id: user.id } : 'No user');
+  // Force refresh cart data from localStorage
+  const refreshCartFromStorage = useCallback(() => {
+    console.log('🛒 Force refreshing cart from localStorage');
     
     if (!user) {
       console.log('🛒 No user, clearing cart');
@@ -87,6 +87,11 @@ export function useCartLightweight() {
     }
   }, [user]);
 
+  // Load cart from localStorage immediately (no async operations)
+  useEffect(() => {
+    refreshCartFromStorage();
+  }, [refreshCartFromStorage]);
+
   // Save to localStorage when cart changes
   useEffect(() => {
     if (!user) return;
@@ -96,6 +101,11 @@ export function useCartLightweight() {
       console.log('🛒 Saving cart to localStorage:', cartItems);
       localStorage.setItem(cartKey, JSON.stringify(cartItems));
       console.log('🛒 Cart saved successfully to key:', cartKey);
+      
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('cartUpdated', { 
+        detail: { cartItems, itemCount: cartItems.length } 
+      }));
       
       // Verify the save worked
       const verification = localStorage.getItem(cartKey);
@@ -128,6 +138,46 @@ export function useCartLightweight() {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [user]);
+
+  // Add custom event listener for cart updates
+  useEffect(() => {
+    const handleCartUpdate = (e: CustomEvent) => {
+      console.log('🛒 Custom cart update event received:', e.detail);
+      refreshCartFromStorage();
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate as EventListener);
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate as EventListener);
+  }, [refreshCartFromStorage]);
+
+  // Add window focus listener to refresh cart when returning to tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('🛒 Window focused, refreshing cart...');
+      refreshCartFromStorage();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refreshCartFromStorage]);
+
+  // Add polling as fallback to ensure cart stays in sync
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!user) return;
+      
+      const cartKey = `cart_${user.id}`;
+      const currentStorage = localStorage.getItem(cartKey);
+      const currentCartString = JSON.stringify(cartItems);
+      
+      if (currentStorage !== currentCartString) {
+        console.log('🛒 Polling detected cart mismatch, refreshing...');
+        refreshCartFromStorage();
+      }
+    }, 2000); // Check every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [user, cartItems, refreshCartFromStorage]);
 
   const isInCart = useCallback((beatId: string): boolean => {
     const result = cartItems.some(item => item.beatId === beatId);
@@ -212,6 +262,7 @@ export function useCartLightweight() {
     isInCart,
     addToCart,
     removeFromCart,
-    clearCart
+    clearCart,
+    refreshCartFromStorage
   };
 }
