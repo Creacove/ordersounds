@@ -8,7 +8,7 @@ interface CartItemWithDetails {
   beatId: string;
   licenseType: string;
   addedAt: string;
-  beat?: Beat;
+  beat: Beat; // Make this required since we filter out null items
 }
 
 export function useCartWithBeatDetails() {
