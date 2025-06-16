@@ -1,15 +1,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
-import { useCartWithBeatDetails } from "@/hooks/useCartWithBeatDetails";
+import { useCartWithBeatDetailsOptimized } from "@/hooks/useCartWithBeatDetailsOptimized";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { ShoppingCart, Music, Play, Pause, Trash2 } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import { toast } from 'sonner';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from '@/components/ui/badge';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,11 +16,11 @@ import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog"
 import WalletButton from "@/components/wallet/WalletButton";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletSync } from '@/hooks/useWalletSync';
+import CartItemCard from '@/components/cart/CartItemCard';
 
 export default function Cart() {
-  const { cartItems, removeFromCart, clearCart, totalAmount, itemCount, isLoading, refreshCartFromStorage } = useCartWithBeatDetails();
+  const { cartItems, removeFromCart, clearCart, totalAmount, itemCount, isLoading } = useCartWithBeatDetailsOptimized();
   const { user, currency } = useAuth();
-  const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
   const wallet = useWallet();
   const { 
@@ -38,16 +37,6 @@ export default function Cart() {
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
-
-  // Force refresh cart on mount
-  useEffect(() => {
-    if (refreshCartFromStorage) {
-      refreshCartFromStorage();
-    }
-    
-    // Also dispatch event to refresh cart
-    window.dispatchEvent(new CustomEvent('forceCartRefresh'));
-  }, [refreshCartFromStorage]);
 
   // Check for purchase success on mount
   useEffect(() => {
@@ -101,7 +90,6 @@ export default function Cart() {
             filter: `user_id=eq.${user.id}`
           },
           (payload) => {
-            console.log('New purchase detected in Cart:', payload);
             clearCart();
             localStorage.setItem('purchaseSuccess', 'true');
             localStorage.setItem('purchaseTime', Date.now().toString());
@@ -125,7 +113,6 @@ export default function Cart() {
       removeFromCart(beatId);
       toast.success("Item removed from cart");
     } catch (error) {
-      console.error("Error removing item:", error);
       toast.error("Failed to remove item");
     }
   };
@@ -136,7 +123,6 @@ export default function Cart() {
       clearCart();
       toast.success("Cart cleared successfully");
     } catch (error) {
-      console.error("Error clearing cart:", error);
       toast.error("Failed to clear cart");
     }
   };
@@ -159,15 +145,6 @@ export default function Cart() {
   // Navigation functions
   const handleContinueShopping = () => {
     navigate('/');
-  };
-
-  // Beat playback control
-  const handlePlayBeat = (beat: any) => {
-    if (currentBeat?.id === beat.id) {
-      playBeat(isPlaying ? null : beat);
-    } else {
-      playBeat(beat);
-    }
   };
   
   // Enhanced Solana checkout
@@ -214,7 +191,6 @@ export default function Cart() {
       return;
     }
     
-    console.log("✅ All checks passed, opening Solana checkout dialog");
     setIsPreparingCheckout(true);
     
     try {
@@ -269,7 +245,6 @@ export default function Cart() {
       setBeatsWithWalletAddresses(updatedCartItems);
       setIsSolanaDialogOpen(true);
     } catch (err: any) {
-      console.error('Error processing Solana checkout:', err);
       toast.error(err.message || 'Error preparing checkout information');
     } finally {
       setIsPreparingCheckout(false);
@@ -296,7 +271,7 @@ export default function Cart() {
   };
   
   // Simple loading view
-  if (isLoading) {
+  if (isLoading && cartItems.length === 0) {
     return (
       <MainLayoutWithPlayer>
         <div className="container py-8 pb-32 md:pb-8 flex justify-center items-center min-h-[60vh]">
@@ -357,69 +332,12 @@ export default function Cart() {
             <div className="lg:col-span-2">
               <div className="space-y-3">
                 {cartItems.map((item) => (
-                  <div key={`${item.beatId}-${item.addedAt}`} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
-                    <div className="flex-shrink-0 w-16 h-16">
-                      <div
-                        className="relative w-16 h-16 rounded-md overflow-hidden cursor-pointer group"
-                        onClick={() => item.beat && handlePlayBeat(item.beat)}
-                      >
-                        <img
-                          src={item.beat?.cover_image_url || "/placeholder.svg"}
-                          alt={item.beat?.title || "Beat"}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/placeholder.svg";
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          {isPlaying && currentBeat?.id === item.beat?.id ? (
-                            <Pause className="h-6 w-6 text-white" />
-                          ) : (
-                            <Play className="h-6 w-6 ml-1 text-white" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-semibold truncate">{item.beat?.title || 'Unknown Beat'}</h3>
-                          <p className="text-xs text-muted-foreground">{item.beat?.producer_name || 'Unknown Producer'}</p>
-                          
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {item.beat?.genre && (
-                              <Badge variant="outline" className="text-xs py-0 px-1.5">
-                                <Music size={10} className="mr-1" />
-                                {item.beat.genre}
-                              </Badge>
-                            )}
-                            
-                            <Badge variant="secondary" className="text-xs py-0 px-1.5 capitalize">
-                              {item.licenseType} License
-                            </Badge>
-                          </div>
-                        </div>
-                        
-                        <div className="flex flex-col items-end">
-                          <span className="font-semibold text-sm">
-                            {currency === 'NGN' ? '₦' : '$'}
-                            {Math.round(totalAmount / cartItems.length).toLocaleString()}
-                          </span>
-                          
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive mt-1"
-                            onClick={() => handleRemoveItem(item.beatId)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <CartItemCard
+                    key={`${item.beatId}-${item.addedAt}`}
+                    item={item}
+                    price={totalAmount / cartItems.length}
+                    onRemove={handleRemoveItem}
+                  />
                 ))}
               </div>
               
