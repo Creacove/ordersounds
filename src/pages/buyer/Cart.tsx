@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
-import { useCart } from "@/context/CartContext";
+import { useCartWithBeatDetails } from "@/hooks/useCartWithBeatDetails";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
@@ -10,7 +11,6 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePlayer } from "@/context/PlayerContext";
 import { Badge } from '@/components/ui/badge';
-import { getLicensePrice } from '@/utils/licenseUtils';
 import { PaymentHandler } from '@/components/payment/PaymentHandler';
 import { supabase } from '@/integrations/supabase/client';
 import { SolanaCheckoutDialog } from "@/components/payment/SolanaCheckoutDialog";
@@ -19,7 +19,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletSync } from '@/hooks/useWalletSync';
 
 export default function Cart() {
-  const { cartItems, removeFromCart, clearCart, totalAmount, refreshCart } = useCart();
+  const { cartItems, removeFromCart, clearCart, totalAmount, itemCount, isLoading } = useCartWithBeatDetails();
   const { user, currency } = useAuth();
   const { isPlaying, currentBeat, playBeat } = usePlayer();
   const navigate = useNavigate();
@@ -34,29 +34,10 @@ export default function Cart() {
   } = useWalletSync();
   
   // UI state management
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
   const [isSolanaDialogOpen, setIsSolanaDialogOpen] = useState(false);
   const [beatsWithWalletAddresses, setBeatsWithWalletAddresses] = useState([]);
   const [purchaseComplete, setPurchaseComplete] = useState(false);
-  const [refreshAttempted, setRefreshAttempted] = useState(false);
   const [isPreparingCheckout, setIsPreparingCheckout] = useState(false);
-
-  // Debug logging for wallet states
-  useEffect(() => {
-    console.log('🛒 Cart - Wallet states:', {
-      isConnected,
-      publicKey: wallet.publicKey?.toString(),
-      isWalletSynced,
-      needsAuth,
-      walletMismatch,
-      storedWalletAddress,
-      syncStatus,
-      userId: user?.id,
-      userWalletFromContext: user?.wallet_address
-    });
-  }, [isConnected, wallet.publicKey, isWalletSynced, needsAuth, walletMismatch, storedWalletAddress, syncStatus, user]);
 
   // Check for purchase success on mount
   useEffect(() => {
@@ -66,12 +47,10 @@ export default function Cart() {
         const purchaseTime = localStorage.getItem('purchaseTime');
         const now = Date.now();
         
-        // If purchase was recent (within last 5 minutes), redirect to library
         if (purchaseTime && (now - parseInt(purchaseTime)) < 5 * 60 * 1000) {
           setPurchaseComplete(true);
           toast.success('Payment successful! Redirecting to your library...');
           
-          // Clear purchase data and redirect
           setTimeout(() => {
             localStorage.removeItem('purchaseSuccess');
             localStorage.removeItem('purchaseTime');
@@ -83,7 +62,6 @@ export default function Cart() {
           }, 1500);
           return true;
         } else {
-          // Clear stale purchase data
           localStorage.removeItem('purchaseSuccess');
           localStorage.removeItem('purchaseTime');
           localStorage.removeItem('pendingOrderId');
@@ -94,34 +72,9 @@ export default function Cart() {
       return false;
     };
     
-    // If purchase check returns true, we don't need to do anything else
     if (checkPurchaseStatus()) {
       return;
     }
-    
-    // Initialize cart - only refresh once and with better error handling
-    const initializeCart = async () => {
-      setIsLoading(true);
-      
-      try {
-        console.log('Initializing cart...');
-        // Only refresh if we have cart items
-        if (cartItems && cartItems.length > 0) {
-          await refreshCart();
-        }
-        setRefreshAttempted(true);
-        console.log('Cart initialization completed');
-      } catch (error) {
-        console.error('Error loading cart:', error);
-        setIsError(true);
-        setErrorMessage('Could not load all cart data. Please try refreshing later.');
-      } finally {
-        // Always exit loading state, even on error
-        setIsLoading(false);
-      }
-    };
-    
-    initializeCart();
     
     // Setup purchase listener
     const setupPurchaseListener = () => {
@@ -143,7 +96,6 @@ export default function Cart() {
             localStorage.setItem('purchaseSuccess', 'true');
             localStorage.setItem('purchaseTime', Date.now().toString());
             
-            // Redirect to library
             window.location.href = '/library';
           }
         )
@@ -155,12 +107,12 @@ export default function Cart() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, clearCart, refreshCart, cartItems]);
+  }, [user, clearCart]);
   
-  // Handle remove item with optimistic UI update
-  const handleRemoveItem = async (beatId) => {
+  // Handle remove item
+  const handleRemoveItem = async (beatId: string) => {
     try {
-      await removeFromCart(beatId);
+      removeFromCart(beatId);
       toast.success("Item removed from cart");
     } catch (error) {
       console.error("Error removing item:", error);
@@ -181,17 +133,14 @@ export default function Cart() {
   
   // Handle successful payment
   const handlePaymentSuccess = () => {
-    // Clear the cart
     clearCart();
     
-    // Set purchase success flags
     localStorage.setItem('purchaseSuccess', 'true');
     localStorage.setItem('purchaseTime', Date.now().toString());
     
     toast.success('Payment successful! Redirecting to your library...');
     setPurchaseComplete(true);
     
-    // Give time for the toast to show before redirecting
     setTimeout(() => {
       window.location.href = '/library';
     }, 1500);
@@ -203,7 +152,7 @@ export default function Cart() {
   };
 
   // Beat playback control
-  const handlePlayBeat = (beat) => {
+  const handlePlayBeat = (beat: any) => {
     if (currentBeat?.id === beat.id) {
       playBeat(isPlaying ? null : beat);
     } else {
@@ -211,50 +160,35 @@ export default function Cart() {
     }
   };
   
-  // Enhanced Solana checkout with better error handling
+  // Enhanced Solana checkout
   const handleOpenSolanaCheckout = async () => {
-    console.log('🚀 Opening Solana checkout with states:', {
-      cartItems: cartItems?.length,
-      user: user?.id,
-      isConnected,
-      needsAuth,
-      walletMismatch,
-      isWalletSynced,
-      syncStatus
-    });
-
     if (!cartItems || cartItems.length === 0) {
       toast.error('Your cart is empty');
       return;
     }
     
-    // Check authentication first
     if (!user) {
       toast.error('Please log in to make a purchase');
       navigate('/login');
       return;
     }
     
-    // Check wallet connection
     if (!isConnected) {
       toast.error('Please connect your Solana wallet first');
       return;
     }
     
-    // Check if wallet needs authentication
     if (needsAuth) {
       toast.error('Please log in to sync your wallet');
       navigate('/login');
       return;
     }
 
-    // Check for wallet mismatch
     if (walletMismatch) {
       toast.error(`Connected wallet doesn't match your saved wallet. Please use "Force Sync" to update your saved wallet.`);
       return;
     }
     
-    // Check if wallet is synced to database
     if (syncStatus === 'syncing') {
       toast.error('Please wait for wallet to sync with your account');
       return;
@@ -274,10 +208,8 @@ export default function Cart() {
     setIsPreparingCheckout(true);
     
     try {
-      // Get producer wallet addresses with improved error handling
-      const beatProducerIds = cartItems.map(item => item.beat.producer_id);
+      const beatProducerIds = cartItems.map(item => item.beat?.producer_id).filter(Boolean);
       
-      // Fetch producer wallet addresses with timeout
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Request timeout')), 10000)
       );
@@ -299,7 +231,6 @@ export default function Cart() {
         throw new Error('Error validating producer payment information');
       }
       
-      // Check for missing or invalid wallet addresses
       const producerWallets: Record<string, string> = {};
       const producersWithoutWallets: string[] = [];
       
@@ -317,19 +248,17 @@ export default function Cart() {
         throw new Error(`The following producers haven't set up their Solana wallet addresses: ${producersWithoutWallets.join(', ')}. Please remove these items or try again later.`);
       }
       
-      // Update cart items with validated wallet addresses
       const updatedCartItems = cartItems.map(item => ({
         ...item,
         beat: {
           ...item.beat,
-          producer_wallet_address: producerWallets[item.beat.producer_id]
+          producer_wallet_address: producerWallets[item.beat?.producer_id || '']
         }
       }));
       
       setBeatsWithWalletAddresses(updatedCartItems);
-      console.log("Opening Solana dialog with validated items:", updatedCartItems);
       setIsSolanaDialogOpen(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error processing Solana checkout:', err);
       toast.error(err.message || 'Error preparing checkout information');
     } finally {
@@ -337,59 +266,27 @@ export default function Cart() {
     }
   };
 
-  // Simplified price calculation
-  const getItemPrice = (item) => {
-    const licenseType = item.beat.selected_license || 'basic';
-    return getLicensePrice(item.beat, licenseType, currency === 'USD');
-  };
-  
   // Prepare items for Solana checkout
   const prepareSolanaCartItems = () => {
     const itemsToUse = beatsWithWalletAddresses.length > 0 ? beatsWithWalletAddresses : cartItems;
     
-    return itemsToUse.map(item => {
+    return itemsToUse.map((item: any) => {
       const beat = item.beat;
-      const price = getItemPrice(item);
+      const price = totalAmount / cartItems.length; // Simple division for now
       
       return {
-        id: beat.id,
-        title: beat.title,
+        id: beat?.id || '',
+        title: beat?.title || '',
         price: price,
-        thumbnail_url: beat.cover_image_url,
+        thumbnail_url: beat?.cover_image_url || '',
         quantity: 1,
-        producer_wallet: beat.producer_wallet_address || '' 
+        producer_wallet: beat?.producer_wallet_address || '' 
       };
     });
   };
   
-  // Manual cart refresh with better error handling
-  const handleRefreshCart = async () => {
-    // Prevent refresh button jitter by disabling immediately
-    if (isLoading) return;
-    
-    setIsLoading(true);
-    setIsError(false);
-    
-    try {
-      console.log('Manual cart refresh triggered');
-      await refreshCart();
-      setRefreshAttempted(true);
-      toast.success("Cart refreshed");
-    } catch (error) {
-      console.error("Error refreshing cart:", error);
-      setIsError(true);
-      setErrorMessage("Failed to refresh cart data");
-      toast.error("Failed to refresh cart");
-    } finally {
-      // Introduce a small delay to prevent rapid clicking
-      setTimeout(() => {
-        setIsLoading(false);
-      }, 300);
-    }
-  };
-  
   // Simple loading view
-  if (isLoading && !refreshAttempted) {
+  if (isLoading) {
     return (
       <MainLayoutWithPlayer>
         <div className="container py-8 pb-32 md:pb-8 flex justify-center items-center min-h-[60vh]">
@@ -430,36 +327,9 @@ export default function Cart() {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <ShoppingCart className="mr-2 h-6 w-6" />
-            <h1 className="text-2xl font-bold">Your Cart ({cartItems?.length || 0} items)</h1>
+            <h1 className="text-2xl font-bold">Your Cart ({itemCount} items)</h1>
           </div>
-          
-          {cartItems && cartItems.length > 0 && (
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={handleRefreshCart}
-              disabled={isLoading}
-              className="flex items-center gap-1 min-w-[80px] justify-center"
-            >
-              {isLoading ? (
-                <span className="animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full mr-1" />
-              ) : (
-                <RefreshCw size={14} />
-              )}
-              <span>{isLoading ? "Refreshing" : "Refresh"}</span>
-            </Button>
-          )}
         </div>
-
-        {isError && (
-          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded mb-6 flex items-start">
-            <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Warning</p>
-              <p className="text-sm">{errorMessage}</p>
-            </div>
-          </div>
-        )}
 
         {(!cartItems || cartItems.length === 0) ? (
           <div className="text-center py-12">
@@ -477,15 +347,15 @@ export default function Cart() {
             <div className="lg:col-span-2">
               <div className="space-y-3">
                 {cartItems.map((item) => (
-                  <div key={`${item.beat.id}-${item.added_at}`} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
+                  <div key={`${item.beatId}-${item.addedAt}`} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-3 flex gap-3">
                     <div className="flex-shrink-0 w-16 h-16">
                       <div
                         className="relative w-16 h-16 rounded-md overflow-hidden cursor-pointer group"
-                        onClick={() => handlePlayBeat(item.beat)}
+                        onClick={() => item.beat && handlePlayBeat(item.beat)}
                       >
                         <img
-                          src={item.beat.cover_image_url || "/placeholder.svg"}
-                          alt={item.beat.title}
+                          src={item.beat?.cover_image_url || "/placeholder.svg"}
+                          alt={item.beat?.title || "Beat"}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
@@ -493,7 +363,7 @@ export default function Cart() {
                           }}
                         />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          {isPlaying && currentBeat?.id === item.beat.id ? (
+                          {isPlaying && currentBeat?.id === item.beat?.id ? (
                             <Pause className="h-6 w-6 text-white" />
                           ) : (
                             <Play className="h-6 w-6 ml-1 text-white" />
@@ -505,11 +375,11 @@ export default function Cart() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between">
                         <div>
-                          <h3 className="font-semibold truncate">{item.beat.title}</h3>
-                          <p className="text-xs text-muted-foreground">{item.beat.producer_name}</p>
+                          <h3 className="font-semibold truncate">{item.beat?.title || 'Unknown Beat'}</h3>
+                          <p className="text-xs text-muted-foreground">{item.beat?.producer_name || 'Unknown Producer'}</p>
                           
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            {item.beat.genre && (
+                            {item.beat?.genre && (
                               <Badge variant="outline" className="text-xs py-0 px-1.5">
                                 <Music size={10} className="mr-1" />
                                 {item.beat.genre}
@@ -517,7 +387,7 @@ export default function Cart() {
                             )}
                             
                             <Badge variant="secondary" className="text-xs py-0 px-1.5 capitalize">
-                              {item.beat.selected_license || 'Basic'} License
+                              {item.licenseType} License
                             </Badge>
                           </div>
                         </div>
@@ -525,14 +395,14 @@ export default function Cart() {
                         <div className="flex flex-col items-end">
                           <span className="font-semibold text-sm">
                             {currency === 'NGN' ? '₦' : '$'}
-                            {getItemPrice(item).toLocaleString()}
+                            {Math.round(totalAmount / cartItems.length).toLocaleString()}
                           </span>
                           
                           <Button 
                             variant="ghost" 
                             size="icon" 
                             className="h-8 w-8 text-muted-foreground hover:text-destructive mt-1"
-                            onClick={() => handleRemoveItem(item.beat.id)}
+                            onClick={() => handleRemoveItem(item.beatId)}
                           >
                             <Trash2 size={16} />
                           </Button>
@@ -562,7 +432,7 @@ export default function Cart() {
                 <CardContent className="p-5 space-y-4">
                   <div className="space-y-3">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal ({cartItems?.length || 0} items)</span>
+                      <span className="text-muted-foreground">Subtotal ({itemCount} items)</span>
                       <span className="font-medium">
                         {currency === 'NGN' ? (
                           <span>₦{totalAmount.toLocaleString()}</span>
@@ -586,7 +456,6 @@ export default function Cart() {
                     </span>
                   </div>
 
-                  {/* Enhanced Solana wallet section for USD payments */}
                   {currency === 'USD' && (
                     <div className="mt-4 py-3 px-4 bg-secondary/30 rounded-md flex flex-col gap-3">
                       <div className="text-sm font-medium">Pay with USDC on Solana</div>
@@ -594,7 +463,6 @@ export default function Cart() {
                         <WalletButton buttonClass="w-full justify-center" />
                       </div>
                       
-                      {/* Enhanced status messages with sync status */}
                       {!user && (
                         <div className="text-xs text-amber-600 dark:text-amber-400 text-center">
                           ⚠️ Login required to sync wallet
