@@ -12,7 +12,7 @@ interface CartItemWithDetails {
 }
 
 export function useCartWithBeatDetails() {
-  const { cartItems: lightweightItems, itemCount, removeFromCart, clearCart, addToCart } = useCartLightweight();
+  const { cartItems: lightweightItems, itemCount, removeFromCart, clearCart, addToCart, refreshCartFromStorage } = useCartLightweight();
   const [cartItemsWithDetails, setCartItemsWithDetails] = useState<CartItemWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
@@ -163,6 +163,7 @@ export function useCartWithBeatDetails() {
     isLoading,
     removeFromCart,
     clearCart,
-    addToCart
+    addToCart,
+    refreshCartFromStorage
   };
 }
