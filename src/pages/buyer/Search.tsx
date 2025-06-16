@@ -42,27 +42,35 @@ export default function SearchPage() {
 
   const isMobile = useIsMobile();
 
-  // Set initial search term and genre from URL params
+  // Set initial values from URL only once
   useEffect(() => {
-    if (initialQuery && initialQuery !== searchTerm) {
+    if (initialQuery && !searchTerm) {
       updateSearchTerm(initialQuery);
     }
-    if (initialGenre && initialGenre !== filters.genre) {
+    if (initialGenre && !filters.genre) {
       updateFilters({ genre: initialGenre });
     }
-  }, [initialQuery, initialGenre, searchTerm, filters.genre, updateSearchTerm, updateFilters]);
+  }, []); // Empty dependency array to run only once
 
-  // Update URL when search changes
+  // Update URL when search changes (but not on initial load)
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (debouncedSearchTerm.trim()) {
-      params.set('q', debouncedSearchTerm.trim());
+    if (searchTerm || debouncedSearchTerm) {
+      const params = new URLSearchParams();
+      if (debouncedSearchTerm.trim()) {
+        params.set('q', debouncedSearchTerm.trim());
+      }
+      if (filters.genre) {
+        params.set('genre', filters.genre);
+      }
+      
+      // Only update if params actually changed
+      const newParamsString = params.toString();
+      const currentParamsString = searchParams.toString();
+      if (newParamsString !== currentParamsString) {
+        setSearchParams(params);
+      }
     }
-    if (filters.genre) {
-      params.set('genre', filters.genre);
-    }
-    setSearchParams(params);
-  }, [debouncedSearchTerm, filters.genre, setSearchParams]);
+  }, [debouncedSearchTerm, filters.genre]); // Removed setSearchParams and searchParams from deps
 
   const handleGenreSelect = (genre: string) => {
     if (filters.genre === genre) {

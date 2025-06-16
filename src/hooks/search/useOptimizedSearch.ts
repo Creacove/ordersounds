@@ -18,6 +18,9 @@ export function useOptimizedSearch() {
     ...filters
   }), [debouncedSearchTerm, filters]);
 
+  // Show all beats by default or when searching
+  const shouldSearch = debouncedSearchTerm.length >= 2 || Object.keys(filters).length > 0 || debouncedSearchTerm.length === 0;
+
   // Infinite query for beats with pagination
   const {
     data: beatsData,
@@ -37,7 +40,7 @@ export function useOptimizedSearch() {
     initialPageParam: 0,
     getNextPageParam: (lastPage: SearchResults, allPages) => 
       lastPage.hasMore ? allPages.length : undefined,
-    enabled: debouncedSearchTerm.length >= 2 || Object.keys(filters).length > 0,
+    enabled: shouldSearch,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -90,6 +93,7 @@ export function useOptimizedSearch() {
 
   // Actions
   const updateSearchTerm = useCallback((term: string) => {
+    console.log('Updating search term to:', term);
     setSearchTerm(term);
   }, []);
 
@@ -141,6 +145,6 @@ export function useOptimizedSearch() {
     // Helpers
     hasResults: allBeats.length > 0 || producers.length > 0,
     showMinimumLengthMessage: searchTerm.length > 0 && searchTerm.length < 2,
-    showNoResults: debouncedSearchTerm.length >= 2 && !isLoadingBeats && allBeats.length === 0 && producers.length === 0
+    showNoResults: shouldSearch && !isLoadingBeats && allBeats.length === 0 && producers.length === 0 && searchTerm.length >= 2
   };
 }
