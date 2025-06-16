@@ -154,17 +154,6 @@ export function useCartLightweight() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [user]);
 
-  // Add custom event listener for cart updates
-  useEffect(() => {
-    const handleCartUpdate = (e: CustomEvent) => {
-      console.log('🛒 Custom cart update event received:', e.detail);
-      refreshCartFromStorage();
-    };
-
-    window.addEventListener('cartUpdated', handleCartUpdate as EventListener);
-    return () => window.removeEventListener('cartUpdated', handleCartUpdate as EventListener);
-  }, [refreshCartFromStorage]);
-
   // Add window focus listener to refresh cart when returning to tab
   useEffect(() => {
     const handleFocus = () => {
