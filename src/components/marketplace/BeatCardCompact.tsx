@@ -8,7 +8,7 @@ import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { useAuth } from '@/context/AuthContext';
-import { useAddToCart } from '@/hooks/useAddToCart';
+import { useLightweightAddToCart } from '@/hooks/useLightweightAddToCart';
 import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { ToggleFavoriteButton } from '@/components/buttons/ToggleFavoriteButton';
@@ -20,7 +20,7 @@ interface BeatCardCompactProps {
 export function BeatCardCompact({ beat }: BeatCardCompactProps) {
   const { user } = useAuth();
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
-  const { handleAddToCart, isInCart } = useAddToCart();
+  const { handleAddToCart, isInCart } = useLightweightAddToCart();
   const [isHovering, setIsHovering] = useState(false);
   const { isDuplicate, addNotification } = useUniqueNotifications();
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);

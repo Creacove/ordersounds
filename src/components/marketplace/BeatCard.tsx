@@ -8,7 +8,7 @@ import { Beat } from "@/types";
 import { Link } from "react-router-dom";
 import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
-import { useAddToCart } from "@/hooks/useAddToCart";
+import { useLightweightAddToCart } from "@/hooks/useLightweightAddToCart";
 import { LicenseSelector } from "@/components/marketplace/LicenseSelector";
 import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +28,7 @@ export function BeatCard({
   featured = false
 }: BeatCardProps) {
   const { currency } = useAuth();
-  const { handleAddToCart, isInCart } = useAddToCart();
+  const { handleAddToCart, isInCart } = useLightweightAddToCart();
   const [selectedLicense, setSelectedLicense] = useState<'basic' | 'premium' | 'exclusive' | 'custom'>('basic');
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
