@@ -64,7 +64,7 @@ export function useBeatsQuery() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Weekly picks query (using random beats for now)
+  // Weekly picks query (using random beats)
   const { 
     data: weeklyPicks = [], 
     isLoading: isLoadingWeekly 
@@ -81,7 +81,7 @@ export function useBeatsQuery() {
   const loadingError = beatsError ? `Failed to load beats: ${beatsError.message}` : null;
 
   const forceRefreshBeats = useCallback(async () => {
-    console.log("Force refreshing beats data...");
+    console.log("Force refreshing beats data with React Query...");
     clearBeatsCache();
     setDataFetched(false);
     await refetchBeats();
