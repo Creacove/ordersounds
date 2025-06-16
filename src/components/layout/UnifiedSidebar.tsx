@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -164,7 +163,6 @@ export function UnifiedSidebar({
                 "w-full rounded-md p-2 text-sm",
                 isCollapsed && "p-1"
               )} 
-              showLabel={!isCollapsed}
             />
           </div>
           
