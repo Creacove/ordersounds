@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -8,9 +7,10 @@ import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { usePlayer } from "@/context/PlayerContext";
+import { useBeats } from "@/hooks/useBeats";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useProducers } from "@/hooks/useProducers";
-import { useTrendingBeatsQuery, useNewBeatsQuery } from "@/hooks/useBeatsQuery";
 import { Link, useNavigate } from "react-router-dom";
 import {
   TrendingUp,
@@ -23,15 +23,37 @@ import {
   RefreshCw,
   AlertCircle
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
+const fallbackFeaturedBeat: Beat = {
+  id: "fallback-featured",
+  title: "Featured Demo Beat",
+  producer_id: "demo-producer",
+  producer_name: "Demo Producer",
+  cover_image_url: "/placeholder.svg",
+  preview_url: "",
+  full_track_url: "",
+  basic_license_price_local: 5000,
+  basic_license_price_diaspora: 15,
+  genre: "Afrobeat",
+  track_type: "Single",
+  bpm: 100,
+  status: "published",
+  is_featured: true,
+  created_at: new Date().toISOString(),
+  tags: ["demo", "featured"],
+  favorites_count: 0,
+  purchase_count: 0,
+};
+
 export default function IndexPage() {
   const { user, forceUserDataRefresh } = useAuth();
-  const { data: trendingBeats = [], isLoading: isLoadingTrending } = useTrendingBeatsQuery(8);
-  const { data: newBeats = [], isLoading: isLoadingNew } = useNewBeatsQuery(8);
+  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats } = useBeats();
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
   const { prefetchProducers } = useProducers();
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
@@ -41,8 +63,7 @@ export default function IndexPage() {
   const [userDataError, setUserDataError] = useState(false);
   const navigate = useNavigate();
 
-  // Use first trending beat as featured
-  const featuredBeat = trendingBeats[0] || null;
+  const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
 
   useEffect(() => {
     if (user && (!user.role || !user.name)) {
@@ -76,7 +97,7 @@ export default function IndexPage() {
         }
       }
       
-      // React Query will handle data refresh automatically
+      await fetchBeats();
       toast.success("Content refreshed successfully");
       setUserDataError(false);
     } catch (error) {
@@ -148,7 +169,7 @@ export default function IndexPage() {
           </Alert>
         )}
 
-        {featuredBeat && (
+        {displayedFeaturedBeat && (
           <section className="mb-6">
             <SectionTitle 
               title="Featured Beat" 
@@ -158,8 +179,8 @@ export default function IndexPage() {
             
             <div className="mt-3">
               <BeatCard 
-                key={featuredBeat.id} 
-                beat={featuredBeat} 
+                key={displayedFeaturedBeat.id} 
+                beat={displayedFeaturedBeat} 
                 featured={true} 
               />
             </div>
@@ -185,19 +206,11 @@ export default function IndexPage() {
             icon={<TrendingUp className="h-5 w-5" />} 
             badge="Updated Hourly"
           />
-          {isLoadingTrending ? (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {Array(8).fill(0).map((_, i) => (
-                <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {trendingBeats.map((beat) => (
-                <BeatCardCompact key={beat.id} beat={beat} />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            {trendingBeats.slice(0, 8).map((beat) => (
+              <BeatCardCompact key={beat.id} beat={beat} />
+            ))}
+          </div>
           <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/trending">
@@ -209,22 +222,30 @@ export default function IndexPage() {
 
         <section className="mb-6">
           <SectionTitle 
+            title="Weekly Picks" 
+            icon={<Calendar className="h-5 w-5" />}
+            badge="Updated Weekly"
+          />
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            {weeklyPicks.slice(0, 8).map((beat) => (
+              <BeatCardCompact key={beat.id} beat={beat} />
+            ))}
+            {weeklyPicks.length === 0 && trendingBeats.slice(10, 14).map((beat) => (
+              <BeatCardCompact key={beat.id} beat={beat} />
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-6">
+          <SectionTitle 
             title="New Releases" 
             icon={<Flame className="h-5 w-5" />}
           />
-          {isLoadingNew ? (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {Array(8).fill(0).map((_, i) => (
-                <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 mt-3">
-              {newBeats.map((beat) => (
-                <BeatCardCompact key={beat.id} beat={beat} />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            {newBeats.slice(0, 8).map((beat) => (
+              <BeatCardCompact key={beat.id} beat={beat} />
+            ))}
+          </div>
           <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/new">

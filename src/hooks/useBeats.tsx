@@ -204,13 +204,13 @@ export function useBeats() {
     }
   }, [trendingBeats.length]);
 
-  const fetchBeats = useCallback(async (options?: { forceRefresh?: boolean }) => {
+  const fetchBeats = useCallback(async (options?: { skipCache?: boolean }) => {
     if (fetchInProgress) {
       console.log('Fetch already in progress, skipping duplicate request');
       return;
     }
     
-    if (dataFetched && beats.length > 0 && !options?.forceRefresh) {
+    if (dataFetched && beats.length > 0 && !options?.skipCache) {
       console.log('Data already fetched, using cached beats');
       setIsLoading(false);
       return;
@@ -218,9 +218,9 @@ export function useBeats() {
     
     if (user?.role === 'producer') {
       try {
-        const forceRefresh = options?.forceRefresh === true;
+        const skipCache = options?.skipCache === true;
         
-        if (!forceRefresh) {
+        if (!skipCache) {
           const cachedBeats = loadFromCache<Beat[]>(`producer_beats_${user.id}`);
           if (cachedBeats) {
             console.log('Using cached producer beats');
@@ -236,7 +236,8 @@ export function useBeats() {
         const producerBeatsQuery = await fetchAllBeats({ 
           includeDrafts: true, 
           producerId: user.id, 
-          limit: 50
+          limit: 50,
+          skipCache: skipCache
         });
         
         if (producerBeatsQuery && producerBeatsQuery.length > 0) {
@@ -244,7 +245,7 @@ export function useBeats() {
           setIsLoading(false);
           setDataFetched(true);
           
-          if (!forceRefresh) {
+          if (!skipCache) {
             localStorage.setItem(`producer_beats_${user.id}`, JSON.stringify(producerBeatsQuery));
           }
           return;
@@ -254,7 +255,7 @@ export function useBeats() {
       }
     }
     
-    const shouldRefresh = options?.forceRefresh || checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
+    const shouldRefresh = options?.skipCache || checkShouldRefreshCache(CACHE_KEYS.ALL_BEATS_EXPIRY, CACHE_DURATIONS.ALL_BEATS);
     
     const cachedBeats = loadFromCache<Beat[]>(CACHE_KEYS.ALL_BEATS);
     if (cachedBeats && !shouldRefresh) {
@@ -356,7 +357,7 @@ export function useBeats() {
     
     setDataFetched(false);
     
-    await fetchBeats({ forceRefresh: true });
+    await fetchBeats({ skipCache: true });
     
     console.log("Beats data refreshed");
   }, [fetchBeats, user]);
