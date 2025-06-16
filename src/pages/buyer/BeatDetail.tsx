@@ -17,48 +17,44 @@ const BeatDetail = () => {
 
   if (isLoading) {
     return (
-      <MainLayoutWithPlayer>
-        <div className="container py-4 md:py-8 px-4 md:px-6">
-          <Skeleton className="h-[300px] w-full rounded-md mb-4" />
-          <Skeleton className="h-8 w-1/2 mb-2" />
-          <Skeleton className="h-6 w-1/4 mb-4" />
-          <Skeleton className="h-5 w-full mb-2" />
-          <Skeleton className="h-5 w-full mb-2" />
-          <Skeleton className="h-5 w-full mb-2" />
+      <div className="min-h-screen bg-black">
+        <div className="p-4 space-y-6">
+          <Skeleton className="h-[200px] w-full rounded-md bg-gray-800" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Skeleton className="h-[150px] w-full rounded-md bg-gray-800" />
+            <Skeleton className="h-[150px] w-full rounded-md bg-gray-800" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-[300px] w-full rounded-md bg-gray-800" />
+            <Skeleton className="h-[300px] w-full rounded-md bg-gray-800" />
+            <Skeleton className="h-[300px] w-full rounded-md bg-gray-800" />
+          </div>
         </div>
-      </MainLayoutWithPlayer>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <MainLayoutWithPlayer>
-        <div className="container py-4 md:py-8 px-4 md:px-6">
-          <div className="text-center text-red-500">
-            Error: Could not load beat details.
-          </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center text-red-400">
+          Error: Could not load beat details.
         </div>
-      </MainLayoutWithPlayer>
+      </div>
     );
   }
 
   if (!beat) {
     return (
-      <MainLayoutWithPlayer>
-        <div className="container py-4 md:py-8 px-4 md:px-6">
-          <div className="text-center text-muted-foreground">
-            Beat not found.
-          </div>
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          Beat not found.
         </div>
-      </MainLayoutWithPlayer>
+      </div>
     );
   }
 
-  return (
-    <MainLayoutWithPlayer>
-      <BeatDetailLayout beat={beat} />
-    </MainLayoutWithPlayer>
-  );
+  return <BeatDetailLayout beat={beat} />;
 };
 
 export default BeatDetail;

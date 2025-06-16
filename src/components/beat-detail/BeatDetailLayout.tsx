@@ -3,16 +3,14 @@ import { useState } from "react";
 import { ArrowLeft, Play, Pause, Heart, Share2, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Beat } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { usePlayer } from "@/context/PlayerContext";
-import { formatCurrency } from "@/lib/utils";
 import { BeatDetailHeader } from "./BeatDetailHeader";
-import { LicenseOptionCards } from "./LicenseOptionCards";
-import { ProducerInfoSection } from "./ProducerInfoSection";
-import { SimilarBeatsGrid } from "./SimilarBeatsGrid";
+import { BeatLicenseCards } from "./BeatLicenseCards";
+import { BeatTagsSection } from "./BeatTagsSection";
+import { BeatSimilarSection } from "./BeatSimilarSection";
 import { ToggleFavoriteButton } from "@/components/buttons/ToggleFavoriteButton";
 
 interface BeatDetailLayoutProps {
@@ -35,112 +33,132 @@ export const BeatDetailLayout = ({ beat }: BeatDetailLayoutProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <BeatDetailHeader beatTitle={beat.title} producerName={beat.producer_name} />
-      
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          {/* Left Column - Album Art and Controls */}
-          <div className="space-y-6">
-            <div className="relative aspect-square rounded-lg overflow-hidden bg-gradient-to-br from-purple-900 to-blue-900">
-              <img
-                src={beat.cover_image_url || "/placeholder.svg"}
-                alt={beat.title}
-                className="w-full h-full object-cover"
-              />
-              
-              {/* Play Button Overlay */}
-              <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                <Button
-                  size="icon"
-                  variant="default"
-                  className="w-16 h-16 rounded-full bg-white/90 hover:bg-white text-black"
-                  onClick={handlePlayToggle}
-                >
-                  {isCurrentBeat && isPlaying ? (
-                    <Pause className="w-8 h-8" />
-                  ) : (
-                    <Play className="w-8 h-8 ml-1" />
-                  )}
-                </Button>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="absolute top-4 right-4 flex gap-2">
-                <ToggleFavoriteButton beatId={beat.id} />
-                <Button size="icon" variant="secondary" className="rounded-full">
-                  <Share2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            
-            {/* Beat Info */}
-            <div className="space-y-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{beat.title}</h1>
-                <Link 
-                  to={`/producer/${beat.producer_id}`}
-                  className="text-lg text-muted-foreground hover:text-primary transition-colors"
-                >
-                  by {beat.producer_name}
-                </Link>
-              </div>
-              
-              {/* Tags */}
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">{beat.genre}</Badge>
-                <Badge variant="outline">{beat.track_type}</Badge>
-                <Badge variant="outline">{beat.bpm} BPM</Badge>
-                {beat.key && <Badge variant="outline">{beat.key}</Badge>}
-                {beat.tags?.map((tag) => (
-                  <Badge key={tag} variant="outline">{tag}</Badge>
-                ))}
-              </div>
-              
-              {/* Stats */}
-              <div className="flex gap-6 text-sm text-muted-foreground">
-                <span>{beat.plays || 0} plays</span>
-                <span>{beat.favorites_count || 0} likes</span>
-                <span>{beat.purchase_count || 0} purchases</span>
-              </div>
-              
-              {/* Description */}
-              {beat.description && (
-                <div className="pt-4">
-                  <h3 className="font-semibold mb-2">Description</h3>
-                  <p className="text-muted-foreground">{beat.description}</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* Right Column - License Options */}
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-4">Choose Your License</h2>
-              <p className="text-muted-foreground mb-6">
-                Select the license that best fits your needs. All licenses include high-quality audio files.
-              </p>
-            </div>
-            
-            <LicenseOptionCards 
-              beat={beat} 
-              currency={currency} 
-              onLicenseSelect={setSelectedLicense}
-              selectedLicense={selectedLicense}
+    <div className="min-h-screen bg-black text-white">
+      {/* Header */}
+      <div className="flex items-center gap-4 p-4 border-b border-gray-800">
+        <Link to="/">
+          <Button variant="ghost" size="icon" className="text-white hover:bg-gray-800">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </Link>
+        <div className="text-sm text-gray-400">
+          <span>Beats</span> • <span>afrobeat</span>
+        </div>
+      </div>
+
+      <div className="p-4 space-y-6">
+        {/* Beat Info Section */}
+        <div className="flex gap-4">
+          <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
+            <img
+              src={beat.cover_image_url || "/placeholder.svg"}
+              alt={beat.title}
+              className="w-full h-full object-cover"
             />
           </div>
+          
+          <div className="flex-1 space-y-3">
+            <div>
+              <h1 className="text-2xl font-bold">{beat.title}</h1>
+              <Link 
+                to={`/producer/${beat.producer_id}`}
+                className="text-purple-400 hover:text-purple-300 transition-colors"
+              >
+                {beat.producer_name}
+              </Link>
+            </div>
+            
+            {/* Beat Details */}
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>{beat.bpm || 0} BPM</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>{beat.genre}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>{beat.track_type || 'full_beat'}</span>
+              </div>
+            </div>
+            
+            {/* Stats */}
+            <div className="flex items-center gap-4 text-sm text-gray-400">
+              <div className="flex items-center gap-1">
+                <Download className="w-4 h-4" />
+                <span>{beat.purchase_count || 0} downloads</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Heart className="w-4 h-4" />
+                <span>{beat.favorites_count || 0} likes</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Play className="w-4 h-4" />
+                <span>{beat.plays || 0} plays</span>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handlePlayToggle}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6"
+              >
+                {isCurrentBeat && isPlaying ? (
+                  <>
+                    <Pause className="w-4 h-4 mr-2" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Play
+                  </>
+                )}
+              </Button>
+              
+              <ToggleFavoriteButton beatId={beat.id} />
+              
+              <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-800">
+                <Share2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
         </div>
-        
-        {/* Producer Section */}
-        <ProducerInfoSection 
-          producerId={beat.producer_id} 
-          producerName={beat.producer_name} 
-        />
-        
+
+        {/* Tags and License Options Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <BeatTagsSection beat={beat} />
+          <div>
+            <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+              License Options
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Available licenses: Basic, Premium, Exclusive
+            </p>
+          </div>
+        </div>
+
+        {/* License Selection */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Choose a License</h2>
+          <BeatLicenseCards 
+            beat={beat} 
+            currency={currency} 
+            onLicenseSelect={setSelectedLicense}
+            selectedLicense={selectedLicense}
+          />
+          <p className="text-xs text-gray-500">
+            All licenses include producer credit. See the full{" "}
+            <span className="text-purple-400 cursor-pointer">license terms</span> for details.
+          </p>
+        </div>
+
         {/* Similar Beats */}
-        <SimilarBeatsGrid 
+        <BeatSimilarSection 
           currentBeatId={beat.id}
           genre={beat.genre}
           producerId={beat.producer_id}
