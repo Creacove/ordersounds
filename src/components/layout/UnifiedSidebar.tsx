@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { User } from "@/types";
 import { useProducers } from "@/hooks/useProducers";
 import { useState } from "react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { WalletDependentWrapper } from "@/components/wallet/WalletDependentWrapper";
 import WalletButton from "@/components/wallet/WalletButton";
 
 interface UnifiedSidebarProps {
@@ -154,18 +154,20 @@ export function UnifiedSidebar({
           "flex items-center justify-center p-4 border-t border-[#272727]",
           "flex-col gap-3"
         )}>
-          {/* Wallet Button */}
+          {/* Wallet Button wrapped in conditional provider */}
           <div className={cn(
             "w-full flex justify-center mb-2", 
             isCollapsed ? "px-1" : ""
           )}>
-            <WalletButton 
-              buttonClass={cn(
-                "w-full rounded-md p-2 text-sm",
-                isCollapsed && "p-1"
-              )} 
-              showLabel={!isCollapsed}
-            />
+            <WalletDependentWrapper>
+              <WalletButton 
+                buttonClass={cn(
+                  "w-full rounded-md p-2 text-sm",
+                  isCollapsed && "p-1"
+                )} 
+                showLabel={!isCollapsed}
+              />
+            </WalletDependentWrapper>
           </div>
           
           {!isMobile && (
