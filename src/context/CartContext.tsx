@@ -131,8 +131,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         const savedCart = safeLocalStorageGet(`cart_${user.id}`);
         
         if (savedCart && Array.isArray(savedCart)) {
-          setCartItems(savedCart);
-          setItemCount(savedCart.length);
+          // Filter out any malformed cart items
+          const validCartItems = savedCart.filter(item => 
+            item && item.beat && typeof item.beat === 'object' && item.beat.id
+          );
+          setCartItems(validCartItems);
+          setItemCount(validCartItems.length);
         } else {
           setCartItems([]);
           setItemCount(0);
@@ -161,6 +165,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     setItemCount(cartItems.length);
 
     const newTotal = cartItems.reduce((total, item) => {
+      // Add null checks to prevent undefined errors
+      if (!item || !item.beat) {
+        console.warn('Invalid cart item found:', item);
+        return total;
+      }
+
       const licenseType = item.beat.selected_license || 'basic';
       const price = getLicensePrice(item.beat as any, licenseType, currency === 'USD');
       return total + price;

@@ -22,7 +22,10 @@ export function useFavoritesLightweight() {
         .single();
 
       if (data?.favorites) {
-        const favoritesArray = Array.isArray(data.favorites) ? data.favorites : [];
+        // Properly handle Json[] to string[] conversion
+        const favoritesArray = Array.isArray(data.favorites) 
+          ? data.favorites.filter((item): item is string => typeof item === 'string')
+          : [];
         setUserFavorites(favoritesArray);
       }
     } catch (error) {
