@@ -1,4 +1,3 @@
-
 import React, { FC, ReactNode, useMemo, useEffect, useState } from 'react';
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
@@ -20,8 +19,7 @@ interface SolanaWalletProviderProps {
 }
 
 const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
-    const [optimalEndpoint, setOptimalEndpoint] = useState<string>('');
-    const [isEndpointReady, setIsEndpointReady] = useState(false);
+    const [currentEndpoint, setCurrentEndpoint] = useState<string>('');
 
     // Use devnet for development, mainnet for production
     const network = useMemo(() => {
@@ -30,28 +28,37 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
             : WalletAdapterNetwork.Devnet;
     }, []);
 
-    // Get optimal RPC endpoint on mount
+    // Set default endpoint immediately, optimize in background
+    const defaultEndpoint = useMemo(() => {
+        return network === WalletAdapterNetwork.Mainnet 
+            ? 'https://api.mainnet-beta.solana.com'
+            : 'https://api.devnet.solana.com';
+    }, [network]);
+
+    // Initialize with default endpoint immediately
     useEffect(() => {
-        const initializeEndpoint = async () => {
+        setCurrentEndpoint(defaultEndpoint);
+        console.log('🚀 Solana provider initialized with default endpoint:', defaultEndpoint);
+
+        // Optimize endpoint in background (non-blocking)
+        const optimizeEndpoint = async () => {
             try {
                 const networkKey = network === WalletAdapterNetwork.Mainnet ? 'mainnet' : 'devnet';
-                const endpoint = await getBestRpcEndpoint(networkKey);
-                setOptimalEndpoint(endpoint);
-                setIsEndpointReady(true);
-                console.log('🚀 Optimal RPC endpoint initialized:', endpoint);
+                const optimalEndpoint = await getBestRpcEndpoint(networkKey);
+                
+                if (optimalEndpoint !== defaultEndpoint) {
+                    console.log('🔄 Upgrading to optimal endpoint:', optimalEndpoint);
+                    setCurrentEndpoint(optimalEndpoint);
+                }
             } catch (error) {
-                console.error('❌ Failed to get optimal endpoint, using fallback:', error);
-                // Use fallback endpoint
-                const fallback = network === WalletAdapterNetwork.Mainnet 
-                    ? 'https://api.mainnet-beta.solana.com'
-                    : 'https://api.devnet.solana.com';
-                setOptimalEndpoint(fallback);
-                setIsEndpointReady(true);
+                console.warn('⚠️ Failed to optimize endpoint, keeping default:', error);
+                // Keep using default endpoint
             }
         };
 
-        initializeEndpoint();
-    }, [network]);
+        // Run optimization in background after a short delay
+        setTimeout(optimizeEndpoint, 1000);
+    }, [network, defaultEndpoint]);
 
     // Configure wallet adapters
     const wallets = useMemo(
@@ -68,14 +75,10 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
         [network]
     );
 
-    // Don't render until we have an endpoint
-    if (!isEndpointReady || !optimalEndpoint) {
-        return <div>Initializing Solana connection...</div>;
-    }
-
+    // Render immediately with default endpoint - no blocking
     return (
         <ConnectionProvider 
-            endpoint={optimalEndpoint}
+            endpoint={currentEndpoint || defaultEndpoint}
             config={{
                 commitment: 'confirmed',
                 confirmTransactionInitialTimeout: 60000,
