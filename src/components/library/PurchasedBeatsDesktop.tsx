@@ -2,14 +2,16 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DownloadIcon, Play, Pause } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DownloadIcon, Play, Pause, ChevronDown } from 'lucide-react';
 import { Beat } from '@/types';
 import { usePlayer } from '@/context/PlayerContext';
+import { Badge } from '@/components/ui/badge';
 
 interface PurchasedBeatsDesktopProps {
   beats: Beat[];
   purchaseDetails: Record<string, { licenseType: string, purchaseDate: string }>;
-  onDownload: (beat: Beat) => void;
+  onDownload: (beat: Beat, downloadType?: 'track' | 'stems') => void;
 }
 
 export function PurchasedBeatsDesktop({ beats, purchaseDetails, onDownload }: PurchasedBeatsDesktopProps) {
@@ -60,8 +62,13 @@ export function PurchasedBeatsDesktop({ beats, purchaseDetails, onDownload }: Pu
                       )}
                     </div>
                   </div>
-                  <div>
+                  <div className="flex flex-col">
                     <div className="font-medium">{beat.title}</div>
+                    {beat.stems_url && (
+                      <Badge variant="secondary" className="text-xs w-fit mt-1">
+                        Stems Available
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </TableCell>
@@ -70,15 +77,37 @@ export function PurchasedBeatsDesktop({ beats, purchaseDetails, onDownload }: Pu
                 {purchaseDetails[beat.id]?.licenseType || 'Basic'} License
               </TableCell>
               <TableCell className="text-right">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onDownload(beat)}
-                  className="flex items-center gap-1"
-                >
-                  <DownloadIcon className="h-4 w-4" />
-                  Download
-                </Button>
+                {beat.stems_url ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm" className="flex items-center gap-1">
+                        <DownloadIcon className="h-4 w-4" />
+                        Download
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onDownload(beat, 'track')}>
+                        <DownloadIcon className="h-4 w-4 mr-2" />
+                        Download Track
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDownload(beat, 'stems')}>
+                        <DownloadIcon className="h-4 w-4 mr-2" />
+                        Download Stems
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDownload(beat, 'track')}
+                    className="flex items-center gap-1"
+                  >
+                    <DownloadIcon className="h-4 w-4" />
+                    Download
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           ))}

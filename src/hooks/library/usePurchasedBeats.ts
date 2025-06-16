@@ -97,7 +97,7 @@ export function usePurchasedBeats() {
       const beatIds = purchasedData.map(item => item.beat_id);
       console.log('Found purchased beat IDs:', beatIds);
       
-      // Fetch full beat details
+      // Fetch full beat details including stems_url
       const { data: beatsData, error: beatsError } = await supabase
         .from('beats')
         .select(`
@@ -106,7 +106,9 @@ export function usePurchasedBeats() {
           producer_id,
           producer_name:users!beats_producer_id_fkey(stage_name),
           cover_image_url:cover_image,
+          preview_url:audio_preview,
           full_track_url:audio_file,
+          stems_url,
           basic_license_price_local,
           basic_license_price_diaspora,
           premium_license_price_local,
@@ -115,11 +117,13 @@ export function usePurchasedBeats() {
           exclusive_license_price_diaspora,
           bpm,
           genre,
+          track_type,
           tags,
           upload_date,
           plays,
           purchase_count,
-          favorites_count
+          favorites_count,
+          status
         `)
         .in('id', beatIds);
         
@@ -133,7 +137,15 @@ export function usePurchasedBeats() {
         ...beat,
         producer_name: Array.isArray(beat.producer_name) 
           ? beat.producer_name[0]?.stage_name || 'Unknown Producer'
-          : beat.producer_name?.stage_name || 'Unknown Producer'
+          : beat.producer_name?.stage_name || 'Unknown Producer',
+        cover_image_url: beat.cover_image_url || '',
+        preview_url: beat.preview_url || '',
+        full_track_url: beat.full_track_url || '',
+        stems_url: beat.stems_url || undefined,
+        genre: beat.genre || '',
+        track_type: beat.track_type || '',
+        created_at: beat.upload_date || new Date().toISOString(),
+        status: (beat.status === 'draft' || beat.status === 'published') ? beat.status : 'published'
       }));
       
       // Create purchase details map
@@ -217,18 +229,19 @@ export function usePurchasedBeats() {
     }
   };
 
-  const getDownloadUrl = async (beatId: string, fullTrackUrl: string) => {
+  const getDownloadUrl = async (beatId: string, fileUrl: string, fileType: 'track' | 'stems' = 'track') => {
     try {
       // Check if we already have the URL cached
-      if (downloadUrls[beatId]) {
-        return downloadUrls[beatId];
+      const cacheKey = `${beatId}-${fileType}`;
+      if (downloadUrls[cacheKey]) {
+        return downloadUrls[cacheKey];
       }
 
       // Extract the file path from the full URL
-      const filePath = fullTrackUrl.replace('https://uoezlwkxhbzajdivrlby.supabase.co/storage/v1/object/public/beats/', '');
+      const filePath = fileUrl.replace('https://uoezlwkxhbzajdivrlby.supabase.co/storage/v1/object/public/beats/', '');
       
       // Add loading toast
-      toast.loading('Generating download link...');
+      toast.loading(`Generating ${fileType} download link...`);
       
       // Get a secure download URL that expires after some time
       const { data, error } = await supabase.storage.from('beats').createSignedUrl(filePath, 3600);
@@ -240,20 +253,20 @@ export function usePurchasedBeats() {
       // Cache the URL
       setDownloadUrls(prev => ({
         ...prev,
-        [beatId]: data.signedUrl
+        [cacheKey]: data.signedUrl
       }));
 
       toast.dismiss();
       return data.signedUrl;
     } catch (error) {
-      console.error('Error getting download URL:', error);
+      console.error(`Error getting ${fileType} download URL:`, error);
       toast.dismiss();
-      toast.error('Unable to generate download link');
+      toast.error(`Unable to generate ${fileType} download link`);
       return null;
     }
   };
 
-  const handleDownload = async (beat: Beat) => {
+  const handleDownload = async (beat: Beat, downloadType: 'track' | 'stems' = 'track') => {
     try {
       // Only allow download if the beat is actually purchased
       if (!isPurchased(beat.id)) {
@@ -261,11 +274,19 @@ export function usePurchasedBeats() {
         return;
       }
 
+      // For stems download, check if stems are available
+      if (downloadType === 'stems' && !beat.stems_url) {
+        toast.error('Stems are not available for this beat');
+        return;
+      }
+
+      const fileUrl = downloadType === 'stems' ? beat.stems_url! : beat.full_track_url;
+      
       // Get the download URL
-      const downloadUrl = await getDownloadUrl(beat.id, beat.full_track_url);
+      const downloadUrl = await getDownloadUrl(beat.id, fileUrl, downloadType);
       
       if (!downloadUrl) {
-        toast.error('Failed to generate download link');
+        toast.error(`Failed to generate ${downloadType} download link`);
         return;
       }
 
@@ -277,12 +298,14 @@ export function usePurchasedBeats() {
       const license = purchaseDetails[beat.id]?.licenseType || 'basic';
       
       // Create a clean filename with license type included
-      link.download = `${beat.title.replace(/\s+/g, '_')}_${license}.mp3`;
+      const fileExtension = downloadType === 'stems' ? 'zip' : 'mp3';
+      const fileTypeSuffix = downloadType === 'stems' ? '_stems' : '';
+      link.download = `${beat.title.replace(/\s+/g, '_')}_${license}${fileTypeSuffix}.${fileExtension}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      toast.success('Download started!');
+      toast.success(`${downloadType === 'stems' ? 'Stems' : 'Track'} download started!`);
     } catch (error) {
       console.error('Download error:', error);
       toast.error('Failed to download file');

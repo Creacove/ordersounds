@@ -1,14 +1,16 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { DownloadIcon, Play, Pause } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DownloadIcon, Play, Pause, ChevronDown } from 'lucide-react';
 import { Beat } from '@/types';
 import { usePlayer } from '@/context/PlayerContext';
+import { Badge } from '@/components/ui/badge';
 
 interface PurchasedBeatsMobileProps {
   beats: Beat[];
   purchaseDetails: Record<string, { licenseType: string, purchaseDate: string }>;
-  onDownload: (beat: Beat) => void;
+  onDownload: (beat: Beat, downloadType?: 'track' | 'stems') => void;
 }
 
 export function PurchasedBeatsMobile({ beats, purchaseDetails, onDownload }: PurchasedBeatsMobileProps) {
@@ -51,27 +53,73 @@ export function PurchasedBeatsMobile({ beats, purchaseDetails, onDownload }: Pur
             <div className="min-w-0 flex-1">
               <h3 className="font-medium text-sm truncate">{beat.title}</h3>
               <p className="text-xs text-muted-foreground">{beat.producer_name}</p>
+              {beat.stems_url && (
+                <Badge variant="secondary" className="text-xs mt-1">
+                  Stems Available
+                </Badge>
+              )}
             </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => onDownload(beat)}
-              className="flex items-center gap-1"
-            >
-              <DownloadIcon className="h-4 w-4" />
-            </Button>
+            {beat.stems_url ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="secondary" size="sm" className="flex items-center gap-1">
+                    <DownloadIcon className="h-4 w-4" />
+                    <ChevronDown className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onDownload(beat, 'track')}>
+                    <DownloadIcon className="h-4 w-4 mr-2" />
+                    Track
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onDownload(beat, 'stems')}>
+                    <DownloadIcon className="h-4 w-4 mr-2" />
+                    Stems
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onDownload(beat, 'track')}
+                className="flex items-center gap-1"
+              >
+                <DownloadIcon className="h-4 w-4" />
+              </Button>
+            )}
           </div>
           <div className="mt-1 px-3 pb-2 text-xs text-muted-foreground flex justify-between">
             <span className="capitalize">{purchaseDetails[beat.id]?.licenseType || 'Basic'} License</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDownload(beat)}
-              className="h-6 text-xs text-primary"
-            >
-              <DownloadIcon className="h-3 w-3 mr-1" />
-              Download
-            </Button>
+            {beat.stems_url ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 text-xs text-primary">
+                    <DownloadIcon className="h-3 w-3 mr-1" />
+                    Download
+                    <ChevronDown className="h-3 w-3 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onDownload(beat, 'track')}>
+                    Track
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onDownload(beat, 'stems')}>
+                    Stems
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDownload(beat, 'track')}
+                className="h-6 text-xs text-primary"
+              >
+                <DownloadIcon className="h-3 w-3 mr-1" />
+                Download
+              </Button>
+            )}
           </div>
         </div>
       ))}

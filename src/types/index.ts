@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -43,6 +44,7 @@ export interface Beat {
   cover_image_url: string;
   preview_url: string;
   full_track_url: string;
+  stems_url?: string; // Add stems_url field
   genre: string;
   track_type: string;
   bpm: number;
