@@ -23,7 +23,6 @@ export const supabase = createClient<Database>(
     global: {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
         'apikey': SUPABASE_PUBLISHABLE_KEY
       },
       fetch: (url, options) => {
