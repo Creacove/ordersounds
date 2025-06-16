@@ -173,8 +173,8 @@ export default function Cart() {
     setIsProcessingPayment(true);
     
     try {
-      // Get producer wallet addresses
-      const beatProducerIds = cartItems.map(item => item.beat.producer_id);
+      // Get producer wallet addresses from cart items
+      const beatProducerIds = cartItems.map(item => item.beat?.producer_id).filter(Boolean);
       
       const { data: producersData, error } = await supabase
         .from('users')
@@ -206,11 +206,11 @@ export default function Cart() {
       // Update cart items with wallet addresses
       const updatedCartItems = cartItems.map(item => ({
         ...item,
-        beat: {
+        beat: item.beat ? {
           ...item.beat,
           producer_wallet_address: producerWallets[item.beat.producer_id]
-        }
-      }));
+        } : undefined
+      })).filter(item => item.beat); // Filter out items without beat data
       
       setBeatsWithWalletAddresses(updatedCartItems);
       setIsSolanaDialogOpen(true);
@@ -223,8 +223,8 @@ export default function Cart() {
   };
 
   const getItemPrice = (item: any) => {
-    const licenseType = item.beat.selected_license || 'basic';
-    return getLicensePrice(item.beat, licenseType, currency === 'USD');
+    if (!item.beat) return 0;
+    return getLicensePrice(item.beat, item.license_type, currency === 'USD');
   };
   
   const prepareSolanaCartItems = () => {
@@ -232,6 +232,8 @@ export default function Cart() {
     
     return itemsToUse.map(item => {
       const beat = item.beat;
+      if (!beat) return null;
+      
       const price = getItemPrice(item);
       
       return {
@@ -242,7 +244,7 @@ export default function Cart() {
         quantity: 1,
         producer_wallet: beat.producer_wallet_address || '' 
       };
-    });
+    }).filter(Boolean);
   };
   
   // Wallet connection status for USD payments
@@ -341,71 +343,76 @@ export default function Cart() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
               <div className="space-y-3">
-                {cartItems.map((item) => (
-                  <div key={`${item.beat.id}-${item.added_at}`} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-4 flex gap-4">
-                    <div className="flex-shrink-0 w-16 h-16">
-                      <div
-                        className="relative w-16 h-16 rounded-md overflow-hidden cursor-pointer group"
-                        onClick={() => handlePlayBeat(item.beat)}
-                      >
-                        <img
-                          src={item.beat.cover_image_url || "/placeholder.svg"}
-                          alt={item.beat.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = "/placeholder.svg";
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          {isPlaying && currentBeat?.id === item.beat.id ? (
-                            <Pause className="h-6 w-6 text-white" />
-                          ) : (
-                            <Play className="h-6 w-6 ml-1 text-white" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-semibold truncate">{item.beat.title}</h3>
-                          <p className="text-sm text-muted-foreground truncate">{item.beat.producer_name}</p>
-                          
-                          <div className="flex items-center gap-2 mt-2 flex-wrap">
-                            {item.beat.genre && (
-                              <Badge variant="outline" className="text-xs py-0 px-2">
-                                <Music size={10} className="mr-1" />
-                                {item.beat.genre}
-                              </Badge>
+                {cartItems.map((item) => {
+                  const beat = item.beat;
+                  if (!beat) return null;
+                  
+                  return (
+                    <div key={item.id} className="border rounded-xl bg-card/50 backdrop-blur-sm shadow-sm p-4 flex gap-4">
+                      <div className="flex-shrink-0 w-16 h-16">
+                        <div
+                          className="relative w-16 h-16 rounded-md overflow-hidden cursor-pointer group"
+                          onClick={() => handlePlayBeat(beat)}
+                        >
+                          <img
+                            src={beat.cover_image_url || "/placeholder.svg"}
+                            alt={beat.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = "/placeholder.svg";
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            {isPlaying && currentBeat?.id === beat.id ? (
+                              <Pause className="h-6 w-6 text-white" />
+                            ) : (
+                              <Play className="h-6 w-6 ml-1 text-white" />
                             )}
-                            
-                            <Badge variant="secondary" className="text-xs py-0 px-2 capitalize">
-                              {item.beat.selected_license || 'Basic'} License
-                            </Badge>
                           </div>
                         </div>
-                        
-                        <div className="flex flex-col items-end ml-4">
-                          <span className="font-semibold text-lg">
-                            {currency === 'NGN' ? '₦' : '$'}
-                            {getItemPrice(item).toLocaleString()}
-                          </span>
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold truncate">{beat.title}</h3>
+                            <p className="text-sm text-muted-foreground truncate">{beat.producer_name}</p>
+                            
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              {beat.genre && (
+                                <Badge variant="outline" className="text-xs py-0 px-2">
+                                  <Music size={10} className="mr-1" />
+                                  {beat.genre}
+                                </Badge>
+                              )}
+                              
+                              <Badge variant="secondary" className="text-xs py-0 px-2 capitalize">
+                                {item.license_type} License
+                              </Badge>
+                            </div>
+                          </div>
                           
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive mt-2"
-                            onClick={() => handleRemoveItem(item.beat.id)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
+                          <div className="flex flex-col items-end ml-4">
+                            <span className="font-semibold text-lg">
+                              {currency === 'NGN' ? '₦' : '$'}
+                              {getItemPrice(item).toLocaleString()}
+                            </span>
+                            
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive mt-2"
+                              onClick={() => handleRemoveItem(item.beat_id)}
+                            >
+                              <Trash2 size={16} />
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               
               <div className="mt-6">
