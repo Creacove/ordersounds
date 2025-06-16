@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useQuery } from "@tanstack/react-query";
-import { fetchTrendingBeats } from "@/services/beats/queryService";
+import { fetchMetricBasedTrending } from "@/services/beats/queryService";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
 
@@ -18,8 +18,8 @@ export default function Trending() {
   const { user } = useAuth();
   
   const { data: trendingBeats = [], isLoading } = useQuery({
-    queryKey: ['trending-beats', displayCount],
-    queryFn: () => fetchTrendingBeats(displayCount),
+    queryKey: ['metrics-trending-beats', displayCount],
+    queryFn: () => fetchMetricBasedTrending(displayCount),
     staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
   });
 
@@ -36,7 +36,9 @@ export default function Trending() {
       <div className="container py-4 md:py-8 px-4 md:px-6">
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold">Trending Beats</h1>
-          <p className="text-sm text-muted-foreground mt-1">Discover the most popular beats based on plays and engagement</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Discover the hottest beats based on plays, favorites, and purchases
+          </p>
         </div>
         
         {isLoading ? (
@@ -64,7 +66,7 @@ export default function Trending() {
               ))}
             </div>
             
-            {trendingBeats.length >= displayCount && (
+            {trendingBeats.length >= displayCount && trendingBeats.length % 30 === 0 && (
               <div className="flex justify-center mt-8">
                 <Button 
                   variant="outline" 
@@ -79,7 +81,7 @@ export default function Trending() {
             
             {trendingBeats.length === 0 && (
               <div className="text-center py-10">
-                <p className="text-muted-foreground">No beats available at the moment.</p>
+                <p className="text-muted-foreground">No trending beats available at the moment.</p>
               </div>
             )}
           </>

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { mapSupabaseBeatToBeat } from './utils';
@@ -23,6 +22,7 @@ export const clearBeatsCache = () => {
   if (queryClient) {
     queryClient.invalidateQueries({ queryKey: ['beats'] });
     queryClient.invalidateQueries({ queryKey: ['trending-beats'] });
+    queryClient.invalidateQueries({ queryKey: ['metrics-trending-beats'] });
     queryClient.invalidateQueries({ queryKey: ['new-beats'] });
     queryClient.invalidateQueries({ queryKey: ['weekly-picks'] });
     console.log('React Query cache cleared');
@@ -118,6 +118,67 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
     return beats;
   } catch (error) {
     console.error('Failed to fetch trending beats:', error);
+    throw error;
+  }
+}
+
+export async function fetchMetricBasedTrending(limit: number = 100): Promise<Beat[]> {
+  try {
+    console.log('Fetching metrics-based trending beats...');
+    
+    // Get published beats with all metrics for trending calculation
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        *,
+        users!beats_producer_id_fkey (
+          full_name,
+          stage_name
+        )
+      `)
+      .eq('status', 'published')
+      .order('upload_date', { ascending: false })
+      .limit(500); // Get larger pool for better trending calculation
+
+    if (error) {
+      console.error('Error fetching metrics-based trending beats:', error);
+      throw error;
+    }
+
+    // Calculate trending score for each beat
+    const beatsWithScore = (data as SupabaseBeat[]).map(beat => {
+      const plays = beat.plays || 0;
+      const favorites = beat.favorites_count || 0;
+      const purchases = beat.purchase_count || 0;
+      
+      // Calculate base trending score: plays (40%) + favorites (30%) + purchases (30%)
+      const baseScore = (plays * 0.4) + (favorites * 0.3) + (purchases * 0.3);
+      
+      // Add recency boost for beats uploaded in last 30 days
+      const uploadDate = new Date(beat.upload_date || '');
+      const daysSinceUpload = Math.floor((Date.now() - uploadDate.getTime()) / (1000 * 60 * 60 * 24));
+      const recencyBoost = daysSinceUpload <= 30 ? Math.max(0, 30 - daysSinceUpload) * 0.1 : 0;
+      
+      const finalScore = baseScore + recencyBoost;
+      
+      return {
+        ...beat,
+        trendingScore: finalScore
+      };
+    });
+
+    // Sort by trending score in descending order
+    const sortedBeats = beatsWithScore.sort((a, b) => b.trendingScore - a.trendingScore);
+    
+    // Take the requested limit
+    const topBeats = sortedBeats.slice(0, limit);
+    
+    const beats = topBeats.map(mapSupabaseBeatToBeat);
+    console.log(`Successfully fetched ${beats.length} metrics-based trending beats`);
+    
+    return beats;
+  } catch (error) {
+    console.error('Failed to fetch metrics-based trending beats:', error);
     throw error;
   }
 }

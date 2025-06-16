@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { 
-  fetchAllBeats, fetchTrendingBeats, fetchRandomBeats, fetchNewBeats,
+  fetchAllBeats, fetchTrendingBeats, fetchMetricBasedTrending, fetchRandomBeats, fetchNewBeats,
   fetchBeatById, clearBeatsCache
 } from '@/services/beats';
 
@@ -44,14 +44,24 @@ export function useBeatsQuery() {
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
 
-  // Trending beats query
+  // Curated trending beats query (for homepage)
   const { 
     data: trendingBeats = [], 
     isLoading: isLoadingTrending 
   } = useQuery({
-    queryKey: ['trending-beats'],
+    queryKey: ['curated-trending-beats'],
     queryFn: () => fetchTrendingBeats(30),
     staleTime: 10 * 60 * 1000, // Keep trending data fresh for 10 minutes
+  });
+
+  // Metrics-based trending beats query (for trending page)
+  const { 
+    data: metricsTrendingBeats = [], 
+    isLoading: isLoadingMetricsTrending 
+  } = useQuery({
+    queryKey: ['metrics-trending-beats'],
+    queryFn: () => fetchMetricBasedTrending(100),
+    staleTime: 5 * 60 * 1000, // Refresh more frequently for dynamic metrics
   });
 
   // New beats query
@@ -101,7 +111,8 @@ export function useBeatsQuery() {
 
   return {
     beats,
-    trendingBeats,
+    trendingBeats, // Curated trending for homepage
+    metricsTrendingBeats, // Metrics-based trending for trending page
     newBeats,
     weeklyPicks,
     featuredBeat,
