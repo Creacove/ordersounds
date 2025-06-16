@@ -25,9 +25,9 @@ export async function fetchPurchasedBeatsOptimized(userId: string): Promise<Purc
           title,
           producer_id,
           producer_name:users!beats_producer_id_fkey(stage_name),
-          cover_image_url:cover_image,
-          preview_url:audio_preview,
-          full_track_url:audio_file,
+          cover_image,
+          audio_preview,
+          audio_file,
           stems_url,
           basic_license_price_local,
           basic_license_price_diaspora,
@@ -64,7 +64,37 @@ export async function fetchPurchasedBeatsOptimized(userId: string): Promise<Purc
 
     data.forEach(item => {
       if (item.beats) {
-        const beat = mapSupabaseBeatToBeat(item.beats as SupabaseBeat);
+        const beatData = item.beats as any;
+        
+        // Create the beat object with correct field mapping
+        const beat: Beat = {
+          id: beatData.id,
+          title: beatData.title || 'Untitled',
+          producer_id: beatData.producer_id,
+          producer_name: Array.isArray(beatData.producer_name) 
+            ? beatData.producer_name[0]?.stage_name || 'Unknown Producer'
+            : beatData.producer_name?.stage_name || 'Unknown Producer',
+          cover_image_url: beatData.cover_image || '',
+          preview_url: beatData.audio_preview || '',
+          full_track_url: beatData.audio_file || '',
+          stems_url: beatData.stems_url || undefined,
+          genre: beatData.genre || '',
+          track_type: beatData.track_type || '',
+          bpm: beatData.bpm || 0,
+          tags: beatData.tags || [],
+          created_at: beatData.upload_date || new Date().toISOString(),
+          favorites_count: beatData.favorites_count || 0,
+          purchase_count: beatData.purchase_count || 0,
+          plays: beatData.plays || 0,
+          status: (beatData.status === 'draft' || beatData.status === 'published') ? beatData.status : 'published',
+          basic_license_price_local: beatData.basic_license_price_local,
+          basic_license_price_diaspora: beatData.basic_license_price_diaspora,
+          premium_license_price_local: beatData.premium_license_price_local,
+          premium_license_price_diaspora: beatData.premium_license_price_diaspora,
+          exclusive_license_price_local: beatData.exclusive_license_price_local,
+          exclusive_license_price_diaspora: beatData.exclusive_license_price_diaspora
+        };
+        
         beats.push(beat);
         
         purchaseDetails[item.beat_id] = {
@@ -75,6 +105,8 @@ export async function fetchPurchasedBeatsOptimized(userId: string): Promise<Purc
     });
 
     console.log(`Successfully fetched ${beats.length} purchased beats optimized`);
+    console.log('Sample beat cover image URL:', beats[0]?.cover_image_url);
+    
     return { beats, purchaseDetails };
   } catch (error) {
     console.error('Error in fetchPurchasedBeatsOptimized:', error);
