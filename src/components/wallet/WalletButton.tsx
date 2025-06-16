@@ -29,34 +29,7 @@ const WalletButton = ({
   showIcon = true,
   showLabel = true
 }: WalletButtonProps) => {
-  const navigate = useNavigate();
-  
-  // Safely access wallet hooks - they might not be available if Solana provider isn't loaded
-  let wallet, walletSync;
-  try {
-    wallet = useWallet();
-    walletSync = useWalletSync();
-  } catch (error) {
-    console.log('Wallet provider not available, showing fallback');
-    wallet = {
-      publicKey: null,
-      connected: false,
-      connecting: false,
-      wallet: null,
-      select: () => {},
-      disconnect: () => {}
-    };
-    walletSync = {
-      disconnectAndSync: async () => {},
-      isWalletSynced: false,
-      needsAuth: false,
-      manualSyncTrigger: async () => false,
-      syncStatus: 'idle',
-      lastError: null
-    };
-  }
-  
-  const { publicKey, connected, connecting, wallet: walletAdapter, select, disconnect } = wallet;
+  const { publicKey, connected, connecting, wallet, select, disconnect } = useWallet();
   const { 
     disconnectAndSync, 
     isWalletSynced, 
@@ -64,9 +37,9 @@ const WalletButton = ({
     manualSyncTrigger,
     syncStatus,
     lastError
-  } = walletSync;
-  
+  } = useWalletSync();
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   const shortenAddress = (address: string) => {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
@@ -171,9 +144,9 @@ const WalletButton = ({
                             </>
                           );
                         })()}
-                        {walletAdapter?.adapter?.name && (
+                        {wallet?.adapter?.name && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            • {walletAdapter.adapter.name}
+                            • {wallet.adapter.name}
                           </span>
                         )}
                       </div>
@@ -207,16 +180,10 @@ const WalletButton = ({
           )}
         </>
       ) : (
-        <div className={buttonClass.includes('w-full') ? 'w-full' : ''}>
-          <Button 
-            variant="outline"
-            className={`rounded-full ${buttonClass.includes('w-full') ? 'w-full justify-center' : ''}`}
-            onClick={() => navigate('/cart')}
-          >
-            {showIcon && <Wallet className="h-4 w-4 mr-2" />}
-            {showLabel && 'Connect Wallet'}
-          </Button>
-        </div>
+        <WalletMultiButton 
+          className={`wallet-adapter-button-trigger rounded-full transform hover:scale-105 transition-all shadow-sm hover:shadow ${buttonClass.includes('w-full') ? 'w-full justify-center' : ''}`}
+          disabled={connecting}
+        />
       )}
     </div>
   );
