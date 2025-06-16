@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Music, Play, Pause, Trash2 } from 'lucide-react';
 import { usePlayer } from "@/context/PlayerContext";
 import { useAuth } from "@/context/AuthContext";
+import { Beat } from '@/types';
 
 interface CartItemCardProps {
   item: {
@@ -34,10 +35,36 @@ const CartItemCard = memo(({ item, price, onRemove }: CartItemCardProps) => {
   const { currency } = useAuth();
 
   const handlePlayBeat = () => {
+    // Create a complete Beat object for the player
+    const completeBeat: Beat = {
+      id: item.beat.id,
+      title: item.beat.title || 'Unknown Beat',
+      producer_id: '', // Not needed for playback
+      producer_name: item.beat.producer_name || 'Unknown Producer',
+      cover_image_url: item.beat.cover_image_url || '',
+      preview_url: '', // Will be handled by the player
+      full_track_url: '', // Will be handled by the player
+      genre: item.beat.genre || '',
+      track_type: 'Beat' as const,
+      bpm: 0,
+      tags: [],
+      created_at: new Date().toISOString(),
+      favorites_count: 0,
+      purchase_count: 0,
+      status: 'published' as const,
+      basic_license_price_local: item.beat.basic_license_price_local || 0,
+      basic_license_price_diaspora: item.beat.basic_license_price_diaspora || 0,
+      premium_license_price_local: item.beat.premium_license_price_local || 0,
+      premium_license_price_diaspora: item.beat.premium_license_price_diaspora || 0,
+      exclusive_license_price_local: item.beat.exclusive_license_price_local || 0,
+      exclusive_license_price_diaspora: item.beat.exclusive_license_price_diaspora || 0,
+      selected_license: item.licenseType
+    };
+
     if (currentBeat?.id === item.beat.id) {
-      playBeat(isPlaying ? null : item.beat);
+      playBeat(isPlaying ? null : completeBeat);
     } else {
-      playBeat(item.beat);
+      playBeat(completeBeat);
     }
   };
 

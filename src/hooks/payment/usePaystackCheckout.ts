@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
-import { useCart } from '@/context/CartContext';
+import { useCartWithBeatDetailsOptimized } from '@/hooks/useCartWithBeatDetailsOptimized';
 import { supabase } from '@/integrations/supabase/client';
 import { createOrder, verifyPaystackPayment } from '@/utils/payment/paystackUtils';
 
@@ -37,7 +37,7 @@ export function usePaystackCheckout({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [paymentStarted, setPaymentStarted] = useState(false);
   const { user } = useAuth();
-  const { cartItems, clearCart } = useCart();
+  const { cartItems, clearCart } = useCartWithBeatDetailsOptimized();
   const navigate = useNavigate();
   const paymentTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const paystackHandlerRef = useRef<any>(null);
@@ -335,12 +335,12 @@ export function usePaystackCheckout({
           license: 'basic'
         }];
       } else {
-        // Cart purchase
+        // Cart purchase - use optimized cart items
         orderItemsData = cartItems.map(item => ({
           beat_id: item.beat.id,
           title: item.beat.title,
           price: item.beat.basic_license_price_local,
-          license: item.beat.selected_license || 'basic'
+          license: item.licenseType || 'basic'
         }));
       }
       
@@ -446,7 +446,7 @@ export function usePaystackCheckout({
       setIsProcessing(false);
       setPaymentStarted(false);
     }
-  }, [isProcessing, isValidating, paymentStarted, totalAmount, user, validateCartItems, cartItems, producerId, beatId, splitCode]);
+  }, [isProcessing, isValidating, paymentStarted, totalAmount, user, validateCartItems, cartItems, producerId, beatId, splitCode, clearCart]);
 
   // Handle cart refresh
   const handleRefreshCart = async () => {
