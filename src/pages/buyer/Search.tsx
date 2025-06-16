@@ -76,6 +76,10 @@ export default function SearchPage() {
     clearFilters();
   };
 
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as 'all' | 'beats' | 'producers');
+  };
+
   const activeFiltersCount = Object.keys(filters).filter(key => filters[key] !== undefined).length;
 
   return (
@@ -112,7 +116,7 @@ export default function SearchPage() {
         )}
 
         {/* Tabs and Filters */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-4 sm:mb-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-4 sm:mb-6">
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
             <TabsList className="tabs-mobile w-full sm:w-auto">
               <TabsTrigger value="all">All</TabsTrigger>
