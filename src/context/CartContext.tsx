@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -83,12 +82,21 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     try {
       if (user) {
         // For authenticated users
-        let { data: existingCart } = await supabase
+        let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
           .eq('user_id', user.id)
-          .is('session_id', null)
+          .eq('session_id', null)
           .single();
+
+        if (selectError && selectError.code !== 'PGRST116') {
+          console.error('Error finding existing cart:', selectError);
+          // If there's an auth error, try guest cart instead
+          if (selectError.code === '42501' || selectError.message.includes('Unauthorized')) {
+            console.log('Auth error, falling back to guest cart');
+            return await createGuestCart();
+          }
+        }
 
         if (!existingCart) {
           const { data: newCart, error } = await supabase
@@ -100,41 +108,63 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
             .select('id')
             .single();
 
-          if (error) throw error;
+          if (error) {
+            console.error('Error creating user cart:', error);
+            // Fallback to guest cart if user cart creation fails
+            if (error.code === '42501' || error.message.includes('Unauthorized')) {
+              console.log('User cart creation failed, falling back to guest cart');
+              return await createGuestCart();
+            }
+            throw error;
+          }
           existingCart = newCart;
         }
 
         return existingCart.id;
       } else {
-        // For guest users
-        const sessionId = getSessionId();
-        let { data: existingCart } = await supabase
-          .from('carts')
-          .select('id')
-          .eq('session_id', sessionId)
-          .is('user_id', null)
-          .single();
-
-        if (!existingCart) {
-          const { data: newCart, error } = await supabase
-            .from('carts')
-            .insert({ 
-              user_id: null,
-              session_id: sessionId
-            })
-            .select('id')
-            .single();
-
-          if (error) throw error;
-          existingCart = newCart;
-        }
-
-        return existingCart.id;
+        return await createGuestCart();
       }
     } catch (error) {
       console.error('Error getting/creating cart:', error);
-      return null;
+      // Last resort - try guest cart
+      try {
+        return await createGuestCart();
+      } catch (guestError) {
+        console.error('Failed to create guest cart:', guestError);
+        return null;
+      }
     }
+  };
+
+  // Helper function to create guest cart
+  const createGuestCart = async () => {
+    const sessionId = getSessionId();
+    let { data: existingCart, error: selectError } = await supabase
+      .from('carts')
+      .select('id')
+      .eq('session_id', sessionId)
+      .eq('user_id', null)
+      .single();
+
+    if (selectError && selectError.code !== 'PGRST116') {
+      console.error('Error finding existing guest cart:', selectError);
+    }
+
+    if (!existingCart) {
+      const { data: newCart, error } = await supabase
+        .from('carts')
+        .insert({ 
+          user_id: null,
+          session_id: sessionId
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      existingCart = newCart;
+    }
+
+    return existingCart.id;
   };
 
   // Load cart items from database
@@ -265,7 +295,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     try {
       const currentCartId = cartId || await getOrCreateCart();
       if (!currentCartId) {
-        toast.error('Failed to create cart');
+        toast.error('Failed to create cart. Please try again.');
         return;
       }
 
@@ -302,7 +332,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       await loadCartItems();
     } catch (error) {
       console.error('Error adding to cart:', error);
-      toast.error('Failed to add item to cart');
+      toast.error('Failed to add item to cart. Please try again.');
     }
   };
 
