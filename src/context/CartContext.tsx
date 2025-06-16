@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from './AuthContext';
@@ -89,12 +90,12 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
       console.log('CartContext: Getting or creating cart for user:', user?.id || 'guest');
       
       if (user) {
-        // For authenticated users - use correct null comparison syntax
+        // For authenticated users - use correct PostgREST syntax
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
           .eq('user_id', user.id)
-          .eq('session_id', null)
+          .is('session_id', null) // Use .is() for null checks
           .maybeSingle();
 
         if (selectError && selectError.code !== 'PGRST116') {
@@ -132,7 +133,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
-          .eq('user_id', null)
+          .is('user_id', null) // Use .is() for null checks
           .eq('session_id', sessionId)
           .maybeSingle();
 
@@ -167,16 +168,40 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     } catch (error) {
       console.error('CartContext: Failed to get/create cart:', error);
       
-      // Check if it's an RLS violation and provide helpful info
+      // Enhanced debugging for RLS issues
       if (error.code === '42501') {
-        console.error('CartContext: RLS Policy violation - auth context may not be properly set');
-        // Try to get current session info for debugging
+        console.error('CartContext: RLS Policy violation - checking auth context...');
         const { data: session } = await supabase.auth.getSession();
-        console.log('CartContext: Current session state:', {
+        console.log('CartContext: Session debug info:', {
           hasSession: !!session?.session,
           userId: session?.session?.user?.id,
-          isExpired: session?.session ? new Date() > new Date(session.session.expires_at * 1000) : 'no session'
+          userIdType: typeof session?.session?.user?.id,
+          isExpired: session?.session ? new Date() > new Date(session.session.expires_at * 1000) : 'no session',
+          accessToken: session?.session?.access_token ? 'present' : 'missing'
         });
+        
+        // If user exists but RLS fails, try falling back to guest cart
+        if (user && session?.session) {
+          console.log('CartContext: RLS failed for authenticated user, attempting guest fallback...');
+          const sessionId = getSessionId();
+          try {
+            const { data: guestCart, error: guestError } = await supabase
+              .from('carts')
+              .insert({ 
+                user_id: null,
+                session_id: sessionId
+              })
+              .select('id')
+              .single();
+            
+            if (!guestError && guestCart) {
+              console.log('CartContext: Successfully created guest fallback cart:', guestCart.id);
+              return guestCart.id;
+            }
+          } catch (fallbackError) {
+            console.error('CartContext: Guest fallback also failed:', fallbackError);
+          }
+        }
       }
       
       throw error;
@@ -324,10 +349,28 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     try {
       console.log('CartContext: Adding beat to cart:', beat.title);
       
-      // Get or create cart first
-      const currentCartId = cartId || await getOrCreateCart();
+      // Get or create cart first with retry logic
+      let currentCartId = cartId;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!currentCartId && attempts < maxAttempts) {
+        try {
+          currentCartId = await getOrCreateCart();
+          break;
+        } catch (error) {
+          attempts++;
+          console.log(`CartContext: Cart creation attempt ${attempts} failed:`, error);
+          if (attempts >= maxAttempts) {
+            throw error;
+          }
+          // Wait a bit before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
       if (!currentCartId) {
-        console.error('CartContext: Failed to get cart ID');
+        console.error('CartContext: Failed to get cart ID after multiple attempts');
         toast.error('Failed to create cart. Please try again.');
         return;
       }
