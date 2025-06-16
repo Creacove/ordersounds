@@ -1,6 +1,6 @@
 
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
-import { CartItemCard } from "@/components/cart/CartItemCard";
+import CartItemCard from "@/components/cart/CartItemCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCartWithBeatDetailsOptimized } from "@/hooks/useCartWithBeatDetailsOptimized";
@@ -13,11 +13,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 const CartContent = () => {
   const { 
     cartItems, 
-    totalPrice, 
+    totalAmount, 
     isLoading, 
-    error, 
     removeFromCart, 
-    updateQuantity,
     clearCart 
   } = useCartWithBeatDetailsOptimized();
 
@@ -39,18 +37,6 @@ const CartContent = () => {
             ))}
           </div>
         </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <p className="text-red-600">Error loading cart: {error}</p>
-          </CardContent>
-        </Card>
       </div>
     );
   }
@@ -96,10 +82,10 @@ const CartContent = () => {
         <div className="lg:col-span-2 space-y-4">
           {cartItems.map((item) => (
             <CartItemCard
-              key={`${item.beat_id}-${item.license_type}`}
+              key={`${item.beatId}-${item.licenseType}`}
               item={item}
+              price={item.price}
               onRemove={removeFromCart}
-              onUpdateQuantity={updateQuantity}
             />
           ))}
         </div>
@@ -116,14 +102,15 @@ const CartContent = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center text-lg font-semibold">
                   <span>Total</span>
-                  <span>${totalPrice.toFixed(2)}</span>
+                  <span>${totalAmount.toFixed(2)}</span>
                 </div>
                 
-                <PaymentHandler 
-                  cartItems={cartItems}
-                  totalPrice={totalPrice}
-                  onPaymentSuccess={clearCart}
-                />
+                <WalletDependentWrapper>
+                  <PaymentHandler 
+                    totalPrice={totalAmount}
+                    onPaymentSuccess={clearCart}
+                  />
+                </WalletDependentWrapper>
               </div>
             </CardContent>
           </Card>
