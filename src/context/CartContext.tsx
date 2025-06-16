@@ -87,12 +87,16 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           .from('carts')
           .select('id')
           .eq('user_id', user.id)
+          .is('session_id', null)
           .single();
 
         if (!existingCart) {
           const { data: newCart, error } = await supabase
             .from('carts')
-            .insert({ user_id: user.id })
+            .insert({ 
+              user_id: user.id,
+              session_id: null
+            })
             .select('id')
             .single();
 
@@ -108,12 +112,16 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           .from('carts')
           .select('id')
           .eq('session_id', sessionId)
+          .is('user_id', null)
           .single();
 
         if (!existingCart) {
           const { data: newCart, error } = await supabase
             .from('carts')
-            .insert({ session_id: sessionId })
+            .insert({ 
+              user_id: null,
+              session_id: sessionId
+            })
             .select('id')
             .single();
 
