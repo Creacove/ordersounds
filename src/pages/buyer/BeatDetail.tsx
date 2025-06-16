@@ -13,7 +13,7 @@ import { PriceTag } from '@/components/ui/PriceTag';
 import { useBeats } from '@/hooks/useBeats';
 import { useAuth } from '@/context/AuthContext';
 import { usePlayer } from '@/context/PlayerContext';
-import { useCart } from '@/context/CartContext';
+import { useCartLightweight } from '@/hooks/useCartLightweight';
 import { Beat } from '@/types';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -52,7 +52,7 @@ const BeatDetail = () => {
   const { beatId } = useParams<{ beatId: string }>();
   const { toggleFavorite, isFavorite, isPurchased, beats } = useBeats();
   const { isPlaying, currentBeat, playBeat, togglePlayPause } = usePlayer();
-  const { addToCart, isInCart } = useCart();
+  const { addToCart, isInCart } = useCartLightweight();
   const { user, currency } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -245,28 +245,40 @@ const BeatDetail = () => {
   };
 
   const handleAddToCart = (licenseType: string) => {
-    if (!beat) return;
+    console.log('🛒 BeatDetail - handleAddToCart called with:', { 
+      beatId: beat?.id, 
+      licenseType, 
+      user: user ? { id: user.id, email: user.email } : 'No user',
+      isBeatPurchased,
+      beatInCart 
+    });
+    
+    if (!beat) {
+      console.log('🛒 BeatDetail - No beat available');
+      return;
+    }
     
     if (!user) {
+      console.log('🛒 BeatDetail - No user, redirecting to login');
       toast.error('Please log in to add to cart');
       navigate('/login');
       return;
     }
 
     if (isBeatPurchased) {
+      console.log('🛒 BeatDetail - Beat already purchased');
       toast.success('You already own this beat');
       return;
     }
 
     if (isInCart(beat.id)) {
+      console.log('🛒 BeatDetail - Beat already in cart, navigating to cart');
       navigate('/cart');
       return;
     }
 
-    const lightweightBeat = createLightweightBeat(beat);
-    lightweightBeat.selected_license = licenseType;
-    
-    addToCart(lightweightBeat as any);
+    console.log('🛒 BeatDetail - Adding beat to cart with lightweight hook');
+    addToCart(beat.id, licenseType);
     toast.success(`Added "${beat.title}" (${licenseType} license) to cart`);
   };
 
