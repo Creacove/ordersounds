@@ -70,6 +70,12 @@ export default function Cart() {
     }
   }, [cartItems, itemCount, totalAmount, isLoading, user]);
 
+  // Add force refresh functionality
+  const handleForceRefresh = () => {
+    console.log('🛒 Force refreshing cart...');
+    window.location.reload();
+  };
+
   // Check for purchase success on mount
   useEffect(() => {
     const checkPurchaseStatus = () => {
@@ -363,24 +369,36 @@ export default function Cart() {
             <h1 className="text-2xl font-bold">Your Cart ({itemCount} items)</h1>
           </div>
           
-          {/* Debug info button */}
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => {
-              console.log('🛒 Cart Debug Info:', {
-                cartItems,
-                itemCount,
-                totalAmount,
-                isLoading,
-                user: user ? { id: user.id, email: user.email } : 'No user',
-                localStorage: user ? localStorage.getItem(`cart_${user.id}`) : 'No user'
-              });
-              toast.info('Debug info logged to console');
-            }}
-          >
-            Debug Info
-          </Button>
+          <div className="flex gap-2">
+            {/* Force refresh button */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleForceRefresh}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            
+            {/* Debug info button */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                console.log('🛒 Cart Debug Info:', {
+                  cartItems,
+                  itemCount,
+                  totalAmount,
+                  isLoading,
+                  user: user ? { id: user.id, email: user.email } : 'No user',
+                  localStorage: user ? localStorage.getItem(`cart_${user.id}`) : 'No user'
+                });
+                toast.info('Debug info logged to console');
+              }}
+            >
+              Debug Info
+            </Button>
+          </div>
         </div>
 
         {(!cartItems || cartItems.length === 0) ? (

@@ -31,7 +31,7 @@ export function useCartWithBeatDetails() {
 
       setIsLoading(true);
       try {
-        // Extract beat IDs from lightweight items (FIX: use beatId directly)
+        // Extract beat IDs from lightweight items
         const beatIds = lightweightItems.map(item => item.beatId);
         console.log('🛒 Beat IDs to fetch:', beatIds);
         
@@ -64,7 +64,7 @@ export function useCartWithBeatDetails() {
 
         console.log('🛒 Fetched beats from database:', beats);
 
-        // Map lightweight items with beat details (FIX: correct mapping logic)
+        // Map lightweight items with beat details
         const itemsWithDetails = lightweightItems.map(lightweightItem => {
           console.log('🛒 Processing lightweight item:', lightweightItem);
           

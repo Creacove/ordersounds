@@ -105,6 +105,30 @@ export function useCartLightweight() {
     }
   }, [cartItems, user]);
 
+  // Add localStorage event listener to sync across tabs/components
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (!user) return;
+      
+      const cartKey = `cart_${user.id}`;
+      if (e.key === cartKey && e.newValue) {
+        console.log('🛒 localStorage changed externally, updating cart:', e.newValue);
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setCartItems(parsed);
+            setItemCount(parsed.length);
+          }
+        } catch (error) {
+          console.error('🛒 Error parsing storage change:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [user]);
+
   const isInCart = useCallback((beatId: string): boolean => {
     const result = cartItems.some(item => item.beatId === beatId);
     console.log(`🛒 Checking if beat ${beatId} is in cart:`, result, 'Current cart items:', cartItems);
