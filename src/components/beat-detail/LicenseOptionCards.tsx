@@ -98,12 +98,11 @@ export const LicenseOptionCards = ({
   ];
 
   const handleAddToCart = (licenseType: 'basic' | 'premium' | 'exclusive') => {
-    const cartItem = {
-      beat,
-      licenseType,
-      price: getLicensePrice(licenseType)
+    const beatWithLicense = {
+      ...beat,
+      selected_license: licenseType
     };
-    addToCart(cartItem);
+    addToCart(beatWithLicense);
   };
 
   return (
@@ -112,7 +111,7 @@ export const LicenseOptionCards = ({
         const price = getLicensePrice(license.type);
         const features = getLicenseFeatures(license.type);
         const isSelected = selectedLicense === license.type;
-        const inCart = isInCart(beat.id, license.type);
+        const inCart = isInCart(beat.id);
 
         return (
           <Card 
