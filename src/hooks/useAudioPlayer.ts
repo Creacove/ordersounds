@@ -2,11 +2,12 @@
 import { usePlayer } from '@/context/PlayerContext';
 import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
+import { useCallback, useMemo } from 'react';
 
 export function useAudioPlayer() {
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
   
-  const incrementPlayCount = async (beatId: string) => {
+  const incrementPlayCount = useCallback(async (beatId: string) => {
     try {
       await supabase.rpc("increment_counter" as any, {
         p_table_name: "beats",
@@ -17,9 +18,9 @@ export function useAudioPlayer() {
     } catch (error) {
       console.error('Error incrementing play count:', error);
     }
-  };
+  }, []);
 
-  const handlePlayBeat = async (beat: Beat): Promise<void> => {
+  const handlePlayBeat = useCallback(async (beat: Beat): Promise<void> => {
     console.log("Play button clicked for:", beat.title);
     
     try {
@@ -30,35 +31,39 @@ export function useAudioPlayer() {
         togglePlayPause();
       } else {
         console.log("Playing new beat:", beat.title);
-        // Ensure we have a preview URL before attempting to play
+        
         if (!beat.preview_url) {
           console.warn("Beat doesn't have a preview URL:", beat.title);
           return;
         }
         
-        // Play the beat and increment play count
         playBeat(beat);
-        incrementPlayCount(beat.id);
+        
+        // Increment play count only when starting a new track
+        setTimeout(() => incrementPlayCount(beat.id), 1000);
       }
     } catch (error) {
       console.error("Error handling play:", error);
     }
-  };
+  }, [currentBeat, togglePlayPause, playBeat, incrementPlayCount]);
 
-  const isCurrentBeat = (beatId: string): boolean => {
+  const isCurrentBeat = useCallback((beatId: string): boolean => {
     return currentBeat?.id === beatId;
-  };
+  }, [currentBeat]);
 
-  const isCurrentlyPlaying = (beatId: string): boolean => {
+  const isCurrentlyPlaying = useCallback((beatId: string): boolean => {
     return isCurrentBeat(beatId) && isPlaying;
-  };
+  }, [isCurrentBeat, isPlaying]);
 
-  return {
+  // Memoize return object to prevent unnecessary re-renders
+  const returnValue = useMemo(() => ({
     currentBeat,
     isPlaying,
     handlePlayBeat,
     isCurrentBeat,
     isCurrentlyPlaying,
     incrementPlayCount
-  };
+  }), [currentBeat, isPlaying, handlePlayBeat, isCurrentBeat, isCurrentlyPlaying, incrementPlayCount]);
+
+  return returnValue;
 }

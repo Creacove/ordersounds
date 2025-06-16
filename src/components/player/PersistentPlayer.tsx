@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { usePlayer } from '@/context/PlayerContext';
 import { cn } from '@/lib/utils';
 import { Play, Pause, SkipBack, SkipForward, Loader } from 'lucide-react';
@@ -31,95 +31,137 @@ export function PersistentPlayer() {
   
   const isMobile = useIsMobile();
   const progressRef = useRef<HTMLDivElement>(null);
-  const [progressPercentage, setProgressPercentage] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   
-  // Update progress percentage whenever currentTime or duration changes
-  useEffect(() => {
-    if (duration > 0) {
-      const newProgress = (currentTime / duration) * 100;
-      setProgressPercentage(newProgress > 100 ? 100 : newProgress);
-    } else {
-      setProgressPercentage(0);
+  // Memoize progress percentage calculation
+  const progressPercentage = useMemo(() => {
+    if (duration > 0 && !isDragging) {
+      const progress = (currentTime / duration) * 100;
+      return Math.min(progress, 100);
     }
-  }, [currentTime, duration]);
+    return 0;
+  }, [currentTime, duration, isDragging]);
 
-  // Even when no beat is selected, we render a hidden player to maintain the layout
+  // Optimized progress bar click handler with touch support
+  const handleProgressInteraction = useCallback((clientX: number) => {
+    if (error || duration <= 0 || loading || !progressRef.current) return;
+    
+    const container = progressRef.current;
+    const rect = container.getBoundingClientRect();
+    const clickPosition = clientX - rect.left;
+    const percentage = Math.max(0, Math.min(1, clickPosition / rect.width));
+    seek(percentage * duration);
+  }, [error, duration, loading, seek]);
+
+  const handleProgressBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    handleProgressInteraction(e.clientX);
+  }, [handleProgressInteraction]);
+
+  // Touch handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    setIsDragging(true);
+    handleProgressInteraction(e.touches[0].clientX);
+  }, [handleProgressInteraction]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (isDragging) {
+      e.preventDefault();
+      handleProgressInteraction(e.touches[0].clientX);
+    }
+  }, [isDragging, handleProgressInteraction]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (!currentBeat) return;
+      
+      switch (e.key) {
+        case ' ':
+          e.preventDefault();
+          togglePlayPause();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          seek(Math.max(0, currentTime - 10));
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          seek(Math.min(duration, currentTime + 10));
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [currentBeat, togglePlayPause, seek, currentTime, duration]);
+
   if (!currentBeat) {
     return <div className="fixed bottom-0 left-0 right-0 h-0 z-50" />;
   }
 
-  // Handle clicking on the top progress bar
-  const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (error || duration <= 0 || loading) return;
-    
-    const container = e.currentTarget;
-    const rect = container.getBoundingClientRect();
-    const clickPosition = e.clientX - rect.left;
-    const percentage = clickPosition / rect.width;
-    seek(percentage * duration);
-  };
+  const coverImageSrc = currentBeat.cover_image_url || '/placeholder.svg';
 
   return (
     <div className={cn(
-      "fixed left-0 right-0 bg-card border-t border-border shadow-lg z-40",
+      "fixed left-0 right-0 bg-card/95 backdrop-blur-sm border-t border-border shadow-lg z-40 transition-all duration-300",
       isMobile ? "bottom-16" : "bottom-0"
     )}>
-      {/* Spotify-like progress bar at the very top of the player */}
+      {/* Enhanced progress bar with touch support */}
       <div 
         ref={progressRef}
-        className="w-full h-1 bg-muted relative cursor-pointer"
+        className="w-full h-1 bg-muted relative cursor-pointer touch-none"
         onClick={handleProgressBarClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div 
-          className={loading ? "h-full transition-all bg-amber-500 animate-pulse" : "h-full transition-all bg-primary"}
+          className={cn(
+            "h-full transition-all bg-primary",
+            loading && "animate-pulse bg-amber-500"
+          )}
           style={{ width: `${progressPercentage}%` }}
         />
-        {/* Make the input cover the entire area for better touch targets */}
-        <input 
-          type="range"
-          min={0}
-          max={duration || 0}
-          value={currentTime || 0}
-          onChange={(e) => seek(parseFloat(e.target.value))}
-          className="absolute top-0 left-0 w-full h-2 opacity-0 cursor-pointer"
-          style={{ touchAction: "none" }} // Prevents scrolling when swiping on mobile
-          disabled={duration <= 0 || loading || error}
-        />
+        
+        {/* Invisible overlay for better touch targets */}
+        <div className="absolute inset-0 py-2" style={{ touchAction: "none" }} />
       </div>
       
-      <div className="container mx-auto px-4 py-3 md:py-4 flex items-center gap-4">
-        {/* Beat info */}
-        <div className="flex items-center gap-3 flex-grow md:flex-grow-0 md:w-1/3">
+      <div className="container mx-auto px-3 md:px-4 py-2 md:py-3 flex items-center gap-3 md:gap-4">
+        {/* Beat info with optimized image loading */}
+        <div className="flex items-center gap-2 md:gap-3 flex-grow md:flex-grow-0 md:w-1/3 min-w-0">
           <div className="w-10 h-10 md:w-12 md:h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
-            {currentBeat.cover_image_url ? (
-              <img 
-                src={currentBeat.cover_image_url}
-                alt={currentBeat.title}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.src = '/placeholder.svg';
-                }}
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full bg-primary/10">
-                <span className="font-medium text-xs text-primary">BEAT</span>
-              </div>
-            )}
+            <img 
+              src={coverImageSrc}
+              alt={currentBeat.title}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = '/placeholder.svg';
+              }}
+            />
           </div>
-          <div className="overflow-hidden">
+          <div className="overflow-hidden min-w-0">
             <p className="font-medium text-sm md:text-base truncate">{currentBeat.title}</p>
             <p className="text-xs text-muted-foreground truncate">{currentBeat.producer_name}</p>
           </div>
         </div>
         
-        {/* Player controls (centered on desktop, right-aligned on mobile) */}
-        <div className={`flex items-center gap-2 ${isMobile ? 'ml-auto' : 'justify-center flex-1'}`}>
+        {/* Player controls */}
+        <div className={cn(
+          "flex items-center gap-1 md:gap-2",
+          isMobile ? 'ml-auto' : 'justify-center flex-1'
+        )}>
           {!isMobile && (
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 rounded-full"
+              className="h-8 w-8 rounded-full hover:bg-muted/50"
               onClick={previousTrack}
               disabled={loading}
             >
@@ -130,16 +172,16 @@ export function PersistentPlayer() {
           <Button 
             variant={error ? "destructive" : "default"}
             size="icon" 
-            className="h-10 w-10 rounded-full flex items-center justify-center" 
+            className="h-9 w-9 md:h-10 md:w-10 rounded-full flex items-center justify-center shadow-sm" 
             onClick={error && reload ? reload : togglePlayPause}
             disabled={loading && !error}
           >
             {loading ? (
-              <Loader size={18} className="animate-spin" />
+              <Loader size={16} className="animate-spin" />
             ) : isPlaying ? (
-              <Pause size={18} />
+              <Pause size={16} />
             ) : (
-              <Play size={18} className="ml-0.5" />
+              <Play size={16} className="ml-0.5" />
             )}
           </Button>
           
@@ -147,7 +189,7 @@ export function PersistentPlayer() {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 rounded-full"
+              className="h-8 w-8 rounded-full hover:bg-muted/50"
               onClick={nextTrack}
               disabled={loading}
             >
@@ -156,9 +198,9 @@ export function PersistentPlayer() {
           )}
         </div>
         
-        {/* Time and volume controls (only visible on desktop) */}
+        {/* Desktop controls */}
         {!isMobile && (
-          <div className="hidden md:flex items-center gap-4 w-1/3 justify-end">
+          <div className="hidden md:flex items-center gap-3 md:gap-4 w-1/3 justify-end">
             <TimeProgressBar 
               currentTime={currentTime} 
               duration={duration} 
@@ -170,7 +212,6 @@ export function PersistentPlayer() {
             />
             <VolumeControl volume={volume} setVolume={setVolume} />
             
-            {/* Queue popover */}
             <QueuePopover 
               queue={queue}
               clearQueue={clearQueue}

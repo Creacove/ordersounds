@@ -1,7 +1,8 @@
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Beat } from '@/types';
-import { useAudio } from '@/hooks/useAudio';
+import { useAudioStreaming } from '@/hooks/useAudioStreaming';
+import { AudioManager } from '@/lib/audioManager';
 
 interface PlayerContextType {
   isPlaying: boolean;
@@ -58,17 +59,14 @@ const PlayerContext = createContext<PlayerContextType>({
 export const usePlayer = () => useContext(PlayerContext);
 
 export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
   const [currentBeat, setCurrentBeat] = useState<Beat | null>(null);
   const [volume, setVolume] = useState(0.7);
-  const [progress, setProgress] = useState(0);
   const [queue, setQueue] = useState<Beat[]>([]);
   const [previousBeats, setPreviousBeats] = useState<Beat[]>([]);
-  const nextBeatAudio = useRef<HTMLAudioElement | null>(null);
+  const audioManager = AudioManager.getInstance();
   
-  // Fetch URL immediately when currentBeat changes
+  // Use the optimized audio streaming hook
   const audioUrl = currentBeat?.preview_url || '';
-  
   const { 
     playing, 
     currentTime, 
@@ -79,202 +77,151 @@ export const PlayerProvider: React.FC<{children: React.ReactNode}> = ({ children
     error,
     reload,
     loading
-  } = useAudio(audioUrl);
-  
-  // Pre-load next track for instant playback
+  } = useAudioStreaming(audioUrl);
+
+  // Memoize progress calculation to prevent unnecessary re-renders
+  const progress = useMemo(() => {
+    return duration > 0 ? (currentTime / duration) * 100 : 0;
+  }, [currentTime, duration]);
+
+  // Preload next track when queue changes
   useEffect(() => {
     if (queue.length > 0 && queue[0]?.preview_url) {
-      if (!nextBeatAudio.current) {
-        nextBeatAudio.current = new Audio();
-        nextBeatAudio.current.preload = "auto";
-      }
-      
-      // Set source and begin loading
-      nextBeatAudio.current.src = queue[0].preview_url;
-      nextBeatAudio.current.load();
-      
-      return () => {
-        if (nextBeatAudio.current) {
-          nextBeatAudio.current.src = '';
-        }
-      };
+      audioManager.preloadAudio(queue[0].preview_url);
     }
-  }, [queue]);
-  
+  }, [queue, audioManager]);
+
+  // Update volume across all audio instances
   useEffect(() => {
-    if (error && currentBeat) {
-      // Don't show errors to user, just retry loading in the background
-      console.log("Handling audio error in background");
-    }
-  }, [error, currentBeat]);
-  
-  useEffect(() => {
-    setIsPlaying(playing);
-  }, [playing]);
-  
-  useEffect(() => {
-    const audioElements = document.querySelectorAll('audio');
-    audioElements.forEach(audio => {
-      audio.volume = volume;
-    });
-    
-    // Also set volume for preloaded next track
-    if (nextBeatAudio.current) {
-      nextBeatAudio.current.volume = volume;
-    }
-  }, [volume]);
-  
-  useEffect(() => {
-    if (duration > 0) {
-      setProgress((currentTime / duration) * 100);
-    } else {
-      setProgress(0);
-    }
-  }, [currentTime, duration]);
-  
+    audioManager.setVolume(volume);
+  }, [volume, audioManager]);
+
+  // Auto-play next track when current track ends
   useEffect(() => {
     if (progress >= 99.5 && queue.length > 0) {
       nextTrack();
     }
-  }, [progress]);
-  
-  const playBeat = (beat: Beat | null) => {
-    console.log("playBeat called with:", beat?.title);
+  }, [progress, queue.length]);
+
+  const createMinimalBeat = useCallback((beat: Beat): Beat => ({
+    id: beat.id,
+    title: beat.title,
+    producer_name: beat.producer_name,
+    preview_url: beat.preview_url,
+    cover_image_url: beat.cover_image_url,
+  } as Beat), []);
+
+  const playBeat = useCallback((beat: Beat | null) => {
     if (beat === null) {
-      setIsPlaying(false);
       stop();
       setCurrentBeat(null);
       return;
     }
 
-    // Create a minimal beat object with only what's needed
-    const minimalBeat = {
-      id: beat.id,
-      title: beat.title,
-      producer_name: beat.producer_name,
-      preview_url: beat.preview_url,
-      cover_image_url: beat.cover_image_url,
-    } as Beat;
+    const minimalBeat = createMinimalBeat(beat);
 
     if (!currentBeat || currentBeat.id !== beat.id) {
-      if (isPlaying) {
-        console.log("Stopping current audio before playing new beat");
-        stop();
-      }
-      
       if (currentBeat) {
-        setPreviousBeats(prev => [...prev, currentBeat]);
+        setPreviousBeats(prev => [currentBeat, ...prev.slice(0, 9)]); // Keep last 10
       }
       
-      console.log("Setting new beat:", beat.title);
       setCurrentBeat(minimalBeat);
       
-      // Start playing immediately
-      setIsPlaying(true);
-      
-      // Immediate play without delay for faster response
-      setTimeout(togglePlay, 0);
+      // Start playing after a minimal delay for better UX
+      setTimeout(togglePlay, 50);
     } else {
-      console.log("Same beat, toggling play/pause");
-      togglePlayPause();
+      togglePlay();
     }
-  };
+  }, [currentBeat, createMinimalBeat, stop, togglePlay]);
 
-  const togglePlayPause = () => {
-    console.log("togglePlayPause called");
+  const togglePlayPause = useCallback(() => {
     if (currentBeat) {
       togglePlay();
     }
-  };
+  }, [currentBeat, togglePlay]);
   
-  const pausePlayback = () => {
-    console.log("pausePlayback called");
-    if (isPlaying) {
+  const pausePlayback = useCallback(() => {
+    if (playing) {
       togglePlay();
     }
-  };
+  }, [playing, togglePlay]);
   
-  const addToQueue = (beat: Beat) => {
-    // Create a minimal beat object for the queue
-    const minimalBeat = {
-      id: beat.id,
-      title: beat.title,
-      producer_name: beat.producer_name,
-      preview_url: beat.preview_url,
-      cover_image_url: beat.cover_image_url,
-    } as Beat;
-    
+  const addToQueue = useCallback((beat: Beat) => {
+    const minimalBeat = createMinimalBeat(beat);
     setQueue(prev => [...prev, minimalBeat]);
-  };
+  }, [createMinimalBeat]);
   
-  const removeFromQueue = (beatId: string) => {
+  const removeFromQueue = useCallback((beatId: string) => {
     setQueue(prev => prev.filter(beat => beat.id !== beatId));
-  };
+  }, []);
   
-  const clearQueue = () => {
+  const clearQueue = useCallback(() => {
     setQueue([]);
-  };
+  }, []);
   
-  const nextTrack = () => {
+  const nextTrack = useCallback(() => {
     if (queue.length > 0) {
       const nextBeat = queue[0];
-      const newQueue = queue.slice(1);
       
       if (currentBeat) {
-        setPreviousBeats(prev => [...prev, currentBeat]);
+        setPreviousBeats(prev => [currentBeat, ...prev.slice(0, 9)]);
       }
       
       setCurrentBeat(nextBeat);
-      setQueue(newQueue);
+      setQueue(prev => prev.slice(1));
       
-      // Immediate play without delay
-      setTimeout(togglePlay, 0);
+      setTimeout(togglePlay, 50);
     }
-  };
+  }, [queue, currentBeat, togglePlay]);
   
-  const previousTrack = () => {
+  const previousTrack = useCallback(() => {
     if (previousBeats.length > 0) {
-      const prevBeat = previousBeats[previousBeats.length - 1];
-      const newPreviousBeats = previousBeats.slice(0, -1);
+      const prevBeat = previousBeats[0];
       
       if (currentBeat) {
         setQueue(prev => [currentBeat, ...prev]);
       }
       
       setCurrentBeat(prevBeat);
-      setPreviousBeats(newPreviousBeats);
+      setPreviousBeats(prev => prev.slice(1));
       
-      // Immediate play without delay
-      setTimeout(togglePlay, 0);
+      setTimeout(togglePlay, 50);
     }
-  };
+  }, [previousBeats, currentBeat, togglePlay]);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    isPlaying: playing,
+    currentBeat,
+    volume,
+    progress,
+    currentTime,
+    duration,
+    queue,
+    error,
+    loading,
+    playBeat,
+    setIsPlaying: () => {}, // Deprecated but kept for compatibility
+    setVolume,
+    setProgress: () => {}, // Deprecated but kept for compatibility
+    togglePlayPause,
+    togglePlay,
+    pausePlayback,
+    seek,
+    addToQueue,
+    removeFromQueue,
+    clearQueue,
+    nextTrack,
+    previousTrack,
+    reload
+  }), [
+    playing, currentBeat, volume, progress, currentTime, duration, queue, error, loading,
+    playBeat, setVolume, togglePlayPause, togglePlay, pausePlayback, seek,
+    addToQueue, removeFromQueue, clearQueue, nextTrack, previousTrack, reload
+  ]);
 
   return (
-    <PlayerContext.Provider value={{ 
-      isPlaying,
-      currentBeat,
-      volume,
-      progress,
-      currentTime,
-      duration,
-      queue,
-      error,
-      loading,
-      playBeat,
-      setIsPlaying,
-      setVolume,
-      setProgress,
-      togglePlayPause,
-      togglePlay,
-      pausePlayback,
-      seek,
-      addToQueue,
-      removeFromQueue,
-      clearQueue,
-      nextTrack,
-      previousTrack,
-      reload
-    }}>
+    <PlayerContext.Provider value={contextValue}>
       {children}
     </PlayerContext.Provider>
   );
