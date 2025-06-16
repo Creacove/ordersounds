@@ -64,10 +64,8 @@ export const SolanaCheckoutDialog = ({
       console.log("Validating USDC wallet addresses for items:", cartItems);
 
       try {
-        // Extract product IDs for database verification
         const productIds = cartItems.map(item => item.id);
         
-        // Get the producer IDs for these beats
         const { data: beatsData, error: beatsError } = await supabase
           .from('beats')
           .select('id, producer_id')
@@ -84,12 +82,9 @@ export const SolanaCheckoutDialog = ({
           return;
         }
         
-        // Extract producer IDs
         const producerIds = beatsData.map(beat => beat.producer_id);
-        
         console.log("Producer IDs to check:", producerIds);
         
-        // Get the wallet addresses for these producers
         const { data: producersData, error: producersError } = await supabase
           .from('users')
           .select('id, wallet_address, stage_name')
@@ -102,7 +97,6 @@ export const SolanaCheckoutDialog = ({
         
         console.log("Producer data from database:", producersData);
         
-        // Create producer wallet map
         const producerWalletMap: Record<string, string | null> = {};
         const producersWithoutWallets: string[] = [];
         
@@ -114,13 +108,11 @@ export const SolanaCheckoutDialog = ({
           console.log(`Producer ${producer.stage_name} wallet: ${producer.wallet_address || 'MISSING'}`);
         });
         
-        // Create beat-to-producer map
         const beatProducerMap: Record<string, string> = {};
         beatsData.forEach(beat => {
           beatProducerMap[beat.id] = beat.producer_id;
         });
         
-        // Update cart items with verified wallet addresses
         const updatedItems = cartItems.map(item => {
           const producerId = beatProducerMap[item.id];
           const verifiedWalletAddress = producerId ? producerWalletMap[producerId] : null;
@@ -135,7 +127,6 @@ export const SolanaCheckoutDialog = ({
         
         console.log("Updated items with verified wallet addresses:", updatedItems);
         
-        // Check if any item is missing a wallet address
         const missingWallets = updatedItems.filter(item => {
           const hasWallet = !!item.producer_wallet;
           console.log(`Item ${item.id} has wallet: ${hasWallet} (${item.producer_wallet || 'null'})`);
@@ -165,7 +156,6 @@ export const SolanaCheckoutDialog = ({
     return total + (item.price * item.quantity);
   }, 0);
   
-  // Group items by producer for payment processing
   const getItemsByProducer = () => {
     const itemsToUse = validatedItems.length > 0 ? validatedItems : cartItems;
     const groupedItems: Record<string, { items: CartItem[], total: number }> = {};
@@ -209,46 +199,27 @@ export const SolanaCheckoutDialog = ({
     try {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user?.id) {
-        throw new Error("User not authenticated");
+        throw new Error("Please log in to complete your purchase");
       }
 
       console.log(`Processing ${groupedItems.length} USDC payments on ${network} network`);
 
-      // Create order header
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          buyer_id: userData.user.id,
-          total_price: totalPrice,
-          status: 'completed',
-          currency_used: 'USDC',
-          payment_method: 'solana_usdc'
-        })
-        .select()
-        .single();
-        
-      if (orderError) {
-        console.error("Order creation error:", orderError);
-        toast.error("Could not process your order");
-        return;
-      }
-      
-      console.log("Created order:", order);
-      
-      // Process USDC payments for each producer
+      // Process USDC payments for each producer first, then create order
       let successfulPayments = 0;
       let transactionSignatures: string[] = [];
+      let paymentErrors: string[] = [];
       
       for (const group of groupedItems) {
         try {
           if (!group.producerWallet) {
-            toast.error(`Missing producer wallet address for ${group.items[0].title}`);
+            const errorMsg = `Missing producer wallet address for ${group.items[0].title}`;
+            paymentErrors.push(errorMsg);
+            console.error(errorMsg);
             continue;
           }
           
           console.log(`Processing USDC payment of $${group.total} to wallet ${group.producerWallet}`);
           
-          // Process USDC payment for this producer's items
           const signature = await makePayment(
             group.total,
             group.producerWallet,
@@ -257,79 +228,94 @@ export const SolanaCheckoutDialog = ({
               transactionSignatures.push(sig);
               console.log(`USDC payment successful: ${sig}`);
             },
-            (err) => console.error(`USDC payment error for ${group.producerWallet}:`, err)
+            (err) => {
+              const errorMsg = `Payment failed for ${group.items[0].title}: ${err.message || 'Unknown error'}`;
+              paymentErrors.push(errorMsg);
+              console.error(`USDC payment error for ${group.producerWallet}:`, err);
+            }
           );
           
-          // Create order items for this producer's items
-          const orderItems = group.items.map(item => ({
-            order_id: order.id,
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price,
-            title: item.title
-          }));
-          
-          const { error: itemsError } = await supabase
-            .from('order_items')
-            .insert(orderItems);
-            
-          if (itemsError) {
-            console.error("Order items error:", itemsError);
-            toast.error("Could not register all items in your order");
+          if (signature) {
+            successfulPayments++;
+            transactionSignatures.push(signature);
           }
           
-        } catch (error) {
+        } catch (error: any) {
+          const errorMsg = `Error processing payment for ${group.items[0].title}: ${error.message || 'Unknown error'}`;
+          paymentErrors.push(errorMsg);
           console.error("Checkout error for producer:", error);
-          toast.error(`Error processing USDC payment to producer`);
         }
       }
       
-      // Update order status based on payment results
-      if (successfulPayments === groupedItems.length) {
-        // All payments successful
-        if (transactionSignatures.length > 0) {
-          const { error: updateError } = await supabase
+      // Only create order if we have successful payments
+      if (successfulPayments > 0 && transactionSignatures.length > 0) {
+        try {
+          const { data: order, error: orderError } = await supabase
             .from('orders')
-            .update({
+            .insert({
+              buyer_id: userData.user.id,
+              total_price: totalPrice,
+              status: 'completed',
+              currency_used: 'USDC',
+              payment_method: 'solana_usdc',
               transaction_signatures: transactionSignatures
             })
-            .eq('id', order.id);
+            .select()
+            .single();
             
-          if (updateError) {
-            console.error("Error updating transaction signatures:", updateError);
+          if (orderError) {
+            console.error("Order creation error:", orderError);
+            toast.error("Payments completed but failed to create order record");
+          } else {
+            console.log("Created order:", order);
+            
+            // Create order items for successful payments only
+            const successfulItems = groupedItems
+              .filter((_, index) => index < successfulPayments)
+              .flatMap(group => group.items);
+              
+            const orderItems = successfulItems.map(item => ({
+              order_id: order.id,
+              product_id: item.id,
+              quantity: item.quantity,
+              price: item.price,
+              title: item.title
+            }));
+            
+            const { error: itemsError } = await supabase
+              .from('order_items')
+              .insert(orderItems);
+              
+            if (itemsError) {
+              console.error("Order items error:", itemsError);
+              toast.warning("Order created but some items may not be recorded properly");
+            }
           }
+        } catch (dbError) {
+          console.error("Database error after successful payments:", dbError);
+          toast.warning("Payments completed but failed to update order records");
         }
-          
-        toast.success("USDC payments completed successfully!");
-        onCheckoutSuccess();
-      } else if (successfulPayments > 0) {
-        // Some payments successful
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({
-            transaction_signatures: transactionSignatures
-          })
-          .eq('id', order.id);
-          
-        if (updateError) {
-          console.error("Error updating transaction signatures:", updateError);
-        }
-          
-        toast.warning("Some items were purchased successfully with USDC, but others failed");
-        onCheckoutSuccess();
-      } else {
-        // No payments successful - delete the order
-        await supabase
-          .from('orders')
-          .delete()
-          .eq('id', order.id);
-          
-        toast.error("USDC payment failed for all items");
       }
       
-    } catch (error) {
+      // Provide user feedback based on results
+      if (successfulPayments === groupedItems.length) {
+        toast.success("All USDC payments completed successfully!");
+        onCheckoutSuccess();
+      } else if (successfulPayments > 0) {
+        toast.warning(`${successfulPayments} of ${groupedItems.length} payments completed successfully`);
+        if (paymentErrors.length > 0) {
+          toast.error(`Some payments failed: ${paymentErrors[0]}`);
+        }
+        onCheckoutSuccess();
+      } else {
+        const errorMessage = paymentErrors.length > 0 ? paymentErrors[0] : "All payments failed";
+        toast.error(errorMessage);
+      }
+      
+    } catch (error: any) {
       console.error("USDC checkout error:", error);
-      toast.error("An error occurred during USDC checkout");
+      const errorMessage = error.message || "An error occurred during checkout";
+      toast.error(errorMessage);
     } finally {
       setIsCheckingOut(false);
       onOpenChange(false);
@@ -338,9 +324,9 @@ export const SolanaCheckoutDialog = ({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md border-purple-100 dark:border-purple-900/40 shadow-lg backdrop-blur-sm">
+      <DialogContent className="sm:max-w-md border-purple-200 dark:border-purple-800 shadow-xl backdrop-blur-md bg-white/95 dark:bg-gray-900/95">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-700 to-indigo-600 dark:from-purple-400 dark:to-indigo-300">
+          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent dark:from-purple-400 dark:to-indigo-400">
             Complete USDC Payment
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
@@ -351,67 +337,80 @@ export const SolanaCheckoutDialog = ({
         <div className="space-y-4 py-4">
           {!wallet.connected && (
             <div className="flex flex-col gap-4">
-              <div className="flex items-center p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-700/50 dark:text-amber-300">
-                <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
-                <p className="text-sm">Please connect your Solana wallet to complete this USDC purchase</p>
+              <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 dark:from-amber-900/30 dark:to-orange-900/30 dark:border-amber-700/50 dark:text-amber-300">
+                <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium mb-1">Wallet Connection Required</p>
+                  <p>Please connect your Solana wallet to complete this USDC purchase</p>
+                </div>
               </div>
-              <WalletButton className="w-full flex justify-center" />
+              <WalletButton className="w-full flex justify-center bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300" />
             </div>
           )}
           
           {wallet.connected && (
-            <div className="flex items-center p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700/50 dark:text-blue-300">
-              <Wallet className="h-4 w-4 mr-2 flex-shrink-0" />
+            <div className="flex items-center p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-800 dark:from-blue-900/30 dark:to-cyan-900/30 dark:border-blue-700/50 dark:text-blue-300">
+              <Wallet className="h-5 w-5 mr-3 flex-shrink-0" />
               <div className="text-sm">
-                <div>Connected: {wallet.publicKey?.toString().slice(0, 8)}...{wallet.publicKey?.toString().slice(-8)}</div>
-                <div className="text-xs opacity-75">Network: {network}</div>
+                <div className="font-medium">Connected: {wallet.publicKey?.toString().slice(0, 8)}...{wallet.publicKey?.toString().slice(-8)}</div>
+                <div className="text-xs opacity-75 mt-0.5">Network: {network}</div>
               </div>
             </div>
           )}
           
           {validationError ? (
-            <div className="flex items-center p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 dark:bg-red-900/30 dark:border-red-700/50 dark:text-red-300">
-              <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
-              <p className="text-sm">{validationError}</p>
+            <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-800 dark:from-red-900/30 dark:to-pink-900/30 dark:border-red-700/50 dark:text-red-300">
+              <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium mb-1">Validation Error</p>
+                <p>{validationError}</p>
+              </div>
             </div>
           ) : validationComplete ? (
-            <div className="flex items-center p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 dark:bg-green-900/30 dark:border-green-700/50 dark:text-green-300">
-              <CheckCircle2 className="h-4 w-4 mr-2 flex-shrink-0" />
-              <p className="text-sm">All producer USDC wallet addresses verified</p>
+            <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-700/50 dark:text-green-300">
+              <CheckCircle2 className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium mb-1">Validation Complete</p>
+                <p>All producer USDC wallet addresses verified</p>
+              </div>
             </div>
           ) : (
-            <div className="flex items-center p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-700/50 dark:text-blue-300">
-              <Loader2 className="h-4 w-4 mr-2 animate-spin flex-shrink-0" />
-              <p className="text-sm">Verifying producer USDC wallet addresses...</p>
+            <div className="flex items-center p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:border-blue-700/50 dark:text-blue-300">
+              <Loader2 className="h-5 w-5 mr-3 animate-spin flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium">Verifying wallet addresses...</p>
+                <p className="text-xs opacity-75 mt-0.5">Please wait while we validate producer payment information</p>
+              </div>
             </div>
           )}
           
-          <div className="p-4 rounded-lg bg-purple-50/50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/30">
-            <p className="mb-2">Your items will be available for download immediately after USDC payment.</p>
-            <p className="text-sm text-muted-foreground">
-              This checkout will process individual USDC payments to each producer, with platform fees calculated per item.
-            </p>
+          <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50/80 to-indigo-50/80 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200/50 dark:border-purple-800/50">
+            <div className="text-sm space-y-2">
+              <p className="font-medium text-purple-800 dark:text-purple-300">✨ Instant Download Access</p>
+              <p className="text-muted-foreground">Your items will be available for download immediately after USDC payment completion.</p>
+              <p className="text-xs text-muted-foreground">This checkout processes individual USDC payments to each producer, with platform fees calculated per item.</p>
+            </div>
           </div>
         </div>
         
-        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-2">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)} 
             disabled={isCheckingOut}
-            className="w-full sm:w-auto transition-all hover:bg-background/80 border-gray-300 dark:border-gray-700"
+            className="w-full sm:w-auto transition-all hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-300 dark:border-gray-700"
           >
             Cancel
           </Button>
           <Button 
-            className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-none transition-all hover:shadow-md" 
+            className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" 
             onClick={handleCheckout} 
             disabled={isCheckingOut || !wallet.connected || !validationComplete || !!validationError}
           >
             {isCheckingOut ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processing USDC...
+                Processing USDC Payment...
               </>
             ) : (
               `Pay ${totalPrice.toFixed(2)} USDC`
