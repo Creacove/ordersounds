@@ -31,9 +31,7 @@ export function ProducerOfWeek() {
   const [producerBeats, setProducerBeats] = useState<any[]>([]);
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
   const [isLoadingBeats, setIsLoadingBeats] = useState(true);
-
-  // Move useFollowStatus to top level - fix invalid hook call
-  const { data: isFollowing } = useFollowStatus(producer?.id);
+  const [isFollowingProducer, setIsFollowingProducer] = useState(false);
 
   // Fetch the producer of the week
   useEffect(() => {
@@ -141,6 +139,24 @@ export function ProducerOfWeek() {
     fetchProducerBeats();
   }, [producer]);
 
+  // Check if user is following the producer
+  useEffect(() => {
+    if (!user || !producer) return;
+
+    const checkFollowStatus = async () => {
+      try {
+        // Use the hook correctly - check if the user is currently following the producer
+        const { data: isFollowing } = useFollowStatus(producer.id);
+        
+        setIsFollowingProducer(!!isFollowing);
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+      }
+    };
+
+    checkFollowStatus();
+  }, [user, producer, useFollowStatus]);
+
   const handleToggleFollow = async () => {
     if (!user) {
       toast.error("Please log in to follow producers");
@@ -151,11 +167,13 @@ export function ProducerOfWeek() {
     if (!producer) return;
 
     try {
-      if (isFollowing) {
+      if (isFollowingProducer) {
         await unfollowProducer(producer.id);
+        setIsFollowingProducer(false);
         toast.success(`Unfollowed ${producer.stage_name || producer.full_name}`);
       } else {
         await followProducer(producer.id);
+        setIsFollowingProducer(true);
         toast.success(`Now following ${producer.stage_name || producer.full_name}`);
       }
     } catch (error) {
@@ -202,13 +220,6 @@ export function ProducerOfWeek() {
     }
     return num;
   };
-
-  // Helper function to check if a beat is purchased
-  function isPurchased(beatId) {
-    // This should be implemented based on your app's logic
-    // For now, we'll return false as a placeholder
-    return false;
-  }
 
   if (isLoadingProducer) {
     return (
@@ -293,16 +304,16 @@ export function ProducerOfWeek() {
             {/* Follow Button */}
             <Button
               onClick={handleToggleFollow}
-              variant={isFollowing ? "secondary" : "default"}
+              variant={isFollowingProducer ? "secondary" : "default"}
               className={cn(
                 "w-full shadow-md justify-center",
-                isFollowing 
+                isFollowingProducer 
                   ? "bg-white/15 hover:bg-white/25 text-white border-white/20" 
                   : "bg-white hover:bg-white/90 text-purple-900"
               )}
             >
-              <UserCheck size={18} className={isFollowing ? "" : "mr-2"} />
-              {isFollowing ? null : <span>Follow Producer</span>}
+              <UserCheck size={18} className={isFollowingProducer ? "" : "mr-2"} />
+              {isFollowingProducer ? null : <span>Follow Producer</span>}
             </Button>
           </div>
         </div>
@@ -454,4 +465,11 @@ export function ProducerOfWeek() {
       </div>
     </div>
   );
+  
+  // Helper function to check if a beat is purchased
+  function isPurchased(beatId) {
+    // This should be implemented based on your app's logic
+    // For now, we'll return false as a placeholder
+    return false;
+  }
 }

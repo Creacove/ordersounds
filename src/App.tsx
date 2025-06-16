@@ -10,7 +10,6 @@ import { CartProvider } from "@/context/CartContext";
 import { PlayerProvider } from "@/context/PlayerContext";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { ScrollToTop } from "@/components/utils/ScrollToTop";
-import ConditionalSolanaProvider from "./components/wallet/ConditionalSolanaProvider";
 
 // Direct imports instead of lazy loading
 import Home from "./pages/buyer/Home";
@@ -45,6 +44,8 @@ import ProtectedProducerRoute from "./components/auth/ProtectedProducerRoute";
 // Add custom wallet styles
 import '@solana/wallet-adapter-react-ui/styles.css';
 import './wallet-button.css';
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+import SolanaWalletProvider from "./components/wallet/SolanaWalletProvider";
 
 // Configure QueryClient with optimized settings for less API stress
 const queryClient = new QueryClient({
@@ -69,64 +70,62 @@ const PlaylistRedirect = () => {
 // Wrapper component to ensure proper context nesting
 const AppContent = () => (
   <AuthProvider>
-    <ConditionalSolanaProvider>
-      <CartProvider>
-        <PlayerProvider>
-          <SidebarProvider>
-            <ScrollToTop />
-            <Toaster />
-            <Sonner position="top-right" expand={true} closeButton={true} />
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/trending" element={<Trending />} />
-              <Route path="/new" element={<New />} />
-              <Route path="/playlists" element={<Playlists />} />
-              <Route path="/playlists/:playlistId" element={<Playlists />} />
-              <Route path="/playlist/:playlistId" element={<PlaylistRedirect />} />
-              <Route path="/genres" element={<Genres />} />
-              <Route path="/producers" element={<Producers />} />
-              <Route path="/charts" element={<Charts />} />
-              <Route path="/search" element={<Search />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route path="/beat/:beatId" element={<BeatDetail />} />
+    <CartProvider>
+      <PlayerProvider>
+        <SidebarProvider>
+          <ScrollToTop />
+          <Toaster />
+          <Sonner position="top-right" expand={true} closeButton={true} />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Home />} />
+            <Route path="/trending" element={<Trending />} />
+            <Route path="/new" element={<New />} />
+            <Route path="/playlists" element={<Playlists />} />
+            <Route path="/playlists/:playlistId" element={<Playlists />} />
+            <Route path="/playlist/:playlistId" element={<PlaylistRedirect />} />
+            <Route path="/genres" element={<Genres />} />
+            <Route path="/producers" element={<Producers />} />
+            <Route path="/charts" element={<Charts />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/beat/:beatId" element={<BeatDetail />} />
 
-              {/* Profile Routes */}
-              <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
-              <Route path="/producer/:producerId" element={<ProducerProfile />} />
+            {/* Profile Routes */}
+            <Route path="/buyer/:buyerId" element={<BuyerProfile />} />
+            <Route path="/producer/:producerId" element={<ProducerProfile />} />
 
-              {/* Auth Routes */}
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="/producer-activation" element={<ProducerActivation />} />
+            {/* Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/producer-activation" element={<ProducerActivation />} />
 
-              {/* Library Routes */}
-              <Route path="/library" element={<Library />} />
-              <Route path="/buyer/library" element={<Navigate to="/library" replace />} />
-              <Route path="/favorites" element={<Library />} />
-              <Route path="/purchased" element={<Navigate to="/library" replace />} />
-              <Route path="/my-playlists" element={<Library />} />
-              <Route path="/my-playlists/:playlistId" element={<Library />} />
-              <Route path="/orders" element={<Orders />} />
+            {/* Library Routes */}
+            <Route path="/library" element={<Library />} />
+            <Route path="/buyer/library" element={<Navigate to="/library" replace />} />
+            <Route path="/favorites" element={<Library />} />
+            <Route path="/purchased" element={<Navigate to="/library" replace />} />
+            <Route path="/my-playlists" element={<Library />} />
+            <Route path="/my-playlists/:playlistId" element={<Library />} />
+            <Route path="/orders" element={<Orders />} />
 
-              {/* Producer Routes */}
-              <Route path="/producer/dashboard" element={<ProtectedProducerRoute><ProducerDashboard /></ProtectedProducerRoute>} />
-              <Route path="/producer/upload" element={<ProtectedProducerRoute><UploadBeat /></ProtectedProducerRoute>} />
-              <Route path="/producer/beats" element={<ProtectedProducerRoute><ProducerBeats /></ProtectedProducerRoute>} />
-              <Route path="/producer/royalties" element={<ProtectedProducerRoute><Royalties /></ProtectedProducerRoute>} />
-              <Route path="/producer/settings" element={<ProtectedProducerRoute><ProducerSettings /></ProtectedProducerRoute>} />
+            {/* Producer Routes */}
+            <Route path="/producer/dashboard" element={<ProtectedProducerRoute><ProducerDashboard /></ProtectedProducerRoute>} />
+            <Route path="/producer/upload" element={<ProtectedProducerRoute><UploadBeat /></ProtectedProducerRoute>} />
+            <Route path="/producer/beats" element={<ProtectedProducerRoute><ProducerBeats /></ProtectedProducerRoute>} />
+            <Route path="/producer/royalties" element={<ProtectedProducerRoute><Royalties /></ProtectedProducerRoute>} />
+            <Route path="/producer/settings" element={<ProtectedProducerRoute><ProducerSettings /></ProtectedProducerRoute>} />
 
-              {/* Catch-all Route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </SidebarProvider>
-        </PlayerProvider>
-      </CartProvider>
-    </ConditionalSolanaProvider>
+            {/* Catch-all Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </SidebarProvider>
+      </PlayerProvider>
+    </CartProvider>
   </AuthProvider>
 );
 
