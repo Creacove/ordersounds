@@ -102,7 +102,7 @@ export function Topbar() {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={user.profile_picture || undefined} alt={user.stage_name || user.full_name || "User"} />
+                      <AvatarImage src={user.avatar_url || undefined} alt={user.stage_name || user.full_name || "User"} />
                       <AvatarFallback>
                         {(user.stage_name || user.full_name || "U").charAt(0).toUpperCase()}
                       </AvatarFallback>
