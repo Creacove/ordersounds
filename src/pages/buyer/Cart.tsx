@@ -130,7 +130,7 @@ const CartContent = () => {
                 <WalletDependentWrapper>
                   <PaymentHandler 
                     totalAmount={totalAmount}
-                    onPaymentSuccess={clearCart}
+                    onSuccess={clearCart}
                   />
                 </WalletDependentWrapper>
               </div>
