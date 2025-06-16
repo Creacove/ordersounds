@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
 import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
-import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
+import { useCartLightweight } from '@/hooks/useCartLightweight';
 import { supabase } from '@/integrations/supabase/client';
 import { ToggleFavoriteButton } from '@/components/buttons/ToggleFavoriteButton';
 
@@ -20,9 +20,10 @@ interface BeatCardCompactProps {
 export function BeatCardCompact({ beat }: BeatCardCompactProps) {
   const { user } = useAuth();
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
+  const { addToCart } = useCartLightweight();
   const [isHovering, setIsHovering] = useState(false);
-  const { isDuplicate, addNotification } = useUniqueNotifications();
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
+  const [addToCartNotified, setAddToCartNotified] = useState(false);
   
   const isCurrentBeat = currentBeat?.id === beat.id;
   const isCurrentlyPlaying = isCurrentBeat && isPlaying;
@@ -83,9 +84,15 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
     e.stopPropagation();
     
     // Prevent duplicate toast notifications
-    if (!isDuplicate(`added-to-cart-${beat.id}`)) {
+    if (!addToCartNotified) {
+      addToCart(beat.id, 'basic');
       toast.success(`Added ${beat.title} to cart`);
-      addNotification(`added-to-cart-${beat.id}`, `Added ${beat.title} to cart`, 'success');
+      setAddToCartNotified(true);
+      
+      // Reset notification flag after a delay
+      setTimeout(() => {
+        setAddToCartNotified(false);
+      }, 2000);
     }
   };
   

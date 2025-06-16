@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useCart } from '@/context/CartContext';
-import { useBeats } from '@/hooks/useBeats';
+import { useCartLightweight } from '@/hooks/useCartLightweight';
+import { useFavoritesLightweight } from '@/hooks/useFavoritesLightweight';
 import { Beat } from '@/types';
 import { toast } from 'sonner';
 
@@ -19,8 +19,8 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   const [isAdding, setIsAdding] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   const { user } = useAuth();
-  const { addToCart, isInCart, removeFromCart } = useCart();
-  const { isFavorite, toggleFavorite } = useBeats();
+  const { isInCart, addToCart, removeFromCart } = useCartLightweight();
+  const { isFavorite, toggleFavorite } = useFavoritesLightweight();
   const navigate = useNavigate();
 
   const handleAddToCart = async () => {
@@ -37,13 +37,10 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     
     try {
       if (isAlreadyInCart) {
-        await removeFromCart(beat.id);
+        removeFromCart(beat.id);
         toast.success("Removed from cart");
       } else {
-        await addToCart({
-          ...beat, 
-          selected_license: 'basic'
-        });
+        addToCart(beat.id, 'basic');
         toast.success("Added to cart");
       }
     } catch (error) {
@@ -69,10 +66,9 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
     
     try {
       setIsFavoriting(true);
-      console.log('AddToCartButton: Toggling favorite for beat:', beat.id);
       await toggleFavorite(beat.id);
     } catch (error) {
-      console.error('AddToCartButton: Error updating favorite:', error);
+      console.error('Error updating favorite:', error);
       toast.error("Could not update favorites");
     } finally {
       setIsFavoriting(false);

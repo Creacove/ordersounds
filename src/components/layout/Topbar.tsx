@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -24,7 +23,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
-import { useCart } from "@/context/CartContext";
+import { useCartLightweight } from "@/hooks/useCartLightweight";
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -42,7 +41,7 @@ export function Topbar({ sidebarVisible = false }) {
   const { user, logout, currency, setCurrency } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { itemCount } = useCart();
+  const { itemCount } = useCartLightweight();
   const isMobile = useIsMobile();
   
   const [isScrolled, setIsScrolled] = useState(false);
