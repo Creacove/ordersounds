@@ -1,7 +1,8 @@
+
 import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { MainLayout } from "@/components/layout/MainLayout";
-import { BeatCardDetailed } from "@/components/ui/BeatCardDetailed";
+import { BeatCard } from "@/components/ui/BeatCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBeatQuery } from "@/hooks/useBeatsQuery";
 
@@ -12,7 +13,6 @@ const BeatDetail = () => {
     document.title = "Beat Details | OrderSOUNDS";
   }, []);
 
-  // Replace any incorrect useBeatQuery usage with correct single parameter
   const { data: beat, isLoading, error } = useBeatQuery(beatId || '');
 
   if (isLoading) {
@@ -57,7 +57,7 @@ const BeatDetail = () => {
   return (
     <MainLayout>
       <div className="container py-4 md:py-8 px-4 md:px-6">
-        <BeatCardDetailed beat={beat} />
+        <BeatCard beat={beat} />
       </div>
     </MainLayout>
   );
