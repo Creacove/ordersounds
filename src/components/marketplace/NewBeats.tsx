@@ -8,7 +8,7 @@ import { fetchNewBeats } from "@/services/beats/queryService";
 
 export const NewBeats = () => {
   const { data: newBeats = [], isLoading } = useQuery({
-    queryKey: ['new-beats-homepage'],
+    queryKey: ['new-beats'],
     queryFn: () => fetchNewBeats(5)
   });
 
@@ -33,7 +33,7 @@ export const NewBeats = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          {newBeats.slice(0, 5).map((beat) => (
+          {newBeats.map((beat) => (
             <BeatCardCompact key={beat.id} beat={beat} />
           ))}
         </div>

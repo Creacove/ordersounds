@@ -44,6 +44,8 @@ import ProtectedProducerRoute from "./components/auth/ProtectedProducerRoute";
 // Add custom wallet styles
 import '@solana/wallet-adapter-react-ui/styles.css';
 import './wallet-button.css';
+import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
+import SolanaWalletProvider from "./components/wallet/SolanaWalletProvider";
 
 // Configure QueryClient with optimized settings for less API stress
 const queryClient = new QueryClient({

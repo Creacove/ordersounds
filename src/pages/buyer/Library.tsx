@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -145,8 +146,9 @@ export default function Library() {
     );
   }
 
+  const currentPath = location.pathname;
   return (
-    <MainLayoutWithPlayer activeTab="library">
+    <MainLayoutWithPlayer activeTab="library" currentPath={currentPath}>
       {showPurchaseSuccess && (
         <div className="w-full bg-green-500 text-white py-3 px-4">
           <div className="container flex items-center justify-between">

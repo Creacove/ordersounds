@@ -5,28 +5,27 @@ import { getLicensePrice } from '@/utils/licenseUtils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-// Define cart item type based on database structure
-interface CartItem {
+// Define lightweight Beat type for storage
+type LightweightBeat = {
   id: string;
-  beat_id: string;
-  license_type: string;
-  quantity: number;
+  title: string;
+  producer_id: string;
+  producer_name: string;
+  cover_image_url: string;
+  basic_license_price_local: number;
+  basic_license_price_diaspora: number;
+  premium_license_price_local?: number;
+  premium_license_price_diaspora?: number;
+  exclusive_license_price_local?: number;
+  exclusive_license_price_diaspora?: number;
+  selected_license?: string;
+  genre?: string;
+  producer_wallet_address?: string;
+};
+
+interface CartItem {
+  beat: LightweightBeat;
   added_at: string;
-  beat?: {
-    id: string;
-    title: string;
-    producer_id: string;
-    producer_name: string;
-    cover_image_url: string;
-    basic_license_price_local: number;
-    basic_license_price_diaspora: number;
-    premium_license_price_local?: number;
-    premium_license_price_diaspora?: number;
-    exclusive_license_price_local?: number;
-    exclusive_license_price_diaspora?: number;
-    genre?: string;
-    producer_wallet_address?: string;
-  };
 }
 
 interface CartContextType {
@@ -57,221 +56,101 @@ const CartContext = createContext<CartContextType>({
   toggleCartItem: async () => {}
 });
 
-export const useCart = () => {
-  const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
+export const useCart = () => useContext(CartContext);
+
+// Function to create a lightweight version of a beat for storage
+const createLightweightBeat = (beat: Beat & { selected_license?: string }): LightweightBeat => {
+  // Get the wallet address from producer object first (if available), then from users object
+  const walletAddress = 
+    beat.producer?.wallet_address || 
+    beat.users?.wallet_address || 
+    undefined;
+
+  return {
+    id: beat.id,
+    title: beat.title,
+    producer_id: beat.producer_id,
+    producer_name: beat.producer_name,
+    cover_image_url: beat.cover_image_url,
+    basic_license_price_local: beat.basic_license_price_local || 0,
+    basic_license_price_diaspora: beat.basic_license_price_diaspora || 0,
+    premium_license_price_local: beat.premium_license_price_local,
+    premium_license_price_diaspora: beat.premium_license_price_diaspora,
+    exclusive_license_price_local: beat.exclusive_license_price_local,
+    exclusive_license_price_diaspora: beat.exclusive_license_price_diaspora,
+    selected_license: beat.selected_license || 'basic',
+    genre: beat.genre,
+    producer_wallet_address: walletAddress
+  };
 };
 
-// Generate session ID for guests
-const getSessionId = () => {
-  let sessionId = localStorage.getItem('guest_session_id');
-  if (!sessionId) {
-    sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    localStorage.setItem('guest_session_id', sessionId);
+// Helper to safely save to localStorage
+const safeLocalStorageSave = (key: string, value: any) => {
+  try {
+    const stringValue = JSON.stringify(value);
+    localStorage.setItem(key, stringValue);
+    return true;
+  } catch (error) {
+    console.error("Error saving to localStorage:", error);
+    return false;
   }
-  return sessionId;
+};
+
+// Helper to safely get from localStorage
+const safeLocalStorageGet = (key: string) => {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? JSON.parse(value) : null;
+  } catch (error) {
+    console.error("Error reading from localStorage:", error);
+    return null;
+  }
 };
 
 export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }) => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [loadingCart, setLoadingCart] = useState(false);
   const { user, currency } = useAuth();
   const [totalAmount, setTotalAmount] = useState(0);
   const [itemCount, setItemCount] = useState(0);
-  const [cartId, setCartId] = useState<string | null>(null);
-
-  // Get or create cart with improved error handling
-  const getOrCreateCart = async () => {
-    try {
-      console.log('CartContext: Getting or creating cart for user:', user?.id || 'guest');
-      
-      if (user) {
-        console.log('CartContext: Creating/finding authenticated user cart');
-        
-        // Try to find existing cart first
-        let { data: existingCart, error: selectError } = await supabase
-          .from('carts')
-          .select('id')
-          .eq('user_id', user.id)
-          .is('session_id', null)
-          .maybeSingle();
-
-        if (selectError) {
-          console.error('CartContext: Error finding existing user cart:', selectError);
-          throw selectError;
-        }
-
-        if (!existingCart) {
-          console.log('CartContext: Creating new user cart');
-          
-          const { data: newCart, error } = await supabase
-            .from('carts')
-            .insert({ 
-              user_id: user.id,
-              session_id: null
-            })
-            .select('id')
-            .single();
-
-          if (error) {
-            console.error('CartContext: Error creating user cart:', error);
-            throw error;
-          }
-          
-          console.log('CartContext: Created new user cart:', newCart.id);
-          existingCart = newCart;
-        } else {
-          console.log('CartContext: Using existing user cart:', existingCart.id);
-        }
-
-        return existingCart.id;
-      } else {
-        return await createGuestCart();
-      }
-    } catch (error) {
-      console.error('CartContext: Failed to get/create cart:', error);
-      throw error;
-    }
-  };
-
-  // Create guest cart helper
-  const createGuestCart = async () => {
-    console.log('CartContext: Creating/finding guest cart');
-    const sessionId = getSessionId();
-    console.log('CartContext: Using session ID for guest:', sessionId);
-    
-    let { data: existingCart, error: selectError } = await supabase
-      .from('carts')
-      .select('id')
-      .is('user_id', null)
-      .eq('session_id', sessionId)
-      .maybeSingle();
-
-    if (selectError) {
-      console.error('CartContext: Error finding existing guest cart:', selectError);
-      throw selectError;
-    }
-
-    if (!existingCart) {
-      console.log('CartContext: Creating new guest cart');
-      const { data: newCart, error } = await supabase
-        .from('carts')
-        .insert({ 
-          user_id: null,
-          session_id: sessionId
-        })
-        .select('id')
-        .single();
-
-      if (error) {
-        console.error('CartContext: Error creating guest cart:', error);
-        throw error;
-      }
-      console.log('CartContext: Created new guest cart:', newCart.id);
-      existingCart = newCart;
-    } else {
-      console.log('CartContext: Using existing guest cart:', existingCart.id);
-    }
-
-    return existingCart.id;
-  };
-
-  // Load cart items from database - now non-blocking
-  const loadCartItems = async () => {
-    try {
-      console.log('CartContext: Loading cart items in background');
-      
-      const currentCartId = await getOrCreateCart();
-      if (!currentCartId) {
-        console.error('CartContext: No cart ID available');
+  const [initComplete, setInitComplete] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Load cart from localStorage - only once on component mount or user change
+  useEffect(() => {
+    const loadCart = () => {
+      if (!user) {
         setCartItems([]);
+        setItemCount(0);
+        setInitComplete(true);
         return;
       }
-
-      setCartId(currentCartId);
-      console.log('CartContext: Loading items for cart:', currentCartId);
-
-      const { data: items, error } = await supabase
-        .from('cart_items')
-        .select(`
-          id,
-          beat_id,
-          license_type,
-          quantity,
-          added_at,
-          beats!inner(
-            id,
-            title,
-            cover_image,
-            audio_preview,
-            audio_file,
-            basic_license_price_local,
-            basic_license_price_diaspora,
-            premium_license_price_local,
-            premium_license_price_diaspora,
-            exclusive_license_price_local,
-            exclusive_license_price_diaspora,
-            genre,
-            producer_id,
-            users!beats_producer_id_fkey(
-              stage_name,
-              wallet_address
-            )
-          )
-        `)
-        .eq('cart_id', currentCartId)
-        .order('added_at', { ascending: false });
-
-      if (error) {
-        console.error('CartContext: Error loading cart items:', error);
-        throw error;
-      }
-
-      console.log('CartContext: Loaded cart items raw data:', items);
-
-      const formattedItems: CartItem[] = items?.map(item => ({
-        id: item.id,
-        beat_id: item.beat_id,
-        license_type: item.license_type,
-        quantity: item.quantity,
-        added_at: item.added_at,
-        beat: {
-          id: item.beats.id,
-          title: item.beats.title,
-          producer_id: item.beats.producer_id,
-          producer_name: item.beats.users?.stage_name || 'Unknown Producer',
-          cover_image_url: item.beats.cover_image || '',
-          preview_url: item.beats.audio_preview || '',
-          full_track_url: item.beats.audio_file || '',
-          basic_license_price_local: item.beats.basic_license_price_local || 0,
-          basic_license_price_diaspora: item.beats.basic_license_price_diaspora || 0,
-          premium_license_price_local: item.beats.premium_license_price_local,
-          premium_license_price_diaspora: item.beats.premium_license_price_diaspora,
-          exclusive_license_price_local: item.beats.exclusive_license_price_local,
-          exclusive_license_price_diaspora: item.beats.exclusive_license_price_diaspora,
-          genre: item.beats.genre,
-          producer_wallet_address: item.beats.users?.wallet_address
+      
+      try {
+        setLoadingCart(true);
+        const savedCart = safeLocalStorageGet(`cart_${user.id}`);
+        
+        if (savedCart && Array.isArray(savedCart)) {
+          setCartItems(savedCart);
+          setItemCount(savedCart.length);
+        } else {
+          setCartItems([]);
+          setItemCount(0);
         }
-      })) || [];
-
-      console.log('CartContext: Formatted cart items:', formattedItems);
-      setCartItems(formattedItems);
-    } catch (error) {
-      console.error('CartContext: Error loading cart:', error);
-      // Don't show error toast for background loading - just log it
-      setCartItems([]);
-    }
-  };
-
-  // Load cart on component mount and user change - non-blocking
-  useEffect(() => {
-    // Start loading cart in background without blocking
-    loadCartItems();
+      } catch (error) {
+        console.error("Error loading cart:", error);
+        setCartItems([]);
+        setItemCount(0);
+      } finally {
+        setLoadingCart(false);
+        setInitComplete(true);
+      }
+    };
+    
+    loadCart();
   }, [user]);
 
-  // Calculate total amount and item count
+  // Calculate total amount when cart or currency changes
   useEffect(() => {
     if (cartItems.length === 0) {
       setTotalAmount(0);
@@ -282,207 +161,154 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
     setItemCount(cartItems.length);
 
     const newTotal = cartItems.reduce((total, item) => {
-      if (!item.beat) return total;
-      const price = getLicensePrice(item.beat as any, item.license_type, currency === 'USD');
+      const licenseType = item.beat.selected_license || 'basic';
+      const price = getLicensePrice(item.beat as any, licenseType, currency === 'USD');
       return total + price;
     }, 0);
 
     setTotalAmount(newTotal);
   }, [cartItems, currency]);
 
-  // Set up real-time subscription for cart updates
+  // Save cart to localStorage when it changes
   useEffect(() => {
-    if (!cartId) return;
-
-    const channel = supabase
-      .channel(`cart_${cartId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'cart_items',
-          filter: `cart_id=eq.${cartId}`
-        },
-        () => {
-          console.log('CartContext: Real-time cart update detected');
-          loadCartItems();
+    if (!initComplete || !user || loadingCart) return;
+    
+    const saveCart = () => {
+      if (cartItems.length > 0) {
+        const success = safeLocalStorageSave(`cart_${user.id}`, cartItems);
+        
+        if (!success && cartItems.length > 5) {
+          // If storage fails, try with a reduced cart
+          const reducedCart = cartItems.slice(0, 5);
+          safeLocalStorageSave(`cart_${user.id}`, reducedCart);
+          setCartItems(reducedCart);
+          toast.warning("Cart was limited to 5 items due to storage constraints");
         }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
+      } else {
+        // Clear cart in localStorage when cart is empty
+        localStorage.removeItem(`cart_${user.id}`);
+      }
     };
-  }, [cartId]);
+    
+    saveCart();
+  }, [cartItems, user, loadingCart, initComplete]);
 
   const addToCart = async (beat: Beat & { selected_license?: string }) => {
+    if (!user) {
+      toast.error("Please log in to add items to cart");
+      return;
+    }
+    
+    // Basic validation
+    if (!beat || !beat.id) {
+      toast.error("Invalid beat information");
+      return;
+    }
+    
+    const existingItem = cartItems.find(item => item.beat.id === beat.id);
+    const lightweightBeat = createLightweightBeat(beat);
+    
     try {
-      console.log('CartContext: Adding beat to cart:', beat.title, 'License:', beat.selected_license);
-      
-      const currentCartId = cartId || await getOrCreateCart();
-      if (!currentCartId) {
-        console.error('CartContext: Failed to get cart ID');
-        toast.error('Failed to create cart. Please try again.');
-        return;
-      }
-
-      const licenseType = beat.selected_license || 'basic';
-      console.log('CartContext: Using license type:', licenseType);
-
-      // Check if item already exists in cart
-      const existingItem = cartItems.find(item => item.beat_id === beat.id);
-
       if (existingItem) {
-        console.log('CartContext: Updating existing cart item');
-        const { error } = await supabase
-          .from('cart_items')
-          .update({ license_type: licenseType })
-          .eq('id', existingItem.id);
-
-        if (error) {
-          console.error('CartContext: Error updating cart item:', error);
-          throw error;
+        if (existingItem.beat.selected_license !== beat.selected_license) {
+          // Update existing item with new license
+          const updatedItems = cartItems.map(item => 
+            item.beat.id === beat.id 
+              ? { ...item, beat: { ...lightweightBeat } } 
+              : item
+          );
+          setCartItems(updatedItems);
         }
-        console.log('CartContext: Successfully updated cart item');
-        toast.success('Cart updated');
       } else {
-        console.log('CartContext: Adding new cart item');
-        const { data, error } = await supabase
-          .from('cart_items')
-          .insert({
-            cart_id: currentCartId,
-            beat_id: beat.id,
-            license_type: licenseType,
-            quantity: 1
-          })
-          .select();
-
-        if (error) {
-          console.error('CartContext: Error adding cart item:', error);
-          throw error;
-        }
-        
-        if (data && data.length > 0) {
-          console.log('CartContext: Successfully added cart item:', data[0].id);
-          toast.success('Added to cart');
-        } else {
-          console.error('CartContext: No data returned from insert');
-          toast.error('Failed to add item to cart');
+        // Check if cart is getting too large
+        if (cartItems.length >= 20) {
+          toast.warning("Maximum cart size reached (20 items)");
           return;
         }
+        
+        // Add new item to cart
+        const newItem = { 
+          beat: lightweightBeat,
+          added_at: new Date().toISOString() 
+        };
+        
+        setCartItems(prev => [...prev, newItem]);
+        toast.success("Added to cart");
       }
-
-      // Reload cart items to reflect changes
-      await loadCartItems();
     } catch (error) {
-      console.error('CartContext: Error in addToCart:', error);
-      toast.error('Failed to add item to cart. Please try again.');
+      console.error("Error adding to cart:", error);
+      toast.error("Failed to add item to cart");
     }
   };
 
-  const addMultipleToCart = useCallback(async (beats: Beat[]) => {
-    try {
-      console.log('CartContext: Adding multiple beats to cart:', beats.length);
-      
-      const currentCartId = cartId || await getOrCreateCart();
-      if (!currentCartId) {
-        toast.error('Failed to create cart');
-        return;
-      }
-
-      const newBeats = beats.filter(beat => 
-        !cartItems.some(item => item.beat_id === beat.id)
-      );
-
-      if (newBeats.length === 0) {
-        toast.info('All selected beats are already in your cart');
-        return;
-      }
-
-      const cartItemsToInsert = newBeats.map(beat => ({
-        cart_id: currentCartId,
-        beat_id: beat.id,
-        license_type: 'basic',
-        quantity: 1
-      }));
-
-      const { data, error } = await supabase
-        .from('cart_items')
-        .insert(cartItemsToInsert)
-        .select();
-
-      if (error) {
-        console.error('CartContext: Error adding multiple items:', error);
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        console.log('CartContext: Successfully added multiple items:', data.length);
-        toast.success(`Added ${newBeats.length} beat${newBeats.length > 1 ? 's' : ''} to cart`);
-        await loadCartItems();
-      } else {
-        toast.error('Failed to add items to cart');
-      }
-    } catch (error) {
-      console.error('CartContext: Error adding multiple to cart:', error);
-      toast.error('Failed to add items to cart');
+  const addMultipleToCart = useCallback((beats: Beat[]) => {
+    if (!user) {
+      toast.error("Please log in to add items to cart");
+      return;
     }
-  }, [cartItems, cartId]);
+    
+    // Basic validation
+    if (!beats || !Array.isArray(beats) || beats.length === 0) {
+      toast.error("No valid beats to add");
+      return;
+    }
+    
+    const now = new Date().toISOString();
+    const newItems: CartItem[] = [];
+    
+    // Limit to prevent storage issues
+    const availableSlots = Math.max(0, 20 - cartItems.length);
+    
+    beats.slice(0, availableSlots).forEach(beat => {
+      if (!cartItems.some(item => item.beat.id === beat.id)) {
+        newItems.push({
+          beat: createLightweightBeat({...beat, selected_license: 'basic'}),
+          added_at: now
+        });
+      }
+    });
+    
+    if (newItems.length > 0) {
+      setCartItems(prev => [...prev, ...newItems]);
+      toast.success(`Added ${newItems.length} beat${newItems.length > 1 ? 's' : ''} to cart`);
+    } else if (beats.length > availableSlots) {
+      toast.info('Cart limit reached. Some beats could not be added.');
+    } else {
+      toast.info('All selected beats are already in your cart');
+    }
+  }, [cartItems, user]);
 
   const removeFromCart = async (beatId: string): Promise<boolean> => {
+    if (!beatId) {
+      return false;
+    }
+    
     try {
-      console.log('CartContext: Removing beat from cart:', beatId);
-      
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('beat_id', beatId)
-        .eq('cart_id', cartId);
-
-      if (error) {
-        console.error('CartContext: Error removing from cart:', error);
-        throw error;
-      }
-
-      console.log('CartContext: Successfully removed from cart');
-      await loadCartItems();
+      setCartItems(prev => prev.filter(item => item.beat.id !== beatId));
       return true;
     } catch (error) {
-      console.error('CartContext: Error removing from cart:', error);
-      toast.error('Failed to remove item from cart');
+      console.error("Error removing from cart:", error);
+      toast.error("Failed to remove item from cart");
       return false;
     }
   };
 
-  const clearCart = useCallback(async () => {
+  const clearCart = useCallback(() => {
     try {
-      if (!cartId) return;
-
-      console.log('CartContext: Clearing cart:', cartId);
-      
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('cart_id', cartId);
-
-      if (error) {
-        console.error('CartContext: Error clearing cart:', error);
-        throw error;
-      }
-
-      console.log('CartContext: Successfully cleared cart');
       setCartItems([]);
-      setItemCount(0);
-      setTotalAmount(0);
+      
+      // Clear from localStorage
+      if (user) {
+        localStorage.removeItem(`cart_${user.id}`);
+      }
     } catch (error) {
-      console.error('CartContext: Error clearing cart:', error);
-      toast.error('Failed to clear cart');
+      console.error("Error clearing cart:", error);
+      toast.error("Failed to clear cart");
     }
-  }, [cartId]);
+  }, [user]);
 
   const isInCart = useCallback((beatId: string): boolean => {
-    return cartItems.some(item => item.beat_id === beatId);
+    return cartItems.some(item => item.beat.id === beatId);
   }, [cartItems]);
 
   const getCartItemCount = useCallback((): number => {
@@ -490,10 +316,142 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   }, [cartItems]);
 
   const refreshCart = async () => {
-    await loadCartItems();
+    if (!user) return;
+    if (cartItems.length === 0) return;
+    
+    // Prevent multiple concurrent refreshes
+    if (isRefreshing) {
+      console.log('Cart refresh already in progress, skipping...');
+      return;
+    }
+    
+    setIsRefreshing(true);
+    setLoadingCart(true);
+    
+    try {
+      console.log('Starting cart refresh...');
+      
+      // Check if beats still exist (with timeout)
+      const beatIds = cartItems.map(item => item.beat.id);
+      const producerIds = cartItems.map(item => item.beat.producer_id);
+      
+      // Create promise with timeout for beat validation
+      const beatCheckPromise = async () => {
+        try {
+          const response = await supabase
+            .from('beats')
+            .select('id')
+            .in('id', beatIds);
+            
+          const existingBeats = response?.data || [];
+          console.log(`Beat check: ${existingBeats.length}/${beatIds.length} beats still exist`);
+          
+          return { 
+            existingIds: existingBeats.map(beat => beat.id) 
+          };
+        } catch (err) {
+          console.warn('Beat check failed, keeping all beats:', err);
+          return { existingIds: beatIds };
+        }
+      };
+      
+      // Create promise with timeout for wallet addresses
+      const walletCheckPromise = async () => {
+        try {
+          const response = await supabase
+            .from('users')
+            .select('id, wallet_address')
+            .in('id', producerIds);
+            
+          const producerData = response?.data || [];
+          console.log(`Wallet check: Retrieved data for ${producerData.length}/${producerIds.length} producers`);
+            
+          // Create wallet address map
+          const walletAddressMap: { [key: string]: string | null } = {};
+          producerData.forEach(producer => {
+            walletAddressMap[producer.id] = producer.wallet_address;
+          });
+          
+          return { walletAddressMap };
+        } catch (err) {
+          console.warn('Wallet check failed, returning empty map:', err);
+          return { walletAddressMap: {} };
+        }
+      };
+      
+      // Set timeout for entire operation
+      const timeoutPromise = new Promise<'timeout'>((resolve) => {
+        setTimeout(() => {
+          console.log('Cart refresh timed out after 3 seconds');
+          resolve('timeout');
+        }, 3000);
+      });
+      
+      // Race the promises and handle the result properly - FIX: Handle timeout case correctly
+      const result = await Promise.race([
+        Promise.all([beatCheckPromise(), walletCheckPromise()]),
+        timeoutPromise
+      ]);
+      
+      let existingIds: string[];
+      let walletAddressMap: { [key: string]: string | null };
+      
+      if (result === 'timeout') {
+        console.log('Cart refresh timed out, keeping existing data');
+        existingIds = beatIds;
+        walletAddressMap = {};
+      } else {
+        // FIX: Properly handle the array result from Promise.all
+        const [beatCheck, walletCheck] = result;
+        existingIds = beatCheck.existingIds;
+        walletAddressMap = walletCheck.walletAddressMap;
+      }
+      
+      // Update cart items
+      let updatedCart = cartItems;
+      
+      // Remove beats that no longer exist
+      if (existingIds.length !== beatIds.length) {
+        updatedCart = cartItems.filter(item => existingIds.includes(item.beat.id));
+        
+        const removedCount = cartItems.length - updatedCart.length;
+        if (removedCount > 0) {
+          console.log(`Removed ${removedCount} unavailable items from cart`);
+          toast.info(`Removed ${removedCount} unavailable item${removedCount !== 1 ? 's' : ''} from your cart.`);
+        }
+      }
+      
+      // Update wallet addresses
+      const cartWithUpdatedWallets = updatedCart.map(item => ({
+        ...item,
+        beat: {
+          ...item.beat,
+          producer_wallet_address: walletAddressMap[item.beat.producer_id] || item.beat.producer_wallet_address
+        }
+      }));
+      
+      setCartItems(cartWithUpdatedWallets);
+      
+      if (user) {
+        safeLocalStorageSave(`cart_${user.id}`, cartWithUpdatedWallets);
+      }
+      
+      console.log('Cart refresh completed successfully');
+    } catch (err) {
+      console.error('Error during cart refresh:', err);
+      // Don't show error toast to avoid spam
+    } finally {
+      setLoadingCart(false);
+      setIsRefreshing(false);
+    }
   };
 
   const toggleCartItem = async (beat: Beat, licenseType: string) => {
+    if (!user) {
+      toast.error('Please log in to add items to cart');
+      return;
+    }
+    
     const isItemInCart = isInCart(beat.id);
     
     try {
@@ -507,7 +465,7 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
         await addToCart(beatWithLicense);
       }
     } catch (error) {
-      console.error("CartContext: Error toggling cart item:", error);
+      console.error("Error toggling cart item:", error);
       toast.error("Failed to update cart");
     }
   };

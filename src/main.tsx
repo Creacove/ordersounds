@@ -18,6 +18,8 @@ if (import.meta.env.DEV) {
   });
 }
 
+// No need for manual polyfills anymore as they're handled by vite-plugin-node-polyfills
+
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error('Root element not found');
 

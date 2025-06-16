@@ -1,14 +1,14 @@
 
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Pause, ShoppingCart, Check } from 'lucide-react';
+import { Play, Pause, ShoppingCart } from 'lucide-react';
 import { Beat } from '@/types';
 import { usePlayer } from '@/context/PlayerContext';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { PriceTag } from '@/components/ui/PriceTag';
+import { toast } from "sonner";
 import { useAuth } from '@/context/AuthContext';
-import { useLightweightAddToCart } from '@/hooks/useLightweightAddToCart';
 import { useUniqueNotifications } from '@/hooks/useUniqueNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { ToggleFavoriteButton } from '@/components/buttons/ToggleFavoriteButton';
@@ -20,14 +20,12 @@ interface BeatCardCompactProps {
 export function BeatCardCompact({ beat }: BeatCardCompactProps) {
   const { user } = useAuth();
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
-  const { handleAddToCart, isInCart } = useLightweightAddToCart();
   const [isHovering, setIsHovering] = useState(false);
   const { isDuplicate, addNotification } = useUniqueNotifications();
   const [isPlayButtonClicked, setIsPlayButtonClicked] = useState(false);
   
   const isCurrentBeat = currentBeat?.id === beat.id;
   const isCurrentlyPlaying = isCurrentBeat && isPlaying;
-  const inCart = isInCart(beat.id);
   
   const incrementPlayCount = async (beatId: string) => {
     try {
@@ -46,6 +44,7 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
     e.preventDefault();
     e.stopPropagation();
     
+    // Disable the button temporarily to prevent double clicks
     if (isPlayButtonClicked) return;
     
     setIsPlayButtonClicked(true);
@@ -58,29 +57,36 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
         togglePlayPause();
       } else {
         console.log("Playing new beat:", beat.title);
+        // Ensure we have a preview URL before attempting to play
         if (!beat.preview_url) {
           console.warn("Beat doesn't have a preview URL:", beat.title);
-          return;
+          return; // Just return silently, don't show toast
         }
         
+        // Play the beat and increment play count
         playBeat(beat);
         incrementPlayCount(beat.id);
       }
     } catch (error) {
       console.error("Error handling play:", error);
+      // Don't show toast, just log the error
     } finally {
+      // Re-enable the button after a short delay
       setTimeout(() => {
         setIsPlayButtonClicked(false);
-      }, 1000);
+      }, 1000); // Increased debounce time for better reliability
     }
   };
 
-  const handleCartClick = async (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('BeatCardCompact: Cart button clicked for beat:', beat.title);
-    await handleAddToCart(beat);
+    // Prevent duplicate toast notifications
+    if (!isDuplicate(`added-to-cart-${beat.id}`)) {
+      toast.success(`Added ${beat.title} to cart`);
+      addNotification(`added-to-cart-${beat.id}`, `Added ${beat.title} to cart`, 'success');
+    }
   };
   
   return (
@@ -121,15 +127,17 @@ export function BeatCardCompact({ beat }: BeatCardCompactProps) {
           </Button>
         </div>
 
+        {/* Add favorite button */}
         <ToggleFavoriteButton beatId={beat.id} />
 
+        {/* Add to cart button in the corner */}
         <Button 
           size="icon"
           variant="secondary"
           className="absolute bottom-2 right-2 h-8 w-8 rounded-full bg-primary text-primary-foreground shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={handleCartClick}
+          onClick={handleAddToCart}
         >
-          {inCart ? <Check className="h-4 w-4" /> : <ShoppingCart className="h-4 w-4" />}
+          <ShoppingCart className="h-4 w-4" />
         </Button>
       </div>
       

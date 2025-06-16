@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
@@ -16,7 +15,7 @@ export function useBeats() {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [fetchInProgress, setFetchInProgress] = useState(false);
 
-  // Use the focused hooks - but make them non-blocking
+  // Use the new focused hooks
   const {
     beats,
     trendingBeats,
@@ -57,7 +56,6 @@ export function useBeats() {
     clearFilters
   } = useBeatFilters(beats);
 
-  // Make purchased beats loading non-blocking
   const fetchPurchasedBeatsData = useCallback(async () => {
     if (!user) return;
     
@@ -65,16 +63,13 @@ export function useBeats() {
       const purchasedIds = await fetchPurchasedBeats(user.id);
       setPurchasedBeats(purchasedIds);
       
-      // Don't block on purchased beats details loading
-      if (purchasedIds.length > 0) {
-        // Load details in background
-        fetchPurchasedBeatDetails(purchasedIds).then(purchasedBeatsDetails => {
-          if (purchasedBeatsDetails.length > 0) {
-            console.log('Purchased beats loaded:', purchasedBeatsDetails.length);
-          }
-        }).catch(error => {
-          console.error('Error loading purchased beat details:', error);
-        });
+      if (purchasedIds.length > 0 && beats.length === 0) {
+        const purchasedBeatsDetails = await fetchPurchasedBeatDetails(purchasedIds);
+        
+        if (purchasedBeatsDetails.length > 0) {
+          // Note: We no longer directly modify beats state here as it's managed by React Query
+          console.log('Purchased beats loaded:', purchasedBeatsDetails.length);
+        }
       }
     } catch (error) {
       console.error('Error fetching purchased beats:', error);
@@ -90,7 +85,7 @@ export function useBeats() {
         }
       }
     }
-  }, [user]);
+  }, [user, beats.length]);
 
   useEffect(() => {
     const handleOnline = () => {
@@ -116,10 +111,9 @@ export function useBeats() {
     };
   }, []);
 
-  // Fetch purchased beats when user changes - in background
+  // Fetch purchased beats when user changes
   useEffect(() => {
     if (user) {
-      // Don't await this - let it load in background
       fetchPurchasedBeatsData();
     }
   }, [user, fetchPurchasedBeatsData]);
@@ -159,8 +153,8 @@ export function useBeats() {
     userFavorites,
     purchasedBeats,
     
-    // Loading states - make them non-blocking for homepage
-    isLoading: false, // Don't block homepage loading
+    // Loading states
+    isLoading,
     loadingError,
     isOffline,
     fetchInProgress,

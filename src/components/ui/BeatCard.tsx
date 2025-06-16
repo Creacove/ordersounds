@@ -4,9 +4,9 @@ import { Beat } from '@/types';
 import { PriceTag } from './PriceTag';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
+import { useCart } from '@/context/CartContext';
 import { usePlayer } from '@/context/PlayerContext';
-import { useLightweightAddToCart } from '@/hooks/useLightweightAddToCart';
-import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash2, Upload, Check } from 'lucide-react';
+import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
   DropdownMenu,
@@ -46,9 +46,11 @@ interface BeatCardProps {
 export function BeatCard({
   beat,
   onPlay,
+  onAddToCart,
   onToggleFavorite,
   isFavorite = false,
   isPurchased = false,
+  isInCart = false,
   className,
   compact = false,
   label,
@@ -59,15 +61,15 @@ export function BeatCard({
 }: BeatCardProps) {
   const { user, currency } = useAuth();
   const { handlePlayBeat, isCurrentlyPlaying } = useAudioPlayer();
+  const { addToCart, isInCart: checkIsInCart } = useCart();
   const { addToQueue } = usePlayer();
-  const { handleAddToCart, isInCart: hookIsInCart } = useLightweightAddToCart();
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   
   const isCurrentlyPlayingThisBeat = isCurrentlyPlaying(beat.id);
-  const inCart = hookIsInCart(beat.id);
+  const inCart = isInCart || (checkIsInCart && checkIsInCart(beat.id));
 
   const handlePlay = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -80,12 +82,34 @@ export function BeatCard({
     }
   };
 
-  const handleCartClick = async (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent, licenseType: string = 'basic') => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('BeatCard: Cart button clicked for beat:', beat.title);
-    await handleAddToCart(beat);
+    if (!user) {
+      toast.error('Please log in to add to cart');
+      navigate('/login');
+      return;
+    }
+    
+    if (isPurchased) {
+      toast.info('You already own this beat');
+      return;
+    }
+    
+    if (onAddToCart) {
+      onAddToCart(beat);
+    } 
+    else if (!inCart) {
+      const beatWithLicense = {
+        ...beat,
+        selected_license: licenseType
+      };
+      addToCart(beatWithLicense);
+      toast.success(`Added "${beat.title}" (${licenseType} license) to cart`);
+    } else {
+      navigate('/cart');
+    }
   };
 
   const handleToggleFavorite = (e: React.MouseEvent) => {
@@ -308,20 +332,27 @@ export function BeatCard({
             </>
           ) : (
             <>
-              {!isPurchased && (
+              {!isPurchased && !inCart && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={inCart ? goToCart : handleCartClick}
-                  className={cn(
-                    "h-7 w-7 rounded-lg transition-colors",
-                    inCart 
-                      ? "bg-primary/20 text-primary hover:bg-primary/30" 
-                      : "bg-secondary text-secondary-foreground hover:bg-secondary/90"
-                  )}
-                  title={inCart ? "Go to Cart" : "Add to Cart"}
+                  onClick={(e) => handleAddToCart(e)}
+                  className="h-7 w-7 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/90"
+                  title="Add to Cart"
                 >
-                  {inCart ? <Check size={14} /> : <ShoppingCart size={14} />}
+                  <ShoppingCart size={14} />
+                </Button>
+              )}
+
+              {inCart && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={goToCart}
+                  className="h-7 w-7 rounded-lg bg-primary/20 text-primary hover:bg-primary/30"
+                  title="Go to Cart"
+                >
+                  <ShoppingCart size={14} />
                 </Button>
               )}
 
