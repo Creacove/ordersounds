@@ -18,15 +18,18 @@ export const supabase = createClient<Database>(
   {
     auth: {
       autoRefreshToken: true,
-      persistSession: true
+      persistSession: true,
+      storage: window?.localStorage,
+      storageKey: 'supabase.auth.token',
+      detectSessionInUrl: true,
+      flowType: 'pkce'
     },
     global: {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
         'apikey': SUPABASE_PUBLISHABLE_KEY
       },
-      fetch: (url, options) => {
+      fetch: (url, options = {}) => {
         const requestOptions = {
           ...options,
           timeout: 10000, // 10 second timeout

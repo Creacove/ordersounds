@@ -84,14 +84,42 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
   const [cartId, setCartId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Get or create cart with improved logic
+  // Debug authentication state
+  const debugAuthState = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('CartContext: Auth debug - session:', session?.user?.id || 'No session');
+      console.log('CartContext: Auth debug - user context:', user?.id || 'No user context');
+      console.log('CartContext: Auth debug - session error:', error);
+      
+      // Test if we can access auth.uid() in the database
+      const { data: testData, error: testError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user?.id || '')
+        .limit(1);
+      
+      console.log('CartContext: Auth debug - database auth test:', testData, testError);
+      
+      return session;
+    } catch (error) {
+      console.error('CartContext: Auth debug error:', error);
+      return null;
+    }
+  };
+
+  // Get or create cart with improved authentication handling
   const getOrCreateCart = async () => {
     try {
       console.log('CartContext: Getting or creating cart for user:', user?.id || 'guest');
       
-      if (user) {
+      // Debug authentication state first
+      const session = await debugAuthState();
+      
+      if (user && session) {
         console.log('CartContext: Creating/finding authenticated user cart');
-        // For authenticated users
+        
+        // Try to find existing cart first
         let { data: existingCart, error: selectError } = await supabase
           .from('carts')
           .select('id')
@@ -106,6 +134,15 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
         if (!existingCart) {
           console.log('CartContext: Creating new user cart');
+          
+          // Ensure we have a valid session before creating
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          
+          if (!currentSession) {
+            console.warn('CartContext: No valid session, falling back to guest cart');
+            return await createGuestCart();
+          }
+          
           const { data: newCart, error } = await supabase
             .from('carts')
             .insert({ 
@@ -117,8 +154,16 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
           if (error) {
             console.error('CartContext: Error creating user cart:', error);
+            
+            // If RLS fails, fall back to guest cart
+            if (error.code === '42501') {
+              console.warn('CartContext: RLS policy violation, falling back to guest cart');
+              return await createGuestCart();
+            }
+            
             throw error;
           }
+          
           console.log('CartContext: Created new user cart:', newCart.id);
           existingCart = newCart;
         } else {
@@ -127,50 +172,57 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
 
         return existingCart.id;
       } else {
-        console.log('CartContext: Creating/finding guest cart');
-        // For guest users
-        const sessionId = getSessionId();
-        console.log('CartContext: Using session ID for guest:', sessionId);
-        
-        let { data: existingCart, error: selectError } = await supabase
-          .from('carts')
-          .select('id')
-          .is('user_id', null)
-          .eq('session_id', sessionId)
-          .maybeSingle();
-
-        if (selectError && selectError.code !== 'PGRST116') {
-          console.error('CartContext: Error finding existing guest cart:', selectError);
-          throw selectError;
-        }
-
-        if (!existingCart) {
-          console.log('CartContext: Creating new guest cart');
-          const { data: newCart, error } = await supabase
-            .from('carts')
-            .insert({ 
-              user_id: null,
-              session_id: sessionId
-            })
-            .select('id')
-            .single();
-
-          if (error) {
-            console.error('CartContext: Error creating guest cart:', error);
-            throw error;
-          }
-          console.log('CartContext: Created new guest cart:', newCart.id);
-          existingCart = newCart;
-        } else {
-          console.log('CartContext: Using existing guest cart:', existingCart.id);
-        }
-
-        return existingCart.id;
+        return await createGuestCart();
       }
     } catch (error) {
       console.error('CartContext: Failed to get/create cart:', error);
-      throw error;
+      
+      // Always fall back to guest cart if user cart creation fails
+      console.log('CartContext: Falling back to guest cart due to error');
+      return await createGuestCart();
     }
+  };
+
+  // Create guest cart helper
+  const createGuestCart = async () => {
+    console.log('CartContext: Creating/finding guest cart');
+    const sessionId = getSessionId();
+    console.log('CartContext: Using session ID for guest:', sessionId);
+    
+    let { data: existingCart, error: selectError } = await supabase
+      .from('carts')
+      .select('id')
+      .is('user_id', null)
+      .eq('session_id', sessionId)
+      .maybeSingle();
+
+    if (selectError && selectError.code !== 'PGRST116') {
+      console.error('CartContext: Error finding existing guest cart:', selectError);
+      throw selectError;
+    }
+
+    if (!existingCart) {
+      console.log('CartContext: Creating new guest cart');
+      const { data: newCart, error } = await supabase
+        .from('carts')
+        .insert({ 
+          user_id: null,
+          session_id: sessionId
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('CartContext: Error creating guest cart:', error);
+        throw error;
+      }
+      console.log('CartContext: Created new guest cart:', newCart.id);
+      existingCart = newCart;
+    } else {
+      console.log('CartContext: Using existing guest cart:', existingCart.id);
+    }
+
+    return existingCart.id;
   };
 
   // Load cart items from database with proper field mapping
@@ -238,6 +290,8 @@ export const CartProvider: React.FC<{children: React.ReactNode}> = ({ children }
           producer_id: item.beats.producer_id,
           producer_name: item.beats.users?.stage_name || 'Unknown Producer',
           cover_image_url: item.beats.cover_image || '',
+          preview_url: item.beats.audio_preview || '',
+          full_track_url: item.beats.audio_file || '',
           basic_license_price_local: item.beats.basic_license_price_local || 0,
           basic_license_price_diaspora: item.beats.basic_license_price_diaspora || 0,
           premium_license_price_local: item.beats.premium_license_price_local,
