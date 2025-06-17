@@ -24,13 +24,6 @@ export const supabase = createClient<Database>(
       headers: {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_PUBLISHABLE_KEY
-      },
-      fetch: (url, options) => {
-        const requestOptions = {
-          ...options,
-          timeout: 10000, // 10 second timeout
-        };
-        return fetch(url, requestOptions);
       }
     }
   }
