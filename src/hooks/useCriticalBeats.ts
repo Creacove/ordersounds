@@ -16,6 +16,22 @@ interface CriticalBeatsState {
 
 const CIRCUIT_BREAKER_THRESHOLD = 2;
 const CACHE_KEY = 'critical_beats_cache';
+const QUERY_TIMEOUT = 3000; // 3 seconds
+
+// Timeout wrapper for queries
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const result = await promise;
+    clearTimeout(timeoutId);
+    return result;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    throw error;
+  }
+};
 
 export function useCriticalBeats() {
   const [circuitBreakerOpen, setCircuitBreakerOpen] = useState(false);
@@ -43,7 +59,8 @@ export function useCriticalBeats() {
     queryKey: ['essential-beats'],
     queryFn: async () => {
       console.log('Fetching essential beats (critical path)');
-      const beats = await fetchAllBeats({ limit: 10, includeDrafts: false });
+      const beatsPromise = fetchAllBeats({ limit: 10, includeDrafts: false });
+      const beats = await withTimeout(beatsPromise, QUERY_TIMEOUT);
       
       // Cache successful results
       const cacheData = {
@@ -77,7 +94,10 @@ export function useCriticalBeats() {
     isLoading: isLoadingTrending 
   } = useQuery({
     queryKey: ['trending-beats-critical'],
-    queryFn: () => fetchTrendingBeats(5),
+    queryFn: async () => {
+      const trendingPromise = fetchTrendingBeats(5);
+      return withTimeout(trendingPromise, QUERY_TIMEOUT);
+    },
     enabled: !circuitBreakerOpen && essentialBeats.length > 0,
     staleTime: 10 * 60 * 1000, // 10 minutes
     retry: 1 // Reduced retries for secondary content

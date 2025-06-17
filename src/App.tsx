@@ -47,30 +47,15 @@ import './wallet-button.css';
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import SolanaWalletProvider from "./components/wallet/SolanaWalletProvider";
 
-// Configure QueryClient with optimized settings and timeouts
+// Configure QueryClient with optimized settings
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 2, // Reduced retries for faster failure detection
-      staleTime: 5 * 60 * 1000, // 5 minutes stale time
-      gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
-      networkMode: 'online',
-      // Add query timeout for circuit breaker pattern
-      queryFn: async (context) => {
-        const timeoutMs = 3000; // 3-second timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        
-        try {
-          const result = await context.queryFn({ ...context, signal: controller.signal });
-          clearTimeout(timeoutId);
-          return result;
-        } catch (error) {
-          clearTimeout(timeoutId);
-          throw error;
-        }
-      }
+      retry: 2,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      gcTime: 30 * 60 * 1000, // 30 minutes
+      networkMode: 'online'
     },
   },
 });
