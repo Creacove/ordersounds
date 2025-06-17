@@ -47,15 +47,30 @@ import './wallet-button.css';
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import SolanaWalletProvider from "./components/wallet/SolanaWalletProvider";
 
-// Configure QueryClient with optimized settings for less API stress
+// Configure QueryClient with optimized settings and timeouts
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 0, // Disable retries - user will manually refresh
-      staleTime: 10 * 60 * 1000, // 10 minutes stale time
-      gcTime: 60 * 60 * 1000, // 1 hour garbage collection
-      networkMode: 'online', // Only fetch when online
+      retry: 2, // Reduced retries for faster failure detection
+      staleTime: 5 * 60 * 1000, // 5 minutes stale time
+      gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
+      networkMode: 'online',
+      // Add query timeout for circuit breaker pattern
+      queryFn: async (context) => {
+        const timeoutMs = 3000; // 3-second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+        
+        try {
+          const result = await context.queryFn({ ...context, signal: controller.signal });
+          clearTimeout(timeoutId);
+          return result;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          throw error;
+        }
+      }
     },
   },
 });
@@ -77,7 +92,7 @@ const AppContent = () => (
           <Toaster />
           <Sonner position="top-right" expand={true} closeButton={true} />
           <Routes>
-            {/* Public Routes */}
+            {/* Consolidated home route - removed Index.tsx duplication */}
             <Route path="/" element={<Home />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/new" element={<New />} />

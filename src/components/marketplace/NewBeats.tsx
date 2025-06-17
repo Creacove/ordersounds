@@ -5,11 +5,18 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useQuery } from "@tanstack/react-query";
 import { BeatCardCompact } from "./BeatCardCompact";
 import { fetchNewBeats } from "@/services/beats/queryService";
+import { useCriticalBeats } from "@/hooks/useCriticalBeats";
 
 export const NewBeats = () => {
+  const { essentialBeats } = useCriticalBeats();
+  
   const { data: newBeats = [], isLoading } = useQuery({
     queryKey: ['new-beats'],
-    queryFn: () => fetchNewBeats(5)
+    queryFn: () => fetchNewBeats(5),
+    // Only fetch new beats after essential beats are loaded
+    enabled: essentialBeats.length > 0,
+    // Use essential beats as fallback if new beats fail
+    placeholderData: essentialBeats.slice(0, 5)
   });
 
   return (

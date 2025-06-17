@@ -1,17 +1,10 @@
 
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { fetchFeaturedBeats } from "@/services/beats/queryService";
+import { useCriticalBeats } from "@/hooks/useCriticalBeats";
 
 export const FeaturedBeat = () => {
-  const { data: featuredBeat, isLoading } = useQuery({
-    queryKey: ['featured-beat'],
-    queryFn: async () => {
-      const beats = await fetchFeaturedBeats(1);
-      return beats[0];
-    }
-  });
+  const { featuredBeat, isLoading, circuitBreakerOpen } = useCriticalBeats();
 
   if (isLoading) {
     return (
@@ -21,7 +14,18 @@ export const FeaturedBeat = () => {
     );
   }
 
-  if (!featuredBeat) return null;
+  if (!featuredBeat) {
+    return (
+      <div className="w-full h-[300px] rounded-lg bg-muted/20 mb-8 flex items-center justify-center border-2 border-dashed border-muted">
+        <div className="text-center text-muted-foreground">
+          <div className="text-lg font-medium">No featured beat available</div>
+          {circuitBreakerOpen && (
+            <div className="text-sm mt-2">Connection issues detected - using cached content</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <section className="relative w-full h-[300px] rounded-lg overflow-hidden mb-8">
