@@ -47,15 +47,15 @@ import './wallet-button.css';
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import SolanaWalletProvider from "./components/wallet/SolanaWalletProvider";
 
-// Configure QueryClient with optimized settings
+// Configure QueryClient with optimized settings for less API stress
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
-      retry: 2,
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 30 * 60 * 1000, // 30 minutes
-      networkMode: 'online'
+      retry: 0, // Disable retries - user will manually refresh
+      staleTime: 10 * 60 * 1000, // 10 minutes stale time
+      gcTime: 60 * 60 * 1000, // 1 hour garbage collection
+      networkMode: 'online', // Only fetch when online
     },
   },
 });
@@ -77,7 +77,7 @@ const AppContent = () => (
           <Toaster />
           <Sonner position="top-right" expand={true} closeButton={true} />
           <Routes>
-            {/* Consolidated home route - removed Index.tsx duplication */}
+            {/* Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/new" element={<New />} />
