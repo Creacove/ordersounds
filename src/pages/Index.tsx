@@ -27,7 +27,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { User, Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
-import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
+import { ProducerOfWeekWrapper } from "@/components/marketplace/ProducerOfWeekWrapper";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -190,19 +190,6 @@ export default function IndexPage() {
 
         <section className="mb-6">
           <SectionTitle 
-            title="Producer of the Week" 
-            icon={<Star className="h-5 w-5" />}
-            badge="Featured"
-          />
-          <div className="mt-3">
-            <ProducerOfWeek />
-          </div>
-        </section>
-
-        <RecommendedBeats />
-
-        <section className="mb-6">
-          <SectionTitle 
             title="Trending Beats" 
             icon={<TrendingUp className="h-5 w-5" />} 
             badge="Updated Hourly"
@@ -253,6 +240,19 @@ export default function IndexPage() {
                 View all new releases <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
+          </div>
+        </section>
+
+        <RecommendedBeats />
+
+        <section className="mb-6">
+          <SectionTitle 
+            title="Producer of the Week" 
+            icon={<Star className="h-5 w-5" />}
+            badge="Featured"
+          />
+          <div className="mt-3">
+            <ProducerOfWeekWrapper />
           </div>
         </section>
 

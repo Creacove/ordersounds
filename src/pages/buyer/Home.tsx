@@ -1,7 +1,7 @@
 
 import { TrendingBeats } from "@/components/marketplace/TrendingBeats";
 import { WeeklyPicks } from "@/components/marketplace/WeeklyPicks";
-import { ProducerOfWeek } from "@/components/marketplace/ProducerOfWeek";
+import { ProducerOfWeekWrapper } from "@/components/marketplace/ProducerOfWeekWrapper";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { TopProducers } from "@/components/marketplace/TopProducers";
 import { FeaturedPlaylists } from "@/components/marketplace/FeaturedPlaylists";
@@ -23,7 +23,7 @@ const Home = () => {
         <NewBeats />
         <FeaturedPlaylists />
         <RecommendedBeats />
-        <ProducerOfWeek />
+        <ProducerOfWeekWrapper />
         <PremiumSection />
       </div>
     </MainLayoutWithPlayer>
