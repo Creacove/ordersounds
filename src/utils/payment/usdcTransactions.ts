@@ -99,7 +99,6 @@ const simulateTransaction = async (
 ): Promise<{ success: boolean; error?: string }> => {
   try {
     const simulation = await connection.simulateTransaction(transaction, {
-      sigVerify: false,
       commitment: 'confirmed'
     });
     
