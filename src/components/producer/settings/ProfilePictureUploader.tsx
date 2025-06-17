@@ -9,7 +9,7 @@ import { Camera, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function ProfilePictureUploader() {
-  const { user, updateUserProfile } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
@@ -52,7 +52,7 @@ export function ProfilePictureUploader() {
         .getPublicUrl(fileName);
 
       // Update user profile
-      await updateUserProfile({ profile_picture: publicUrl });
+      await updateProfile({ avatar_url: publicUrl });
       
       toast.success('Profile picture updated successfully');
     } catch (error) {
@@ -68,7 +68,7 @@ export function ProfilePictureUploader() {
     if (!user) return;
     
     try {
-      await updateUserProfile({ profile_picture: null });
+      await updateProfile({ avatar_url: null });
       setPreviewUrl(null);
       toast.success('Profile picture removed');
     } catch (error) {
@@ -77,14 +77,14 @@ export function ProfilePictureUploader() {
     }
   };
 
-  const currentImageUrl = previewUrl || user?.profile_picture;
+  const currentImageUrl = previewUrl || user?.avatar_url;
 
   return (
     <div className="flex items-center space-x-4">
       <Avatar className="h-20 w-20">
         <AvatarImage src={currentImageUrl || undefined} />
         <AvatarFallback className="text-lg">
-          {user?.full_name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
+          {user?.name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
         </AvatarFallback>
       </Avatar>
       

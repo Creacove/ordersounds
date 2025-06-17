@@ -32,15 +32,15 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export function ProfileForm() {
-  const { user, updateUserProfile } = useAuth();
+  const { user, updateProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      full_name: user?.full_name || '',
-      stage_name: user?.stage_name || '',
+      full_name: user?.name || '',
+      stage_name: user?.producer_name || '',
       bio: user?.bio || '',
       country: user?.country || '',
     },
@@ -79,7 +79,7 @@ export function ProfileForm() {
         .from('avatars')
         .getPublicUrl(fileName);
 
-      await updateUserProfile({ profile_picture: publicUrl });
+      await updateProfile({ avatar_url: publicUrl });
       toast.success('Profile picture updated successfully');
     } catch (error) {
       console.error('Error uploading profile picture:', error);
@@ -92,7 +92,7 @@ export function ProfileForm() {
 
   const onSubmit = async (data: ProfileFormValues) => {
     try {
-      await updateUserProfile(data);
+      await updateProfile(data);
       toast.success('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -100,7 +100,7 @@ export function ProfileForm() {
     }
   };
 
-  const currentImageUrl = previewUrl || user?.profile_picture;
+  const currentImageUrl = previewUrl || user?.avatar_url;
 
   return (
     <Form {...form}>
@@ -109,7 +109,7 @@ export function ProfileForm() {
           <Avatar className="h-20 w-20">
             <AvatarImage src={currentImageUrl || undefined} />
             <AvatarFallback className="text-lg">
-              {user?.full_name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
+              {user?.name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
             </AvatarFallback>
           </Avatar>
           
