@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
 import { SectionTitle } from "@/components/ui/SectionTitle";
@@ -8,8 +7,7 @@ import { PlaylistCard } from "@/components/marketplace/PlaylistCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
-import { usePlayer } from "@/context/PlayerContext";
-import { useBeats } from "@/hooks/useBeats";
+import { usePublicBeatsQuery } from "@/hooks/usePublicBeatsQuery";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useProducers } from "@/hooks/useProducers";
 import { Link, useNavigate } from "react-router-dom";
@@ -24,8 +22,7 @@ import {
   RefreshCw,
   AlertCircle
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { User, Beat } from "@/types";
+import { Beat } from "@/types";
 import { RecommendedBeats } from "@/components/marketplace/RecommendedBeats";
 import { ProducerOfWeekWrapper } from "@/components/marketplace/ProducerOfWeekWrapper";
 import { toast } from "sonner";
@@ -54,7 +51,17 @@ const fallbackFeaturedBeat: Beat = {
 
 export default function IndexPage() {
   const { user, forceUserDataRefresh } = useAuth();
-  const { beats, isLoading: isLoadingBeats, trendingBeats, newBeats, weeklyPicks, featuredBeat, fetchBeats } = useBeats();
+  
+  // Load beats immediately, independent of user state
+  const { 
+    trendingBeats, 
+    newBeats, 
+    weeklyPicks, 
+    featuredBeat, 
+    isLoading: isLoadingBeats,
+    dataLoaded 
+  } = usePublicBeatsQuery();
+  
   const { playlists, isLoading: isLoadingPlaylists } = usePlaylists();
   const { prefetchProducers } = useProducers();
   const [featuredPlaylists, setFeaturedPlaylists] = useState([]);
@@ -65,6 +72,8 @@ export default function IndexPage() {
   const navigate = useNavigate();
 
   const displayedFeaturedBeat = featuredBeat || fallbackFeaturedBeat;
+
+  console.log('🏠 Index page render - beats loaded:', dataLoaded, 'user:', !!user);
 
   useEffect(() => {
     if (user && (!user.role || !user.name)) {
@@ -98,7 +107,7 @@ export default function IndexPage() {
         }
       }
       
-      await fetchBeats();
+      // Note: beats now load independently, so this mainly refreshes user-specific data
       toast.success("Content refreshed successfully");
       setUserDataError(false);
     } catch (error) {
@@ -194,11 +203,19 @@ export default function IndexPage() {
             icon={<TrendingUp className="h-5 w-5" />} 
             badge="Updated Hourly"
           />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {trendingBeats.slice(0, 8).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
+          {isLoadingBeats ? (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {Array(8).fill(0).map((_, i) => (
+                <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {trendingBeats.slice(0, 8).map((beat) => (
+                <BeatCardCompact key={beat.id} beat={beat} />
+              ))}
+            </div>
+          )}
           <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/trending">
@@ -214,14 +231,19 @@ export default function IndexPage() {
             icon={<Calendar className="h-5 w-5" />}
             badge="Updated Weekly"
           />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {weeklyPicks.slice(0, 6).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-            {weeklyPicks.length === 0 && trendingBeats.slice(10, 16).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
+          {isLoadingBeats ? (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {Array(6).fill(0).map((_, i) => (
+                <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {weeklyPicks.slice(0, 6).map((beat) => (
+                <BeatCardCompact key={beat.id} beat={beat} />
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mb-6">
@@ -229,11 +251,19 @@ export default function IndexPage() {
             title="New Releases" 
             icon={<Flame className="h-5 w-5" />}
           />
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            {newBeats.slice(0, 6).map((beat) => (
-              <BeatCardCompact key={beat.id} beat={beat} />
-            ))}
-          </div>
+          {isLoadingBeats ? (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {Array(6).fill(0).map((_, i) => (
+                <div key={i} className="h-52 rounded-lg bg-muted/40 animate-pulse"></div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {newBeats.slice(0, 6).map((beat) => (
+                <BeatCardCompact key={beat.id} beat={beat} />
+              ))}
+            </div>
+          )}
           <div className="mt-3 flex justify-end">
             <Button variant="ghost" size="sm" asChild>
               <Link to="/new">

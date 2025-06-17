@@ -1,17 +1,10 @@
 
 import { Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { fetchFeaturedBeats } from "@/services/beats/queryService";
+import { usePublicBeatsQuery } from "@/hooks/usePublicBeatsQuery";
 
 export const FeaturedBeat = () => {
-  const { data: featuredBeat, isLoading } = useQuery({
-    queryKey: ['featured-beat'],
-    queryFn: async () => {
-      const beats = await fetchFeaturedBeats(1);
-      return beats[0];
-    }
-  });
+  const { featuredBeat, isLoading } = usePublicBeatsQuery();
 
   if (isLoading) {
     return (
