@@ -1,168 +1,130 @@
 
-import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, Upload, Camera } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getInitials } from "@/utils/formatters";
+import React, { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { FileUploadInput } from '@/components/upload/FileUploadInput';
+import { Camera, Upload, X } from 'lucide-react';
+import { toast } from 'sonner';
 
-interface ProfilePictureUploaderProps {
-  avatarUrl: string | null;
-  displayName: string;
-}
+export function ProfilePictureUploader() {
+  const { user, updateUserProfile } = useAuth();
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictureUploaderProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(avatarUrl);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user, updateProfile } = useAuth();
-  const { toast } = useToast();
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
 
-  const handleChooseFileClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+
+    try {
+      // Create preview URL
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+
+      // Upload to Supabase storage
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      // Update user profile
+      await updateUserProfile({ profile_picture: publicUrl });
+      
+      toast.success('Profile picture updated successfully');
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      toast.error('Failed to upload profile picture');
+      setPreviewUrl(null);
+    } finally {
+      setIsUploading(false);
     }
   };
-  
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) return;
-    
-    const file = e.target.files[0];
-    
-    if (!file.type.startsWith('image/')) {
-      toast({
-        title: "Error",
-        description: "Please upload an image file",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: "Error",
-        description: "Image size should be less than 2MB",
-        variant: "destructive"
-      });
-      return;
-    }
+
+  const handleRemove = async () => {
+    if (!user) return;
     
     try {
-      setIsLoading(true);
-      
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        if (!event.target || !event.target.result || !user) return;
-        
-        const base64String = event.target.result.toString();
-        setPreviewUrl(base64String);
-        
-        const { error } = await supabase
-          .from('users')
-          .update({ profile_picture: base64String })
-          .eq('id', user.id);
-          
-        if (error) throw error;
-        
-        if (updateProfile) {
-          await updateProfile({
-            ...user,
-            avatar_url: base64String
-          });
-        }
-        
-        toast({
-          title: "Success",
-          description: "Profile picture updated successfully"
-        });
-        setIsDialogOpen(false);
-      };
-      
-      reader.readAsDataURL(file);
+      await updateUserProfile({ profile_picture: null });
+      setPreviewUrl(null);
+      toast.success('Profile picture removed');
     } catch (error) {
-      console.error('Error updating profile picture:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile picture. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('Error removing profile picture:', error);
+      toast.error('Failed to remove profile picture');
     }
   };
 
+  const currentImageUrl = previewUrl || user?.profile_picture;
+
   return (
-    <div className="flex flex-col items-center mb-6">
-      <div className="relative">
-        <Avatar className="h-24 w-24 mb-4">
-          <AvatarImage src={previewUrl || undefined} alt={displayName} />
-          <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-        </Avatar>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button 
-              size="icon" 
-              variant="outline" 
-              className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
+    <div className="flex items-center space-x-4">
+      <Avatar className="h-20 w-20">
+        <AvatarImage src={currentImageUrl || undefined} />
+        <AvatarFallback className="text-lg">
+          {user?.full_name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      
+      <div className="space-y-2">
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isUploading}
+            className="relative overflow-hidden"
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            {isUploading ? 'Uploading...' : 'Change'}
+            <FileUploadInput
+              id="avatar-upload"
+              name="avatarUpload"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              aria-label="Upload profile picture"
+            />
+          </Button>
+          
+          {currentImageUrl && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRemove}
+              disabled={isUploading}
             >
-              <Camera className="h-4 w-4" />
+              <X className="h-4 w-4 mr-2" />
+              Remove
             </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Update Profile Picture</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <p className="text-sm text-muted-foreground">
-                Select an image to use as your profile picture. Files should be JPG, PNG or GIF and less than 2MB.
-              </p>
-              <div className="flex flex-col items-center justify-center gap-4">
-                <Avatar className="h-32 w-32">
-                  <AvatarImage src={previewUrl || undefined} alt={displayName} />
-                  <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                </Avatar>
-                
-                {/* Hidden file input */}
-                <input 
-                  ref={fileInputRef}
-                  id="avatar-upload" 
-                  type="file" 
-                  accept="image/*" 
-                  className="hidden" 
-                  onChange={handleAvatarChange}
-                  disabled={isLoading}
-                />
-                
-                <Button 
-                  variant="outline" 
-                  className="cursor-pointer"
-                  disabled={isLoading}
-                  onClick={handleChooseFileClick}
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center w-full">
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      <span>Uploading...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      <span>Choose File</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+          )}
+        </div>
+        
+        <p className="text-xs text-muted-foreground">
+          JPG, PNG or GIF. Max size 5MB.
+        </p>
       </div>
-      <p className="text-sm text-center text-muted-foreground">
-        Click the camera icon to update your profile picture
-      </p>
     </div>
   );
 }

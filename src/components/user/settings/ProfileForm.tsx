@@ -1,372 +1,214 @@
 
-import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "sonner";
-import { Loader2, CheckCircle, Camera } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getInitials } from "@/utils/formatters";
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { FileUploadInput } from '@/components/upload/FileUploadInput';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Camera, Save } from 'lucide-react';
+import { toast } from 'sonner';
 
-interface ProfileFormProps {
-  initialProducerName: string;
-  initialBio: string;
-  initialLocation: string;
-  avatarUrl: string | null;
-  displayName: string;
-  isBuyer?: boolean;
-  initialFullName?: string;
-  initialMusicInterests?: string[];
-}
+const profileFormSchema = z.object({
+  full_name: z.string().min(2, 'Name must be at least 2 characters'),
+  stage_name: z.string().optional(),
+  bio: z.string().max(500, 'Bio must be less than 500 characters').optional(),
+  country: z.string().optional(),
+});
 
-export function ProfileForm({ 
-  initialProducerName, 
-  initialBio, 
-  initialLocation, 
-  avatarUrl, 
-  displayName,
-  isBuyer = false,
-  initialFullName = '',
-  initialMusicInterests = []
-}: ProfileFormProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [producerName, setProducerName] = useState(initialProducerName);
-  const [bio, setBio] = useState(initialBio);
-  const [location, setLocation] = useState(initialLocation);
-  const [fullName, setFullName] = useState(initialFullName);
-  const [musicInterests, setMusicInterests] = useState<string[]>(initialMusicInterests);
-  const [newInterest, setNewInterest] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(avatarUrl);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user, updateProfile } = useAuth();
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-  const handleChooseFileClick = () => {
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    }
-  };
-  
-  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || !e.target.files[0]) return;
-    
-    const file = e.target.files[0];
-    
+export function ProfileForm() {
+  const { user, updateUserProfile } = useAuth();
+  const [isUploading, setIsUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: {
+      full_name: user?.full_name || '',
+      stage_name: user?.stage_name || '',
+      bio: user?.bio || '',
+      country: user?.country || '',
+    },
+  });
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
     if (!file.type.startsWith('image/')) {
-      toast.error("Please upload an image file");
+      toast.error('Please select a valid image file');
       return;
     }
-    
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image size should be less than 2MB");
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size must be less than 5MB');
       return;
     }
-    
+
+    setIsUploading(true);
+
     try {
-      setIsLoading(true);
-      
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        if (!event.target || !event.target.result || !user) return;
-        
-        const base64String = event.target.result.toString();
-        setPreviewUrl(base64String);
-        
-        try {
-          const { error } = await supabase
-            .from('users')
-            .update({ profile_picture: base64String })
-            .eq('id', user.id);
-            
-          if (error) throw error;
-          
-          if (updateProfile) {
-            await updateProfile({
-              ...user,
-              avatar_url: base64String
-            });
-          }
-          
-          toast.success("Profile picture updated successfully");
-          setIsDialogOpen(false);
-        } catch (error) {
-          console.error('Error updating profile picture:', error);
-          toast.error("Failed to update profile picture");
-        }
-      };
-      
-      reader.readAsDataURL(file);
+      const objectUrl = URL.createObjectURL(file);
+      setPreviewUrl(objectUrl);
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/avatar.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(fileName);
+
+      await updateUserProfile({ profile_picture: publicUrl });
+      toast.success('Profile picture updated successfully');
     } catch (error) {
-      console.error('Error handling avatar change:', error);
-      toast.error("Failed to process the image");
+      console.error('Error uploading profile picture:', error);
+      toast.error('Failed to upload profile picture');
+      setPreviewUrl(null);
     } finally {
-      setIsLoading(false);
+      setIsUploading(false);
     }
   };
 
-  const addMusicInterest = () => {
-    if (newInterest.trim() !== '' && !musicInterests.includes(newInterest.trim())) {
-      setMusicInterests([...musicInterests, newInterest.trim()]);
-      setNewInterest('');
-    }
-  };
-
-  const removeMusicInterest = (interest: string) => {
-    setMusicInterests(musicInterests.filter(item => item !== interest));
-  };
-
-  const handleSaveProfile = async () => {
-    if (!user) return;
-    
+  const onSubmit = async (data: ProfileFormValues) => {
     try {
-      setIsLoading(true);
-      
-      const updateData = isBuyer 
-        ? {
-            full_name: fullName,
-            bio: bio,  // Allow bio for buyers
-            country: location,
-            music_interests: musicInterests
-          }
-        : {
-            stage_name: producerName,
-            bio: bio,
-            country: location,
-            music_interests: musicInterests
-          };
-      
-      const { error } = await supabase
-        .from('users')
-        .update(updateData)
-        .eq('id', user.id);
-        
-      if (error) {
-        throw error;
-      }
-      
-      if (updateProfile) {
-        const profileData = isBuyer 
-          ? {
-              ...user,
-              name: fullName,
-              bio: bio,  // Update bio in user state
-              country: location,
-              music_interests: musicInterests
-            }
-          : {
-              ...user,
-              producer_name: producerName,
-              bio: bio,
-              country: location,
-              music_interests: musicInterests
-            };
-            
-        await updateProfile(profileData);
-      }
-      
-      toast.success("Profile updated successfully");
-      setSaveSuccess(true);
-      
-      // Reset success state after 3 seconds
-      setTimeout(() => {
-        setSaveSuccess(false);
-      }, 3000);
-    } catch (error: any) {
+      await updateUserProfile(data);
+      toast.success('Profile updated successfully');
+    } catch (error) {
       console.error('Error updating profile:', error);
-      toast.error("Failed to update profile. Please try again.");
-    } finally {
-      setIsLoading(false);
+      toast.error('Failed to update profile');
     }
   };
+
+  const currentImageUrl = previewUrl || user?.profile_picture;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col items-center mb-6">
-        <div className="relative">
-          <Avatar className="h-24 w-24 mb-4">
-            <AvatarImage src={previewUrl || undefined} alt={displayName} />
-            <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex items-center space-x-4">
+          <Avatar className="h-20 w-20">
+            <AvatarImage src={currentImageUrl || undefined} />
+            <AvatarFallback className="text-lg">
+              {user?.full_name?.split(' ').map(n => n[0]).join('') || user?.email?.[0]?.toUpperCase()}
+            </AvatarFallback>
           </Avatar>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button 
-                size="icon" 
-                variant="outline" 
-                className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-              >
-                <Camera className="h-4 w-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Update Profile Picture</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <p className="text-sm text-muted-foreground">
-                  Select an image to use as your profile picture. Files should be JPG, PNG or GIF and less than 2MB.
-                </p>
-                <div className="flex flex-col items-center justify-center gap-4">
-                  <Avatar className="h-32 w-32">
-                    <AvatarImage src={previewUrl || undefined} alt={displayName} />
-                    <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
-                  </Avatar>
-                  
-                  {/* Hidden file input */}
-                  <input 
-                    ref={fileInputRef}
-                    id="avatar-upload" 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleAvatarChange}
-                    disabled={isLoading}
-                  />
-                  
-                  <Button 
-                    variant="outline" 
-                    className="cursor-pointer"
-                    disabled={isLoading}
-                    onClick={handleChooseFileClick}
-                  >
-                    {isLoading ? (
-                      <div className="flex items-center justify-center w-full">
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        <span>Uploading...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <Camera className="h-4 w-4 mr-2" />
-                        <span>Choose File</span>
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-        <p className="text-sm text-center text-muted-foreground">
-          Click the camera icon to update your profile picture
-        </p>
-      </div>
-
-      <div className="space-y-4">
-        {isBuyer ? (
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
-            <Input 
-              id="fullName" 
-              placeholder="Your full name" 
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Label htmlFor="stageName">Stage Name</Label>
-            <Input 
-              id="stageName" 
-              placeholder="Your stage name" 
-              value={producerName}
-              onChange={(e) => setProducerName(e.target.value)}
-            />
-          </div>
-        )}
-        
-        <div className="space-y-2">
-          <Label htmlFor="bio">Bio</Label>
-          <Textarea 
-            id="bio" 
-            className="min-h-[120px]"
-            placeholder={isBuyer ? "Tell us about yourself" : "Tell buyers about yourself"}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="location">Location</Label>
-          <Input 
-            id="location" 
-            placeholder="Your location" 
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="musicInterests">Music Interests</Label>
-          <div className="flex gap-2">
-            <Input 
-              id="musicInterests" 
-              placeholder="Add music interests" 
-              value={newInterest}
-              onChange={(e) => setNewInterest(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addMusicInterest())}
-            />
-            <Button 
-              type="button" 
-              variant="secondary"
-              onClick={addMusicInterest}
-            >
-              Add
-            </Button>
-          </div>
           
-          <div className="flex flex-wrap gap-2 mt-2">
-            {musicInterests.map((interest, index) => (
-              <div 
-                key={index} 
-                className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center gap-1"
-              >
-                <span>{interest}</span>
-                <button 
-                  type="button" 
-                  className="text-purple-800 hover:text-purple-900"
-                  onClick={() => removeMusicInterest(interest)}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-            {musicInterests.length === 0 && (
-              <p className="text-sm text-muted-foreground">No music interests added yet</p>
-            )}
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isUploading}
+              className="relative overflow-hidden"
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              {isUploading ? 'Uploading...' : 'Change Photo'}
+              <FileUploadInput
+                id="profile-avatar-upload"
+                name="avatarUpload"
+                accept="image/*"
+                onChange={handleFileSelect}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                aria-label="Upload profile picture"
+              />
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              JPG, PNG or GIF. Max size 5MB.
+            </p>
           </div>
         </div>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <Button 
-          onClick={handleSaveProfile}
-          disabled={isLoading}
-          variant={saveSuccess ? "outline" : "default"}
-          className="bg-purple-600 hover:bg-purple-700"
-        >
-          {isLoading ? (
-            <div className="flex items-center justify-center w-full">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span>Saving...</span>
-            </div>
-          ) : saveSuccess ? (
-            <div className="flex items-center justify-center w-full">
-              <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-              <span>Saved</span>
-            </div>
-          ) : (
-            <span>Save Changes</span>
+
+        <FormField
+          control={form.control}
+          name="full_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Full Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter your full name" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
           )}
+        />
+
+        <FormField
+          control={form.control}
+          name="stage_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Stage Name</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter your stage name (optional)" {...field} />
+              </FormControl>
+              <FormDescription>
+                The name you want to be known by professionally
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="bio"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Bio</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="Tell us about yourself..."
+                  className="resize-none"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                A brief description about yourself (max 500 characters)
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="country"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Country</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter your country" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" disabled={form.formState.isSubmitting}>
+          <Save className="h-4 w-4 mr-2" />
+          {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
         </Button>
-        
-        {saveSuccess && (
-          <span className="text-sm text-muted-foreground">Changes saved successfully</span>
-        )}
-      </div>
-    </div>
+      </form>
+    </Form>
   );
 }
