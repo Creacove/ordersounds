@@ -1,12 +1,14 @@
 
 import { WalletContextState } from '@solana/wallet-adapter-react';
-import { Connection, Transaction, PublicKey, SystemProgram } from '@solana/web3.js';
+import { Connection, Transaction, PublicKey, SystemProgram, TransactionInstruction } from '@solana/web3.js';
 import { 
   getAssociatedTokenAddress, 
   createTransferInstruction, 
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
-  getAccount
+  getAccount,
+  TokenAccountNotFoundError,
+  TokenInvalidAccountOwnerError
 } from '@solana/spl-token';
 import { toast } from 'sonner';
 
@@ -19,7 +21,7 @@ const USDC_MINT_ADDRESSES = {
 
 // Get current network's USDC mint
 const getUSDCMint = (network: string = 'devnet'): PublicKey => {
-  return USDC_MINT_ADDRESSES[network] || USDC_MINT_ADDRESSES.devnet;
+  return USDC_MINT_ADDRESSES[network as keyof typeof USDC_MINT_ADDRESSES] || USDC_MINT_ADDRESSES.devnet;
 };
 
 // Check if a string is a valid Solana address
@@ -39,6 +41,25 @@ const usdToUSDCUnits = (usdAmount: number): bigint => {
   return BigInt(Math.round(usdAmount * 1_000_000)); // USDC has 6 decimals
 };
 
+// Check USDC balance for an account
+const checkUSDCBalance = async (
+  connection: Connection,
+  owner: PublicKey,
+  mint: PublicKey
+): Promise<{ balance: bigint; hasAccount: boolean }> => {
+  try {
+    const associatedTokenAddress = await getAssociatedTokenAddress(mint, owner);
+    const account = await getAccount(connection, associatedTokenAddress);
+    return { balance: account.amount, hasAccount: true };
+  } catch (error) {
+    if (error instanceof TokenAccountNotFoundError || 
+        error instanceof TokenInvalidAccountOwnerError) {
+      return { balance: BigInt(0), hasAccount: false };
+    }
+    throw error;
+  }
+};
+
 // Create or get associated token account
 const getOrCreateAssociatedTokenAccount = async (
   connection: Connection,
@@ -52,18 +73,65 @@ const getOrCreateAssociatedTokenAccount = async (
   try {
     // Check if account exists
     await getAccount(connection, associatedTokenAddress);
+    console.log(`✓ USDC token account exists: ${associatedTokenAddress.toString()}`);
     return associatedTokenAddress;
   } catch (error) {
-    // Account doesn't exist, create it
-    const createAccountInstruction = createAssociatedTokenAccountInstruction(
-      payer,
-      associatedTokenAddress,
-      owner,
-      mint
-    );
-    transaction.add(createAccountInstruction);
-    return associatedTokenAddress;
+    if (error instanceof TokenAccountNotFoundError) {
+      // Account doesn't exist, create it
+      console.log(`Creating USDC token account for: ${owner.toString()}`);
+      const createAccountInstruction = createAssociatedTokenAccountInstruction(
+        payer,
+        associatedTokenAddress,
+        owner,
+        mint
+      );
+      transaction.add(createAccountInstruction);
+      return associatedTokenAddress;
+    }
+    throw error;
   }
+};
+
+// Simulate transaction to catch errors early
+const simulateTransaction = async (
+  connection: Connection,
+  transaction: Transaction
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const simulation = await connection.simulateTransaction(transaction, {
+      sigVerify: false,
+      commitment: 'confirmed'
+    });
+    
+    if (simulation.value.err) {
+      console.error('Transaction simulation failed:', simulation.value.err);
+      return { 
+        success: false, 
+        error: `Transaction would fail: ${JSON.stringify(simulation.value.err)}` 
+      };
+    }
+    
+    console.log('✓ Transaction simulation successful');
+    return { success: true };
+  } catch (error) {
+    console.error('Simulation error:', error);
+    return { 
+      success: false, 
+      error: `Simulation failed: ${error instanceof Error ? error.message : 'Unknown error'}` 
+    };
+  }
+};
+
+// Add priority fee to transaction for faster confirmation
+const addPriorityFee = (transaction: Transaction, microLamports: number = 10000) => {
+  const priorityFeeInstruction = SystemProgram.transfer({
+    fromPubkey: transaction.feePayer!,
+    toPubkey: transaction.feePayer!,
+    lamports: 0
+  });
+  
+  // Add as first instruction for priority processing
+  transaction.instructions.unshift(priorityFeeInstruction);
 };
 
 // Process a single USDC payment
@@ -81,7 +149,26 @@ export const processUSDCPayment = async (
     const usdcMint = getUSDCMint(network);
     const usdcAmount = usdToUSDCUnits(usdAmount);
     
-    console.log(`Processing USDC payment: $${usdAmount} (${usdcAmount.toString()} USDC units) to ${recipientAddress}`);
+    console.log(`💰 Processing USDC payment: $${usdAmount} (${usdcAmount.toString()} USDC units) to ${recipientAddress}`);
+    console.log(`🌐 Network: ${network}, USDC Mint: ${usdcMint.toString()}`);
+    
+    // Check sender's USDC balance first
+    const { balance: senderBalance, hasAccount: senderHasAccount } = await checkUSDCBalance(
+      connection, 
+      wallet.publicKey, 
+      usdcMint
+    );
+    
+    console.log(`💳 Sender USDC balance: ${senderBalance.toString()} units (${Number(senderBalance) / 1_000_000} USDC)`);
+    
+    if (!senderHasAccount) {
+      throw new Error("You don't have a USDC token account. Please fund your wallet with USDC first.");
+    }
+    
+    if (senderBalance < usdcAmount) {
+      const availableUSDC = Number(senderBalance) / 1_000_000;
+      throw new Error(`Insufficient USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${usdAmount} USDC.`);
+    }
     
     const transaction = new Transaction();
     
@@ -104,6 +191,9 @@ export const processUSDCPayment = async (
       transaction
     );
     
+    console.log(`📤 From: ${senderTokenAccount.toString()}`);
+    console.log(`📥 To: ${recipientTokenAccount.toString()}`);
+    
     // Create transfer instruction
     const transferInstruction = createTransferInstruction(
       senderTokenAccount,
@@ -117,28 +207,65 @@ export const processUSDCPayment = async (
     transaction.add(transferInstruction);
     
     // Get the latest blockhash
-    const { blockhash } = await connection.getLatestBlockhash();
+    const { blockhash } = await connection.getLatestBlockhash('confirmed');
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = wallet.publicKey;
     
-    // Sign and send the transaction
-    const signature = await wallet.sendTransaction(transaction, connection, {
-      maxRetries: 3,
-      skipPreflight: false
-    });
+    // Add priority fee for faster confirmation
+    addPriorityFee(transaction, 15000);
     
-    console.log(`USDC transfer signature: ${signature}`);
-    
-    // Wait for confirmation
-    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-    
-    if (confirmation.value.err) {
-      throw new Error(`Transaction failed: ${confirmation.value.err.toString()}`);
+    // Simulate transaction before sending
+    const simulation = await simulateTransaction(connection, transaction);
+    if (!simulation.success) {
+      throw new Error(simulation.error || "Transaction simulation failed");
     }
     
+    console.log('🚀 Sending USDC transaction...');
+    
+    // Sign and send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection, {
+      maxRetries: 5,
+      skipPreflight: false,
+      preflightCommitment: 'confirmed'
+    });
+    
+    console.log(`📋 USDC transfer signature: ${signature}`);
+    
+    // Wait for confirmation with timeout
+    const confirmationStart = Date.now();
+    const confirmationTimeout = 60000; // 60 seconds
+    
+    let confirmation;
+    while (Date.now() - confirmationStart < confirmationTimeout) {
+      try {
+        confirmation = await connection.confirmTransaction(signature, 'confirmed');
+        if (confirmation.value) break;
+      } catch (error) {
+        console.warn('Confirmation check failed, retrying...', error);
+      }
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+    
+    if (!confirmation || confirmation.value.err) {
+      throw new Error(`Transaction failed to confirm: ${confirmation?.value.err?.toString() || 'Timeout'}`);
+    }
+    
+    console.log('✅ USDC transaction confirmed successfully');
     return signature;
   } catch (error: any) {
-    console.error("Error in USDC transaction:", error);
+    console.error("❌ Error in USDC transaction:", error);
+    
+    // Provide specific error messages for common issues
+    if (error.message.includes('0x1')) {
+      throw new Error("Insufficient SOL balance for transaction fees. Please add SOL to your wallet.");
+    }
+    if (error.message.includes('TokenAccountNotFoundError')) {
+      throw new Error("USDC token account not found. Please ensure you have USDC in your wallet.");
+    }
+    if (error.message.includes('insufficient funds')) {
+      throw new Error("Insufficient USDC balance for this transaction.");
+    }
+    
     throw new Error(error.message || "Failed to process USDC payment");
   }
 };
@@ -160,12 +287,35 @@ export const processMultipleUSDCPayments = async (
       }
     }
     
+    const totalAmount = items.reduce((sum, item) => sum + item.price, 0);
+    const usdcMint = getUSDCMint(network);
+    
+    // Check total USDC balance before processing any transactions
+    const { balance: senderBalance, hasAccount: senderHasAccount } = await checkUSDCBalance(
+      connection, 
+      wallet.publicKey, 
+      usdcMint
+    );
+    
+    if (!senderHasAccount) {
+      throw new Error("You don't have a USDC token account. Please fund your wallet with USDC first.");
+    }
+    
+    const availableUSDC = Number(senderBalance) / 1_000_000;
+    if (availableUSDC < totalAmount) {
+      throw new Error(`Insufficient USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${totalAmount.toFixed(2)} USDC.`);
+    }
+    
+    console.log(`💰 Processing ${items.length} USDC payments, total: $${totalAmount}`);
+    
     const signatures: string[] = [];
     
-    // For now, process sequentially to avoid complexity
-    // TODO: Implement true batching with single transaction
-    for (const item of items) {
+    // Process sequentially to avoid nonce conflicts
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       try {
+        console.log(`📦 Processing payment ${i + 1}/${items.length}: $${item.price} to ${item.producerWallet}`);
+        
         const signature = await processUSDCPayment(
           item.price,
           item.producerWallet,
@@ -176,16 +326,19 @@ export const processMultipleUSDCPayments = async (
         signatures.push(signature);
         
         // Small delay between transactions to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 500));
+        if (i < items.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       } catch (error: any) {
-        console.error(`Failed USDC payment to ${item.producerWallet}:`, error);
+        console.error(`❌ Failed USDC payment to ${item.producerWallet}:`, error);
         throw error;
       }
     }
     
+    console.log(`✅ All ${items.length} USDC payments completed successfully`);
     return signatures;
   } catch (error: any) {
-    console.error("Error processing multiple USDC payments:", error);
+    console.error("❌ Error processing multiple USDC payments:", error);
     throw new Error(error.message || "Failed to process USDC payments");
   }
 };

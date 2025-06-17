@@ -18,8 +18,8 @@ export const useSolanaPayment = () => {
   const [lastTransactionSignature, setLastTransactionSignature] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(true);
   
-  // Get current network
-  const network = process.env.NODE_ENV === 'production' ? 'mainnet-beta' : 'devnet';
+  // Force devnet for testing phase
+  const network = 'devnet';
   
   // Cleanup on unmount
   useEffect(() => {
@@ -69,9 +69,9 @@ export const useSolanaPayment = () => {
       // Validate inputs
       validatePaymentInputs(amount, producerWalletAddress);
 
-      console.log(`Processing USDC payment: $${amount} to ${producerWalletAddress}`);
+      console.log(`💳 Processing USDC payment: $${amount} to ${producerWalletAddress} on ${network}`);
 
-      // Process USDC payment instead of SOL
+      // Process USDC payment using the connection from provider
       const signature = await processUSDCPayment(
         amount,
         producerWalletAddress,
@@ -80,10 +80,31 @@ export const useSolanaPayment = () => {
         network
       );
 
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-      if (!confirmation.value) {
-        throw new Error("TRANSACTION_NOT_CONFIRMED: Transaction failed to confirm");
+      // Wait for confirmation with better error handling
+      let confirmationAttempts = 0;
+      const maxAttempts = 30; // 60 seconds with 2-second intervals
+      
+      while (confirmationAttempts < maxAttempts) {
+        try {
+          const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+          if (confirmation.value) {
+            if (confirmation.value.err) {
+              throw new Error(`TRANSACTION_FAILED: ${confirmation.value.err.toString()}`);
+            }
+            break;
+          }
+        } catch (error) {
+          console.warn(`Confirmation attempt ${confirmationAttempts + 1} failed:`, error);
+        }
+        
+        confirmationAttempts++;
+        if (confirmationAttempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+      
+      if (confirmationAttempts >= maxAttempts) {
+        throw new Error("TRANSACTION_TIMEOUT: Transaction confirmation timed out");
       }
 
       if (isMounted) {
@@ -131,18 +152,20 @@ export const useSolanaPayment = () => {
       }
       
       if (isMounted) {
-        toast.success("USDC payment successful!");
+        toast.success("✅ USDC payment successful!", {
+          description: `Transaction: ${signature.slice(0, 8)}...${signature.slice(-8)}`
+        });
       }
       onSuccess?.(signature);
       return signature;
     } catch (error: any) {
-      console.error("USDC payment error:", error);
+      console.error("❌ USDC payment error:", error);
       const message = error.message.includes(':') 
         ? error.message.split(':').pop().trim() 
         : "Payment failed";
       
       if (isMounted) {
-        toast.error(message);
+        toast.error(`Payment failed: ${message}`);
       }
       onError?.(error);
       throw error;
@@ -188,9 +211,9 @@ export const useSolanaPayment = () => {
         throw new Error("WALLET_NOT_CONNECTED: Please connect your wallet first");
       }
 
-      console.log(`Processing ${items.length} USDC payments`);
+      console.log(`💳 Processing ${items.length} USDC payments on ${network} network`);
 
-      // Process multiple USDC payments
+      // Process multiple USDC payments with retry logic
       let retries = 0;
       let lastError;
       let signatures: string[] = [];
@@ -253,18 +276,18 @@ export const useSolanaPayment = () => {
 
       if (isMounted) {
         setLastTransactionSignature(signatures[signatures.length - 1]);
-        toast.success(`${signatures.length} USDC payments processed successfully!`);
+        toast.success(`✅ ${signatures.length} USDC payments completed successfully!`);
       }
       onSuccess?.(signatures);
       return signatures;
     } catch (error: any) {
-      console.error("Multiple USDC payments error:", error);
+      console.error("❌ Multiple USDC payments error:", error);
       const message = error.message.includes(':') 
         ? error.message.split(':').pop().trim() 
         : "Payments failed";
         
       if (isMounted) {
-        toast.error(message);
+        toast.error(`Payments failed: ${message}`);
       }
       onError?.(error);
       throw error;

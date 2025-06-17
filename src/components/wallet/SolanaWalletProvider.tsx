@@ -19,22 +19,12 @@ interface SolanaWalletProviderProps {
 }
 
 const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
-    // Use devnet for development, mainnet for production
-    const network = useMemo(() => {
-        return process.env.NODE_ENV === 'production' 
-            ? WalletAdapterNetwork.Mainnet 
-            : WalletAdapterNetwork.Devnet;
-    }, []);
+    // Force devnet for testing phase
+    const network = useMemo(() => WalletAdapterNetwork.Devnet, []);
 
-    // Configure RPC endpoints with fallbacks
+    // Use QuickNode RPC endpoint for devnet
     const endpoint = useMemo(() => {
-        if (process.env.NODE_ENV === 'production') {
-            // Production - use mainnet
-            return 'https://api.mainnet-beta.solana.com';
-        } else {
-            // Development - use devnet with fallbacks
-            return 'https://api.devnet.solana.com';
-        }
+        return 'https://greatest-proportionate-hill.solana-devnet.quiknode.pro/41e5bfe38a70eea3949938349ff08bed95d6290b/';
     }, []);
 
     // Configure wallet adapters
@@ -58,6 +48,10 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
             config={{
                 commitment: 'confirmed',
                 confirmTransactionInitialTimeout: 60000,
+                httpHeaders: {
+                    'Content-Type': 'application/json',
+                },
+                wsEndpoint: undefined, // Use HTTP only for QuickNode
             }}
         >
             <WalletProvider 
