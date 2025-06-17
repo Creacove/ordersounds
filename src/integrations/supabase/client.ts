@@ -30,13 +30,16 @@ export const supabase = createClient<Database>(
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
+        // Properly extract and handle headers
+        const existingHeaders = options.headers || {};
+        
         const fetchOptions: RequestInit = {
           ...options,
           signal: controller.signal,
           // Add keep-alive headers to maintain connections
           headers: {
             // Properly handle existing headers from options
-            ...(options.headers as Record<string, string> || {}),
+            ...(typeof existingHeaders === 'object' && existingHeaders !== null ? existingHeaders : {}),
             'Connection': 'keep-alive',
             'Keep-Alive': 'timeout=5, max=1000',
           },
