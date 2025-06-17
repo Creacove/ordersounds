@@ -9,7 +9,6 @@ import {
   getAccount
 } from '@solana/spl-token';
 import { toast } from 'sonner';
-import { createOptimalConnection, getBestRpcEndpoint } from './rpcHealthCheck';
 
 // USDC Mint addresses for different networks
 const USDC_MINT_ADDRESSES = {
@@ -40,21 +39,6 @@ const usdToUSDCUnits = (usdAmount: number): bigint => {
   return BigInt(Math.round(usdAmount * 1_000_000)); // USDC has 6 decimals
 };
 
-// Enhanced connection health check
-const ensureHealthyConnection = async (connection: Connection, network: string): Promise<Connection> => {
-  try {
-    // Quick health check
-    await connection.getSlot();
-    return connection;
-  } catch (error: any) {
-    console.warn('⚠️ Connection unhealthy, getting new endpoint...', error.message);
-    
-    // Get a new optimal connection
-    const networkKey = network === 'mainnet-beta' ? 'mainnet' : 'devnet';
-    return await createOptimalConnection(networkKey);
-  }
-};
-
 // Create or get associated token account
 const getOrCreateAssociatedTokenAccount = async (
   connection: Connection,
@@ -82,7 +66,7 @@ const getOrCreateAssociatedTokenAccount = async (
   }
 };
 
-// Process a single USDC payment with enhanced error handling
+// Process a single USDC payment
 export const processUSDCPayment = async (
   usdAmount: number,
   recipientAddress: string, 
@@ -91,24 +75,19 @@ export const processUSDCPayment = async (
   network: string = 'devnet'
 ): Promise<string> => {
   try {
-    if (!wallet.publicKey) throw new Error("WALLET_NOT_CONNECTED");
-    if (!isValidSolanaAddress(recipientAddress)) throw new Error("INVALID_RECIPIENT_ADDRESS");
-    
-    console.log(`🔄 Starting USDC payment: $${usdAmount} to ${recipientAddress}`);
-    
-    // Ensure we have a healthy connection
-    const healthyConnection = await ensureHealthyConnection(connection, network);
+    if (!wallet.publicKey) throw new Error("Wallet not connected");
+    if (!isValidSolanaAddress(recipientAddress)) throw new Error("Invalid recipient address");
     
     const usdcMint = getUSDCMint(network);
     const usdcAmount = usdToUSDCUnits(usdAmount);
     
-    console.log(`💰 Processing ${usdcAmount.toString()} USDC units on ${network}`);
+    console.log(`Processing USDC payment: $${usdAmount} (${usdcAmount.toString()} USDC units) to ${recipientAddress}`);
     
     const transaction = new Transaction();
     
     // Get sender's USDC token account
     const senderTokenAccount = await getOrCreateAssociatedTokenAccount(
-      healthyConnection,
+      connection,
       wallet.publicKey,
       usdcMint,
       wallet.publicKey,
@@ -118,7 +97,7 @@ export const processUSDCPayment = async (
     // Get recipient's USDC token account
     const recipientPublicKey = new PublicKey(recipientAddress);
     const recipientTokenAccount = await getOrCreateAssociatedTokenAccount(
-      healthyConnection,
+      connection,
       wallet.publicKey, // Payer for account creation
       usdcMint,
       recipientPublicKey,
@@ -137,89 +116,30 @@ export const processUSDCPayment = async (
     
     transaction.add(transferInstruction);
     
-    // Get the latest blockhash with retry logic
-    let blockhash: string;
-    let lastValidBlockHeight: number;
-    
-    try {
-      const blockhashInfo = await healthyConnection.getLatestBlockhash('confirmed');
-      blockhash = blockhashInfo.blockhash;
-      lastValidBlockHeight = blockhashInfo.lastValidBlockHeight;
-      console.log(`📋 Got blockhash: ${blockhash.slice(0, 8)}...`);
-    } catch (error: any) {
-      console.error('❌ Failed to get blockhash:', error);
-      
-      if (error.message.includes('403') || error.message.includes('rate limit')) {
-        throw new Error("RPC_RATE_LIMITED: The network is currently rate limiting requests. Please try again in a moment.");
-      } else if (error.message.includes('timeout')) {
-        throw new Error("RPC_TIMEOUT: Network connection timed out. Please check your internet connection and try again.");
-      } else {
-        throw new Error(`RPC_ERROR: Failed to connect to Solana network. ${error.message}`);
-      }
-    }
-    
+    // Get the latest blockhash
+    const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
     transaction.feePayer = wallet.publicKey;
     
-    // Sign and send the transaction with retry logic
-    let signature: string;
+    // Sign and send the transaction
+    const signature = await wallet.sendTransaction(transaction, connection, {
+      maxRetries: 3,
+      skipPreflight: false
+    });
     
-    try {
-      console.log('✍️ Signing and sending transaction...');
-      signature = await wallet.sendTransaction(transaction, healthyConnection, {
-        maxRetries: 3,
-        skipPreflight: false,
-        preflightCommitment: 'confirmed'
-      });
-      
-      console.log(`📝 Transaction signature: ${signature}`);
-    } catch (error: any) {
-      console.error('❌ Transaction failed:', error);
-      
-      if (error.message.includes('User rejected')) {
-        throw new Error("TRANSACTION_REJECTED: Transaction was cancelled by user");
-      } else if (error.message.includes('insufficient funds')) {
-        throw new Error("INSUFFICIENT_FUNDS: Insufficient USDC balance for this transaction");
-      } else if (error.message.includes('blockhash not found')) {
-        throw new Error("BLOCKHASH_EXPIRED: Transaction expired. Please try again.");
-      } else {
-        throw new Error(`TRANSACTION_FAILED: ${error.message}`);
-      }
+    console.log(`USDC transfer signature: ${signature}`);
+    
+    // Wait for confirmation
+    const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+    
+    if (confirmation.value.err) {
+      throw new Error(`Transaction failed: ${confirmation.value.err.toString()}`);
     }
     
-    // Wait for confirmation with timeout
-    try {
-      console.log('⏳ Waiting for transaction confirmation...');
-      const confirmation = await healthyConnection.confirmTransaction({
-        signature,
-        blockhash,
-        lastValidBlockHeight
-      }, 'confirmed');
-      
-      if (confirmation.value.err) {
-        throw new Error(`CONFIRMATION_FAILED: ${confirmation.value.err.toString()}`);
-      }
-      
-      console.log('✅ Transaction confirmed successfully!');
-      return signature;
-    } catch (error: any) {
-      console.error('❌ Confirmation failed:', error);
-      throw new Error(`CONFIRMATION_TIMEOUT: Transaction may have succeeded but confirmation timed out. Signature: ${signature}`);
-    }
-    
+    return signature;
   } catch (error: any) {
-    console.error("❌ USDC payment error:", error);
-    
-    // Re-throw with clear error types for better handling
-    if (error.message.startsWith('WALLET_') || 
-        error.message.startsWith('RPC_') || 
-        error.message.startsWith('TRANSACTION_') ||
-        error.message.startsWith('CONFIRMATION_') ||
-        error.message.startsWith('INSUFFICIENT_')) {
-      throw error;
-    }
-    
-    throw new Error(`PAYMENT_ERROR: ${error.message || "Unknown error occurred"}`);
+    console.error("Error in USDC transaction:", error);
+    throw new Error(error.message || "Failed to process USDC payment");
   }
 };
 
@@ -231,24 +151,20 @@ export const processMultipleUSDCPayments = async (
   network: string = 'devnet'
 ): Promise<string[]> => {
   try {
-    if (!wallet.publicKey) throw new Error("WALLET_NOT_CONNECTED");
+    if (!wallet.publicKey) throw new Error("Wallet not connected");
     
     // Validate all recipient addresses first
     for (const item of items) {
       if (!isValidSolanaAddress(item.producerWallet)) {
-        throw new Error(`INVALID_ADDRESS: Invalid recipient address for ${item.title || 'item'}`);
+        throw new Error(`Invalid recipient address: ${item.producerWallet}`);
       }
     }
     
-    console.log(`🔄 Processing ${items.length} USDC payments...`);
-    
     const signatures: string[] = [];
     
-    // Process sequentially to avoid overwhelming the RPC
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      console.log(`💳 Payment ${i + 1}/${items.length}: $${item.price} to ${item.producerWallet}`);
-      
+    // For now, process sequentially to avoid complexity
+    // TODO: Implement true batching with single transaction
+    for (const item of items) {
       try {
         const signature = await processUSDCPayment(
           item.price,
@@ -260,19 +176,16 @@ export const processMultipleUSDCPayments = async (
         signatures.push(signature);
         
         // Small delay between transactions to avoid rate limiting
-        if (i < items.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        await new Promise(resolve => setTimeout(resolve, 500));
       } catch (error: any) {
-        console.error(`❌ Payment failed for ${item.title}:`, error);
-        throw new Error(`BATCH_PAYMENT_FAILED: Payment ${i + 1} failed: ${error.message}`);
+        console.error(`Failed USDC payment to ${item.producerWallet}:`, error);
+        throw error;
       }
     }
     
-    console.log(`✅ All ${signatures.length} payments completed successfully!`);
     return signatures;
   } catch (error: any) {
-    console.error("❌ Multiple USDC payments error:", error);
-    throw error;
+    console.error("Error processing multiple USDC payments:", error);
+    throw new Error(error.message || "Failed to process USDC payments");
   }
 };

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, Pause, Heart, UserCheck, Music, Star, ArrowRight, Headphones, CheckCircle2 } from "lucide-react";
@@ -24,16 +25,13 @@ export function ProducerOfWeek() {
   const { user } = useAuth();
   const { playBeat, isPlaying, currentBeat } = usePlayer();
   const { toggleFavorite, isFavorite } = useBeats();
-  const { followProducer, unfollowProducer } = useFollows();
+  const { followProducer, unfollowProducer, useFollowStatus } = useFollows();
   
   const [producer, setProducer] = useState<any>(null);
   const [producerBeats, setProducerBeats] = useState<any[]>([]);
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
   const [isLoadingBeats, setIsLoadingBeats] = useState(true);
   const [isFollowingProducer, setIsFollowingProducer] = useState(false);
-
-  // Move useFollowStatus to top level to fix React Hook violation
-  const { data: followStatus } = useFollows().useFollowStatus(producer?.id);
 
   // Fetch the producer of the week
   useEffect(() => {
@@ -141,12 +139,23 @@ export function ProducerOfWeek() {
     fetchProducerBeats();
   }, [producer]);
 
-  // Update follow status when hook data changes
+  // Check if user is following the producer
   useEffect(() => {
-    if (followStatus !== undefined) {
-      setIsFollowingProducer(!!followStatus);
-    }
-  }, [followStatus]);
+    if (!user || !producer) return;
+
+    const checkFollowStatus = async () => {
+      try {
+        // Use the hook correctly - check if the user is currently following the producer
+        const { data: isFollowing } = useFollowStatus(producer.id);
+        
+        setIsFollowingProducer(!!isFollowing);
+      } catch (error) {
+        console.error('Error checking follow status:', error);
+      }
+    };
+
+    checkFollowStatus();
+  }, [user, producer, useFollowStatus]);
 
   const handleToggleFollow = async () => {
     if (!user) {
