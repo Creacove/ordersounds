@@ -2,11 +2,20 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { useDebounce } from '@/hooks/useDebounce';
-import { searchBeats, searchProducers, getPopularSearchTerms, getGenres, SearchParams, SearchResults } from '@/services/search/searchService';
+import { 
+  optimizedSearchBeats, 
+  optimizedSearchProducers, 
+  getPopularSearchTerms, 
+  getGenres, 
+  OptimizedSearchParams, 
+  OptimizedSearchResults 
+} from '@/services/search/optimizedSearchService';
 
 export function useOptimizedSearch() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState<Omit<SearchParams, 'query' | 'limit' | 'offset'>>({});
+  const [filters, setFilters] = useState<Omit<OptimizedSearchParams, 'query' | 'limit' | 'offset'>>({
+    sortBy: 'relevance'
+  });
   const [activeTab, setActiveTab] = useState<'all' | 'beats' | 'producers'>('all');
 
   // Debounce search term to avoid excessive API calls
@@ -18,7 +27,7 @@ export function useOptimizedSearch() {
     ...filters
   }), [debouncedSearchTerm, filters]);
 
-  // Infinite query for beats with pagination
+  // Optimized infinite query for beats with pagination
   const {
     data: beatsData,
     fetchNextPage,
@@ -27,46 +36,46 @@ export function useOptimizedSearch() {
     isLoading: isLoadingBeats,
     error: beatsError
   } = useInfiniteQuery({
-    queryKey: ['search-beats', searchParams],
+    queryKey: ['optimized-search-beats', searchParams],
     queryFn: ({ pageParam = 0 }) => 
-      searchBeats({ 
+      optimizedSearchBeats({ 
         ...searchParams, 
         limit: 20, 
         offset: (pageParam as number) * 20 
       }),
     initialPageParam: 0,
-    getNextPageParam: (lastPage: SearchResults, allPages) => 
+    getNextPageParam: (lastPage: OptimizedSearchResults, allPages) => 
       lastPage.hasMore ? allPages.length : undefined,
-    enabled: debouncedSearchTerm.length >= 2 || Object.keys(filters).length > 0,
+    enabled: debouncedSearchTerm.length >= 2 || Object.keys(filters).some(key => key !== 'sortBy' && filters[key as keyof typeof filters]),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  // Producers search query
+  // Optimized producers search query
   const {
     data: producers = [],
     isLoading: isLoadingProducers
   } = useQuery({
-    queryKey: ['search-producers', debouncedSearchTerm],
-    queryFn: () => searchProducers(debouncedSearchTerm),
+    queryKey: ['optimized-search-producers', debouncedSearchTerm],
+    queryFn: () => optimizedSearchProducers(debouncedSearchTerm),
     enabled: debouncedSearchTerm.length >= 2,
     staleTime: 5 * 60 * 1000,
   });
 
-  // Popular search terms
+  // Popular search terms using actual data
   const {
     data: popularTerms = []
   } = useQuery({
-    queryKey: ['popular-search-terms'],
+    queryKey: ['optimized-popular-search-terms'],
     queryFn: getPopularSearchTerms,
     staleTime: 60 * 60 * 1000, // 1 hour
   });
 
-  // Genres
+  // Optimized genres query
   const {
     data: genres = []
   } = useQuery({
-    queryKey: ['search-genres'],
+    queryKey: ['optimized-search-genres'],
     queryFn: getGenres,
     staleTime: 60 * 60 * 1000, // 1 hour
   });
@@ -98,7 +107,7 @@ export function useOptimizedSearch() {
   }, []);
 
   const clearFilters = useCallback(() => {
-    setFilters({});
+    setFilters({ sortBy: 'relevance' });
   }, []);
 
   const loadMoreBeats = useCallback(() => {

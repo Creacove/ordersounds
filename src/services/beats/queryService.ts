@@ -2,6 +2,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { mapSupabaseBeatToBeat } from './utils';
 import { SupabaseBeat } from './types';
+import {
+  getTrendingBeatsOptimized,
+  getNewBeatsOptimized,
+  getFeaturedBeatsOptimized,
+  getMetricBasedTrendingOptimized
+} from '../search/optimizedSearchService';
 
 interface FetchBeatsOptions {
   limit?: number;
@@ -41,6 +47,7 @@ export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Be
   try {
     console.log('Fetching beats with options:', options);
 
+    // Use optimized query leveraging our new indexes
     let query = supabase
       .from('beats')
       .select(`
@@ -49,24 +56,28 @@ export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Be
           full_name,
           stage_name
         )
-      `)
-      .order('upload_date', { ascending: false });
+      `);
 
     if (!includeDrafts) {
-      query = query.eq('status', 'published');
+      query = query.eq('status', 'published'); // Uses our status indexes
     }
 
     if (producerId) {
-      query = query.eq('producer_id', producerId);
+      query = query.eq('producer_id', producerId); // Uses idx_beats_producer
     }
 
     if (genre) {
-      query = query.eq('genre', genre);
+      query = query.eq('genre', genre); // Uses idx_beats_genre_status
     }
 
     if (searchQuery) {
-      query = query.or(`title.ilike.%${searchQuery}%,genre.ilike.%${searchQuery}%`);
+      // Use case-insensitive search leveraging our new indexes
+      const searchTerm = searchQuery.toLowerCase();
+      query = query.or(`title.ilike.%${searchTerm}%,genre.ilike.%${searchTerm}%`);
     }
+
+    // Order by upload_date for consistent results, uses our date indexes
+    query = query.order('upload_date', { ascending: false });
 
     if (limit) {
       query = query.limit(limit);
@@ -89,33 +100,11 @@ export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Be
   }
 }
 
+// Use optimized functions for better performance
 export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
   try {
-    console.log('Fetching trending beats...');
-    
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        *,
-        users!beats_producer_id_fkey (
-          full_name,
-          stage_name
-        )
-      `)
-      .eq('status', 'published')
-      .eq('is_trending', true)
-      .order('upload_date', { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error('Error fetching trending beats:', error);
-      throw error;
-    }
-
-    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
-    console.log(`Successfully fetched ${beats.length} trending beats`);
-    
-    return beats;
+    console.log('Fetching trending beats using optimized query...');
+    return await getTrendingBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch trending beats:', error);
     throw error;
@@ -124,59 +113,8 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
 
 export async function fetchMetricBasedTrending(limit: number = 100): Promise<Beat[]> {
   try {
-    console.log('Fetching metrics-based trending beats...');
-    
-    // Get published beats with all metrics for trending calculation
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        *,
-        users!beats_producer_id_fkey (
-          full_name,
-          stage_name
-        )
-      `)
-      .eq('status', 'published')
-      .order('upload_date', { ascending: false })
-      .limit(500); // Get larger pool for better trending calculation
-
-    if (error) {
-      console.error('Error fetching metrics-based trending beats:', error);
-      throw error;
-    }
-
-    // Calculate trending score for each beat
-    const beatsWithScore = (data as SupabaseBeat[]).map(beat => {
-      const plays = beat.plays || 0;
-      const favorites = beat.favorites_count || 0;
-      const purchases = beat.purchase_count || 0;
-      
-      // Calculate base trending score: plays (40%) + favorites (30%) + purchases (30%)
-      const baseScore = (plays * 0.4) + (favorites * 0.3) + (purchases * 0.3);
-      
-      // Add recency boost for beats uploaded in last 30 days
-      const uploadDate = new Date(beat.upload_date || '');
-      const daysSinceUpload = Math.floor((Date.now() - uploadDate.getTime()) / (1000 * 60 * 60 * 24));
-      const recencyBoost = daysSinceUpload <= 30 ? Math.max(0, 30 - daysSinceUpload) * 0.1 : 0;
-      
-      const finalScore = baseScore + recencyBoost;
-      
-      return {
-        ...beat,
-        trendingScore: finalScore
-      };
-    });
-
-    // Sort by trending score in descending order
-    const sortedBeats = beatsWithScore.sort((a, b) => b.trendingScore - a.trendingScore);
-    
-    // Take the requested limit
-    const topBeats = sortedBeats.slice(0, limit);
-    
-    const beats = topBeats.map(mapSupabaseBeatToBeat);
-    console.log(`Successfully fetched ${beats.length} metrics-based trending beats`);
-    
-    return beats;
+    console.log('Fetching metrics-based trending beats using optimized query...');
+    return await getMetricBasedTrendingOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch metrics-based trending beats:', error);
     throw error;
@@ -185,36 +123,8 @@ export async function fetchMetricBasedTrending(limit: number = 100): Promise<Bea
 
 export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
   try {
-    console.log('Fetching featured beats...');
-    
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        *,
-        users!beats_producer_id_fkey (
-          full_name,
-          stage_name
-        )
-      `)
-      .eq('status', 'published')
-      .eq('is_featured', true)
-      .order('upload_date', { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error('Error fetching featured beats:', error);
-      throw error;
-    }
-
-    if (!data || data.length === 0) {
-      // If no featured beats, return trending beats as fallback
-      return fetchTrendingBeats(limit);
-    }
-
-    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
-    console.log(`Successfully fetched ${beats.length} featured beats`);
-    
-    return beats;
+    console.log('Fetching featured beats using optimized query...');
+    return await getFeaturedBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch featured beats:', error);
     throw error;
@@ -223,30 +133,8 @@ export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
 
 export async function fetchNewBeats(limit: number = 20): Promise<Beat[]> {
   try {
-    console.log('Fetching new beats...');
-    
-    const { data, error } = await supabase
-      .from('beats')
-      .select(`
-        *,
-        users!beats_producer_id_fkey (
-          full_name,
-          stage_name
-        )
-      `)
-      .eq('status', 'published')
-      .order('upload_date', { ascending: false })
-      .limit(limit);
-
-    if (error) {
-      console.error('Error fetching new beats:', error);
-      throw error;
-    }
-
-    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
-    console.log(`Successfully fetched ${beats.length} new beats`);
-    
-    return beats;
+    console.log('Fetching new beats using optimized query...');
+    return await getNewBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch new beats:', error);
     throw error;
@@ -257,7 +145,7 @@ export async function fetchRandomBeats(limit: number = 8): Promise<Beat[]> {
   try {
     console.log('Fetching random beats for weekly picks...');
     
-    // Get a larger set first, then randomize client-side
+    // Use optimized query with our indexes
     const { data, error } = await supabase
       .from('beats')
       .select(`
@@ -267,7 +155,8 @@ export async function fetchRandomBeats(limit: number = 8): Promise<Beat[]> {
           stage_name
         )
       `)
-      .eq('status', 'published')
+      .eq('status', 'published') // Uses our status indexes
+      .order('upload_date', { ascending: false }) // Uses idx_beats_new
       .limit(100); // Get more to randomize from
 
     if (error) {
