@@ -14,23 +14,6 @@ interface UseAudioStreamingReturn {
   reload: () => void;
 }
 
-// URL validation function
-const isValidAudioUrl = (url: string): boolean => {
-  if (!url || typeof url !== 'string') return false;
-  
-  try {
-    new URL(url);
-    // Check for common audio file extensions or streaming URLs
-    const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.aac'];
-    const hasAudioExtension = audioExtensions.some(ext => url.toLowerCase().includes(ext));
-    const isStreamingUrl = url.includes('supabase') || url.includes('blob:') || url.startsWith('data:audio');
-    
-    return hasAudioExtension || isStreamingUrl;
-  } catch {
-    return false;
-  }
-};
-
 export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
   const audioManager = AudioManager.getInstance();
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -66,23 +49,7 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
   }, [playing, updateProgress]);
 
   useEffect(() => {
-    // Validate URL before proceeding
-    if (!url) {
-      setError(false);
-      setLoading(false);
-      setPlaying(false);
-      return;
-    }
-
-    if (!isValidAudioUrl(url)) {
-      console.error('Invalid audio URL:', url);
-      setError(true);
-      setLoading(false);
-      setPlaying(false);
-      return;
-    }
-
-    if (url === previousUrl.current) return;
+    if (!url || url === previousUrl.current) return;
     
     // Stop any currently playing audio before switching
     audioManager.stopAllAudio();
@@ -118,8 +85,7 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
       setPlaying(false);
     };
 
-    const handleError = (e: Event) => {
-      console.error('Audio error for URL:', url, e);
+    const handleError = () => {
       setError(true);
       setLoading(false);
       setPlaying(false);
@@ -166,11 +132,6 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
   const togglePlay = useCallback(async () => {
     if (!audioRef.current || !url) return;
 
-    if (!isValidAudioUrl(url)) {
-      setError(true);
-      return;
-    }
-
     const audio = audioRef.current;
 
     if (playing) {
@@ -183,7 +144,7 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
       try {
         await audio.play();
       } catch (err) {
-        console.error('Error playing audio:', err, 'URL:', url);
+        console.error('Error playing audio:', err);
         setError(true);
         setLoading(false);
       }
@@ -208,11 +169,6 @@ export const useAudioStreaming = (url: string): UseAudioStreamingReturn => {
 
   const reload = useCallback(() => {
     if (!audioRef.current || !url) return;
-    
-    if (!isValidAudioUrl(url)) {
-      setError(true);
-      return;
-    }
     
     setError(false);
     setLoading(true);

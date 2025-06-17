@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { useAuth } from "@/context/AuthContext";
@@ -299,7 +300,10 @@ export default function ProducerSettings() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <ProfilePictureUploader />
+                <ProfilePictureUploader
+                  avatarUrl={user.avatar_url || null}
+                  displayName={user.producer_name || user.name || "User"}
+                />
 
                 <ProfileForm
                   initialProducerName={user.producer_name || user.name || ""}
