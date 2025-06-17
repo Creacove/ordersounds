@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,8 +8,6 @@ import { cn } from "@/lib/utils";
 import { User } from "@/types";
 import { useProducers } from "@/hooks/useProducers";
 import { useState } from "react";
-import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
-import WalletButton from "@/components/wallet/WalletButton";
 
 interface UnifiedSidebarProps {
   isOpen: boolean;
@@ -150,22 +149,8 @@ export function UnifiedSidebar({
         </div>
 
         <div className={cn(
-          "flex items-center justify-center p-4 border-t border-[#272727]",
-          "flex-col gap-3"
-        )}>
-          {/* Wallet Button */}
-          <div className={cn(
-            "w-full flex justify-center mb-2", 
-            isCollapsed ? "px-1" : ""
-          )}>
-            <WalletButton 
-              buttonClass={cn(
-                "w-full rounded-md p-2 text-sm",
-                isCollapsed && "p-1"
-              )} 
-            />
-          </div>
-          
+          "flex items-center justify-center p-4 border-t border-[#272727]"
+        )}>          
           {!isMobile && (
             <Button
               variant="ghost"
