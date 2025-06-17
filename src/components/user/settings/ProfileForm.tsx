@@ -31,7 +31,27 @@ const profileFormSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
-export function ProfileForm() {
+interface ProfileFormProps {
+  initialProducerName?: string;
+  initialBio?: string;
+  initialLocation?: string;
+  avatarUrl?: string | null;
+  displayName?: string;
+  isBuyer?: boolean;
+  initialFullName?: string;
+  initialMusicInterests?: string[];
+}
+
+export function ProfileForm({
+  initialProducerName = '',
+  initialBio = '',
+  initialLocation = '',
+  avatarUrl = null,
+  displayName = '',
+  isBuyer = false,
+  initialFullName = '',
+  initialMusicInterests = []
+}: ProfileFormProps) {
   const { user, updateProfile } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -39,10 +59,10 @@ export function ProfileForm() {
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      full_name: user?.name || '',
-      stage_name: user?.producer_name || '',
-      bio: user?.bio || '',
-      country: user?.country || '',
+      full_name: initialFullName || user?.name || '',
+      stage_name: initialProducerName || user?.producer_name || '',
+      bio: initialBio || user?.bio || '',
+      country: initialLocation || user?.country || '',
     },
   });
 
@@ -100,7 +120,7 @@ export function ProfileForm() {
     }
   };
 
-  const currentImageUrl = previewUrl || user?.avatar_url;
+  const currentImageUrl = previewUrl || avatarUrl || user?.avatar_url;
 
   return (
     <Form {...form}>
@@ -152,22 +172,24 @@ export function ProfileForm() {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="stage_name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Stage Name</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter your stage name (optional)" {...field} />
-              </FormControl>
-              <FormDescription>
-                The name you want to be known by professionally
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        {!isBuyer && (
+          <FormField
+            control={form.control}
+            name="stage_name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Stage Name</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter your stage name (optional)" {...field} />
+                </FormControl>
+                <FormDescription>
+                  The name you want to be known by professionally
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        )}
 
         <FormField
           control={form.control}
