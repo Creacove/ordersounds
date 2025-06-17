@@ -35,7 +35,8 @@ export const supabase = createClient<Database>(
           signal: controller.signal,
           // Add keep-alive headers to maintain connections
           headers: {
-            ...(options.headers as Record<string, string> || {}),
+            // Properly handle options.headers which may be undefined
+            ...(options.headers ? options.headers as Record<string, string> : {}),
             'Connection': 'keep-alive',
             'Keep-Alive': 'timeout=5, max=1000',
           },
