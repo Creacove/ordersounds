@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Volume2, VolumeX, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -40,7 +39,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
     const setAudioData = () => {
       setDuration(audio.duration);
       setIsLoading(false);
-      setHasError(false); // Reset error state on successful load
+      setHasError(false);
     };
 
     const setAudioTime = () => {
@@ -278,6 +277,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
           )}
           onClick={togglePlay}
           disabled={isLoading && !hasError}
+          aria-label={hasError ? "Retry audio" : actuallyPlaying ? "Pause" : "Play"}
         >
           {isLoading && !hasError ? (
             <Loader2 size={14} className="animate-spin" />
@@ -292,6 +292,8 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
         <div className="w-full max-w-[100px]">
           <input
             type="range"
+            id="compact-audio-progress"
+            name="compactAudioProgress"
             className={cn(
               "audio-progress w-full",
               hasError && "opacity-50",
@@ -302,6 +304,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             value={currentTime}
             onChange={handleProgress}
             disabled={hasError || isLoading}
+            aria-label="Audio progress"
           />
         </div>
       </div>
@@ -321,6 +324,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
           )}
           onClick={togglePlay}
           disabled={isLoading && !hasError}
+          aria-label={hasError ? "Retry audio" : actuallyPlaying ? "Pause" : "Play"}
         >
           {isLoading && !hasError ? (
             <Loader2 size={18} className="animate-spin" />
@@ -340,6 +344,8 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
         <div className="flex-grow">
           <input
             type="range"
+            id="full-audio-progress"
+            name="fullAudioProgress"
             className={cn(
               "audio-progress w-full", 
               hasError && "opacity-50",
@@ -350,6 +356,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             value={currentTime}
             onChange={handleProgress}
             disabled={hasError || isLoading}
+            aria-label="Audio progress"
           />
         </div>
         
@@ -362,12 +369,15 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             onClick={toggleMute} 
             className="text-muted-foreground hover:text-foreground"
             disabled={isLoading}
+            aria-label={isMuted ? "Unmute" : "Mute"}
           >
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
           
           <input
             type="range"
+            id="full-audio-volume"
+            name="fullAudioVolume"
             className="audio-progress w-16"
             min={0}
             max={1}
@@ -375,6 +385,7 @@ export function AudioPlayer({ src, className, compact = false, onError }: AudioP
             value={isMuted ? 0 : volume}
             onChange={handleVolume}
             disabled={isLoading}
+            aria-label="Volume control"
           />
         </div>
       </div>

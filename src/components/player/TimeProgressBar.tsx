@@ -73,12 +73,15 @@ export function TimeProgressBar({
         />
         <input 
           type="range"
+          id="audio-progress"
+          name="audioProgress"
           min={0}
           max={duration || 0}
           value={currentTime || 0}
           onChange={(e) => seek(parseFloat(e.target.value))}
           className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
           disabled={duration <= 0 || loading}
+          aria-label="Audio progress"
         />
       </div>
       

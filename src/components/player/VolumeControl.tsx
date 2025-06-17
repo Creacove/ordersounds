@@ -22,6 +22,7 @@ export function VolumeControl({ volume, setVolume }: VolumeControlProps) {
         size="icon" 
         className="h-8 w-8" 
         onClick={() => setVolume(volume === 0 ? 0.5 : 0)}
+        aria-label={volume === 0 ? "Unmute" : "Mute"}
       >
         <VolumeIcon size={16} />
       </Button>
@@ -42,12 +43,15 @@ export function VolumeControl({ volume, setVolume }: VolumeControlProps) {
         />
         <input 
           type="range"
+          id="volume-control"
+          name="volumeControl"
           min={0}
           max={1}
           step={0.01}
           value={volume}
           onChange={(e) => setVolume(parseFloat(e.target.value))}
           className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer"
+          aria-label="Volume control"
         />
       </div>
     </div>
