@@ -54,7 +54,7 @@ export function useBeatUpload() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [processingFiles, setProcessingFiles] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState<{ [key: string]: boolean }>({});
   const [selectedLicenseTypes, setSelectedLicenseTypes] = useState<string[]>(['basic']);
   const [uploadedFileUrl, setUploadedFileUrl] = useState<string>('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -182,7 +182,7 @@ export function useBeatUpload() {
 
   const generatePreview = async (fileUrl: string) => {
     try {
-      setProcessingFiles(true);
+      setProcessingFiles(prev => ({ ...prev, preview: true }));
       setPreviewUrl(null);
       setPreviewFile(null);
       
@@ -211,7 +211,7 @@ export function useBeatUpload() {
             toast.success("Preview generated locally", {
               id: "processing-audio"
             });
-            setProcessingFiles(false);
+            setProcessingFiles(prev => ({ ...prev, preview: false }));
             return;
           } catch (clientError) {
             console.error("Client-side preview generation failed:", clientError);
@@ -260,13 +260,13 @@ export function useBeatUpload() {
         }
       }
       
-      setProcessingFiles(false);
+      setProcessingFiles(prev => ({ ...prev, preview: false }));
     } catch (error) {
       console.error("Error in audio processing:", error);
       toast.error("Failed to process audio. Please try again.", {
         id: "processing-audio"
       });
-      setProcessingFiles(false);
+      setProcessingFiles(prev => ({ ...prev, preview: false }));
     }
   };
 

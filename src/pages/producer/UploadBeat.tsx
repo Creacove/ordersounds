@@ -599,8 +599,8 @@ export default function UploadBeat() {
                     selectedLicenseTypes={selectedLicenseTypes}
                     stems={stems}
                     setStems={setStems}
-                    processingFiles={processingFiles || {}}
-                    uploadProgress={uploadProgress || {}}
+                    processingFiles={processingFiles}
+                    uploadProgress={uploadProgress}
                     regeneratePreview={regeneratePreview}
                     previewUrl={previewUrl}
                     setPreviewUrl={setPreviewUrl}

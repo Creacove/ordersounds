@@ -4,6 +4,19 @@ import { Beat } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useCallback, useMemo } from 'react';
 import { AudioManager } from '@/lib/audioManager';
+import { toast } from 'sonner';
+
+// Validate beat preview URL
+const hasValidPreviewUrl = (beat: Beat): boolean => {
+  if (!beat.preview_url) return false;
+  
+  try {
+    new URL(beat.preview_url);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export function useAudioPlayer() {
   const { currentBeat, isPlaying, togglePlayPause, playBeat } = usePlayer();
@@ -34,8 +47,10 @@ export function useAudioPlayer() {
       } else {
         console.log("Playing new beat:", beat.title);
         
-        if (!beat.preview_url) {
-          console.warn("Beat doesn't have a preview URL:", beat.title);
+        // Validate preview URL before attempting to play
+        if (!hasValidPreviewUrl(beat)) {
+          console.warn("Beat doesn't have a valid preview URL:", beat.title, beat.preview_url);
+          toast.error(`Cannot play "${beat.title}" - preview not available`);
           return;
         }
         
@@ -49,6 +64,7 @@ export function useAudioPlayer() {
       }
     } catch (error) {
       console.error("Error handling play:", error);
+      toast.error(`Failed to play "${beat.title}"`);
     }
   }, [currentBeat, togglePlayPause, playBeat, incrementPlayCount, audioManager]);
 
