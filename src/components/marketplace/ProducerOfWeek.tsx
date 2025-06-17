@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, Pause, Heart, UserCheck, Music, Star, ArrowRight, Headphones, CheckCircle2 } from "lucide-react";
@@ -31,7 +30,9 @@ export function ProducerOfWeek() {
   const [producerBeats, setProducerBeats] = useState<any[]>([]);
   const [isLoadingProducer, setIsLoadingProducer] = useState(true);
   const [isLoadingBeats, setIsLoadingBeats] = useState(true);
-  const [isFollowingProducer, setIsFollowingProducer] = useState(false);
+
+  // Call the hook at the top level - this will return false if producer is null
+  const { data: isFollowing = false } = useFollowStatus(producer?.id);
 
   // Fetch the producer of the week
   useEffect(() => {
@@ -139,24 +140,6 @@ export function ProducerOfWeek() {
     fetchProducerBeats();
   }, [producer]);
 
-  // Check if user is following the producer
-  useEffect(() => {
-    if (!user || !producer) return;
-
-    const checkFollowStatus = async () => {
-      try {
-        // Use the hook correctly - check if the user is currently following the producer
-        const { data: isFollowing } = useFollowStatus(producer.id);
-        
-        setIsFollowingProducer(!!isFollowing);
-      } catch (error) {
-        console.error('Error checking follow status:', error);
-      }
-    };
-
-    checkFollowStatus();
-  }, [user, producer, useFollowStatus]);
-
   const handleToggleFollow = async () => {
     if (!user) {
       toast.error("Please log in to follow producers");
@@ -167,13 +150,11 @@ export function ProducerOfWeek() {
     if (!producer) return;
 
     try {
-      if (isFollowingProducer) {
+      if (isFollowing) {
         await unfollowProducer(producer.id);
-        setIsFollowingProducer(false);
         toast.success(`Unfollowed ${producer.stage_name || producer.full_name}`);
       } else {
         await followProducer(producer.id);
-        setIsFollowingProducer(true);
         toast.success(`Now following ${producer.stage_name || producer.full_name}`);
       }
     } catch (error) {
@@ -304,16 +285,16 @@ export function ProducerOfWeek() {
             {/* Follow Button */}
             <Button
               onClick={handleToggleFollow}
-              variant={isFollowingProducer ? "secondary" : "default"}
+              variant={isFollowing ? "secondary" : "default"}
               className={cn(
                 "w-full shadow-md justify-center",
-                isFollowingProducer 
+                isFollowing 
                   ? "bg-white/15 hover:bg-white/25 text-white border-white/20" 
                   : "bg-white hover:bg-white/90 text-purple-900"
               )}
             >
-              <UserCheck size={18} className={isFollowingProducer ? "" : "mr-2"} />
-              {isFollowingProducer ? null : <span>Follow Producer</span>}
+              <UserCheck size={18} className={isFollowing ? "" : "mr-2"} />
+              {isFollowing ? null : <span>Follow Producer</span>}
             </Button>
           </div>
         </div>
