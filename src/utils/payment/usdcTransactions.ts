@@ -98,9 +98,8 @@ const simulateTransaction = async (
   transaction: Transaction
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const simulation = await connection.simulateTransaction(transaction, {
-      commitment: 'confirmed'
-    });
+    // Use the correct overload: (transaction, signers, options)
+    const simulation = await connection.simulateTransaction(transaction);
     
     if (simulation.value.err) {
       console.error('Transaction simulation failed:', simulation.value.err);
