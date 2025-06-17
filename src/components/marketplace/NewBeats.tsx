@@ -9,7 +9,11 @@ import { fetchNewBeats } from "@/services/beats/queryService";
 export const NewBeats = () => {
   const { data: newBeats = [], isLoading } = useQuery({
     queryKey: ['new-beats'],
-    queryFn: () => fetchNewBeats(5)
+    queryFn: () => fetchNewBeats(5),
+    staleTime: 5 * 60 * 1000,
+    retry: 2,
+    retryDelay: 1000,
+    refetchOnWindowFocus: false,
   });
 
   return (

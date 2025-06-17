@@ -112,6 +112,12 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
       throw error;
     }
 
+    // If no trending beats found, fall back to recent beats
+    if (!data || data.length === 0) {
+      console.log('No trending beats found, falling back to recent beats');
+      return fetchNewBeats(limit);
+    }
+
     const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     console.log(`Successfully fetched ${beats.length} trending beats`);
     
@@ -183,6 +189,7 @@ export async function fetchMetricBasedTrending(limit: number = 100): Promise<Bea
   }
 }
 
+// Simplified featured beats - just return trending beats flagged as featured
 export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
   try {
     console.log('Fetching featured beats...');
@@ -204,11 +211,6 @@ export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
     if (error) {
       console.error('Error fetching featured beats:', error);
       throw error;
-    }
-
-    if (!data || data.length === 0) {
-      // If no featured beats, return trending beats as fallback
-      return fetchTrendingBeats(limit);
     }
 
     const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);

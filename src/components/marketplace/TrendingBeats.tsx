@@ -8,9 +8,12 @@ import { fetchTrendingBeats } from "@/services/beats";
 
 export const TrendingBeats = () => {
   const { data: trendingBeats = [], isLoading } = useQuery({
-    queryKey: ['curated-trending-beats'],
+    queryKey: ['trending-beats'],
     queryFn: () => fetchTrendingBeats(5), // Keep limit at 5 for curated homepage display
-    staleTime: 5 * 60 * 1000 // Consider data fresh for 5 minutes
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    retry: 2,
+    retryDelay: 1000,
+    refetchOnWindowFocus: false,
   });
 
   return (
