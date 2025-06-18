@@ -99,11 +99,19 @@ export function Topbar({ sidebarVisible = false }) {
       )}>
         <div className="flex items-center gap-2">          
           <Link to="/" className="flex items-center gap-2 relative">
-            <img 
-              src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
-              alt="OrderSOUNDS"
-              className={isMobile ? "h-24 w-auto" : "h-36 w-auto"}
-            />
+            {isMobile ? (
+              <img 
+                src="/lovable-uploads/fab0dcb7-7ef1-4259-87cf-2e17b0748cd6.png" 
+                alt="OrderSOUNDS"
+                className="h-10 w-auto"
+              />
+            ) : (
+              <img 
+                src="/lovable-uploads/a5b2cdfb-b365-4bf2-a812-07636101b39f.png" 
+                alt="OrderSOUNDS"
+                className="h-36 w-auto"
+              />
+            )}
             <div className="flex flex-col items-start">
               <Badge variant="secondary" className="bg-purple-600 text-white text-[10px] xs:text-xs">BETA</Badge>
             </div>
