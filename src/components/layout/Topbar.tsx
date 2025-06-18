@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -101,7 +102,7 @@ export function Topbar({ sidebarVisible = false }) {
           <Link to="/" className="flex items-center gap-2 relative">
             {isMobile ? (
               <img 
-                src="/lovable-uploads/fab0dcb7-7ef1-4259-87cf-2e17b0748cd6.png" 
+                src="/lovable-uploads/b13e738c-ca3f-41ed-b140-e4cec91ed38f.png" 
                 alt="OrderSOUNDS"
                 className="h-10 w-auto"
               />
