@@ -19,9 +19,11 @@ const USDC_MINT_ADDRESSES = {
   'testnet': new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU')
 };
 
-// Get current network's USDC mint
+// Get current network's USDC mint - FORCE DEVNET FOR NOW
 const getUSDCMint = (network: string = 'devnet'): PublicKey => {
-  return USDC_MINT_ADDRESSES[network as keyof typeof USDC_MINT_ADDRESSES] || USDC_MINT_ADDRESSES.devnet;
+  // Force devnet usage for testing
+  console.log(`🌐 Forcing DEVNET for USDC transactions (requested: ${network})`);
+  return USDC_MINT_ADDRESSES.devnet;
 };
 
 // Check if a string is a valid Solana address
@@ -132,7 +134,7 @@ const addPriorityFee = (transaction: Transaction, microLamports: number = 10000)
   transaction.instructions.unshift(priorityFeeInstruction);
 };
 
-// Process a single USDC payment
+// Process a single USDC payment - FORCE DEVNET
 export const processUSDCPayment = async (
   usdAmount: number,
   recipientAddress: string, 
@@ -144,11 +146,13 @@ export const processUSDCPayment = async (
     if (!wallet.publicKey) throw new Error("Wallet not connected");
     if (!isValidSolanaAddress(recipientAddress)) throw new Error("Invalid recipient address");
     
-    const usdcMint = getUSDCMint(network);
+    // FORCE DEVNET - Override any network parameter
+    const forceDevnet = 'devnet';
+    const usdcMint = getUSDCMint(forceDevnet);
     const usdcAmount = usdToUSDCUnits(usdAmount);
     
-    console.log(`💰 Processing USDC payment: $${usdAmount} (${usdcAmount.toString()} USDC units) to ${recipientAddress}`);
-    console.log(`🌐 Network: ${network}, USDC Mint: ${usdcMint.toString()}`);
+    console.log(`💰 Processing DEVNET USDC payment: $${usdAmount} (${usdcAmount.toString()} USDC units) to ${recipientAddress}`);
+    console.log(`🌐 FORCED Network: ${forceDevnet}, USDC Mint: ${usdcMint.toString()}`);
     
     // Check sender's USDC balance first
     const { balance: senderBalance, hasAccount: senderHasAccount } = await checkUSDCBalance(
@@ -160,12 +164,12 @@ export const processUSDCPayment = async (
     console.log(`💳 Sender USDC balance: ${senderBalance.toString()} units (${Number(senderBalance) / 1_000_000} USDC)`);
     
     if (!senderHasAccount) {
-      throw new Error("You don't have a USDC token account. Please fund your wallet with USDC first.");
+      throw new Error("You don't have a USDC token account. Please fund your wallet with DEVNET USDC first.");
     }
     
     if (senderBalance < usdcAmount) {
       const availableUSDC = Number(senderBalance) / 1_000_000;
-      throw new Error(`Insufficient USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${usdAmount} USDC.`);
+      throw new Error(`Insufficient DEVNET USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${usdAmount} USDC.`);
     }
     
     const transaction = new Transaction();
@@ -218,7 +222,7 @@ export const processUSDCPayment = async (
       throw new Error(simulation.error || "Transaction simulation failed");
     }
     
-    console.log('🚀 Sending USDC transaction...');
+    console.log('🚀 Sending DEVNET USDC transaction...');
     
     // Sign and send the transaction
     const signature = await wallet.sendTransaction(transaction, connection, {
@@ -227,7 +231,7 @@ export const processUSDCPayment = async (
       preflightCommitment: 'confirmed'
     });
     
-    console.log(`📋 USDC transfer signature: ${signature}`);
+    console.log(`📋 DEVNET USDC transfer signature: ${signature}`);
     
     // Wait for confirmation with timeout
     const confirmationStart = Date.now();
@@ -248,27 +252,27 @@ export const processUSDCPayment = async (
       throw new Error(`Transaction failed to confirm: ${confirmation?.value.err?.toString() || 'Timeout'}`);
     }
     
-    console.log('✅ USDC transaction confirmed successfully');
+    console.log('✅ DEVNET USDC transaction confirmed successfully');
     return signature;
   } catch (error: any) {
-    console.error("❌ Error in USDC transaction:", error);
+    console.error("❌ Error in DEVNET USDC transaction:", error);
     
     // Provide specific error messages for common issues
     if (error.message.includes('0x1')) {
       throw new Error("Insufficient SOL balance for transaction fees. Please add SOL to your wallet.");
     }
     if (error.message.includes('TokenAccountNotFoundError')) {
-      throw new Error("USDC token account not found. Please ensure you have USDC in your wallet.");
+      throw new Error("DEVNET USDC token account not found. Please ensure you have DEVNET USDC in your wallet.");
     }
     if (error.message.includes('insufficient funds')) {
-      throw new Error("Insufficient USDC balance for this transaction.");
+      throw new Error("Insufficient DEVNET USDC balance for this transaction.");
     }
     
-    throw new Error(error.message || "Failed to process USDC payment");
+    throw new Error(error.message || "Failed to process DEVNET USDC payment");
   }
 };
 
-// Process multiple USDC payments in batch
+// Process multiple USDC payments in batch - FORCE DEVNET
 export const processMultipleUSDCPayments = async (
   items: { price: number, producerWallet: string, id?: string, title?: string }[],
   connection: Connection, 
@@ -286,7 +290,9 @@ export const processMultipleUSDCPayments = async (
     }
     
     const totalAmount = items.reduce((sum, item) => sum + item.price, 0);
-    const usdcMint = getUSDCMint(network);
+    // FORCE DEVNET
+    const forceDevnet = 'devnet';
+    const usdcMint = getUSDCMint(forceDevnet);
     
     // Check total USDC balance before processing any transactions
     const { balance: senderBalance, hasAccount: senderHasAccount } = await checkUSDCBalance(
@@ -296,15 +302,15 @@ export const processMultipleUSDCPayments = async (
     );
     
     if (!senderHasAccount) {
-      throw new Error("You don't have a USDC token account. Please fund your wallet with USDC first.");
+      throw new Error("You don't have a DEVNET USDC token account. Please fund your wallet with DEVNET USDC first.");
     }
     
     const availableUSDC = Number(senderBalance) / 1_000_000;
     if (availableUSDC < totalAmount) {
-      throw new Error(`Insufficient USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${totalAmount.toFixed(2)} USDC.`);
+      throw new Error(`Insufficient DEVNET USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${totalAmount.toFixed(2)} USDC.`);
     }
     
-    console.log(`💰 Processing ${items.length} USDC payments, total: $${totalAmount}`);
+    console.log(`💰 Processing ${items.length} DEVNET USDC payments, total: $${totalAmount}`);
     
     const signatures: string[] = [];
     
@@ -312,14 +318,14 @@ export const processMultipleUSDCPayments = async (
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       try {
-        console.log(`📦 Processing payment ${i + 1}/${items.length}: $${item.price} to ${item.producerWallet}`);
+        console.log(`📦 Processing DEVNET payment ${i + 1}/${items.length}: $${item.price} to ${item.producerWallet}`);
         
         const signature = await processUSDCPayment(
           item.price,
           item.producerWallet,
           connection,
           wallet,
-          network
+          forceDevnet // Force devnet
         );
         signatures.push(signature);
         
@@ -328,15 +334,15 @@ export const processMultipleUSDCPayments = async (
           await new Promise(resolve => setTimeout(resolve, 1000));
         }
       } catch (error: any) {
-        console.error(`❌ Failed USDC payment to ${item.producerWallet}:`, error);
+        console.error(`❌ Failed DEVNET USDC payment to ${item.producerWallet}:`, error);
         throw error;
       }
     }
     
-    console.log(`✅ All ${items.length} USDC payments completed successfully`);
+    console.log(`✅ All ${items.length} DEVNET USDC payments completed successfully`);
     return signatures;
   } catch (error: any) {
-    console.error("❌ Error processing multiple USDC payments:", error);
-    throw new Error(error.message || "Failed to process USDC payments");
+    console.error("❌ Error processing multiple DEVNET USDC payments:", error);
+    throw new Error(error.message || "Failed to process DEVNET USDC payments");
   }
 };

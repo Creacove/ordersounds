@@ -19,15 +19,20 @@ interface SolanaWalletProviderProps {
 }
 
 const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
-    // Force devnet for testing phase
-    const network = useMemo(() => WalletAdapterNetwork.Devnet, []);
+    // FORCE DEVNET for all transactions
+    const network = useMemo(() => {
+        console.log('🌐 Forcing DEVNET network for all Solana operations');
+        return WalletAdapterNetwork.Devnet;
+    }, []);
 
     // Use QuickNode RPC endpoint for devnet
     const endpoint = useMemo(() => {
-        return 'https://greatest-proportionate-hill.solana-devnet.quiknode.pro/41e5bfe38a70eea3949938349ff08bed95d6290b/';
+        const devnetEndpoint = 'https://greatest-proportionate-hill.solana-devnet.quiknode.pro/41e5bfe38a70eea3949938349ff08bed95d6290b/';
+        console.log('🔗 Using DEVNET RPC endpoint:', devnetEndpoint);
+        return devnetEndpoint;
     }, []);
 
-    // Configure wallet adapters
+    // Configure wallet adapters for DEVNET
     const wallets = useMemo(
         () => [
             new PhantomWalletAdapter(),

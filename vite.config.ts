@@ -55,11 +55,8 @@ export default defineConfig(({ mode }) => ({
             'react-dom',
             'react-router-dom'
           ],
-          // Separate UI components
+          // Separate UI components (fix the @radix-ui/react-button issue)
           'ui': [
-            '@radix-ui/react-dialog',
-            '@radix-ui/react-button',
-            '@radix-ui/react-card',
             'lucide-react'
           ]
         }
@@ -87,6 +84,7 @@ export default defineConfig(({ mode }) => ({
       '@walletconnect/core',
       '@walletconnect/sign-client',
       '@walletconnect/universal-provider',
+      '@walletconnect/heartbeat',
       '@reown/appkit',
       '@reown/appkit-controllers',
       // Exclude other problematic crypto libraries
