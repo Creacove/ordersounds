@@ -30,14 +30,9 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // Add specific alias to prevent WalletConnect issues
-      '@walletconnect/time': false,
-      '@walletconnect/heartbeat': false,
-      '@walletconnect/utils': false,
-      '@walletconnect/relay-auth': false,
-      '@walletconnect/core': false,
-      '@walletconnect/sign-client': false,
-      '@walletconnect/universal-provider': false,
+      // Only block problematic WalletConnect packages, not all of them
+      '@walletconnect/time': path.resolve(__dirname, 'node_modules/@walletconnect/time'),
+      '@walletconnect/heartbeat': path.resolve(__dirname, 'node_modules/@walletconnect/heartbeat'),
     },
   },
   build: {
@@ -45,20 +40,7 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     // Optimize rollup options for large dependencies
     rollupOptions: {
-      external: [
-        // Completely externalize WalletConnect packages
-        '@walletconnect/time',
-        '@walletconnect/heartbeat',
-        '@walletconnect/utils',
-        '@walletconnect/relay-auth',
-        '@walletconnect/core',
-        '@walletconnect/sign-client',
-        '@walletconnect/universal-provider',
-        '@reown/appkit',
-        '@reown/appkit-controllers',
-        'viem',
-        'ox'
-      ],
+      // Remove external blocking - let bundler handle it
       output: {
         // Manual chunk splitting to reduce bundle size
         manualChunks: {
@@ -70,7 +52,7 @@ export default defineConfig(({ mode }) => ({
             '@solana/web3.js',
             '@solana/spl-token'
           ],
-          // Separate wallet adapters that don't use WalletConnect
+          // Separate wallet adapters that may use WalletConnect
           'solana-adapters': [
             '@solana/wallet-adapter-wallets'
           ],
@@ -93,32 +75,24 @@ export default defineConfig(({ mode }) => ({
     target: 'esnext',
     minify: mode === 'production' ? 'esbuild' : false,
   },
-  // Optimize dependencies with aggressive exclusions
+  // Optimize dependencies - be more selective about exclusions
   optimizeDeps: {
     include: [
       'react',
       'react-dom',
       '@solana/wallet-adapter-react',
       '@solana/web3.js',
-      '@solana/spl-token'
+      '@solana/spl-token',
+      // Allow wallet adapters to include their dependencies
+      '@solana/wallet-adapter-wallets'
     ],
     exclude: [
-      // Exclude ALL WalletConnect packages to prevent module resolution issues
-      '@walletconnect/time',
-      '@walletconnect/heartbeat',
-      '@walletconnect/utils',
-      '@walletconnect/relay-auth',
-      '@walletconnect/core',
-      '@walletconnect/sign-client',
-      '@walletconnect/universal-provider',
-      '@walletconnect/modal',
-      '@walletconnect/modal-core',
-      '@walletconnect/modal-ui',
+      // Only exclude the most problematic packages
       '@reown/appkit',
       '@reown/appkit-controllers',
       '@reown/appkit-core',
       '@reown/appkit-ui',
-      // Exclude other problematic crypto libraries
+      // Exclude other problematic crypto libraries that we don't use
       'viem',
       'ox',
       'wagmi'
