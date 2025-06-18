@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSolanaPayment } from "@/hooks/payment/useSolanaPayment";
 import { toast } from "sonner";
@@ -284,11 +283,16 @@ export const SolanaCheckoutDialog = ({
       // Only create order if we have successful payments
       if (successfulPayments.length > 0) {
         try {
+          // Calculate accurate total from successful payments only
+          const actualOrderTotal = successfulPayments.reduce((sum, payment) => sum + payment.amount, 0);
+          
+          console.log(`Creating order with accurate total: $${actualOrderTotal} (from ${successfulPayments.length} successful payments)`);
+          
           const { data: order, error: orderError } = await supabase
             .from('orders')
             .insert({
               buyer_id: userData.user.id,
-              total_price: totalPrice,
+              total_price: actualOrderTotal,
               status: 'completed',
               currency_used: 'USDC',
               payment_method: 'solana_usdc',
