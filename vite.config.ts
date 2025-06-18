@@ -17,9 +17,11 @@ export default defineConfig(({ mode }) => ({
     react(),
     // Add node polyfills plugin
     nodePolyfills({
-      include: ['buffer', 'crypto', 'stream'],
+      include: ['buffer', 'crypto', 'stream', 'util', 'events'],
       globals: {
         Buffer: true,
+        global: true,
+        process: true,
       },
     }),
     mode === 'development' &&
@@ -78,14 +80,23 @@ export default defineConfig(({ mode }) => ({
       '@solana/web3.js'
     ],
     exclude: [
-      // Exclude large crypto libraries from pre-bundling to reduce memory usage
+      // Exclude all WalletConnect packages to prevent module resolution issues
       '@walletconnect/utils',
+      '@walletconnect/time',
+      '@walletconnect/relay-auth',
+      '@walletconnect/core',
+      '@walletconnect/sign-client',
+      '@walletconnect/universal-provider',
       '@reown/appkit',
-      '@reown/appkit-controllers'
+      '@reown/appkit-controllers',
+      // Exclude other problematic crypto libraries
+      'viem',
+      'ox'
     ]
   },
-  // Define global constants to help with tree shaking
+  // Define global constants to help with tree shaking and compatibility
   define: {
     global: 'globalThis',
+    'process.env': '{}',
   },
 }));
