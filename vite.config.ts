@@ -30,4 +30,62 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Increase chunk size warning limit
+    chunkSizeWarningLimit: 1000,
+    // Optimize rollup options for large dependencies
+    rollupOptions: {
+      output: {
+        // Manual chunk splitting to reduce bundle size
+        manualChunks: {
+          // Separate Solana wallet dependencies
+          'solana-wallet': [
+            '@solana/wallet-adapter-base',
+            '@solana/wallet-adapter-react',
+            '@solana/wallet-adapter-react-ui',
+            '@solana/wallet-adapter-wallets',
+            '@solana/web3.js',
+            '@solana/spl-token'
+          ],
+          // Separate other vendor libraries
+          'vendor': [
+            'react',
+            'react-dom',
+            'react-router-dom'
+          ],
+          // Separate UI components
+          'ui': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-button',
+            '@radix-ui/react-card',
+            'lucide-react'
+          ]
+        }
+      },
+      // Increase memory limit and optimize for large bundles
+      maxParallelFileOps: 2,
+    },
+    // Increase memory for the build process
+    target: 'esnext',
+    minify: mode === 'production' ? 'esbuild' : false,
+  },
+  // Optimize dependencies
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      '@solana/wallet-adapter-react',
+      '@solana/web3.js'
+    ],
+    exclude: [
+      // Exclude large crypto libraries from pre-bundling to reduce memory usage
+      '@walletconnect/utils',
+      '@reown/appkit',
+      '@reown/appkit-controllers'
+    ]
+  },
+  // Define global constants to help with tree shaking
+  define: {
+    global: 'globalThis',
+  },
 }));
