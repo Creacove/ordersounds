@@ -14,7 +14,10 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle, CheckCircle2, Wallet } from "lucide-react";
+import { Loader2, AlertTriangle, CheckCircle2, Wallet, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import WalletButton from "../wallet/WalletButton";
 
 interface CartItem {
@@ -324,93 +327,129 @@ export const SolanaCheckoutDialog = ({
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md border-purple-200 dark:border-purple-800 shadow-xl backdrop-blur-md bg-white/95 dark:bg-gray-900/95">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent dark:from-purple-400 dark:to-indigo-400">
-            Complete USDC Payment
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            You are about to purchase {cartItems.length} digital item(s) for ${totalPrice.toFixed(2)} USDC on {network} network
-          </DialogDescription>
+      <DialogContent className="sm:max-w-md bg-card border shadow-lg">
+        <DialogHeader className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Wallet className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <DialogTitle className="text-xl font-semibold">Complete USDC Payment</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
+                Purchase {cartItems.length} item(s) for ${totalPrice.toFixed(2)} USDC on {network}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           {!wallet.connected && (
-            <div className="flex flex-col gap-4">
-              <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-800 dark:from-amber-900/30 dark:to-orange-900/30 dark:border-amber-700/50 dark:text-amber-300">
-                <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium mb-1">Wallet Connection Required</p>
-                  <p>Please connect your Solana wallet to complete this USDC purchase</p>
+            <Card className="border-amber-200 dark:border-amber-800">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="space-y-3">
+                    <div>
+                      <p className="font-medium text-amber-900 dark:text-amber-100">Wallet Connection Required</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">Connect your Solana wallet to complete this purchase</p>
+                    </div>
+                    <WalletButton className="w-full" />
+                  </div>
                 </div>
-              </div>
-              <WalletButton className="w-full flex justify-center bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300" />
-            </div>
+              </CardContent>
+            </Card>
           )}
           
           {wallet.connected && (
-            <div className="flex items-center p-4 rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 text-blue-800 dark:from-blue-900/30 dark:to-cyan-900/30 dark:border-blue-700/50 dark:text-blue-300">
-              <Wallet className="h-5 w-5 mr-3 flex-shrink-0" />
-              <div className="text-sm">
-                <div className="font-medium">Connected: {wallet.publicKey?.toString().slice(0, 8)}...{wallet.publicKey?.toString().slice(-8)}</div>
-                <div className="text-xs opacity-75 mt-0.5">Network: {network}</div>
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Wallet className="h-5 w-5 text-primary flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">Connected: {wallet.publicKey?.toString().slice(0, 8)}...{wallet.publicKey?.toString().slice(-8)}</div>
+                    <div className="text-sm text-muted-foreground">Network: {network}</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
           
           {validationError ? (
-            <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 text-red-800 dark:from-red-900/30 dark:to-pink-900/30 dark:border-red-700/50 dark:text-red-300">
-              <AlertTriangle className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium mb-1">Validation Error</p>
-                <p>{validationError}</p>
-              </div>
-            </div>
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-medium">Validation Error</p>
+                <p className="text-sm mt-1">{validationError}</p>
+              </AlertDescription>
+            </Alert>
           ) : validationComplete ? (
-            <div className="flex items-start p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 text-green-800 dark:from-green-900/30 dark:to-emerald-900/30 dark:border-green-700/50 dark:text-green-300">
-              <CheckCircle2 className="h-5 w-5 mr-3 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-medium mb-1">Validation Complete</p>
-                <p>All producer USDC wallet addresses verified</p>
-              </div>
-            </div>
+            <Alert>
+              <CheckCircle2 className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-medium">Validation Complete</p>
+                <p className="text-sm mt-1">All producer wallet addresses verified</p>
+              </AlertDescription>
+            </Alert>
           ) : (
-            <div className="flex items-center p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 dark:from-blue-900/30 dark:to-indigo-900/30 dark:border-blue-700/50 dark:text-blue-300">
-              <Loader2 className="h-5 w-5 mr-3 animate-spin flex-shrink-0" />
-              <div className="text-sm">
-                <p className="font-medium">Verifying wallet addresses...</p>
-                <p className="text-xs opacity-75 mt-0.5">Please wait while we validate producer payment information</p>
-              </div>
-            </div>
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Verifying wallet addresses...</p>
+                    <p className="text-sm text-muted-foreground">Please wait while we validate producer payment information</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
           
-          <div className="p-4 rounded-xl bg-gradient-to-r from-purple-50/80 to-indigo-50/80 dark:from-purple-900/20 dark:to-indigo-900/20 border border-purple-200/50 dark:border-purple-800/50">
-            <div className="text-sm space-y-2">
-              <p className="font-medium text-purple-800 dark:text-purple-300">✨ Instant Download Access</p>
-              <p className="text-muted-foreground">Your items will be available for download immediately after USDC payment completion.</p>
-              <p className="text-xs text-muted-foreground">This checkout processes individual USDC payments to each producer, with platform fees calculated per item.</p>
-            </div>
-          </div>
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">Order Summary</h3>
+                <Badge variant="outline" className="text-xs">
+                  Test Mode
+                </Badge>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-lg font-semibold">
+                  <span>Total</span>
+                  <span>${totalPrice.toFixed(2)} USDC</span>
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Info className="h-3 w-3" />
+                  Secure payment powered by Solana
+                </p>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                <p>✨ Instant download access after payment completion</p>
+              </div>
+            </CardContent>
+          </Card>
         </div>
         
-        <DialogFooter className="flex flex-col sm:flex-row gap-3 pt-2">
+        <DialogFooter className="flex flex-col sm:flex-row gap-3">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)} 
             disabled={isCheckingOut}
-            className="w-full sm:w-auto transition-all hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-300 dark:border-gray-700"
+            className="w-full sm:w-auto"
           >
             Cancel
           </Button>
           <Button 
-            className="w-full sm:w-auto bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" 
+            className="w-full sm:w-auto" 
+            variant="premium"
             onClick={handleCheckout} 
             disabled={isCheckingOut || !wallet.connected || !validationComplete || !!validationError}
           >
             {isCheckingOut ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Processing USDC Payment...
+                Processing Payment...
               </>
             ) : (
               `Pay ${totalPrice.toFixed(2)} USDC`
