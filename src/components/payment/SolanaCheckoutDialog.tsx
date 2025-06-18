@@ -36,6 +36,16 @@ interface CheckoutDialogProps {
   onCheckoutSuccess: () => void;
 }
 
+interface PaymentResult {
+  success: boolean;
+  signature?: string;
+  error?: string;
+  groupIndex: number;
+  producerWallet: string;
+  amount: number;
+  items: CartItem[];
+}
+
 export const SolanaCheckoutDialog = ({
   open,
   onOpenChange,
@@ -207,51 +217,72 @@ export const SolanaCheckoutDialog = ({
 
       console.log(`Processing ${groupedItems.length} USDC payments on ${network} network`);
 
-      // Process USDC payments for each producer first, then create order
-      let successfulPayments = 0;
-      let transactionSignatures: string[] = [];
-      let paymentErrors: string[] = [];
+      // Process USDC payments and track results
+      const paymentResults: PaymentResult[] = [];
       
-      for (const group of groupedItems) {
+      for (let i = 0; i < groupedItems.length; i++) {
+        const group = groupedItems[i];
+        
+        if (!group.producerWallet) {
+          paymentResults.push({
+            success: false,
+            error: `Missing producer wallet address for ${group.items[0].title}`,
+            groupIndex: i,
+            producerWallet: group.producerWallet,
+            amount: group.total,
+            items: group.items
+          });
+          continue;
+        }
+        
         try {
-          if (!group.producerWallet) {
-            const errorMsg = `Missing producer wallet address for ${group.items[0].title}`;
-            paymentErrors.push(errorMsg);
-            console.error(errorMsg);
-            continue;
-          }
-          
           console.log(`Processing USDC payment of $${group.total} to wallet ${group.producerWallet}`);
           
           const signature = await makePayment(
             group.total,
-            group.producerWallet,
-            (sig) => {
-              successfulPayments++;
-              transactionSignatures.push(sig);
-              console.log(`USDC payment successful: ${sig}`);
-            },
-            (err) => {
-              const errorMsg = `Payment failed for ${group.items[0].title}: ${err.message || 'Unknown error'}`;
-              paymentErrors.push(errorMsg);
-              console.error(`USDC payment error for ${group.producerWallet}:`, err);
-            }
+            group.producerWallet
           );
           
           if (signature) {
-            successfulPayments++;
-            transactionSignatures.push(signature);
+            paymentResults.push({
+              success: true,
+              signature,
+              groupIndex: i,
+              producerWallet: group.producerWallet,
+              amount: group.total,
+              items: group.items
+            });
+            console.log(`USDC payment successful: ${signature}`);
+          } else {
+            paymentResults.push({
+              success: false,
+              error: 'Payment returned no signature',
+              groupIndex: i,
+              producerWallet: group.producerWallet,
+              amount: group.total,
+              items: group.items
+            });
           }
           
         } catch (error: any) {
-          const errorMsg = `Error processing payment for ${group.items[0].title}: ${error.message || 'Unknown error'}`;
-          paymentErrors.push(errorMsg);
-          console.error("Checkout error for producer:", error);
+          paymentResults.push({
+            success: false,
+            error: error.message || 'Unknown payment error',
+            groupIndex: i,
+            producerWallet: group.producerWallet,
+            amount: group.total,
+            items: group.items
+          });
+          console.error(`USDC payment error for ${group.producerWallet}:`, error);
         }
       }
       
+      // Count successful payments and collect signatures
+      const successfulPayments = paymentResults.filter(result => result.success);
+      const transactionSignatures = successfulPayments.map(result => result.signature!);
+      
       // Only create order if we have successful payments
-      if (successfulPayments > 0 && transactionSignatures.length > 0) {
+      if (successfulPayments.length > 0) {
         try {
           const { data: order, error: orderError } = await supabase
             .from('orders')
@@ -273,9 +304,7 @@ export const SolanaCheckoutDialog = ({
             console.log("Created order:", order);
             
             // Create order items for successful payments only
-            const successfulItems = groupedItems
-              .filter((_, index) => index < successfulPayments)
-              .flatMap(group => group.items);
+            const successfulItems = successfulPayments.flatMap(result => result.items);
               
             const orderItems = successfulItems.map(item => ({
               order_id: order.id,
@@ -301,18 +330,20 @@ export const SolanaCheckoutDialog = ({
       }
       
       // Provide user feedback based on results
-      if (successfulPayments === groupedItems.length) {
+      const failedPayments = paymentResults.filter(result => !result.success);
+      
+      if (successfulPayments.length === groupedItems.length) {
         toast.success("All USDC payments completed successfully!");
         onCheckoutSuccess();
-      } else if (successfulPayments > 0) {
-        toast.warning(`${successfulPayments} of ${groupedItems.length} payments completed successfully`);
-        if (paymentErrors.length > 0) {
-          toast.error(`Some payments failed: ${paymentErrors[0]}`);
+      } else if (successfulPayments.length > 0) {
+        toast.warning(`${successfulPayments.length} of ${groupedItems.length} payments completed successfully`);
+        if (failedPayments.length > 0) {
+          toast.error(`Some payments failed: ${failedPayments[0].error}`);
         }
         onCheckoutSuccess();
       } else {
-        const errorMessage = paymentErrors.length > 0 ? paymentErrors[0] : "All payments failed";
-        toast.error(errorMessage);
+        const errorMessage = failedPayments.length > 0 ? failedPayments[0].error : "All payments failed";
+        toast.error(errorMessage || "Checkout failed");
       }
       
     } catch (error: any) {
