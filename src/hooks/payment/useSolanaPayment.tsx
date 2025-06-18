@@ -71,13 +71,12 @@ export const useSolanaPayment = () => {
 
       console.log(`💳 Processing USDC payment: $${amount} to ${producerWalletAddress} on ${network}`);
 
-      // Process USDC payment using the connection from provider
+      // Process USDC payment using the connection from provider (removed network parameter)
       const signature = await processUSDCPayment(
         amount,
         producerWalletAddress,
         connection,
-        wallet,
-        network
+        wallet
       );
 
       // Wait for confirmation with better error handling
@@ -213,14 +212,14 @@ export const useSolanaPayment = () => {
 
       console.log(`💳 Processing ${items.length} USDC payments on ${network} network`);
 
-      // Process multiple USDC payments with retry logic
+      // Process multiple USDC payments with retry logic (removed network parameter)
       let retries = 0;
       let lastError;
       let signatures: string[] = [];
 
       while (retries <= maxRetries) {
         try {
-          signatures = await processMultipleUSDCPayments(items, connection, wallet, network);
+          signatures = await processMultipleUSDCPayments(items, connection, wallet);
           break;
         } catch (error) {
           lastError = error;
