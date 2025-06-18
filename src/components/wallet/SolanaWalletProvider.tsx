@@ -6,11 +6,6 @@ import {
     PhantomWalletAdapter,
     SolflareWalletAdapter,
     CoinbaseWalletAdapter,
-    CloverWalletAdapter,
-    SalmonWalletAdapter,
-    TorusWalletAdapter,
-    LedgerWalletAdapter,
-    MathWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 
@@ -32,17 +27,12 @@ const SolanaWalletProvider: FC<SolanaWalletProviderProps> = ({ children }) => {
         return devnetEndpoint;
     }, []);
 
-    // Configure wallet adapters for DEVNET
+    // Configure only essential wallet adapters for DEVNET (no WalletConnect dependencies)
     const wallets = useMemo(
         () => [
             new PhantomWalletAdapter(),
             new SolflareWalletAdapter({ network }),
             new CoinbaseWalletAdapter(),
-            new CloverWalletAdapter(),
-            new SalmonWalletAdapter(),
-            new TorusWalletAdapter(),
-            new LedgerWalletAdapter(),
-            new MathWalletAdapter(),
         ],
         [network]
     );
