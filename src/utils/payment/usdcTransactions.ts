@@ -12,13 +12,18 @@ import {
 } from '@solana/spl-token';
 import { toast } from 'sonner';
 
-// DEVNET ONLY - USDC Mint address
-const DEVNET_USDC_MINT = new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
+// USDC Mint addresses for different networks
+const USDC_MINT_ADDRESSES = {
+  'mainnet-beta': new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'),
+  'devnet': new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU'),
+  'testnet': new PublicKey('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU')
+};
 
-// Get DEVNET USDC mint - hardcoded for testing
-const getUSDCMint = (): PublicKey => {
-  console.log('🌐 Using DEVNET USDC mint for testing');
-  return DEVNET_USDC_MINT;
+// Get current network's USDC mint - FORCE DEVNET FOR NOW
+const getUSDCMint = (network: string = 'devnet'): PublicKey => {
+  // Force devnet usage for testing
+  console.log(`🌐 Forcing DEVNET for USDC transactions (requested: ${network})`);
+  return USDC_MINT_ADDRESSES.devnet;
 };
 
 // Check if a string is a valid Solana address
@@ -68,12 +73,14 @@ const getOrCreateAssociatedTokenAccount = async (
   const associatedTokenAddress = await getAssociatedTokenAddress(mint, owner);
   
   try {
+    // Check if account exists
     await getAccount(connection, associatedTokenAddress);
-    console.log(`✓ DEVNET USDC token account exists: ${associatedTokenAddress.toString()}`);
+    console.log(`✓ USDC token account exists: ${associatedTokenAddress.toString()}`);
     return associatedTokenAddress;
   } catch (error) {
     if (error instanceof TokenAccountNotFoundError) {
-      console.log(`Creating DEVNET USDC token account for: ${owner.toString()}`);
+      // Account doesn't exist, create it
+      console.log(`Creating USDC token account for: ${owner.toString()}`);
       const createAccountInstruction = createAssociatedTokenAccountInstruction(
         payer,
         associatedTokenAddress,
@@ -93,6 +100,7 @@ const simulateTransaction = async (
   transaction: Transaction
 ): Promise<{ success: boolean; error?: string }> => {
   try {
+    // Use the correct overload: (transaction, signers, options)
     const simulation = await connection.simulateTransaction(transaction);
     
     if (simulation.value.err) {
@@ -122,25 +130,29 @@ const addPriorityFee = (transaction: Transaction, microLamports: number = 10000)
     lamports: 0
   });
   
+  // Add as first instruction for priority processing
   transaction.instructions.unshift(priorityFeeInstruction);
 };
 
-// Process a single USDC payment - DEVNET ONLY
+// Process a single USDC payment - FORCE DEVNET
 export const processUSDCPayment = async (
   usdAmount: number,
   recipientAddress: string, 
   connection: Connection, 
-  wallet: WalletContextState
+  wallet: WalletContextState,
+  network: string = 'devnet'
 ): Promise<string> => {
   try {
     if (!wallet.publicKey) throw new Error("Wallet not connected");
     if (!isValidSolanaAddress(recipientAddress)) throw new Error("Invalid recipient address");
     
-    const usdcMint = getUSDCMint();
+    // FORCE DEVNET - Override any network parameter
+    const forceDevnet = 'devnet';
+    const usdcMint = getUSDCMint(forceDevnet);
     const usdcAmount = usdToUSDCUnits(usdAmount);
     
     console.log(`💰 Processing DEVNET USDC payment: $${usdAmount} (${usdcAmount.toString()} USDC units) to ${recipientAddress}`);
-    console.log(`🌐 Network: DEVNET, USDC Mint: ${usdcMint.toString()}`);
+    console.log(`🌐 FORCED Network: ${forceDevnet}, USDC Mint: ${usdcMint.toString()}`);
     
     // Check sender's USDC balance first
     const { balance: senderBalance, hasAccount: senderHasAccount } = await checkUSDCBalance(
@@ -149,15 +161,15 @@ export const processUSDCPayment = async (
       usdcMint
     );
     
-    console.log(`💳 Sender DEVNET USDC balance: ${senderBalance.toString()} units (${Number(senderBalance) / 1_000_000} USDC)`);
+    console.log(`💳 Sender USDC balance: ${senderBalance.toString()} units (${Number(senderBalance) / 1_000_000} USDC)`);
     
     if (!senderHasAccount) {
-      throw new Error("You don't have a DEVNET USDC token account. Get DEVNET USDC from: https://faucet.solana.com/ then swap for USDC on a DEX.");
+      throw new Error("You don't have a USDC token account. Please fund your wallet with DEVNET USDC first.");
     }
     
     if (senderBalance < usdcAmount) {
       const availableUSDC = Number(senderBalance) / 1_000_000;
-      throw new Error(`Insufficient DEVNET USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${usdAmount} USDC. Get more from a Devnet DEX.`);
+      throw new Error(`Insufficient DEVNET USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${usdAmount} USDC.`);
     }
     
     const transaction = new Transaction();
@@ -175,7 +187,7 @@ export const processUSDCPayment = async (
     const recipientPublicKey = new PublicKey(recipientAddress);
     const recipientTokenAccount = await getOrCreateAssociatedTokenAccount(
       connection,
-      wallet.publicKey,
+      wallet.publicKey, // Payer for account creation
       usdcMint,
       recipientPublicKey,
       transaction
@@ -245,9 +257,9 @@ export const processUSDCPayment = async (
   } catch (error: any) {
     console.error("❌ Error in DEVNET USDC transaction:", error);
     
-    // Provide specific error messages for common Devnet issues
+    // Provide specific error messages for common issues
     if (error.message.includes('0x1')) {
-      throw new Error("Insufficient SOL balance for transaction fees. Get Devnet SOL from: https://faucet.solana.com/");
+      throw new Error("Insufficient SOL balance for transaction fees. Please add SOL to your wallet.");
     }
     if (error.message.includes('TokenAccountNotFoundError')) {
       throw new Error("DEVNET USDC token account not found. Please ensure you have DEVNET USDC in your wallet.");
@@ -260,11 +272,12 @@ export const processUSDCPayment = async (
   }
 };
 
-// Process multiple USDC payments in batch - DEVNET ONLY
+// Process multiple USDC payments in batch - FORCE DEVNET
 export const processMultipleUSDCPayments = async (
   items: { price: number, producerWallet: string, id?: string, title?: string }[],
   connection: Connection, 
-  wallet: WalletContextState
+  wallet: WalletContextState,
+  network: string = 'devnet'
 ): Promise<string[]> => {
   try {
     if (!wallet.publicKey) throw new Error("Wallet not connected");
@@ -277,7 +290,9 @@ export const processMultipleUSDCPayments = async (
     }
     
     const totalAmount = items.reduce((sum, item) => sum + item.price, 0);
-    const usdcMint = getUSDCMint();
+    // FORCE DEVNET
+    const forceDevnet = 'devnet';
+    const usdcMint = getUSDCMint(forceDevnet);
     
     // Check total USDC balance before processing any transactions
     const { balance: senderBalance, hasAccount: senderHasAccount } = await checkUSDCBalance(
@@ -287,12 +302,12 @@ export const processMultipleUSDCPayments = async (
     );
     
     if (!senderHasAccount) {
-      throw new Error("You don't have a DEVNET USDC token account. Get DEVNET USDC from: https://faucet.solana.com/ then swap for USDC on a DEX.");
+      throw new Error("You don't have a DEVNET USDC token account. Please fund your wallet with DEVNET USDC first.");
     }
     
     const availableUSDC = Number(senderBalance) / 1_000_000;
     if (availableUSDC < totalAmount) {
-      throw new Error(`Insufficient DEVNET USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${totalAmount.toFixed(2)} USDC. Get more from a Devnet DEX.`);
+      throw new Error(`Insufficient DEVNET USDC balance. You have ${availableUSDC.toFixed(2)} USDC but need ${totalAmount.toFixed(2)} USDC.`);
     }
     
     console.log(`💰 Processing ${items.length} DEVNET USDC payments, total: $${totalAmount}`);
@@ -309,7 +324,8 @@ export const processMultipleUSDCPayments = async (
           item.price,
           item.producerWallet,
           connection,
-          wallet
+          wallet,
+          forceDevnet // Force devnet
         );
         signatures.push(signature);
         
