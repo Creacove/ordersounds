@@ -19,7 +19,7 @@ import {
   SheetTrigger,
   SheetClose
 } from '@/components/ui/sheet';
-import { Bell, Check, ExternalLink, BellRing, RefreshCw } from 'lucide-react';
+import { Bell, BellRing } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -34,30 +34,16 @@ export function NotificationCenter() {
     isLoading, 
     markAsRead, 
     markAsUnread,
-    markAllAsRead,
     deleteNotification,
-    fetchNotifications 
   } = useNotifications();
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   const filteredNotifications = activeTab === 'all' 
     ? notifications 
     : notifications.filter(n => !n.is_read);
-
-  const handleViewAll = () => {
-    setOpen(false);
-    navigate('/notifications');
-  };
-  
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await fetchNotifications();
-    setTimeout(() => setIsRefreshing(false), 800);
-  };
 
   const NotificationContent = () => (
     <>
@@ -70,43 +56,6 @@ export function NotificationCenter() {
             </Badge>
           )}
         </h4>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={cn(
-              "h-4 w-4",
-              isRefreshing && "animate-spin"
-            )} />
-            <span className="sr-only">Refresh</span>
-          </Button>
-          
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 text-xs"
-              onClick={markAllAsRead}
-            >
-              <Check className="h-3.5 w-3.5 mr-1" />
-              Mark all read
-            </Button>
-          )}
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2"
-            onClick={handleViewAll}
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            <span className="sr-only md:not-sr-only md:ml-1 text-xs">View all</span>
-          </Button>
-        </div>
       </div>
       
       <Tabs 
