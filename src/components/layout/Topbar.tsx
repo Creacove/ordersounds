@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -105,7 +103,7 @@ export function Topbar({ sidebarVisible = false }) {
               <img 
                 src="/lovable-uploads/86ceb56c-c6e8-400c-8c94-ec40647db5bc.png" 
                 alt="OrderSOUNDS"
-                className="h-10 w-auto"
+                className="h-8 w-auto"
               />
             ) : (
               <img 
@@ -115,7 +113,7 @@ export function Topbar({ sidebarVisible = false }) {
               />
             )}
             <div className="flex flex-col items-start">
-              <Badge variant="secondary" className="bg-purple-600 text-white text-[10px] xs:text-xs">BETA</Badge>
+              <Badge variant="outline" className="text-purple-600 border-purple-600 text-[10px] xs:text-xs font-medium">BETA</Badge>
             </div>
           </Link>
         </div>
