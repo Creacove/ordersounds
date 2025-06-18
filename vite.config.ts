@@ -15,9 +15,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    // Add node polyfills plugin
+    // Add node polyfills plugin with extended coverage
     nodePolyfills({
-      include: ['buffer', 'crypto', 'stream', 'util', 'events'],
+      include: ['buffer', 'crypto', 'stream', 'util', 'events', 'process', 'path'],
       globals: {
         Buffer: true,
         global: true,
@@ -30,6 +30,14 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // Add specific alias to prevent WalletConnect issues
+      '@walletconnect/time': false,
+      '@walletconnect/heartbeat': false,
+      '@walletconnect/utils': false,
+      '@walletconnect/relay-auth': false,
+      '@walletconnect/core': false,
+      '@walletconnect/sign-client': false,
+      '@walletconnect/universal-provider': false,
     },
   },
   build: {
@@ -37,6 +45,20 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
     // Optimize rollup options for large dependencies
     rollupOptions: {
+      external: [
+        // Completely externalize WalletConnect packages
+        '@walletconnect/time',
+        '@walletconnect/heartbeat',
+        '@walletconnect/utils',
+        '@walletconnect/relay-auth',
+        '@walletconnect/core',
+        '@walletconnect/sign-client',
+        '@walletconnect/universal-provider',
+        '@reown/appkit',
+        '@reown/appkit-controllers',
+        'viem',
+        'ox'
+      ],
       output: {
         // Manual chunk splitting to reduce bundle size
         manualChunks: {
@@ -45,9 +67,12 @@ export default defineConfig(({ mode }) => ({
             '@solana/wallet-adapter-base',
             '@solana/wallet-adapter-react',
             '@solana/wallet-adapter-react-ui',
-            '@solana/wallet-adapter-wallets',
             '@solana/web3.js',
             '@solana/spl-token'
+          ],
+          // Separate wallet adapters that don't use WalletConnect
+          'solana-adapters': [
+            '@solana/wallet-adapter-wallets'
           ],
           // Separate other vendor libraries
           'vendor': [
@@ -55,7 +80,7 @@ export default defineConfig(({ mode }) => ({
             'react-dom',
             'react-router-dom'
           ],
-          // Separate UI components (fix the @radix-ui/react-button issue)
+          // Separate UI components
           'ui': [
             'lucide-react'
           ]
@@ -68,33 +93,43 @@ export default defineConfig(({ mode }) => ({
     target: 'esnext',
     minify: mode === 'production' ? 'esbuild' : false,
   },
-  // Optimize dependencies
+  // Optimize dependencies with aggressive exclusions
   optimizeDeps: {
     include: [
       'react',
       'react-dom',
       '@solana/wallet-adapter-react',
-      '@solana/web3.js'
+      '@solana/web3.js',
+      '@solana/spl-token'
     ],
     exclude: [
-      // Exclude all WalletConnect packages to prevent module resolution issues
-      '@walletconnect/utils',
+      // Exclude ALL WalletConnect packages to prevent module resolution issues
       '@walletconnect/time',
+      '@walletconnect/heartbeat',
+      '@walletconnect/utils',
       '@walletconnect/relay-auth',
       '@walletconnect/core',
       '@walletconnect/sign-client',
       '@walletconnect/universal-provider',
-      '@walletconnect/heartbeat',
+      '@walletconnect/modal',
+      '@walletconnect/modal-core',
+      '@walletconnect/modal-ui',
       '@reown/appkit',
       '@reown/appkit-controllers',
+      '@reown/appkit-core',
+      '@reown/appkit-ui',
       // Exclude other problematic crypto libraries
       'viem',
-      'ox'
+      'ox',
+      'wagmi'
     ]
   },
   // Define global constants to help with tree shaking and compatibility
   define: {
     global: 'globalThis',
     'process.env': '{}',
+    // Add WalletConnect globals to prevent undefined errors
+    '__WALLETCONNECT_PROJECT_ID__': '""',
+    '__WALLETCONNECT_RELAY_URL__': '""',
   },
 }));
