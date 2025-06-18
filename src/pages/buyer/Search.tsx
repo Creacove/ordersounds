@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
@@ -5,116 +6,56 @@ import { Search, MusicIcon, UserIcon, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BeatCard } from "@/components/ui/BeatCard";
-import { useBeats } from "@/hooks/useBeats";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { supabase } from "@/integrations/supabase/client";
 import { useCart } from "@/context/CartContext";
+import { useOptimizedSearch } from "@/hooks/search/useOptimizedSearch";
 
 export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') || "";
   const initialGenre = searchParams.get('genre') || "";
   
-  const [searchTerm, setSearchTerm] = useState(initialQuery);
-  const [selectedGenre, setSelectedGenre] = useState(initialGenre);
-  const [activeTab, setActiveTab] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-  const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { isInCart } = useCart();
-  const [searchResults, setSearchResults] = useState(beats);
-  const [producers, setProducers] = useState([]);
-  const [loadingProducers, setLoadingProducers] = useState(true);
-  const [genres, setGenres] = useState(['Afrobeat', 'Amapiano', 'Hip Hop', 'R&B', 'Trap', 'Dancehall', 'Pop']);
   const isMobile = useIsMobile();
+
+  const {
+    searchTerm,
+    debouncedSearchTerm,
+    filters,
+    activeTab,
+    beats,
+    producers,
+    genres,
+    isLoading,
+    isLoadingBeats,
+    isLoadingProducers,
+    hasResults,
+    showNoResults,
+    updateSearchTerm,
+    updateFilters,
+    clearFilters,
+    setActiveTab,
+    loadMoreBeats,
+    hasNextPage,
+    isFetchingNextPage
+  } = useOptimizedSearch();
 
   // Set the search term when query parameter changes
   useEffect(() => {
     if (initialQuery) {
-      setSearchTerm(initialQuery);
+      updateSearchTerm(initialQuery);
     }
     if (initialGenre) {
-      setSelectedGenre(initialGenre);
+      updateFilters({ genre: initialGenre });
     }
-  }, [initialQuery, initialGenre]);
+  }, [initialQuery, initialGenre, updateSearchTerm, updateFilters]);
 
-  useEffect(() => {
-    const fetchProducers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('id, full_name, stage_name, profile_picture, bio, country')
-          .eq('role', 'producer')
-          .limit(20);
-        
-        if (error) throw error;
-        
-        setProducers(data || []);
-      } catch (error) {
-        console.error('Error fetching producers:', error);
-      } finally {
-        setLoadingProducers(false);
-      }
-    };
-
-    fetchProducers();
-  }, []);
-
-  // Extract unique genres from beats
-  useEffect(() => {
-    if (beats.length > 0) {
-      const uniqueGenres = [...new Set(beats.map(beat => beat.genre))].filter(Boolean);
-      if (uniqueGenres.length > 0) {
-        setGenres(uniqueGenres);
-      }
-    }
-  }, [beats]);
-
-  useEffect(() => {
-    if (!searchTerm.trim() && !selectedGenre) {
-      setSearchResults(beats);
-      return;
-    }
-
-    const term = searchTerm.toLowerCase().trim();
-
-    const filteredResults = beats.filter(beat => {
-      const matchTitle = term ? beat.title.toLowerCase().includes(term) : true;
-      const matchProducer = term ? beat.producer_name.toLowerCase().includes(term) : true;
-      // --- New: match TAGS as well
-      const matchTags =
-        term && beat.tags && Array.isArray(beat.tags)
-          ? beat.tags.some(tag => (tag || "").toLowerCase().includes(term))
-          : false;
-      const matchGenre = selectedGenre ? beat.genre === selectedGenre : true;
-      const textSearch = term ? (matchTitle || matchProducer || matchTags) : true;
-
-      if (activeTab === "beats") return textSearch && matchGenre;
-      if (activeTab === "producers") return matchProducer;
-      return textSearch && matchGenre;
-    });
-
-    setSearchResults(filteredResults);
-  }, [searchTerm, selectedGenre, beats, activeTab]);
-
-  const handleTabChange = (value) => {
+  const handleTabChange = (value: 'all' | 'beats' | 'producers') => {
     setActiveTab(value);
-    if (searchTerm || selectedGenre) {
-      const event = new Event('input', { bubbles: true });
-      document.getElementById('search-input')?.dispatchEvent(event);
-    }
   };
-
-  const filteredProducers = producers.filter(producer => {
-    if (!searchTerm.trim()) return true;
-    
-    const term = searchTerm.toLowerCase().trim();
-    const matchName = (producer.stage_name || producer.full_name || '').toLowerCase().includes(term);
-    const matchCountry = (producer.country || '').toLowerCase().includes(term);
-    
-    return matchName || matchCountry;
-  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,18 +65,22 @@ export default function SearchPage() {
     if (searchTerm.trim()) {
       params.set('q', searchTerm.trim());
     }
-    if (selectedGenre) {
-      params.set('genre', selectedGenre);
+    if (filters.genre) {
+      params.set('genre', filters.genre);
     }
     setSearchParams(params);
   };
 
   const handleGenreSelect = (genre: string) => {
-    if (selectedGenre === genre) {
-      setSelectedGenre('');
+    if (filters.genre === genre) {
+      updateFilters({ genre: undefined });
     } else {
-      setSelectedGenre(genre);
+      updateFilters({ genre });
     }
+  };
+
+  const handleSortChange = (sortBy: 'relevance' | 'newest' | 'popular' | 'price_low' | 'price_high') => {
+    updateFilters({ sortBy });
   };
 
   return (
@@ -155,7 +100,7 @@ export default function SearchPage() {
               placeholder="Search beats, producers, genres..."
               className="pl-10 pr-12 py-5 h-10 sm:h-12 bg-background border-input"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => updateSearchTerm(e.target.value)}
               autoFocus
             />
             {searchTerm && (
@@ -164,7 +109,7 @@ export default function SearchPage() {
                 variant="ghost" 
                 size="sm" 
                 className="absolute right-2 rounded-full"
-                onClick={() => setSearchTerm("")}
+                onClick={() => updateSearchTerm("")}
               >
                 Clear
               </Button>
@@ -197,7 +142,7 @@ export default function SearchPage() {
               {genres.map((genre) => (
                 <Button
                   key={genre}
-                  variant={selectedGenre === genre ? "default" : "outline"}
+                  variant={filters.genre === genre ? "default" : "outline"}
                   size="sm"
                   className="rounded-full whitespace-nowrap"
                   onClick={() => handleGenreSelect(genre)}
@@ -213,20 +158,36 @@ export default function SearchPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 <div>
                   <label className="text-xs font-medium mb-1 block">Price Range</label>
-                  <select className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm">
-                    <option>Any price</option>
-                    <option>Under ₦5,000</option>
-                    <option>₦5,000 - ₦10,000</option>
-                    <option>₦10,000 - ₦15,000</option>
-                    <option>Over ₦15,000</option>
+                  <select 
+                    className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === 'under-5000') {
+                        updateFilters({ minPrice: 0, maxPrice: 5000 });
+                      } else if (value === '5000-10000') {
+                        updateFilters({ minPrice: 5000, maxPrice: 10000 });
+                      } else if (value === '10000-15000') {
+                        updateFilters({ minPrice: 10000, maxPrice: 15000 });
+                      } else if (value === 'over-15000') {
+                        updateFilters({ minPrice: 15000, maxPrice: undefined });
+                      } else {
+                        updateFilters({ minPrice: undefined, maxPrice: undefined });
+                      }
+                    }}
+                  >
+                    <option value="">Any price</option>
+                    <option value="under-5000">Under ₦5,000</option>
+                    <option value="5000-10000">₦5,000 - ₦10,000</option>
+                    <option value="10000-15000">₦10,000 - ₦15,000</option>
+                    <option value="over-15000">Over ₦15,000</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-medium mb-1 block">Genre</label>
                   <select 
                     className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm"
-                    value={selectedGenre}
-                    onChange={(e) => setSelectedGenre(e.target.value)}
+                    value={filters.genre || ""}
+                    onChange={(e) => updateFilters({ genre: e.target.value || undefined })}
                   >
                     <option value="">All genres</option>
                     {genres.map((genre) => (
@@ -236,21 +197,42 @@ export default function SearchPage() {
                 </div>
                 <div>
                   <label className="text-xs font-medium mb-1 block">Sort By</label>
-                  <select className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm">
-                    <option>Most Popular</option>
-                    <option>Newest</option>
-                    <option>Price: Low to High</option>
-                    <option>Price: High to Low</option>
+                  <select 
+                    className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm"
+                    value={filters.sortBy || 'relevance'}
+                    onChange={(e) => handleSortChange(e.target.value as any)}
+                  >
+                    <option value="relevance">Most Relevant</option>
+                    <option value="newest">Newest</option>
+                    <option value="popular">Most Popular</option>
+                    <option value="price_low">Price: Low to High</option>
+                    <option value="price_high">Price: High to Low</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-medium mb-1 block">BPM Range</label>
-                  <select className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm">
-                    <option>Any BPM</option>
-                    <option>80-90 BPM</option>
-                    <option>90-100 BPM</option>
-                    <option>100-120 BPM</option>
-                    <option>120+ BPM</option>
+                  <select 
+                    className="w-full rounded-md bg-muted border-border p-2 text-xs sm:text-sm"
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '80-90') {
+                        updateFilters({ bpmMin: 80, bpmMax: 90 });
+                      } else if (value === '90-100') {
+                        updateFilters({ bpmMin: 90, bpmMax: 100 });
+                      } else if (value === '100-120') {
+                        updateFilters({ bpmMin: 100, bpmMax: 120 });
+                      } else if (value === '120+') {
+                        updateFilters({ bpmMin: 120, bpmMax: undefined });
+                      } else {
+                        updateFilters({ bpmMin: undefined, bpmMax: undefined });
+                      }
+                    }}
+                  >
+                    <option value="">Any BPM</option>
+                    <option value="80-90">80-90 BPM</option>
+                    <option value="90-100">90-100 BPM</option>
+                    <option value="100-120">100-120 BPM</option>
+                    <option value="120+">120+ BPM</option>
                   </select>
                 </div>
               </div>
@@ -277,34 +259,67 @@ export default function SearchPage() {
                   />
                 ))}
               </div>
-            ) : searchResults.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-                {searchResults.map((beat) => (
-                  <BeatCard 
-                    key={beat.id} 
-                    beat={beat}
-                    isFavorite={isFavorite(beat.id)}
-                    isInCart={isInCart(beat.id)}
-                    isPurchased={isPurchased(beat.id)}
-                    onToggleFavorite={toggleFavorite}
-                  />
-                ))}
-              </div>
-            ) : (
+            ) : showNoResults ? (
               <div className="text-center py-8 sm:py-12">
                 <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-muted mb-3 sm:mb-4">
                   <Search size={24} className="text-muted-foreground" />
                 </div>
                 <h3 className="text-base sm:text-lg font-medium mb-1 sm:mb-2">No results found</h3>
                 <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">
-                  We couldn't find anything matching "{searchTerm}". Try different keywords.
+                  We couldn't find anything matching "{debouncedSearchTerm}". Try different keywords.
                 </p>
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Beats Results */}
+                {beats.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Beats</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+                      {beats.map((beat) => (
+                        <BeatCard 
+                          key={beat.id} 
+                          beat={beat}
+                          isInCart={isInCart(beat.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Producers Results */}
+                {producers.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Producers</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {producers.map((producer) => (
+                        <Link 
+                          key={producer.id}
+                          to={`/producer/${producer.id}`}
+                          className="bg-card rounded-lg p-4 flex flex-col items-center text-center hover:shadow-md transition-shadow"
+                        >
+                          <div className="w-24 h-24 rounded-full bg-muted overflow-hidden mb-3">
+                            <img 
+                              src={producer.profile_picture || '/placeholder.svg'} 
+                              alt={producer.stage_name || producer.full_name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <h3 className="font-medium">{producer.stage_name || producer.full_name}</h3>
+                          <p className="text-sm text-muted-foreground mb-2">Producer</p>
+                          <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{producer.country || 'Unknown location'}</p>
+                          <Button variant="outline" size="sm" className="w-full">View Profile</Button>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="beats" className="mt-0">
-            {isLoading ? (
+            {isLoadingBeats ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                 {[...Array(10)].map((_, i) => (
                   <div 
@@ -314,19 +329,31 @@ export default function SearchPage() {
                   />
                 ))}
               </div>
-            ) : searchResults.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-                {searchResults.map((beat) => (
-                  <BeatCard 
-                    key={beat.id} 
-                    beat={beat}
-                    isFavorite={isFavorite(beat.id)}
-                    isInCart={isInCart(beat.id)}
-                    isPurchased={isPurchased(beat.id)}
-                    onToggleFavorite={toggleFavorite}
-                  />
-                ))}
-              </div>
+            ) : beats.length > 0 ? (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                  {beats.map((beat) => (
+                    <BeatCard 
+                      key={beat.id} 
+                      beat={beat}
+                      isInCart={isInCart(beat.id)}
+                    />
+                  ))}
+                </div>
+                
+                {/* Load more button */}
+                {hasNextPage && (
+                  <div className="flex justify-center mt-6">
+                    <Button 
+                      onClick={loadMoreBeats} 
+                      disabled={isFetchingNextPage}
+                      variant="outline"
+                    >
+                      {isFetchingNextPage ? 'Loading...' : 'Load More'}
+                    </Button>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-12">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
@@ -334,14 +361,14 @@ export default function SearchPage() {
                 </div>
                 <h3 className="text-lg font-medium mb-2">No beats found</h3>
                 <p className="text-muted-foreground mb-6">
-                  We couldn't find any beats matching "{searchTerm}".
+                  We couldn't find any beats matching "{debouncedSearchTerm}".
                 </p>
               </div>
             )}
           </TabsContent>
 
           <TabsContent value="producers" className="mt-0">
-            {loadingProducers ? (
+            {isLoadingProducers ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {[...Array(8)].map((_, i) => (
                   <div 
@@ -351,9 +378,9 @@ export default function SearchPage() {
                   />
                 ))}
               </div>
-            ) : filteredProducers.length > 0 ? (
+            ) : producers.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredProducers.map((producer) => (
+                {producers.map((producer) => (
                   <Link 
                     key={producer.id}
                     to={`/producer/${producer.id}`}
@@ -380,14 +407,14 @@ export default function SearchPage() {
                 </div>
                 <h3 className="text-lg font-medium mb-2">No producers found</h3>
                 <p className="text-muted-foreground mb-6">
-                  We couldn't find any producers matching "{searchTerm}".
+                  We couldn't find any producers matching "{debouncedSearchTerm}".
                 </p>
               </div>
             )}
           </TabsContent>
         </Tabs>
 
-        {!searchTerm && !selectedGenre && (
+        {!searchTerm && !filters.genre && (
           <div className="mt-6 sm:mt-8">
             <h2 className="text-base sm:text-lg font-medium mb-3 sm:mb-4">Popular Searches</h2>
             <div className="flex flex-wrap gap-2">
@@ -397,7 +424,7 @@ export default function SearchPage() {
                   variant="outline"
                   size="sm"
                   className="rounded-full text-xs"
-                  onClick={() => setSearchTerm(term)}
+                  onClick={() => updateSearchTerm(term)}
                 >
                   {term}
                 </Button>
