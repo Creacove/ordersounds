@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -10,6 +9,7 @@ const corsHeaders = {
 interface AdminOperationRequest {
   operation: string;
   count?: number;
+  producerId?: string;
 }
 
 serve(async (req) => {
@@ -48,7 +48,64 @@ serve(async (req) => {
       throw new Error('Insufficient permissions')
     }
 
-    const { operation, count = 5 }: AdminOperationRequest = await req.json()
+    const { operation, count = 5, producerId }: AdminOperationRequest = await req.json()
+    
+    if (operation === 'set_producer_of_week') {
+      if (!producerId) {
+        throw new Error('Producer ID is required for this operation')
+      }
+      
+      console.log(`Admin ${user.id} requested to set producer ${producerId} as producer of the week`)
+      
+      // Step 1: Reset all current producers of the week
+      const { error: resetError } = await supabase
+        .from('users')
+        .update({ is_producer_of_week: false })
+        .eq('is_producer_of_week', true)
+      
+      if (resetError) {
+        console.error('Error resetting producer of the week:', resetError)
+        throw new Error('Failed to reset current producer of the week')
+      }
+
+      // Step 2: Verify the producer exists and is a producer
+      const { data: producerData, error: producerError } = await supabase
+        .from('users')
+        .select('id, stage_name, full_name, role')
+        .eq('id', producerId)
+        .eq('role', 'producer')
+        .single()
+      
+      if (producerError || !producerData) {
+        console.error('Error finding producer:', producerError)
+        throw new Error('Producer not found or is not a valid producer')
+      }
+
+      // Step 3: Set the new producer of the week
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ is_producer_of_week: true })
+        .eq('id', producerId)
+      
+      if (updateError) {
+        console.error('Error setting producer of the week:', updateError)
+        throw new Error('Failed to set producer of the week')
+      }
+
+      console.log(`Successfully set ${producerData.stage_name || producerData.full_name} as producer of the week`)
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          producer_id: producerId,
+          producer_name: producerData.stage_name || producerData.full_name
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
+    }
     
     if (operation === 'refresh_trending_beats') {
       console.log(`Admin ${user.id} requested trending beats refresh with count: ${count}`)
