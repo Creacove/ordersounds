@@ -1,8 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+interface PaginationState {
+  currentPage: number;
+  pageSize: number;
+  totalCount: number;
+}
 
 interface AdminStats {
   totalBeats: number;
@@ -26,24 +31,50 @@ export function usePaystackAdmin() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   
-  // Use React Query for producers with caching
+  // Pagination states
+  const [producersPagination, setProducersPagination] = useState<PaginationState>({
+    currentPage: 1,
+    pageSize: 20,
+    totalCount: 0
+  });
+  
+  const [transactionsPagination, setTransactionsPagination] = useState<PaginationState>({
+    currentPage: 1,
+    pageSize: 20,
+    totalCount: 0
+  });
+  
+  // Use React Query for producers with pagination
   const { 
-    data: producers = [], 
+    data: producersData, 
     isLoading: producersLoading, 
     refetch: refetchProducers 
   } = useQuery({
-    queryKey: ['admin-producers'],
+    queryKey: ['admin-producers', producersPagination.currentPage, producersPagination.pageSize],
     queryFn: async () => {
+      const offset = (producersPagination.currentPage - 1) * producersPagination.pageSize;
+      
+      // Get total count
+      const { count } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'producer');
+      
+      // Get paginated data
       const { data, error } = await supabase
         .from('users')
         .select('id, full_name, email, stage_name, paystack_subaccount_code, paystack_split_code, bank_code, account_number, verified_account_name')
         .eq('role', 'producer')
-        .limit(50); // Basic pagination
+        .range(offset, offset + producersPagination.pageSize - 1)
+        .order('created_date', { ascending: false });
       
       if (error) {
         console.error('Error fetching producers:', error);
         throw error;
       }
+      
+      // Update total count
+      setProducersPagination(prev => ({ ...prev, totalCount: count || 0 }));
       
       return data || [];
     },
@@ -116,12 +147,20 @@ export function usePaystackAdmin() {
     }
   };
   
-  // Fetch real transactions from database
+  // Fetch transactions with pagination
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
       
-      // Fetch real transaction data with optimized query
+      const offset = (transactionsPagination.currentPage - 1) * transactionsPagination.pageSize;
+      
+      // Get total count
+      const { count } = await supabase
+        .from('orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed');
+      
+      // Fetch paginated transaction data
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -145,7 +184,7 @@ export function usePaystackAdmin() {
         `)
         .eq('status', 'completed')
         .order('order_date', { ascending: false })
-        .limit(20); // Pagination
+        .range(offset, offset + transactionsPagination.pageSize - 1);
       
       if (ordersError) throw ordersError;
       
@@ -165,6 +204,7 @@ export function usePaystackAdmin() {
       );
       
       setTransactions(formattedTransactions);
+      setTransactionsPagination(prev => ({ ...prev, totalCount: count || 0 }));
     } catch (error) {
       console.error('Error fetching transactions:', error);
       toast.error('Failed to fetch transactions');
@@ -240,19 +280,33 @@ export function usePaystackAdmin() {
     }
   };
   
+  // Pagination functions
+  const handleProducersPageChange = (page: number) => {
+    setProducersPagination(prev => ({ ...prev, currentPage: page }));
+  };
+  
+  const handleTransactionsPageChange = (page: number) => {
+    setTransactionsPagination(prev => ({ ...prev, currentPage: page }));
+    fetchTransactions();
+  };
+  
   return {
     subaccounts,
     splits,
     transactions,
-    producers,
+    producers: producersData || [],
     isLoading: isLoading || producersLoading,
     isUpdating,
+    producersPagination,
+    transactionsPagination,
     fetchSubaccounts,
     fetchSplits,
     fetchProducers: refetchProducers,
     fetchTransactions,
     updateProducerBankInfo,
     updateProducerShare,
-    retryFailedTransaction
+    retryFailedTransaction,
+    handleProducersPageChange,
+    handleTransactionsPageChange
   };
 }
