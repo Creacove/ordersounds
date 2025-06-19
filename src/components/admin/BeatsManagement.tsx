@@ -3,8 +3,10 @@ import { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, TrendingUp, Star, Calendar } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Loader2, RefreshCw, TrendingUp, Star, Calendar, User, Crown } from 'lucide-react';
 import { useAdminOperations } from '@/hooks/admin/useAdminOperations';
+import { ProducerSelector } from '@/components/admin/ProducerSelector';
 
 export function BeatsManagement() {
   const { 
@@ -13,7 +15,8 @@ export function BeatsManagement() {
     fetchBeatStats, 
     refreshTrendingBeats, 
     refreshFeaturedBeats, 
-    refreshWeeklyPicks 
+    refreshWeeklyPicks,
+    setProducerOfWeek
   } = useAdminOperations();
 
   useEffect(() => {
@@ -41,15 +44,22 @@ export function BeatsManagement() {
     }
   };
 
+  const handleSetProducerOfWeek = async (producerId: string, producerName: string) => {
+    const success = await setProducerOfWeek(producerId);
+    if (success) {
+      // Stats will be automatically refreshed in the hook
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <TrendingUp className="h-5 w-5" />
-          Beats Management
+          Beats & Producer Management
         </CardTitle>
         <CardDescription>
-          Manage trending beats, featured beats, weekly picks, and beat statistics
+          Manage trending beats, featured beats, weekly picks, producer of the week, and statistics
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -81,6 +91,63 @@ export function BeatsManagement() {
               {isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : stats?.weeklyPicksCount || 0}
             </div>
             <div className="text-sm text-muted-foreground">Weekly Picks</div>
+          </div>
+        </div>
+
+        {/* Featured Producer Management */}
+        <div className="border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <Crown className="h-5 w-5" />
+                Producer of the Week
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Select and manage the featured producer of the week
+              </p>
+            </div>
+            <Badge variant="outline" className="ml-4">
+              Featured Producer
+            </Badge>
+          </div>
+
+          {/* Current Producer Display */}
+          {stats?.currentProducerOfWeek ? (
+            <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+              <Avatar className="h-12 w-12">
+                <AvatarImage 
+                  src={stats.currentProducerOfWeek.profilePicture || `https://api.dicebear.com/7.x/initials/svg?seed=${stats.currentProducerOfWeek.name}`}
+                  alt={stats.currentProducerOfWeek.name} 
+                />
+                <AvatarFallback>
+                  {stats.currentProducerOfWeek.name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h4 className="font-semibold text-blue-900">
+                  {stats.currentProducerOfWeek.stageName || stats.currentProducerOfWeek.name}
+                </h4>
+                <p className="text-sm text-blue-700">
+                  {stats.currentProducerOfWeek.followerCount.toLocaleString()} followers
+                </p>
+              </div>
+              <Badge className="bg-blue-100 text-blue-800">
+                Current Featured
+              </Badge>
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4 text-center">
+              <User className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+              <p className="text-gray-600">No producer of the week selected</p>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-4">
+            <ProducerSelector 
+              onSelectProducer={handleSetProducerOfWeek}
+              isLoading={isLoading}
+              currentProducer={stats?.currentProducerOfWeek}
+            />
           </div>
         </div>
 
@@ -200,8 +267,9 @@ export function BeatsManagement() {
 
         {/* Operation Info */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h4 className="font-medium text-blue-900 mb-2">Beat Management Operations:</h4>
+          <h4 className="font-medium text-blue-900 mb-2">Management Operations:</h4>
           <ul className="text-sm text-blue-800 space-y-1">
+            <li>• <strong>Producer of Week:</strong> Search and select any producer to feature</li>
             <li>• <strong>Trending:</strong> Resets all trending status, selects 5 random beats</li>
             <li>• <strong>Featured:</strong> Resets featured status, selects 1 premium spotlight beat</li>
             <li>• <strong>Weekly Picks:</strong> Resets weekly picks, selects 6 curated beats</li>
