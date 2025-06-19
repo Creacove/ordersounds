@@ -13,13 +13,130 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { AlertCircle, AlertTriangle, CheckCircle, Loader2, RefreshCw, CreditCard } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle, Loader2, RefreshCw, CreditCard, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// Pagination Controls Component
+interface PaginationControlsProps {
+  currentPage: number;
+  totalCount: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  isLoading?: boolean;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  currentPage,
+  totalCount,
+  pageSize,
+  onPageChange,
+  isLoading = false
+}) => {
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startItem = (currentPage - 1) * pageSize + 1;
+  const endItem = Math.min(currentPage * pageSize, totalCount);
+  
+  if (totalCount === 0) return null;
+  
+  const handlePrevious = () => {
+    if (currentPage > 1) onPageChange(currentPage - 1);
+  };
+  
+  const handleNext = () => {
+    if (currentPage < totalPages) onPageChange(currentPage + 1);
+  };
+  
+  const generatePageNumbers = () => {
+    const pages = [];
+    const showPages = 5; // Show 5 page numbers max
+    
+    let startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
+    let endPage = Math.min(totalPages, startPage + showPages - 1);
+    
+    // Adjust start if we're near the end
+    if (endPage - startPage < showPages - 1) {
+      startPage = Math.max(1, endPage - showPages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+    
+    return pages;
+  };
+  
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-2 py-4">
+      <div className="text-sm text-muted-foreground">
+        Showing {startItem}-{endItem} of {totalCount} items
+      </div>
+      
+      <Pagination>
+        <PaginationContent>
+          <PaginationItem>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrevious}
+              disabled={currentPage <= 1 || isLoading}
+              className="gap-1 pl-2.5"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+          </PaginationItem>
+          
+          {generatePageNumbers().map((pageNum) => (
+            <PaginationItem key={pageNum}>
+              <Button
+                variant={currentPage === pageNum ? "default" : "outline"}
+                size="sm"
+                onClick={() => onPageChange(pageNum)}
+                disabled={isLoading}
+                className="w-10 h-10"
+              >
+                {pageNum}
+              </Button>
+            </PaginationItem>
+          ))}
+          
+          {totalPages > 5 && currentPage < totalPages - 2 && (
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+          )}
+          
+          <PaginationItem>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNext}
+              disabled={currentPage >= totalPages || isLoading}
+              className="gap-1 pr-2.5"
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  );
+};
 
 export default function PaymentAdmin() {
   const [activeProducerId, setActiveProducerId] = useState<string | null>(null);
@@ -35,13 +152,17 @@ export default function PaymentAdmin() {
     producers,
     isLoading,
     isUpdating,
+    producersPagination,
+    transactionsPagination,
     fetchSubaccounts,
     fetchSplits,
     fetchProducers,
     fetchTransactions,
     updateProducerBankInfo,
     updateProducerShare,
-    retryFailedTransaction
+    retryFailedTransaction,
+    handleProducersPageChange,
+    handleTransactionsPageChange
   } = usePaystackAdmin();
   
   // Load producers data on component mount
@@ -190,92 +311,102 @@ export default function PaymentAdmin() {
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[150px]">Producer</TableHead>
-                        <TableHead className="min-w-[200px]">Email</TableHead>
-                        <TableHead className="min-w-[150px]">Bank Details</TableHead>
-                        <TableHead className="min-w-[150px]">Paystack Integration</TableHead>
-                        <TableHead className="min-w-[100px]">Split Share</TableHead>
-                        <TableHead className="min-w-[200px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {producers.slice(0, 20).map((producer) => (
-                        <TableRow key={producer.id}>
-                          <TableCell className="font-medium">
-                            {producer.stage_name || producer.full_name}
-                          </TableCell>
-                          <TableCell className="break-all">{producer.email}</TableCell>
-                          <TableCell>
-                            {producer.bank_code && producer.account_number ? (
-                              <div>
-                                <div className="text-sm font-medium">
-                                  {producer.verified_account_name || 'Account Verified'}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  Account: ****{producer.account_number.slice(-4)}
-                                </div>
-                              </div>
-                            ) : (
-                              <Badge variant="outline" className="text-amber-500 border-amber-200 bg-amber-50">
-                                No bank details
-                              </Badge>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {producer.paystack_subaccount_code ? (
-                              <div className="flex items-center gap-2">
-                                <CheckCircle className="text-green-500 h-4 w-4" />
-                                <span className="text-sm">Integrated</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <AlertTriangle className="text-amber-500 h-4 w-4" />
-                                <span className="text-sm">Not integrated</span>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {producer.paystack_split_code ? '90%' : 'Not set'}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="w-full md:w-auto text-xs"
-                                onClick={() => {
-                                  setActiveProducerId(producer.id);
-                                  setEditMode('bank');
-                                  setIsEditDialogOpen(true);
-                                }}
-                              >
-                                Edit Bank
-                              </Button>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="w-full md:w-auto text-xs"
-                                onClick={() => {
-                                  setActiveProducerId(producer.id);
-                                  setEditMode('percentage');
-                                  setNewPercentage(90);
-                                  setIsEditDialogOpen(true);
-                                }}
-                                disabled={!producer.paystack_split_code}
-                              >
-                                Edit Split
-                              </Button>
-                            </div>
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[150px]">Producer</TableHead>
+                          <TableHead className="min-w-[200px]">Email</TableHead>
+                          <TableHead className="min-w-[150px]">Bank Details</TableHead>
+                          <TableHead className="min-w-[150px]">Paystack Integration</TableHead>
+                          <TableHead className="min-w-[100px]">Split Share</TableHead>
+                          <TableHead className="min-w-[200px]">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {producers.map((producer) => (
+                          <TableRow key={producer.id}>
+                            <TableCell className="font-medium">
+                              {producer.stage_name || producer.full_name}
+                            </TableCell>
+                            <TableCell className="break-all">{producer.email}</TableCell>
+                            <TableCell>
+                              {producer.bank_code && producer.account_number ? (
+                                <div>
+                                  <div className="text-sm font-medium">
+                                    {producer.verified_account_name || 'Account Verified'}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    Account: ****{producer.account_number.slice(-4)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="text-amber-500 border-amber-200 bg-amber-50">
+                                  No bank details
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {producer.paystack_subaccount_code ? (
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle className="text-green-500 h-4 w-4" />
+                                  <span className="text-sm">Integrated</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <AlertTriangle className="text-amber-500 h-4 w-4" />
+                                  <span className="text-sm">Not integrated</span>
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {producer.paystack_split_code ? '90%' : 'Not set'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="w-full md:w-auto text-xs"
+                                  onClick={() => {
+                                    setActiveProducerId(producer.id);
+                                    setEditMode('bank');
+                                    setIsEditDialogOpen(true);
+                                  }}
+                                >
+                                  Edit Bank
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="w-full md:w-auto text-xs"
+                                  onClick={() => {
+                                    setActiveProducerId(producer.id);
+                                    setEditMode('percentage');
+                                    setNewPercentage(90);
+                                    setIsEditDialogOpen(true);
+                                  }}
+                                  disabled={!producer.paystack_split_code}
+                                >
+                                  Edit Split
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  <PaginationControls
+                    currentPage={producersPagination.currentPage}
+                    totalCount={producersPagination.totalCount}
+                    pageSize={producersPagination.pageSize}
+                    onPageChange={handleProducersPageChange}
+                    isLoading={isLoading}
+                  />
+                </>
               )}
             </div>
           </TabsContent>
@@ -436,52 +567,62 @@ export default function PaymentAdmin() {
               {isLoading ? (
                 <LoadingSkeleton rows={3} />
               ) : transactions?.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[150px]">Reference</TableHead>
-                        <TableHead className="min-w-[120px]">Beat</TableHead>
-                        <TableHead className="min-w-[120px]">Producer</TableHead>
-                        <TableHead className="min-w-[120px]">Total Amount</TableHead>
-                        <TableHead className="min-w-[120px]">Platform Share</TableHead>
-                        <TableHead className="min-w-[120px]">Producer Share</TableHead>
-                        <TableHead className="min-w-[100px]">Status</TableHead>
-                        <TableHead className="min-w-[100px]">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transactions.slice(0, 20).map((tx) => (
-                        <TableRow key={tx.id}>
-                          <TableCell className="font-medium break-all">{tx.reference}</TableCell>
-                          <TableCell>{tx.beat}</TableCell>
-                          <TableCell>{tx.producer}</TableCell>
-                          <TableCell>{formatCurrency(tx.amount)}</TableCell>
-                          <TableCell>{formatCurrency(tx.platform_share)}</TableCell>
-                          <TableCell>{formatCurrency(tx.producer_share)}</TableCell>
-                          <TableCell>{getStatusBadge(tx.status)}</TableCell>
-                          <TableCell>
-                            {tx.status === 'failed' && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => handleRetryTransaction(tx.id)}
-                                disabled={isUpdating}
-                              >
-                                {isUpdating ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  'Retry'
-                                )}
-                              </Button>
-                            )}
-                          </TableCell>
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-[150px]">Reference</TableHead>
+                          <TableHead className="min-w-[120px]">Beat</TableHead>
+                          <TableHead className="min-w-[120px]">Producer</TableHead>
+                          <TableHead className="min-w-[120px]">Total Amount</TableHead>
+                          <TableHead className="min-w-[120px]">Platform Share</TableHead>
+                          <TableHead className="min-w-[120px]">Producer Share</TableHead>
+                          <TableHead className="min-w-[100px]">Status</TableHead>
+                          <TableHead className="min-w-[100px]">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {transactions.map((tx) => (
+                          <TableRow key={tx.id}>
+                            <TableCell className="font-medium break-all">{tx.reference}</TableCell>
+                            <TableCell>{tx.beat}</TableCell>
+                            <TableCell>{tx.producer}</TableCell>
+                            <TableCell>{formatCurrency(tx.amount)}</TableCell>
+                            <TableCell>{formatCurrency(tx.platform_share)}</TableCell>
+                            <TableCell>{formatCurrency(tx.producer_share)}</TableCell>
+                            <TableCell>{getStatusBadge(tx.status)}</TableCell>
+                            <TableCell>
+                              {tx.status === 'failed' && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => handleRetryTransaction(tx.id)}
+                                  disabled={isUpdating}
+                                >
+                                  {isUpdating ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    'Retry'
+                                  )}
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  
+                  <PaginationControls
+                    currentPage={transactionsPagination.currentPage}
+                    totalCount={transactionsPagination.totalCount}
+                    pageSize={transactionsPagination.pageSize}
+                    onPageChange={handleTransactionsPageChange}
+                    isLoading={isLoading}
+                  />
+                </>
               ) : (
                 <div className="text-center py-12">
                   <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
