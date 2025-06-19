@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { MainLayout } from "@/components/layout/MainLayout";
 import { usePaystackAdmin } from '@/hooks/payment/usePaystackAdmin';
@@ -16,11 +17,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { AlertCircle, AlertTriangle, CheckCircle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle, Loader2, RefreshCw, CreditCard } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PaymentAdmin() {
   const { user } = useAuth();
@@ -29,6 +31,7 @@ export default function PaymentAdmin() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editMode, setEditMode] = useState<'bank' | 'percentage'>('bank');
   const [newPercentage, setNewPercentage] = useState<number>(90);
+  const [activeTab, setActiveTab] = useState('producers');
   
   const {
     subaccounts,
@@ -58,19 +61,30 @@ export default function PaymentAdmin() {
       return;
     }
     
+    // Only load producers initially (smart loading)
     fetchProducers();
   }, [user, navigate, fetchProducers]);
   
-  const loadTabData = (tab: string) => {
+  // Smart tab loading - only load data when tab is clicked
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    
+    // Lazy load data for other tabs
     switch (tab) {
       case 'subaccounts':
-        fetchSubaccounts();
+        if (!subaccounts || subaccounts.length === 0) {
+          fetchSubaccounts();
+        }
         break;
       case 'splits':
-        fetchSplits();
+        if (!splits || splits.length === 0) {
+          fetchSplits();
+        }
         break;
       case 'transactions':
-        fetchTransactions();
+        if (!transactions || transactions.length === 0) {
+          fetchTransactions();
+        }
         break;
       default:
         break;
@@ -123,11 +137,6 @@ export default function PaymentAdmin() {
     }
   };
   
-  // Find producer by ID
-  const getProducerById = (id: string) => {
-    return producers.find(p => p.id === id);
-  };
-  
   // Format currency
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -135,6 +144,14 @@ export default function PaymentAdmin() {
       currency: 'NGN',
     }).format(amount);
   };
+  
+  const LoadingSkeleton = ({ rows = 5 }) => (
+    <div className="space-y-3">
+      {Array.from({ length: rows }, (_, i) => (
+        <Skeleton key={i} className="h-12 w-full" />
+      ))}
+    </div>
+  );
   
   if (!user) {
     return (
@@ -153,52 +170,58 @@ export default function PaymentAdmin() {
   return (
     <MainLayout>
       <div className="container py-6">
-        <h1 className="text-3xl font-bold mb-6">Payment Administration</h1>
-        
-        <Tabs defaultValue="producers" onValueChange={loadTabData}>
-          <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="producers">Producers</TabsTrigger>
-            <TabsTrigger value="subaccounts">Subaccounts</TabsTrigger>
-            <TabsTrigger value="splits">Payment Splits</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          </TabsList>
-          
-          {/* Producers Tab */}
-          <TabsContent value="producers">
-            <Card>
-              <CardHeader>
-                <CardTitle>Producer Accounts</CardTitle>
-                <CardDescription>
-                  Manage producer bank details and payment information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : producers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
-                    <h3 className="text-lg font-medium">No producers found</h3>
-                    <p className="text-muted-foreground">
-                      No registered producers with bank details.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-8">
-                    <div className="flex justify-end mb-4">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => fetchProducers()}
-                        className="flex items-center gap-2"
-                      >
-                        <RefreshCw size={16} />
-                        Refresh
-                      </Button>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Payment Administration
+            </CardTitle>
+            <CardDescription>
+              Manage producer payments, bank details, and transaction monitoring
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <TabsList className="grid w-full grid-cols-4 mb-8">
+                <TabsTrigger value="producers">Producers</TabsTrigger>
+                <TabsTrigger value="subaccounts">Subaccounts</TabsTrigger>
+                <TabsTrigger value="splits">Payment Splits</TabsTrigger>
+                <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              </TabsList>
+              
+              {/* Producers Tab */}
+              <TabsContent value="producers">
+                <div className="border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">Producer Accounts</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Manage producer bank details and payment information
+                      </p>
                     </div>
-                  
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => fetchProducers()}
+                      className="flex items-center gap-2"
+                      disabled={isLoading}
+                    >
+                      <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                      Refresh
+                    </Button>
+                  </div>
+
+                  {isLoading ? (
+                    <LoadingSkeleton rows={5} />
+                  ) : producers.length === 0 ? (
+                    <div className="text-center py-12">
+                      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
+                      <h3 className="text-lg font-medium">No producers found</h3>
+                      <p className="text-muted-foreground">
+                        No registered producers with bank details.
+                      </p>
+                    </div>
+                  ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -211,10 +234,10 @@ export default function PaymentAdmin() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {producers.map((producer) => (
+                        {producers.slice(0, 50).map((producer) => (
                           <TableRow key={producer.id}>
                             <TableCell className="font-medium">
-                              {producer.producer_name || producer.full_name}
+                              {producer.stage_name || producer.full_name}
                             </TableCell>
                             <TableCell>{producer.email}</TableCell>
                             <TableCell>
@@ -281,40 +304,35 @@ export default function PaymentAdmin() {
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Subaccounts Tab */}
-          <TabsContent value="subaccounts">
-            <Card>
-              <CardHeader>
-                <CardTitle>Paystack Subaccounts</CardTitle>
-                <CardDescription>
-                  View all subaccounts created in Paystack for producers
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : subaccounts?.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-end mb-4">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => fetchSubaccounts()}
-                        className="flex items-center gap-2"
-                      >
-                        <RefreshCw size={16} />
-                        Refresh
-                      </Button>
+                  )}
+                </div>
+              </TabsContent>
+              
+              {/* Subaccounts Tab */}
+              <TabsContent value="subaccounts">
+                <div className="border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">Paystack Subaccounts</h3>
+                      <p className="text-sm text-muted-foreground">
+                        View all subaccounts created in Paystack for producers
+                      </p>
                     </div>
-                    
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => fetchSubaccounts()}
+                      className="flex items-center gap-2"
+                      disabled={isLoading}
+                    >
+                      <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                      Refresh
+                    </Button>
+                  </div>
+
+                  {isLoading ? (
+                    <LoadingSkeleton rows={3} />
+                  ) : subaccounts?.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -337,52 +355,43 @@ export default function PaymentAdmin() {
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
-                    <h3 className="text-lg font-medium">No subaccounts found</h3>
-                    <p className="text-muted-foreground mb-4">
-                      No Paystack subaccounts have been created yet.
-                    </p>
-                    <Button onClick={() => fetchSubaccounts()}>
-                      <RefreshCw size={16} className="mr-2" />
-                      Refresh Data
+                  ) : (
+                    <div className="text-center py-12">
+                      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
+                      <h3 className="text-lg font-medium">No subaccounts found</h3>
+                      <p className="text-muted-foreground mb-4">
+                        No Paystack subaccounts have been created yet.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              {/* Splits Tab */}
+              <TabsContent value="splits">
+                <div className="border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">Payment Splits</h3>
+                      <p className="text-sm text-muted-foreground">
+                        View and manage transaction split configurations
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => fetchSplits()}
+                      className="flex items-center gap-2"
+                      disabled={isLoading}
+                    >
+                      <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                      Refresh
                     </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Splits Tab */}
-          <TabsContent value="splits">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment Splits</CardTitle>
-                <CardDescription>
-                  View and manage transaction split configurations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : splits?.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-end mb-4">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => fetchSplits()}
-                        className="flex items-center gap-2"
-                      >
-                        <RefreshCw size={16} />
-                        Refresh
-                      </Button>
-                    </div>
-                    
+
+                  {isLoading ? (
+                    <LoadingSkeleton rows={3} />
+                  ) : splits?.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -414,52 +423,43 @@ export default function PaymentAdmin() {
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
-                    <h3 className="text-lg font-medium">No splits found</h3>
-                    <p className="text-muted-foreground mb-4">
-                      No payment splits have been created yet.
-                    </p>
-                    <Button onClick={() => fetchSplits()}>
-                      <RefreshCw size={16} className="mr-2" />
-                      Refresh Data
+                  ) : (
+                    <div className="text-center py-12">
+                      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
+                      <h3 className="text-lg font-medium">No splits found</h3>
+                      <p className="text-muted-foreground mb-4">
+                        No payment splits have been created yet.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              
+              {/* Transactions Tab */}
+              <TabsContent value="transactions">
+                <div className="border rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">Transactions</h3>
+                      <p className="text-sm text-muted-foreground">
+                        View transaction history with payment splits
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => fetchTransactions()}
+                      className="flex items-center gap-2"
+                      disabled={isLoading}
+                    >
+                      <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                      Refresh
                     </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Transactions Tab */}
-          <TabsContent value="transactions">
-            <Card>
-              <CardHeader>
-                <CardTitle>Transactions</CardTitle>
-                <CardDescription>
-                  View transaction history with payment splits
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center h-64">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : transactions?.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex justify-end mb-4">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => fetchTransactions()}
-                        className="flex items-center gap-2"
-                      >
-                        <RefreshCw size={16} />
-                        Refresh
-                      </Button>
-                    </div>
-                    
+
+                  {isLoading ? (
+                    <LoadingSkeleton rows={3} />
+                  ) : transactions?.length > 0 ? (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -474,7 +474,7 @@ export default function PaymentAdmin() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {transactions.map((tx) => (
+                        {transactions.slice(0, 20).map((tx) => (
                           <TableRow key={tx.id}>
                             <TableCell className="font-medium">{tx.reference}</TableCell>
                             <TableCell>{tx.beat}</TableCell>
@@ -486,12 +486,16 @@ export default function PaymentAdmin() {
                             <TableCell>
                               {tx.status === 'failed' && (
                                 <Button 
-                                  variant="destructive" 
+                                  variant="outline" 
                                   size="sm"
                                   onClick={() => handleRetryTransaction(tx.id)}
                                   disabled={isUpdating}
                                 >
-                                  {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Retry'}
+                                  {isUpdating ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    'Retry'
+                                  )}
                                 </Button>
                               )}
                             </TableCell>
@@ -499,90 +503,78 @@ export default function PaymentAdmin() {
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
+                      <h3 className="text-lg font-medium">No transactions found</h3>
+                      <p className="text-muted-foreground mb-4">
+                        No transaction history available.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editMode === 'bank' ? 'Edit Bank Details' : 'Edit Split Percentage'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editMode === 'bank' 
+                      ? 'Update the producer\'s bank account information'
+                      : 'Modify the producer\'s revenue share percentage'
+                    }
+                  </DialogDescription>
+                </DialogHeader>
+                
+                {editMode === 'bank' ? (
+                  activeProducerId && (
+                    <ProducerBankDetailsForm 
+                      producerId={activeProducerId}
+                      onSuccess={() => {
+                        setIsEditDialogOpen(false);
+                        fetchProducers();
+                      }}
+                    />
+                  )
                 ) : (
-                  <div className="text-center py-12">
-                    <AlertCircle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
-                    <h3 className="text-lg font-medium">No transactions found</h3>
-                    <p className="text-muted-foreground mb-4">
-                      No payment transactions have been recorded yet.
-                    </p>
-                    <Button onClick={() => fetchTransactions()}>
-                      <RefreshCw size={16} className="mr-2" />
-                      Refresh Data
-                    </Button>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="percentage">Producer Share Percentage</Label>
+                      <Input
+                        id="percentage"
+                        type="number"
+                        min="1"
+                        max="99"
+                        value={newPercentage}
+                        onChange={(e) => setNewPercentage(Number(e.target.value))}
+                      />
+                    </div>
+                    <DialogFooter>
+                      <Button 
+                        onClick={handleUpdateSplitPercentage}
+                        disabled={isUpdating}
+                      >
+                        {isUpdating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Updating...
+                          </>
+                        ) : (
+                          'Update Percentage'
+                        )}
+                      </Button>
+                    </DialogFooter>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        
-        {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editMode === 'bank' ? 'Edit Bank Details' : 'Edit Split Percentage'}
-              </DialogTitle>
-              <DialogDescription>
-                {editMode === 'bank' 
-                  ? 'Update the producer\'s bank account information'
-                  : 'Update the producer\'s share percentage from sales'}
-              </DialogDescription>
-            </DialogHeader>
-            
-            {editMode === 'bank' && activeProducerId && (
-              <div className="py-4">
-                <ProducerBankDetailsForm 
-                  producerId={activeProducerId}
-                  existingBankCode={getProducerById(activeProducerId)?.bank_code}
-                  existingAccountNumber={getProducerById(activeProducerId)?.account_number}
-                  existingAccountName={getProducerById(activeProducerId)?.verified_account_name}
-                  onSuccess={() => {
-                    setIsEditDialogOpen(false);
-                    fetchProducers();
-                  }}
-                />
-              </div>
-            )}
-            
-            {editMode === 'percentage' && (
-              <div className="py-4 space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="percentage">Producer Share Percentage</Label>
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      id="percentage"
-                      type="number"
-                      min="1"
-                      max="99"
-                      value={newPercentage}
-                      onChange={(e) => setNewPercentage(parseInt(e.target.value))}
-                    />
-                    <span>%</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Platform share will be {100 - newPercentage}%
-                  </p>
-                </div>
-                
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleUpdateSplitPercentage}
-                    disabled={isUpdating}
-                  >
-                    {isUpdating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                    Save Changes
-                  </Button>
-                </DialogFooter>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );
