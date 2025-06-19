@@ -28,7 +28,7 @@ export default function AdminDashboard() {
     <MainLayout>
       <div className="container py-6">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
           <p className="text-muted-foreground">Manage platform operations and settings</p>
         </div>
         
@@ -43,10 +43,7 @@ export default function AdminDashboard() {
           </TabsContent>
           
           <TabsContent value="payments">
-            <div className="space-y-6">
-              {/* Re-use existing PaymentAdmin content */}
-              <PaymentAdmin />
-            </div>
+            <PaymentAdmin />
           </TabsContent>
         </Tabs>
       </div>
