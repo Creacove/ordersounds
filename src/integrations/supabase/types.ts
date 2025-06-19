@@ -861,6 +861,14 @@ export type Database = {
           wallet_address: string | null
         }[]
       }
+      get_random_published_beats: {
+        Args: { beat_count?: number }
+        Returns: {
+          id: string
+          title: string
+          producer_id: string
+        }[]
+      }
       get_user_favorites: {
         Args: { user_id_param: string }
         Returns: {
