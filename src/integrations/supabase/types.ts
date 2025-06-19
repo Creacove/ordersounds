@@ -869,6 +869,14 @@ export type Database = {
           producer_id: string
         }[]
       }
+      get_random_published_beats_by_category: {
+        Args: { beat_count?: number; category?: string }
+        Returns: {
+          id: string
+          title: string
+          producer_id: string
+        }[]
+      }
       get_user_favorites: {
         Args: { user_id_param: string }
         Returns: {
@@ -903,6 +911,22 @@ export type Database = {
           p_new_refresh_token?: string
         }
         Returns: boolean
+      }
+      refresh_featured_beats: {
+        Args: { beat_count?: number }
+        Returns: {
+          id: string
+          title: string
+          producer_id: string
+        }[]
+      }
+      refresh_weekly_picks: {
+        Args: { beat_count?: number }
+        Returns: {
+          id: string
+          title: string
+          producer_id: string
+        }[]
       }
       remove_favorite: {
         Args: { user_id_param: string; beat_id_param: string }

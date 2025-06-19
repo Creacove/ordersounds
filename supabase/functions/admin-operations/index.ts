@@ -105,6 +105,72 @@ serve(async (req) => {
       )
     }
     
+    if (operation === 'refresh_featured_beats') {
+      const featuredCount = Math.min(count || 1, 1) // Enforce max 1 featured beat
+      console.log(`Admin ${user.id} requested featured beats refresh with count: ${featuredCount}`)
+      
+      // Use the database function for atomic operation
+      const { data: featuredBeats, error: featuredError } = await supabase
+        .rpc('refresh_featured_beats', { beat_count: featuredCount })
+      
+      if (featuredError) {
+        console.error('Error refreshing featured beats:', featuredError)
+        throw new Error('Failed to refresh featured beats')
+      }
+
+      if (!featuredBeats || featuredBeats.length === 0) {
+        throw new Error('No published beats available to set as featured')
+      }
+
+      const beatIds = featuredBeats.map((beat: any) => beat.id)
+      console.log(`Successfully updated ${beatIds.length} beats as featured:`, beatIds)
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          updated_count: beatIds.length,
+          beat_ids: beatIds 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
+    }
+    
+    if (operation === 'refresh_weekly_picks') {
+      const weeklyCount = Math.max(5, Math.min(count || 6, 7)) // Enforce 5-7 range
+      console.log(`Admin ${user.id} requested weekly picks refresh with count: ${weeklyCount}`)
+      
+      // Use the database function for atomic operation
+      const { data: weeklyBeats, error: weeklyError } = await supabase
+        .rpc('refresh_weekly_picks', { beat_count: weeklyCount })
+      
+      if (weeklyError) {
+        console.error('Error refreshing weekly picks:', weeklyError)
+        throw new Error('Failed to refresh weekly picks')
+      }
+
+      if (!weeklyBeats || weeklyBeats.length === 0) {
+        throw new Error('No published beats available to set as weekly picks')
+      }
+
+      const beatIds = weeklyBeats.map((beat: any) => beat.id)
+      console.log(`Successfully updated ${beatIds.length} beats as weekly picks:`, beatIds)
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          updated_count: beatIds.length,
+          beat_ids: beatIds 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
+    }
+    
     throw new Error(`Unknown operation: ${operation}`)
     
   } catch (error) {
