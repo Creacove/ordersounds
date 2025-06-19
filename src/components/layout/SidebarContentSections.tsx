@@ -40,7 +40,7 @@ export const getSidebarSections = (user: UserType | null, handleSignOut: () => v
         { icon: TrendingUp, title: "Trending", href: "/trending" },
         { icon: Heart, title: "Favorites", href: "/favorites" },
         { icon: ShoppingCart, title: "Cart", href: "/cart" },
-        { icon: Users, title: "Producers", href: "/producers" }, // Added direct producers link
+        { icon: Users, title: "Producers", href: "/producers" },
       ]
     });
   } else {
@@ -68,6 +68,16 @@ export const getSidebarSections = (user: UserType | null, handleSignOut: () => v
   }
 
   if (user) {
+    // Add admin section for admin users
+    if (user.role === "admin") {
+      sections.push({
+        title: "Administration",
+        items: [
+          { icon: KeyRound, title: "Admin Dashboard", href: "/admin" },
+        ]
+      });
+    }
+
     sections.push({
       title: "Account",
       items: [

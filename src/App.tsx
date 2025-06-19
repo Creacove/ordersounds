@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -40,6 +39,11 @@ import UploadBeat from "./pages/producer/UploadBeat";
 import ProducerBeats from "./pages/producer/Beats";
 import Royalties from "./pages/producer/Royalties";
 import ProtectedProducerRoute from "./components/auth/ProtectedProducerRoute";
+import ProtectedAdminRoute from "./components/auth/ProtectedAdminRoute";
+
+// Lazy load admin dashboard to avoid affecting main app performance
+import { lazy, Suspense } from "react";
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 
 // Add custom wallet styles
 import '@solana/wallet-adapter-react-ui/styles.css';
@@ -119,6 +123,22 @@ const AppContent = () => (
             <Route path="/producer/beats" element={<ProtectedProducerRoute><ProducerBeats /></ProtectedProducerRoute>} />
             <Route path="/producer/royalties" element={<ProtectedProducerRoute><Royalties /></ProtectedProducerRoute>} />
             <Route path="/producer/settings" element={<ProtectedProducerRoute><ProducerSettings /></ProtectedProducerRoute>} />
+
+            {/* Admin Routes - Lazy loaded and protected */}
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedAdminRoute>
+                  <Suspense fallback={
+                    <div className="flex items-center justify-center h-screen">
+                      <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary"></div>
+                    </div>
+                  }>
+                    <AdminDashboard />
+                  </Suspense>
+                </ProtectedAdminRoute>
+              } 
+            />
 
             {/* Catch-all Route */}
             <Route path="*" element={<NotFound />} />
