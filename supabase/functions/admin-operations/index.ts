@@ -109,20 +109,42 @@ serve(async (req) => {
       const featuredCount = Math.min(count || 1, 1) // Enforce max 1 featured beat
       console.log(`Admin ${user.id} requested featured beats refresh with count: ${featuredCount}`)
       
-      // Use the database function for atomic operation
-      const { data: featuredBeats, error: featuredError } = await supabase
-        .rpc('refresh_featured_beats', { beat_count: featuredCount })
+      // Step 1: Reset all featured beats to false
+      const { error: resetError } = await supabase
+        .from('beats')
+        .update({ is_featured: false })
+        .eq('status', 'published')
       
-      if (featuredError) {
-        console.error('Error refreshing featured beats:', featuredError)
-        throw new Error('Failed to refresh featured beats')
+      if (resetError) {
+        console.error('Error resetting featured beats:', resetError)
+        throw new Error('Failed to reset featured beats')
       }
 
-      if (!featuredBeats || featuredBeats.length === 0) {
+      // Step 2: Get random published beats to set as featured
+      const { data: randomBeats, error: selectError } = await supabase
+        .rpc('get_random_published_beats', { beat_count: featuredCount })
+      
+      if (selectError) {
+        console.error('Error selecting random beats for featured:', selectError)
+        throw new Error('Failed to select random beats for featured')
+      }
+
+      if (!randomBeats || randomBeats.length === 0) {
         throw new Error('No published beats available to set as featured')
       }
 
-      const beatIds = featuredBeats.map((beat: any) => beat.id)
+      // Step 3: Set selected beats as featured
+      const beatIds = randomBeats.map((beat: any) => beat.id)
+      const { error: updateError } = await supabase
+        .from('beats')
+        .update({ is_featured: true })
+        .in('id', beatIds)
+      
+      if (updateError) {
+        console.error('Error updating featured beats:', updateError)
+        throw new Error('Failed to update featured beats')
+      }
+
       console.log(`Successfully updated ${beatIds.length} beats as featured:`, beatIds)
       
       return new Response(
@@ -142,20 +164,42 @@ serve(async (req) => {
       const weeklyCount = Math.max(5, Math.min(count || 6, 7)) // Enforce 5-7 range
       console.log(`Admin ${user.id} requested weekly picks refresh with count: ${weeklyCount}`)
       
-      // Use the database function for atomic operation
-      const { data: weeklyBeats, error: weeklyError } = await supabase
-        .rpc('refresh_weekly_picks', { beat_count: weeklyCount })
+      // Step 1: Reset all weekly picks to false
+      const { error: resetError } = await supabase
+        .from('beats')
+        .update({ is_weekly_pick: false })
+        .eq('status', 'published')
       
-      if (weeklyError) {
-        console.error('Error refreshing weekly picks:', weeklyError)
-        throw new Error('Failed to refresh weekly picks')
+      if (resetError) {
+        console.error('Error resetting weekly picks:', resetError)
+        throw new Error('Failed to reset weekly picks')
       }
 
-      if (!weeklyBeats || weeklyBeats.length === 0) {
+      // Step 2: Get random published beats to set as weekly picks
+      const { data: randomBeats, error: selectError } = await supabase
+        .rpc('get_random_published_beats', { beat_count: weeklyCount })
+      
+      if (selectError) {
+        console.error('Error selecting random beats for weekly picks:', selectError)
+        throw new Error('Failed to select random beats for weekly picks')
+      }
+
+      if (!randomBeats || randomBeats.length === 0) {
         throw new Error('No published beats available to set as weekly picks')
       }
 
-      const beatIds = weeklyBeats.map((beat: any) => beat.id)
+      // Step 3: Set selected beats as weekly picks
+      const beatIds = randomBeats.map((beat: any) => beat.id)
+      const { error: updateError } = await supabase
+        .from('beats')
+        .update({ is_weekly_pick: true })
+        .in('id', beatIds)
+      
+      if (updateError) {
+        console.error('Error updating weekly picks:', updateError)
+        throw new Error('Failed to update weekly picks')
+      }
+
       console.log(`Successfully updated ${beatIds.length} beats as weekly picks:`, beatIds)
       
       return new Response(
