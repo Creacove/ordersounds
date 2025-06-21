@@ -5,7 +5,7 @@ import { Heart, ShoppingCart, Loader2, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useCartLightweight } from '@/hooks/useCartLightweight';
-import { useFavoritesLightweight } from '@/hooks/useFavoritesLightweight';
+import { useFavorites } from '@/hooks/useFavorites';
 import { Beat } from '@/types';
 import { toast } from 'sonner';
 
@@ -20,53 +20,35 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   const [isFavoriting, setIsFavoriting] = useState(false);
   const { user } = useAuth();
   const { isInCart, addToCart, removeFromCart } = useCartLightweight();
-  const { isFavorite, toggleFavorite } = useFavoritesLightweight();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const navigate = useNavigate();
 
-  console.log('🛒 AddToCartButton rendered with:', {
-    beatId: beat.id,
-    beatTitle: beat.title,
-    user: user ? { id: user.id, email: user.email } : 'No user',
-    isInCart: isInCart(beat.id)
-  });
-
   const handleAddToCart = async () => {
-    console.log('🛒 handleAddToCart clicked for beat:', beat.id, beat.title);
-    
     if (!user) {
-      console.log('🛒 No user found, redirecting to login');
       navigate('/login');
       return;
     }
     
     const isAlreadyInCart = isInCart(beat.id);
-    console.log('🛒 Current cart status for beat:', beat.id, 'isInCart:', isAlreadyInCart);
     
     if (isAdding) {
-      console.log('🛒 Already adding, ignoring click');
       return;
     }
     
     setIsAdding(true);
-    console.log('🛒 Starting add to cart process...');
     
     try {
       if (isAlreadyInCart) {
-        console.log('🛒 Removing from cart...');
         removeFromCart(beat.id);
         toast.success("Removed from cart");
-        console.log('🛒 Successfully removed from cart');
       } else {
-        console.log('🛒 Adding to cart with basic license...');
         addToCart(beat.id, 'basic');
         toast.success("Added to cart");
-        console.log('🛒 Successfully added to cart');
       }
     } catch (error) {
-      console.error("🛒 Error updating cart:", error);
+      console.error("Error updating cart:", error);
       toast.error("Failed to update cart");
     } finally {
-      console.log('🛒 Setting isAdding to false after delay');
       setTimeout(() => {
         setIsAdding(false);
       }, 300);
@@ -97,13 +79,6 @@ export function AddToCartButton({ beat, className, iconOnly }: AddToCartButtonPr
   
   const isItemInCart = isInCart(beat.id);
   const isBeatFavorite = isFavorite(beat.id);
-
-  console.log('🛒 AddToCartButton render state:', {
-    beatId: beat.id,
-    isItemInCart,
-    isAdding,
-    userExists: !!user
-  });
 
   // Icon-only variant of the button (for compact displays)
   if (iconOnly) {
