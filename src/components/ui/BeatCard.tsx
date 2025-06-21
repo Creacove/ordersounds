@@ -6,7 +6,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useCartLightweight } from '@/hooks/useCartLightweight';
 import { usePlayer } from '@/context/PlayerContext';
-import { useLazyBeatImage } from '@/hooks/useLazyBeatImage';
 import { Play, Pause, ShoppingCart, Heart, Plus, MoreVertical, Download, Pencil, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -68,12 +67,6 @@ const BeatCard = memo(function BeatCard({
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  
-  // Use lazy image loading hook for better performance
-  const { imageUrl, isLoading: imageLoading } = useLazyBeatImage({ 
-    beatId: beat.id, 
-    fallbackUrl: beat.cover_image_url 
-  });
   
   const isCurrentlyPlayingThisBeat = isCurrentlyPlaying(beat.id);
   const inCart = isInCart || checkIsInCart(beat.id);
@@ -222,11 +215,20 @@ const BeatCard = memo(function BeatCard({
     }
   };
 
-  // Memoized price calculations
+  // Memoize expensive price calculations
   const licensePrice = useMemo(() => ({
     local: getLicensePrice(beat, 'basic', false),
     diaspora: getLicensePrice(beat, 'basic', true)
   }), [beat.basic_license_price_local, beat.basic_license_price_diaspora]);
+
+  console.log('Beat pricing data:', {
+    beatId: beat.id,
+    beatTitle: beat.title,
+    basic_local: beat.basic_license_price_local,
+    basic_diaspora: beat.basic_license_price_diaspora,
+    calculatedLocal: licensePrice.local,
+    calculatedDiaspora: licensePrice.diaspora
+  });
 
   return (
     <div
@@ -238,18 +240,9 @@ const BeatCard = memo(function BeatCard({
     >
       <div className="relative aspect-square overflow-hidden">
         <img
-          src={imageUrl}
+          src={beat.cover_image_url || '/placeholder.svg'}
           alt={beat.title}
-          loading="lazy"
-          className={cn(
-            "h-full w-full object-cover transition-transform duration-500 group-hover:scale-105",
-            imageLoading && "opacity-50"
-          )}
-          onError={(e) => {
-            // Fallback to placeholder if image fails to load
-            const target = e.target as HTMLImageElement;
-            target.src = '/placeholder.svg';
-          }}
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
           <button

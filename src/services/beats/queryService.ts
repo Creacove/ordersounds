@@ -3,11 +3,11 @@ import { Beat } from '@/types';
 import { mapSupabaseBeatToBeat } from './utils';
 import { SupabaseBeat } from './types';
 import {
-  fetchTrendingBeatsOptimized,
-  fetchNewBeatsOptimized,
-  fetchFeaturedBeatsOptimized,
+  getTrendingBeatsOptimized,
+  getNewBeatsOptimized,
+  getFeaturedBeatsOptimized,
   getMetricBasedTrendingOptimized
-} from './optimizedQueryService';
+} from '../search/optimizedSearchService';
 
 interface FetchBeatsOptions {
   limit?: number;
@@ -35,39 +35,6 @@ export const clearBeatsCache = () => {
   }
 };
 
-// Lean fields for performance - excludes heavy cover_image
-const LEAN_BEAT_FIELDS = `
-  id,
-  title,
-  basic_license_price_local,
-  basic_license_price_diaspora,
-  premium_license_price_local,
-  premium_license_price_diaspora,
-  exclusive_license_price_local,
-  exclusive_license_price_diaspora,
-  custom_license_price_local,
-  custom_license_price_diaspora,
-  genre,
-  bpm,
-  plays,
-  favorites_count,
-  purchase_count,
-  producer_id,
-  upload_date,
-  status,
-  is_featured,
-  is_trending,
-  is_weekly_pick,
-  audio_preview,
-  tags,
-  key,
-  track_type,
-  users!beats_producer_id_fkey (
-    full_name,
-    stage_name
-  )
-`;
-
 export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Beat[]> {
   const {
     limit = 50,
@@ -80,28 +47,36 @@ export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Be
   try {
     console.log('Fetching beats with options:', options);
 
-    // Use lean query to avoid massive cover_image data
+    // Use optimized query leveraging our new indexes
     let query = supabase
       .from('beats')
-      .select(LEAN_BEAT_FIELDS);
+      .select(`
+        *,
+        users!beats_producer_id_fkey (
+          full_name,
+          stage_name
+        )
+      `);
 
     if (!includeDrafts) {
-      query = query.eq('status', 'published');
+      query = query.eq('status', 'published'); // Uses our status indexes
     }
 
     if (producerId) {
-      query = query.eq('producer_id', producerId);
+      query = query.eq('producer_id', producerId); // Uses idx_beats_producer
     }
 
     if (genre) {
-      query = query.eq('genre', genre);
+      query = query.eq('genre', genre); // Uses idx_beats_genre_status
     }
 
     if (searchQuery) {
+      // Use case-insensitive search leveraging our new indexes
       const searchTerm = searchQuery.toLowerCase();
       query = query.or(`title.ilike.%${searchTerm}%,genre.ilike.%${searchTerm}%`);
     }
 
+    // Order by upload_date for consistent results, uses our date indexes
     query = query.order('upload_date', { ascending: false });
 
     if (limit) {
@@ -115,12 +90,9 @@ export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Be
       throw error;
     }
 
-    const beats = (data as SupabaseBeat[]).map(beat => ({
-      ...mapSupabaseBeatToBeat(beat),
-      cover_image_url: '/placeholder.svg' // Use placeholder initially for fast loading
-    }));
-    
+    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     console.log(`Successfully fetched ${beats.length} beats`);
+    
     return beats;
   } catch (error) {
     console.error('Failed to fetch beats:', error);
@@ -132,7 +104,7 @@ export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Be
 export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
   try {
     console.log('Fetching trending beats using optimized query...');
-    return await fetchTrendingBeatsOptimized(limit);
+    return await getTrendingBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch trending beats:', error);
     throw error;
@@ -142,7 +114,43 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
 export async function fetchMetricBasedTrending(limit: number = 100): Promise<Beat[]> {
   try {
     console.log('Fetching metrics-based trending beats using optimized query...');
-    return await getMetricBasedTrendingOptimized(limit);
+    
+    // Lean query - only essential fields for initial load
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        cover_image,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        genre,
+        bpm,
+        plays,
+        favorites_count,
+        purchase_count,
+        producer_id,
+        upload_date,
+        status,
+        users!beats_producer_id_fkey (
+          stage_name,
+          full_name
+        )
+      `)
+      .eq('status', 'published')
+      .not('plays', 'is', null)
+      .order('plays', { ascending: false })
+      .order('favorites_count', { ascending: false })
+      .order('purchase_count', { ascending: false })
+      .order('upload_date', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    return (data || []).map(beat => ({
+      ...mapSupabaseBeatToBeat(beat),
+      producer_name: beat.users?.stage_name || beat.users?.full_name || 'Unknown Producer'
+    }));
   } catch (error) {
     console.error('Failed to fetch metrics-based trending beats:', error);
     throw error;
@@ -152,7 +160,7 @@ export async function fetchMetricBasedTrending(limit: number = 100): Promise<Bea
 export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
   try {
     console.log('Fetching featured beats using optimized query...');
-    return await fetchFeaturedBeatsOptimized(limit);
+    return await getFeaturedBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch featured beats:', error);
     throw error;
@@ -162,7 +170,7 @@ export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
 export async function fetchNewBeats(limit: number = 20): Promise<Beat[]> {
   try {
     console.log('Fetching new beats using optimized query...');
-    return await fetchNewBeatsOptimized(limit);
+    return await getNewBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch new beats:', error);
     throw error;
@@ -173,23 +181,28 @@ export async function fetchRandomBeats(limit: number = 8): Promise<Beat[]> {
   try {
     console.log('Fetching random beats for weekly picks...');
     
+    // Use optimized query with our indexes
     const { data, error } = await supabase
       .from('beats')
-      .select(LEAN_BEAT_FIELDS)
-      .eq('status', 'published')
-      .order('upload_date', { ascending: false })
-      .limit(100);
+      .select(`
+        *,
+        users!beats_producer_id_fkey (
+          full_name,
+          stage_name
+        )
+      `)
+      .eq('status', 'published') // Uses our status indexes
+      .order('upload_date', { ascending: false }) // Uses idx_beats_new
+      .limit(100); // Get more to randomize from
 
     if (error) {
       console.error('Error fetching random beats:', error);
       throw error;
     }
 
-    const allBeats = (data as SupabaseBeat[]).map(beat => ({
-      ...mapSupabaseBeatToBeat(beat),
-      cover_image_url: '/placeholder.svg' // Use placeholder initially
-    }));
+    const allBeats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     
+    // Shuffle and return requested limit
     const shuffled = allBeats.sort(() => 0.5 - Math.random());
     const randomBeats = shuffled.slice(0, limit);
     
@@ -243,7 +256,13 @@ export async function fetchBeatsByProducer(producerId: string, limit: number = 2
     
     const { data, error } = await supabase
       .from('beats')
-      .select(LEAN_BEAT_FIELDS)
+      .select(`
+        *,
+        users!beats_producer_id_fkey (
+          full_name,
+          stage_name
+        )
+      `)
       .eq('producer_id', producerId)
       .eq('status', 'published')
       .order('upload_date', { ascending: false })
@@ -254,12 +273,9 @@ export async function fetchBeatsByProducer(producerId: string, limit: number = 2
       throw error;
     }
 
-    const beats = (data as SupabaseBeat[]).map(beat => ({
-      ...mapSupabaseBeatToBeat(beat),
-      cover_image_url: '/placeholder.svg' // Use placeholder initially
-    }));
-    
+    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     console.log(`Successfully fetched ${beats.length} beats by producer`);
+    
     return beats;
   } catch (error) {
     console.error('Failed to fetch beats by producer:', error);
@@ -273,7 +289,13 @@ export async function fetchProducerBeats(producerId: string, includeDrafts: bool
     
     let query = supabase
       .from('beats')
-      .select(LEAN_BEAT_FIELDS)
+      .select(`
+        *,
+        users!beats_producer_id_fkey (
+          full_name,
+          stage_name
+        )
+      `)
       .eq('producer_id', producerId)
       .order('upload_date', { ascending: false });
 
@@ -288,12 +310,9 @@ export async function fetchProducerBeats(producerId: string, includeDrafts: bool
       throw error;
     }
 
-    const beats = (data as SupabaseBeat[]).map(beat => ({
-      ...mapSupabaseBeatToBeat(beat),
-      cover_image_url: '/placeholder.svg' // Use placeholder initially
-    }));
-    
+    const beats = (data as SupabaseBeat[]).map(mapSupabaseBeatToBeat);
     console.log(`Successfully fetched ${beats.length} producer beats`);
+    
     return beats;
   } catch (error) {
     console.error('Failed to fetch producer beats:', error);
