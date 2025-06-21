@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadFile, FileOrUrl, isFile } from "@/lib/storage";
+import { uploadImage } from "@/lib/imageStorage";
 import { createMp3Preview } from "@/utils/audioPreview";
 
 export type LicenseOption = {
@@ -308,7 +309,7 @@ export function useBeatUpload() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
@@ -321,20 +322,22 @@ export function useBeatUpload() {
         toast.error("Cover image must be JPG, PNG, or GIF format");
         return;
       }
-      
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target && event.target.result) {
-          const base64String = event.target.result.toString();
-          setImagePreview(base64String);
-          setImageFile({
-            url: base64String
-          });
-        }
-      };
-      reader.readAsDataURL(file);
-      
-      toast.success("Cover image selected", { id: "image-upload" });
+
+      try {
+        toast.info("Uploading cover image...", { id: "image-upload" });
+        
+        // Upload image to storage and get URL instead of base64
+        const imageUrl = await uploadImage(file, 'covers');
+        
+        // Set both the image file reference and preview URL
+        setImageFile({ url: imageUrl });
+        setImagePreview(imageUrl);
+        
+        toast.success("Cover image uploaded successfully", { id: "image-upload" });
+      } catch (error) {
+        console.error("Error uploading cover image:", error);
+        toast.error("Failed to upload cover image. Please try again.", { id: "image-upload" });
+      }
     }
   };
 

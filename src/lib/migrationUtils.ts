@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { uploadImage, dataURLtoBlob } from '@/lib/imageStorage';
 
@@ -6,6 +5,13 @@ export interface MigrationResult {
   totalUsers: number;
   migratedUsers: number;
   failedUsers: number;
+  errors: string[];
+}
+
+export interface BeatMigrationResult {
+  totalBeats: number;
+  migratedBeats: number;
+  failedBeats: number;
   errors: string[];
 }
 
@@ -85,6 +91,86 @@ export const migrateBase64ImagesToStorage = async (): Promise<MigrationResult> =
   } catch (error) {
     console.error('Migration failed:', error);
     result.errors.push(`Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return result;
+  }
+};
+
+/**
+ * Migrates beat cover images from base64 to Supabase storage URLs
+ * This function should be run once to clean up existing beat cover data
+ */
+export const migrateBeatCoverImagesToStorage = async (): Promise<BeatMigrationResult> => {
+  const result: BeatMigrationResult = {
+    totalBeats: 0,
+    migratedBeats: 0,
+    failedBeats: 0,
+    errors: []
+  };
+
+  try {
+    console.log('Starting migration of beat base64 cover images to storage...');
+    
+    // Get all beats with base64 cover images
+    const { data: beats, error } = await supabase
+      .from('beats')
+      .select('id, cover_image, title')
+      .not('cover_image', 'is', null)
+      .like('cover_image', 'data:image%');
+
+    if (error) {
+      throw error;
+    }
+
+    result.totalBeats = beats?.length || 0;
+    console.log(`Found ${result.totalBeats} beats with base64 cover images`);
+
+    if (!beats || beats.length === 0) {
+      console.log('No beats with base64 cover images found');
+      return result;
+    }
+
+    // Process each beat
+    for (const beat of beats) {
+      try {
+        console.log(`Processing beat ${beat.id}: ${beat.title}`);
+        
+        // Convert base64 to blob
+        const blob = dataURLtoBlob(beat.cover_image);
+        
+        // Create a file from the blob
+        const fileExt = beat.cover_image.split(';')[0].split('/')[1] || 'png';
+        const fileName = `migrated_beat_${beat.id}.${fileExt}`;
+        const file = new File([blob], fileName, { type: `image/${fileExt}` });
+        
+        // Upload to storage using covers bucket
+        const storageUrl = await uploadImage(file, 'covers', 'migrated');
+        
+        // Update beat record with storage URL
+        const { error: updateError } = await supabase
+          .from('beats')
+          .update({ cover_image: storageUrl })
+          .eq('id', beat.id);
+          
+        if (updateError) {
+          throw updateError;
+        }
+        
+        result.migratedBeats++;
+        console.log(`Successfully migrated beat ${beat.id} to ${storageUrl}`);
+        
+      } catch (error) {
+        console.error(`Failed to migrate beat ${beat.id}:`, error);
+        result.failedBeats++;
+        result.errors.push(`Beat ${beat.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    console.log(`Beat migration completed. Migrated: ${result.migratedBeats}, Failed: ${result.failedBeats}`);
+    return result;
+    
+  } catch (error) {
+    console.error('Beat migration failed:', error);
+    result.errors.push(`Beat migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return result;
   }
 };

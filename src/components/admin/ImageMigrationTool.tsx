@@ -3,13 +3,20 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, AlertTriangle, Upload } from 'lucide-react';
-import { migrateBase64ImagesToStorage, cleanupCorruptedRecords, type MigrationResult } from '@/lib/migrationUtils';
+import { Loader2, CheckCircle, AlertTriangle, Upload, Image } from 'lucide-react';
+import { 
+  migrateBase64ImagesToStorage, 
+  cleanupCorruptedRecords, 
+  migrateBeatCoverImagesToStorage,
+  type MigrationResult,
+  type BeatMigrationResult 
+} from '@/lib/migrationUtils';
 import { toast } from 'sonner';
 
 export function ImageMigrationTool() {
   const [isRunning, setIsRunning] = useState(false);
   const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
+  const [beatMigrationResult, setBeatMigrationResult] = useState<BeatMigrationResult | null>(null);
   const [cleanupResult, setCleanupResult] = useState<{ cleaned: number; errors: string[] } | null>(null);
 
   const runMigration = async () => {
@@ -29,6 +36,28 @@ export function ImageMigrationTool() {
     } catch (error) {
       toast.error('Migration failed');
       console.error('Migration error:', error);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
+  const runBeatMigration = async () => {
+    setIsRunning(true);
+    setBeatMigrationResult(null);
+    
+    try {
+      toast.info('Starting migration of beat base64 cover images to storage...');
+      const result = await migrateBeatCoverImagesToStorage();
+      setBeatMigrationResult(result);
+      
+      if (result.migratedBeats > 0) {
+        toast.success(`Beat migration completed! Migrated ${result.migratedBeats} beats`);
+      } else {
+        toast.info('No beats found with base64 cover images');
+      }
+    } catch (error) {
+      toast.error('Beat migration failed');
+      console.error('Beat migration error:', error);
     } finally {
       setIsRunning(false);
     }
@@ -65,11 +94,11 @@ export function ImageMigrationTool() {
             Image Storage Migration Tool
           </CardTitle>
           <CardDescription>
-            Migrate profile pictures from base64 storage to Supabase Storage to fix database corruption and improve performance.
+            Migrate profile pictures and beat cover images from base64 storage to Supabase Storage to fix database corruption and improve performance.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button
               onClick={runMigration}
               disabled={isRunning}
@@ -83,7 +112,26 @@ export function ImageMigrationTool() {
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Migrate Base64 Images
+                  Migrate User Profile Images
+                </>
+              )}
+            </Button>
+
+            <Button
+              onClick={runBeatMigration}
+              disabled={isRunning}
+              className="w-full"
+              variant="secondary"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Running Migration...
+                </>
+              ) : (
+                <>
+                  <Image className="mr-2 h-4 w-4" />
+                  Migrate Beat Cover Images
                 </>
               )}
             </Button>
@@ -113,7 +161,7 @@ export function ImageMigrationTool() {
               <CheckCircle className="h-4 w-4" />
               <AlertDescription>
                 <div className="space-y-1">
-                  <p><strong>Migration Results:</strong></p>
+                  <p><strong>User Profile Migration Results:</strong></p>
                   <p>Total users found: {migrationResult.totalUsers}</p>
                   <p>Successfully migrated: {migrationResult.migratedUsers}</p>
                   <p>Failed migrations: {migrationResult.failedUsers}</p>
@@ -122,6 +170,30 @@ export function ImageMigrationTool() {
                       <summary className="cursor-pointer">View Errors</summary>
                       <ul className="list-disc list-inside mt-1">
                         {migrationResult.errors.map((error, index) => (
+                          <li key={index} className="text-sm text-red-600">{error}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {beatMigrationResult && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p><strong>Beat Cover Image Migration Results:</strong></p>
+                  <p>Total beats found: {beatMigrationResult.totalBeats}</p>
+                  <p>Successfully migrated: {beatMigrationResult.migratedBeats}</p>
+                  <p>Failed migrations: {beatMigrationResult.failedBeats}</p>
+                  {beatMigrationResult.errors.length > 0 && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer">View Errors</summary>
+                      <ul className="list-disc list-inside mt-1">
+                        {beatMigrationResult.errors.map((error, index) => (
                           <li key={index} className="text-sm text-red-600">{error}</li>
                         ))}
                       </ul>
