@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { Beat } from '@/types';
@@ -24,14 +24,11 @@ export function useFavorites() {
     queryKey: ['user-favorites', user?.id],
     queryFn: async () => {
       if (!user?.id) {
-        console.log('No user ID available, skipping favorites fetch');
         return [];
       }
       
-      console.log('Fetching favorites from API for user:', user.id);
       const favorites = await fetchUserFavorites(user.id);
       const favoritesArray = Array.isArray(favorites) ? favorites : [];
-      console.log('Successfully fetched user favorites:', favoritesArray);
       return favoritesArray;
     },
     enabled: !!user?.id,
@@ -45,7 +42,6 @@ export function useFavorites() {
         throw new Error('Please log in to add favorites');
       }
       
-      console.log('Making API call to toggle favorite...', { beatId, wasFavorited });
       return await toggleFavoriteAPI(user.id, beatId, userFavorites);
     },
     onMutate: async ({ beatId, wasFavorited }) => {
@@ -75,8 +71,6 @@ export function useFavorites() {
       } else {
         toast.success('Added to favorites');
       }
-      
-      console.log('Updated favorites cache with new data');
     },
     onError: (error, variables, context) => {
       // Revert optimistic update
@@ -90,19 +84,12 @@ export function useFavorites() {
   });
 
   const toggleFavorite = async (beatId: string): Promise<boolean> => {
-    console.log('=== TOGGLE FAVORITE CALLED ===');
-    console.log('Beat ID:', beatId);
-    console.log('User:', user?.id);
-    console.log('Current favorites before toggle:', userFavorites);
-
     if (!user?.id) {
-      console.log('No user available for favorites');
       toast.error('Please log in to add favorites');
       return false;
     }
 
     const wasFavorited = userFavorites.includes(beatId);
-    console.log('Was favorited:', wasFavorited);
     
     try {
       const result = await toggleFavoriteMutation.mutateAsync({ beatId, wasFavorited });
@@ -113,42 +100,28 @@ export function useFavorites() {
     }
   };
 
-  const isFavorite = (beatId: string): boolean => {
-    const result = userFavorites.includes(beatId);
-    console.log('Checking if beat is favorite:', beatId, result, 'Current favorites:', userFavorites);
-    return result;
-  };
+  // Memoize isFavorite function to prevent excessive calls
+  const isFavorite = useCallback((beatId: string): boolean => {
+    return userFavorites.includes(beatId);
+  }, [userFavorites]);
 
-  const getUserFavoriteBeats = (beats: Beat[]): Beat[] => {
-    console.log('=== GET USER FAVORITE BEATS ===');
-    console.log('Current beats array length:', beats.length);
-    console.log('Current userFavorites:', userFavorites);
-    
+  const getUserFavoriteBeats = useMemo(() => (beats: Beat[]): Beat[] => {
     if (!userFavorites || userFavorites.length === 0) {
-      console.log('No favorites found, returning empty array');
       return [];
     }
     
     if (!beats || beats.length === 0) {
-      console.log('No beats available yet, returning empty array');
       return [];
     }
     
-    const favoriteBeats = getUserFavoriteBeatsService(beats, userFavorites);
-    console.log('Favorite beats found:', favoriteBeats.length, favoriteBeats);
-    return favoriteBeats;
-  };
+    return getUserFavoriteBeatsService(beats, userFavorites);
+  }, [userFavorites]);
 
   const refreshUserFavorites = useCallback(async () => {
-    console.log('=== REFRESH USER FAVORITES ===');
-    console.log('User available:', !!user?.id);
-    
     if (!user?.id) {
-      console.log('No user available, cannot refresh favorites');
       return;
     }
     
-    console.log('Starting refresh with force refresh = true');
     await refetchFavorites();
   }, [refetchFavorites, user?.id]);
 

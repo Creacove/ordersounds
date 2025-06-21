@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { Heart } from "lucide-react";
 import { useBeats } from "@/hooks/useBeats";
@@ -12,7 +12,7 @@ interface ToggleFavoriteButtonProps {
   absolutePosition?: boolean;
 }
 
-export function ToggleFavoriteButton({ 
+const ToggleFavoriteButton = memo(function ToggleFavoriteButton({ 
   beatId, 
   size = "md", 
   absolutePosition = true 
@@ -21,14 +21,12 @@ export function ToggleFavoriteButton({
   const { user } = useAuth();
   const [isButtonClicked, setIsButtonClicked] = useState(false);
 
-  // Get the current favorite status directly from the global state
-  const favorite = isFavorite(beatId);
+  // Memoize the favorite status to prevent excessive calls
+  const favorite = useCallback(() => isFavorite(beatId), [isFavorite, beatId])();
 
   const handleToggleFavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    console.log('ToggleFavoriteButton: Handle toggle favorite clicked for beat:', beatId);
     
     if (!user) {
       toast.error("Please log in to add favorites");
@@ -37,16 +35,13 @@ export function ToggleFavoriteButton({
     
     // Prevent double clicks
     if (isButtonClicked) {
-      console.log('ToggleFavoriteButton: Button click prevented (already processing)');
       return;
     }
     
     setIsButtonClicked(true);
     
     try {
-      console.log('ToggleFavoriteButton: Calling toggleFavorite for beat:', beatId);
-      const newFavoriteStatus = await toggleFavorite(beatId);
-      console.log('ToggleFavoriteButton: Toggle favorite completed, new status:', newFavoriteStatus);
+      await toggleFavorite(beatId);
     } catch (error) {
       console.error('ToggleFavoriteButton: Error toggling favorite:', error);
       toast.error('Failed to update favorite status');
@@ -70,8 +65,6 @@ export function ToggleFavoriteButton({
     lg: "h-5 w-5"
   };
 
-  console.log('ToggleFavoriteButton: Rendering for beat:', beatId, 'favorite:', favorite, 'user:', !!user);
-
   return (
     <Button
       variant="secondary"
@@ -89,4 +82,6 @@ export function ToggleFavoriteButton({
       <Heart className={`${iconSizes[size]} ${favorite ? 'fill-current' : ''}`} />
     </Button>
   );
-}
+});
+
+export { ToggleFavoriteButton };

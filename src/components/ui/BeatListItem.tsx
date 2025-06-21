@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { Beat } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getLicensePrice } from '@/utils/licenseUtils';
-import { supabase } from '@/integrations/supabase/client';
 
 interface BeatListItemProps {
   beat: Beat;
@@ -36,7 +35,7 @@ interface BeatListItemProps {
   onPublish?: (id: string) => void;
 }
 
-export function BeatListItem({
+const BeatListItem = memo(function BeatListItem({
   beat,
   isFavorite = false,
   isInCart = false,
@@ -75,19 +74,6 @@ export function BeatListItem({
     setTimeout(() => {
       setIsPlayButtonClicked(false);
     }, 300);
-  };
-
-  const incrementPlayCount = async (beatId: string) => {
-    try {
-      await supabase.rpc("increment_counter" as any, {
-        p_table_name: "beats",
-        p_column_name: "plays",
-        p_id: beatId
-      });
-      console.log('Incremented play count for beat:', beatId);
-    } catch (error) {
-      console.error('Error incrementing play count:', error);
-    }
   };
 
   const handleAddToQueue = (e: React.MouseEvent) => {
@@ -404,4 +390,6 @@ export function BeatListItem({
       </div>
     </div>
   );
-}
+});
+
+export { BeatListItem };
