@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getInitials } from "@/utils/formatters";
+import { uploadImage } from "@/lib/imageStorage";
 
 interface ProfilePictureUploaderProps {
   avatarUrl: string | null;
@@ -42,10 +43,10 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
       return;
     }
     
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
       toast({
         title: "Error",
-        description: "Image size should be less than 2MB",
+        description: "Image size should be less than 5MB",
         variant: "destructive"
       });
       return;
@@ -54,35 +55,36 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
     try {
       setIsLoading(true);
       
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        if (!event.target || !event.target.result || !user) return;
-        
-        const base64String = event.target.result.toString();
-        setPreviewUrl(base64String);
-        
-        const { error } = await supabase
-          .from('users')
-          .update({ profile_picture: base64String })
-          .eq('id', user.id);
-          
-        if (error) throw error;
-        
-        if (updateProfile) {
-          await updateProfile({
-            ...user,
-            avatar_url: base64String
-          });
-        }
-        
-        toast({
-          title: "Success",
-          description: "Profile picture updated successfully"
-        });
-        setIsDialogOpen(false);
-      };
+      console.log('Uploading profile picture to Supabase storage...');
       
-      reader.readAsDataURL(file);
+      // Upload image to Supabase storage and get URL
+      const imageUrl = await uploadImage(file, 'avatars', '', (progress) => {
+        console.log(`Upload progress: ${progress}%`);
+      });
+      
+      console.log('Image uploaded successfully:', imageUrl);
+      setPreviewUrl(imageUrl);
+      
+      // Update user profile with the storage URL
+      const { error } = await supabase
+        .from('users')
+        .update({ profile_picture: imageUrl })
+        .eq('id', user!.id);
+        
+      if (error) throw error;
+      
+      if (updateProfile) {
+        await updateProfile({
+          ...user!,
+          avatar_url: imageUrl
+        });
+      }
+      
+      toast({
+        title: "Success",
+        description: "Profile picture updated successfully"
+      });
+      setIsDialogOpen(false);
     } catch (error) {
       console.error('Error updating profile picture:', error);
       toast({
@@ -118,7 +120,7 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
             </DialogHeader>
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                Select an image to use as your profile picture. Files should be JPG, PNG or GIF and less than 2MB.
+                Select an image to use as your profile picture. Files should be JPG, PNG or GIF and less than 5MB.
               </p>
               <div className="flex flex-col items-center justify-center gap-4">
                 <Avatar className="h-32 w-32">
@@ -126,7 +128,6 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
                   <AvatarFallback>{getInitials(displayName)}</AvatarFallback>
                 </Avatar>
                 
-                {/* Hidden file input */}
                 <input 
                   ref={fileInputRef}
                   id="avatar-upload" 
