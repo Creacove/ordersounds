@@ -2,10 +2,11 @@
 import { Link } from "react-router-dom";
 import { TrendingUp, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { BeatCardCompact } from "./BeatCardCompact";
 import { fetchTrendingBeats } from "@/services/beats";
 import { useMemo } from "react";
+import { Beat } from "@/types";
 
 export const TrendingBeats = () => {
   const { data: allTrendingBeats = [], isLoading } = useQuery({
@@ -13,7 +14,8 @@ export const TrendingBeats = () => {
     queryFn: () => fetchTrendingBeats(20), // Fetch a few more
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000, // Proper memory management
-  });
+    placeholderData: keepPreviousData, // Updated syntax for TanStack Query v5
+  }) as { data: Beat[], isLoading: boolean };
 
   // Memoized slice for homepage display
   const trendingBeats = useMemo(() => 

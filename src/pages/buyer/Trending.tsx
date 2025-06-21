@@ -6,10 +6,11 @@ import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchMetricBasedTrending } from "@/services/beats/queryService";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
+import { Beat } from "@/types";
 
 export default function Trending() {
   const [displayCount, setDisplayCount] = useState(30);
@@ -23,8 +24,8 @@ export default function Trending() {
     queryFn: () => fetchMetricBasedTrending(200), // Fetch more upfront
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000, // Proper garbage collection
-    keepPreviousData: true, // Smooth pagination
-  });
+    placeholderData: keepPreviousData, // Updated syntax for TanStack Query v5
+  }) as { data: Beat[], isLoading: boolean };
 
   // Memoized slicing - no re-computation on re-renders
   const trendingBeats = useMemo(() => 
