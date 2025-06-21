@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react"; 
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { 
@@ -78,13 +79,21 @@ export function Topbar({ sidebarVisible = false }) {
   const showLogo = true;
 
   const getSettingsPath = () => {
-    if (location.pathname.startsWith('/producer')) {
+    if (user?.role === "producer") {
       return "/producer/settings";
     }
     return "/settings";
   };
 
   const isInProducerView = location.pathname.startsWith('/producer');
+
+  // Get display name based on user role
+  const getDisplayName = (user: any) => {
+    if (user.role === 'producer') {
+      return user.producer_name || user.stage_name || user.name;
+    }
+    return user.name;
+  };
 
   return (
     <header 
@@ -203,19 +212,19 @@ export function Topbar({ sidebarVisible = false }) {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatar_url} alt={user.name} />
-                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    <AvatarImage src={user.avatar_url} alt={getDisplayName(user)} />
+                    <AvatarFallback>{getInitials(getDisplayName(user))}</AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="flex items-center justify-start gap-2 p-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.avatar_url} alt={user.name} />
-                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    <AvatarImage src={user.avatar_url} alt={getDisplayName(user)} />
+                    <AvatarFallback>{getInitials(getDisplayName(user))}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium">{user.name}</span>
+                    <span className="text-sm font-medium">{getDisplayName(user)}</span>
                     <span className="text-xs text-muted-foreground truncate">{user.email}</span>
                   </div>
                 </div>

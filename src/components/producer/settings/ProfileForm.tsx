@@ -20,7 +20,7 @@ export function ProfileForm({ initialProducerName, initialBio, initialLocation }
   const [producerName, setProducerName] = useState(initialProducerName);
   const [bio, setBio] = useState(initialBio);
   const [location, setLocation] = useState(initialLocation);
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, forceUserDataRefresh } = useAuth();
   const { toast } = useToast();
 
   const handleSaveProfile = async () => {
@@ -51,6 +51,9 @@ export function ProfileForm({ initialProducerName, initialBio, initialLocation }
           bio: bio,
           country: location
         });
+        
+        // Force refresh user data to update topbar display
+        await forceUserDataRefresh();
         
         toast({
           title: "Success",
