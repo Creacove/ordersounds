@@ -15,6 +15,43 @@ export interface BeatMigrationResult {
   errors: string[];
 }
 
+export interface StorageRepairResult {
+  totalFiles: number;
+  repairedFiles: number;
+  failedFiles: number;
+  errors: string[];
+}
+
+/**
+ * Detects image format from file header bytes
+ */
+const detectImageFormat = (buffer: ArrayBuffer): string | null => {
+  const bytes = new Uint8Array(buffer);
+  
+  // JPEG: FF D8 FF
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+    return 'image/jpeg';
+  }
+  
+  // PNG: 89 50 4E 47
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+    return 'image/png';
+  }
+  
+  // GIF: 47 49 46
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+    return 'image/gif';
+  }
+  
+  // WEBP: 52 49 46 46 ... 57 45 42 50
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
+    return 'image/webp';
+  }
+  
+  return null;
+};
+
 /**
  * Migrates user profile pictures from base64 to Supabase storage URLs
  * This function should be run once to clean up existing data
@@ -235,6 +272,105 @@ export const cleanupCorruptedRecords = async (): Promise<{ cleaned: number; erro
   } catch (error) {
     console.error('Cleanup failed:', error);
     result.errors.push(`Cleanup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return result;
+  }
+};
+
+/**
+ * Repairs corrupted storage images by detecting their true format and re-uploading with correct MIME type
+ */
+export const repairCorruptedStorageImages = async (): Promise<StorageRepairResult> => {
+  const result: StorageRepairResult = {
+    totalFiles: 0,
+    repairedFiles: 0,
+    failedFiles: 0,
+    errors: []
+  };
+
+  try {
+    console.log('Starting repair of corrupted storage images...');
+    
+    // Get all files from covers bucket that are likely corrupted (application/json or wrong MIME type)
+    const { data: files, error: listError } = await supabase.storage
+      .from('covers')
+      .list('migrated', {
+        limit: 1000,
+        sortBy: { column: 'name', order: 'asc' }
+      });
+
+    if (listError) {
+      throw listError;
+    }
+
+    result.totalFiles = files?.length || 0;
+    console.log(`Found ${result.totalFiles} files in covers/migrated`);
+
+    if (!files || files.length === 0) {
+      console.log('No files found to repair');
+      return result;
+    }
+
+    // Process each file
+    for (const file of files) {
+      try {
+        const filePath = `migrated/${file.name}`;
+        console.log(`Processing file: ${filePath}`);
+        
+        // Download the file
+        const { data: fileData, error: downloadError } = await supabase.storage
+          .from('covers')
+          .download(filePath);
+          
+        if (downloadError) {
+          throw downloadError;
+        }
+        
+        // Convert to ArrayBuffer to read file headers
+        const arrayBuffer = await fileData.arrayBuffer();
+        
+        // Detect the actual image format
+        const actualMimeType = detectImageFormat(arrayBuffer);
+        
+        if (!actualMimeType) {
+          throw new Error('Could not detect image format from file headers');
+        }
+        
+        console.log(`Detected ${actualMimeType} for ${file.name}`);
+        
+        // Create a new File object with correct MIME type
+        const correctedFile = new File([arrayBuffer], file.name, { 
+          type: actualMimeType 
+        });
+        
+        // Re-upload with correct content-type (this will overwrite the existing file)
+        const { error: uploadError } = await supabase.storage
+          .from('covers')
+          .upload(filePath, correctedFile, {
+            contentType: actualMimeType,
+            cacheControl: '3600',
+            upsert: true // This overwrites the existing file
+          });
+          
+        if (uploadError) {
+          throw uploadError;
+        }
+        
+        result.repairedFiles++;
+        console.log(`Successfully repaired ${filePath} with ${actualMimeType}`);
+        
+      } catch (error) {
+        console.error(`Failed to repair file ${file.name}:`, error);
+        result.failedFiles++;
+        result.errors.push(`${file.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+    
+    console.log(`Repair completed. Repaired: ${result.repairedFiles}, Failed: ${result.failedFiles}`);
+    return result;
+    
+  } catch (error) {
+    console.error('Storage repair failed:', error);
+    result.errors.push(`Storage repair failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     return result;
   }
 };

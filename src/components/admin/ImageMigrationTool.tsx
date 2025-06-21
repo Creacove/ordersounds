@@ -1,15 +1,16 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, AlertTriangle, Upload, Image } from 'lucide-react';
+import { Loader2, CheckCircle, AlertTriangle, Upload, Image, Wrench } from 'lucide-react';
 import { 
   migrateBase64ImagesToStorage, 
   cleanupCorruptedRecords, 
   migrateBeatCoverImagesToStorage,
+  repairCorruptedStorageImages,
   type MigrationResult,
-  type BeatMigrationResult 
+  type BeatMigrationResult,
+  type StorageRepairResult 
 } from '@/lib/migrationUtils';
 import { toast } from 'sonner';
 
@@ -18,6 +19,7 @@ export function ImageMigrationTool() {
   const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
   const [beatMigrationResult, setBeatMigrationResult] = useState<BeatMigrationResult | null>(null);
   const [cleanupResult, setCleanupResult] = useState<{ cleaned: number; errors: string[] } | null>(null);
+  const [repairResult, setRepairResult] = useState<StorageRepairResult | null>(null);
 
   const runMigration = async () => {
     setIsRunning(true);
@@ -85,6 +87,28 @@ export function ImageMigrationTool() {
     }
   };
 
+  const runStorageRepair = async () => {
+    setIsRunning(true);
+    setRepairResult(null);
+    
+    try {
+      toast.info('Starting repair of corrupted storage images...');
+      const result = await repairCorruptedStorageImages();
+      setRepairResult(result);
+      
+      if (result.repairedFiles > 0) {
+        toast.success(`Storage repair completed! Repaired ${result.repairedFiles} images`);
+      } else {
+        toast.info('No corrupted images found to repair');
+      }
+    } catch (error) {
+      toast.error('Storage repair failed');
+      console.error('Storage repair error:', error);
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -98,7 +122,7 @@ export function ImageMigrationTool() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Button
               onClick={runMigration}
               disabled={isRunning}
@@ -107,12 +131,12 @@ export function ImageMigrationTool() {
               {isRunning ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Running Migration...
+                  Running...
                 </>
               ) : (
                 <>
                   <Upload className="mr-2 h-4 w-4" />
-                  Migrate User Profile Images
+                  Migrate User Images
                 </>
               )}
             </Button>
@@ -126,12 +150,31 @@ export function ImageMigrationTool() {
               {isRunning ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Running Migration...
+                  Running...
                 </>
               ) : (
                 <>
                   <Image className="mr-2 h-4 w-4" />
-                  Migrate Beat Cover Images
+                  Migrate Beat Covers
+                </>
+              )}
+            </Button>
+
+            <Button
+              onClick={runStorageRepair}
+              disabled={isRunning}
+              className="w-full"
+              variant="outline"
+            >
+              {isRunning ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Repairing...
+                </>
+              ) : (
+                <>
+                  <Wrench className="mr-2 h-4 w-4" />
+                  Repair Storage Images
                 </>
               )}
             </Button>
@@ -145,7 +188,7 @@ export function ImageMigrationTool() {
               {isRunning ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Running Cleanup...
+                  Cleaning...
                 </>
               ) : (
                 <>
@@ -216,6 +259,30 @@ export function ImageMigrationTool() {
                       <summary className="cursor-pointer">View Errors</summary>
                       <ul className="list-disc list-inside mt-1">
                         {cleanupResult.errors.map((error, index) => (
+                          <li key={index} className="text-sm text-red-600">{error}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {repairResult && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p><strong>Storage Repair Results:</strong></p>
+                  <p>Total files found: {repairResult.totalFiles}</p>
+                  <p>Successfully repaired: {repairResult.repairedFiles}</p>
+                  <p>Failed repairs: {repairResult.failedFiles}</p>
+                  {repairResult.errors.length > 0 && (
+                    <details className="mt-2">
+                      <summary className="cursor-pointer">View Errors</summary>
+                      <ul className="list-disc list-inside mt-1">
+                        {repairResult.errors.map((error, index) => (
                           <li key={index} className="text-sm text-red-600">{error}</li>
                         ))}
                       </ul>
