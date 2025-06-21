@@ -2,6 +2,7 @@
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BeatsManagement } from '@/components/admin/BeatsManagement';
+import { ImageMigrationTool } from '@/components/admin/ImageMigrationTool';
 import PaymentAdmin from './PaymentAdmin';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -33,9 +34,10 @@ export default function AdminDashboard() {
         </div>
         
         <Tabs defaultValue="beats" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="beats">Beats Management</TabsTrigger>
             <TabsTrigger value="payments">Payment Management</TabsTrigger>
+            <TabsTrigger value="migration">Data Migration</TabsTrigger>
           </TabsList>
           
           <TabsContent value="beats">
@@ -44,6 +46,10 @@ export default function AdminDashboard() {
           
           <TabsContent value="payments">
             <PaymentAdmin />
+          </TabsContent>
+          
+          <TabsContent value="migration">
+            <ImageMigrationTool />
           </TabsContent>
         </Tabs>
       </div>
