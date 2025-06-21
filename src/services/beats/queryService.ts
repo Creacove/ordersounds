@@ -1,12 +1,13 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { mapSupabaseBeatToBeat } from './utils';
 import { SupabaseBeat } from './types';
 import {
-  getTrendingBeatsOptimized,
-  getNewBeatsOptimized,
-  getFeaturedBeatsOptimized,
-  getMetricBasedTrendingOptimized
+  fetchTrendingBeatsOptimized,
+  fetchNewBeatsOptimized,
+  fetchFeaturedBeatsOptimized,
+  fetchMetricBasedTrendingOptimized
 } from './optimizedQueryService';
 
 interface FetchBeatsOptions {
@@ -132,7 +133,7 @@ export async function fetchAllBeats(options: FetchBeatsOptions = {}): Promise<Be
 export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
   try {
     console.log('Fetching trending beats using optimized query...');
-    return await getTrendingBeatsOptimized(limit);
+    return await fetchTrendingBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch trending beats:', error);
     throw error;
@@ -142,7 +143,7 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
 export async function fetchMetricBasedTrending(limit: number = 100): Promise<Beat[]> {
   try {
     console.log('Fetching metrics-based trending beats using optimized query...');
-    return await getMetricBasedTrendingOptimized(limit);
+    return await fetchMetricBasedTrendingOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch metrics-based trending beats:', error);
     throw error;
@@ -152,7 +153,7 @@ export async function fetchMetricBasedTrending(limit: number = 100): Promise<Bea
 export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
   try {
     console.log('Fetching featured beats using optimized query...');
-    return await getFeaturedBeatsOptimized(limit);
+    return await fetchFeaturedBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch featured beats:', error);
     throw error;
@@ -162,7 +163,7 @@ export async function fetchFeaturedBeats(limit: number = 1): Promise<Beat[]> {
 export async function fetchNewBeats(limit: number = 20): Promise<Beat[]> {
   try {
     console.log('Fetching new beats using optimized query...');
-    return await getNewBeatsOptimized(limit);
+    return await fetchNewBeatsOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch new beats:', error);
     throw error;

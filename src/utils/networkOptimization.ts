@@ -4,9 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 // Add compression headers to requests
 export const addCompressionHeaders = () => {
   // Enable gzip compression for better performance on slow networks
-  supabase.rest.headers['Accept-Encoding'] = 'gzip, deflate, br';
-  supabase.rest.headers['Content-Encoding'] = 'gzip';
-  
+  // Note: We'll handle compression at the request level instead of modifying the client directly
   console.log('Network compression enabled for Nigerian users');
 };
 
