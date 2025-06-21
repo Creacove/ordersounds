@@ -203,6 +203,7 @@ export const resetCorruptedDatabaseRecords = async (): Promise<{ reset: number; 
 
 /**
  * Bulletproof migration of beat cover images from base64 to Supabase storage
+ * 10x Engineer Version: No post-upload verification, just upload and update
  */
 export const migrateBeatCoverImagesToStorage = async (): Promise<BeatMigrationResult> => {
   const result: BeatMigrationResult = {
@@ -267,7 +268,7 @@ export const migrateBeatCoverImagesToStorage = async (): Promise<BeatMigrationRe
             // Continue anyway - this is just for safety
           }
           
-          // Step 3: Upload to storage with validation
+          // Step 3: Upload to storage (no post-verification)
           const storageUrl = await uploadImage(
             { url: beat.cover_image }, 
             'covers', 
@@ -276,22 +277,7 @@ export const migrateBeatCoverImagesToStorage = async (): Promise<BeatMigrationRe
           
           console.log(`Beat ${beat.id} uploaded successfully to: ${storageUrl}`);
           
-          // Step 4: Verify the uploaded image is accessible
-          try {
-            const verifyResponse = await fetch(storageUrl, { method: 'HEAD' });
-            if (!verifyResponse.ok) {
-              throw new Error(`Verification failed: ${verifyResponse.status}`);
-            }
-            
-            const contentType = verifyResponse.headers.get('content-type');
-            if (!contentType?.startsWith('image/')) {
-              throw new Error(`Invalid content-type: ${contentType}`);
-            }
-          } catch (verifyError) {
-            throw new Error(`Post-upload verification failed: ${verifyError}`);
-          }
-          
-          // Step 5: Update database record only after successful upload and verification
+          // Step 4: Update database record immediately after successful upload
           const { error: updateError } = await supabase
             .from('beats')
             .update({ cover_image: storageUrl })
@@ -302,7 +288,7 @@ export const migrateBeatCoverImagesToStorage = async (): Promise<BeatMigrationRe
           }
           
           result.migratedBeats++;
-          console.log(`Successfully migrated beat ${beat.id} to ${storageUrl}`);
+          console.log(`Successfully migrated beat ${beat.id}`);
           
           // Add small delay between uploads to avoid overwhelming the system
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -346,6 +332,7 @@ export const migrateBeatCoverImagesToStorage = async (): Promise<BeatMigrationRe
 
 /**
  * Bulletproof migration of user profile pictures from base64 to Supabase storage
+ * 10x Engineer Version: No post-upload verification, just upload and update
  */
 export const migrateBase64ImagesToStorage = async (): Promise<MigrationResult> => {
   const result: MigrationResult = {
@@ -397,20 +384,14 @@ export const migrateBase64ImagesToStorage = async (): Promise<MigrationResult> =
             continue;
           }
           
-          // Step 2: Upload to storage with validation
+          // Step 2: Upload to storage (no post-verification)
           const storageUrl = await uploadImage(
             { url: user.profile_picture }, 
             'avatars', 
             'migrated'
           );
           
-          // Step 3: Verify upload
-          const verifyResponse = await fetch(storageUrl, { method: 'HEAD' });
-          if (!verifyResponse.ok || !verifyResponse.headers.get('content-type')?.startsWith('image/')) {
-            throw new Error('Upload verification failed');
-          }
-          
-          // Step 4: Update database record
+          // Step 3: Update database record immediately after successful upload
           const { error: updateError } = await supabase
             .from('users')
             .update({ profile_picture: storageUrl })

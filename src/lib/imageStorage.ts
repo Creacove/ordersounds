@@ -189,7 +189,7 @@ export async function preValidateBase64Image(dataUrl: string): Promise<{ isValid
 }
 
 /**
- * Uploads an image to Supabase storage with bulletproof validation
+ * Uploads an image to Supabase storage with pre-upload validation only
  */
 export const uploadImage = async (
   fileOrUrl: FileOrUrl, 
@@ -254,23 +254,7 @@ export const uploadImage = async (
       .from(bucket)
       .getPublicUrl(data.path);
     
-    // Verify the uploaded file by trying to fetch it
-    try {
-      const response = await fetch(publicUrlData.publicUrl, { method: 'HEAD' });
-      if (!response.ok) {
-        throw new Error(`Uploaded file verification failed: ${response.status}`);
-      }
-      
-      const contentType = response.headers.get('content-type');
-      if (!contentType?.startsWith('image/')) {
-        throw new Error(`Uploaded file has invalid content-type: ${contentType}`);
-      }
-    } catch (verificationError) {
-      console.warn('File verification failed:', verificationError);
-      // Don't fail the upload for verification issues, but log them
-    }
-    
-    console.log(`Image uploaded and verified successfully: ${publicUrlData.publicUrl}`);
+    console.log(`Image uploaded successfully: ${publicUrlData.publicUrl}`);
     
     if (progressCallback) {
       progressCallback(100);
