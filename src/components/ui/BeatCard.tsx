@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Beat } from '@/types';
 import { PriceTag } from './PriceTag';
@@ -43,7 +43,7 @@ interface BeatCardProps {
   onPublish?: (id: string) => void;
 }
 
-export function BeatCard({
+const BeatCard = memo(function BeatCard({
   beat,
   onPlay,
   onAddToCart,
@@ -215,10 +215,11 @@ export function BeatCard({
     }
   };
 
-  const licensePrice = {
+  // Memoize expensive price calculations
+  const licensePrice = useMemo(() => ({
     local: getLicensePrice(beat, 'basic', false),
     diaspora: getLicensePrice(beat, 'basic', true)
-  };
+  }), [beat.basic_license_price_local, beat.basic_license_price_diaspora]);
 
   console.log('Beat pricing data:', {
     beatId: beat.id,
@@ -456,4 +457,15 @@ export function BeatCard({
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  return (
+    prevProps.beat.id === nextProps.beat.id &&
+    prevProps.isFavorite === nextProps.isFavorite &&
+    prevProps.isInCart === nextProps.isInCart &&
+    prevProps.isPurchased === nextProps.isPurchased &&
+    prevProps.className === nextProps.className
+  );
+});
+
+export { BeatCard };

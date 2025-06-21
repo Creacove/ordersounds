@@ -5,13 +5,21 @@ import { SectionTitle } from "@/components/ui/SectionTitle";
 import { useQuery } from "@tanstack/react-query";
 import { BeatCardCompact } from "./BeatCardCompact";
 import { fetchTrendingBeats } from "@/services/beats";
+import { useMemo } from "react";
 
 export const TrendingBeats = () => {
-  const { data: trendingBeats = [], isLoading } = useQuery({
+  const { data: allTrendingBeats = [], isLoading } = useQuery({
     queryKey: ['curated-trending-beats'],
-    queryFn: () => fetchTrendingBeats(5), // Keep limit at 5 for curated homepage display
-    staleTime: 5 * 60 * 1000 // Consider data fresh for 5 minutes
+    queryFn: () => fetchTrendingBeats(20), // Fetch a few more
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000, // Proper memory management
   });
+
+  // Memoized slice for homepage display
+  const trendingBeats = useMemo(() => 
+    allTrendingBeats.slice(0, 5), 
+    [allTrendingBeats]
+  );
 
   return (
     <section className="w-full">

@@ -114,7 +114,43 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
 export async function fetchMetricBasedTrending(limit: number = 100): Promise<Beat[]> {
   try {
     console.log('Fetching metrics-based trending beats using optimized query...');
-    return await getMetricBasedTrendingOptimized(limit);
+    
+    // Lean query - only essential fields for initial load
+    const { data, error } = await supabase
+      .from('beats')
+      .select(`
+        id,
+        title,
+        cover_image,
+        basic_license_price_local,
+        basic_license_price_diaspora,
+        genre,
+        bpm,
+        plays,
+        favorites_count,
+        purchase_count,
+        producer_id,
+        upload_date,
+        status,
+        users!beats_producer_id_fkey (
+          stage_name,
+          full_name
+        )
+      `)
+      .eq('status', 'published')
+      .not('plays', 'is', null)
+      .order('plays', { ascending: false })
+      .order('favorites_count', { ascending: false })
+      .order('purchase_count', { ascending: false })
+      .order('upload_date', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    return (data || []).map(beat => ({
+      ...mapSupabaseBeatToBeat(beat),
+      producer_name: beat.users?.stage_name || beat.users?.full_name || 'Unknown Producer'
+    }));
   } catch (error) {
     console.error('Failed to fetch metrics-based trending beats:', error);
     throw error;

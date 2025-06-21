@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useCart } from "@/context/CartContext";
@@ -17,19 +17,30 @@ export default function Trending() {
   const { toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { user } = useAuth();
   
-  const { data: trendingBeats = [], isLoading } = useQuery({
-    queryKey: ['metrics-trending-beats', displayCount],
-    queryFn: () => fetchMetricBasedTrending(displayCount),
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+  // Smart caching: Single cache key, slice client-side
+  const { data: allTrendingBeats = [], isLoading } = useQuery({
+    queryKey: ['metrics-trending-beats'], // Single key regardless of display count
+    queryFn: () => fetchMetricBasedTrending(200), // Fetch more upfront
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000, // Proper garbage collection
+    keepPreviousData: true, // Smooth pagination
   });
+
+  // Memoized slicing - no re-computation on re-renders
+  const trendingBeats = useMemo(() => 
+    allTrendingBeats.slice(0, displayCount), 
+    [allTrendingBeats, displayCount]
+  );
 
   useEffect(() => {
     document.title = "Trending Beats | OrderSOUNDS";
   }, []);
 
   const loadMoreBeats = () => {
-    setDisplayCount(prevCount => prevCount + 30);
+    setDisplayCount(prevCount => Math.min(prevCount + 30, allTrendingBeats.length));
   };
+
+  const hasMore = displayCount < allTrendingBeats.length;
 
   return (
     <MainLayout>
@@ -66,7 +77,7 @@ export default function Trending() {
               ))}
             </div>
             
-            {trendingBeats.length >= displayCount && trendingBeats.length % 30 === 0 && (
+            {hasMore && (
               <div className="flex justify-center mt-8">
                 <Button 
                   variant="outline" 
