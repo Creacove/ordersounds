@@ -5,32 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, CheckCircle, AlertTriangle, Upload } from 'lucide-react';
 import { migrateBase64ImagesToStorage, cleanupCorruptedRecords, type MigrationResult } from '@/lib/migrationUtils';
-import { setupStorageBuckets, testStorageAccess } from '@/lib/storageSetup';
 import { toast } from 'sonner';
 
 export function ImageMigrationTool() {
   const [isRunning, setIsRunning] = useState(false);
   const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
   const [cleanupResult, setCleanupResult] = useState<{ cleaned: number; errors: string[] } | null>(null);
-  const [storageStatus, setStorageStatus] = useState<string>('');
-
-  const checkStorageSetup = async () => {
-    try {
-      const setupResult = await setupStorageBuckets();
-      const testResult = await testStorageAccess();
-      
-      if (setupResult.success && testResult.success) {
-        setStorageStatus('✅ Storage buckets are properly configured');
-        toast.success('Storage setup verified');
-      } else {
-        setStorageStatus(`❌ Storage issue: ${setupResult.message || testResult.message}`);
-        toast.error('Storage setup issue detected');
-      }
-    } catch (error) {
-      setStorageStatus(`❌ Error checking storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      toast.error('Failed to check storage setup');
-    }
-  };
 
   const runMigration = async () => {
     setIsRunning(true);
@@ -89,17 +69,6 @@ export function ImageMigrationTool() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Button onClick={checkStorageSetup} variant="outline" className="w-full">
-              Check Storage Setup
-            </Button>
-            {storageStatus && (
-              <Alert>
-                <AlertDescription>{storageStatus}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Button
               onClick={runMigration}
