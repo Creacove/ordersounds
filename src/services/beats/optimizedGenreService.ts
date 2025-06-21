@@ -4,32 +4,33 @@ import { Beat } from '@/types';
 import { mapSupabaseBeatToBeat } from './utils';
 import { SupabaseBeat } from './types';
 
+// Lean query fields - excludes heavy cover_image data
+const LEAN_GENRE_FIELDS = `
+  id,
+  title,
+  basic_license_price_local,
+  basic_license_price_diaspora,
+  genre,
+  bpm,
+  plays,
+  favorites_count,
+  purchase_count,
+  producer_id,
+  upload_date,
+  status,
+  users!beats_producer_id_fkey (
+    stage_name,
+    full_name
+  )
+`;
+
 export async function fetchBeatsByGenre(genre: string, limit: number = 100): Promise<Beat[]> {
   try {
-    console.log(`Fetching beats for genre: ${genre} using optimized query...`);
+    console.log(`Fetching beats for genre: ${genre} using lean optimized query...`);
     
-    // Lean query - only essential fields for genre filtering
     const { data, error } = await supabase
       .from('beats')
-      .select(`
-        id,
-        title,
-        cover_image,
-        basic_license_price_local,
-        basic_license_price_diaspora,
-        genre,
-        bpm,
-        plays,
-        favorites_count,
-        purchase_count,
-        producer_id,
-        upload_date,
-        status,
-        users!beats_producer_id_fkey (
-          stage_name,
-          full_name
-        )
-      `)
+      .select(LEAN_GENRE_FIELDS)
       .eq('status', 'published')
       .eq('genre', genre)
       .order('upload_date', { ascending: false })
@@ -39,7 +40,8 @@ export async function fetchBeatsByGenre(genre: string, limit: number = 100): Pro
 
     return (data || []).map(beat => ({
       ...mapSupabaseBeatToBeat(beat as SupabaseBeat),
-      producer_name: beat.users?.stage_name || beat.users?.full_name || 'Unknown Producer'
+      producer_name: beat.users?.stage_name || beat.users?.full_name || 'Unknown Producer',
+      cover_image_url: '/placeholder.svg' // Use placeholder initially for fast loading
     }));
   } catch (error) {
     console.error(`Failed to fetch beats for genre ${genre}:`, error);
