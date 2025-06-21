@@ -2,15 +2,26 @@
 import { Link } from "react-router-dom";
 import { Sparkles, ChevronRight } from "lucide-react";
 import { SectionTitle } from "@/components/ui/SectionTitle";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { BeatCardCompact } from "./BeatCardCompact";
 import { fetchNewBeats } from "@/services/beats/queryService";
+import { useMemo } from "react";
+import { Beat } from "@/types";
 
 export const NewBeats = () => {
-  const { data: newBeats = [], isLoading } = useQuery({
-    queryKey: ['new-beats'],
-    queryFn: () => fetchNewBeats(5)
-  });
+  const { data: allNewBeats = [], isLoading } = useQuery({
+    queryKey: ['new-beats-homepage'],
+    queryFn: () => fetchNewBeats(15), // Fetch a few more
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000, // Proper memory management
+    placeholderData: keepPreviousData, // Updated syntax for TanStack Query v5
+  }) as { data: Beat[], isLoading: boolean };
+
+  // Memoized slice for homepage display
+  const newBeats = useMemo(() => 
+    allNewBeats.slice(0, 5), 
+    [allNewBeats]
+  );
 
   return (
     <section className="w-full">

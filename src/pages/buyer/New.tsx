@@ -1,15 +1,16 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { fetchNewBeats } from "@/services/beats/queryService";
 import { useAuth } from "@/context/AuthContext";
 import { useBeats } from "@/hooks/useBeats";
+import { Beat } from "@/types";
 
 export default function New() {
   const [displayCount, setDisplayCount] = useState(30);
@@ -17,19 +18,30 @@ export default function New() {
   const { toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { user } = useAuth();
   
-  const { data: newBeats = [], isLoading } = useQuery({
-    queryKey: ['new-beats', displayCount],
-    queryFn: () => fetchNewBeats(displayCount),
-    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-  });
+  // Smart caching: Single cache key, slice client-side
+  const { data: allNewBeats = [], isLoading } = useQuery({
+    queryKey: ['new-beats'], // Single key regardless of display count
+    queryFn: () => fetchNewBeats(200), // Fetch more upfront
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000, // Proper garbage collection
+    placeholderData: keepPreviousData, // Updated syntax for TanStack Query v5
+  }) as { data: Beat[], isLoading: boolean };
+
+  // Memoized slicing - no re-computation on re-renders
+  const newBeats = useMemo(() => 
+    allNewBeats.slice(0, displayCount), 
+    [allNewBeats, displayCount]
+  );
 
   useEffect(() => {
     document.title = "New Beats | OrderSOUNDS";
   }, []);
 
   const loadMoreBeats = () => {
-    setDisplayCount(prevCount => prevCount + 30);
+    setDisplayCount(prevCount => Math.min(prevCount + 30, allNewBeats.length));
   };
+
+  const hasMore = displayCount < allNewBeats.length;
 
   return (
     <MainLayout>
@@ -64,7 +76,7 @@ export default function New() {
               ))}
             </div>
             
-            {newBeats.length >= displayCount && (
+            {hasMore && (
               <div className="flex justify-center mt-8">
                 <Button 
                   variant="outline" 

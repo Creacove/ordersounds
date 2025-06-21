@@ -1,21 +1,46 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { MainLayoutWithPlayer } from "@/components/layout/MainLayoutWithPlayer";
-import { useBeats } from "@/hooks/useBeats";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BeatCard } from "@/components/ui/BeatCard";
 import { BeatListItem } from "@/components/ui/BeatListItem";
 import { Badge } from "@/components/ui/badge";
 import { useCart } from "@/context/CartContext";
 import { useLocation } from "react-router-dom";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { fetchBeatsByGenre, fetchAllGenres } from "@/services/beats/optimizedGenreService";
+import { fetchAllBeats } from "@/services/beats/queryService";
+import { useAuth } from "@/context/AuthContext";
+import { useBeats } from "@/hooks/useBeats";
+import { Beat } from "@/types";
 
 export default function Genres() {
-  const { beats, isLoading, toggleFavorite, isFavorite, isPurchased } = useBeats();
   const { isInCart } = useCart();
+  const { toggleFavorite, isFavorite, isPurchased } = useBeats();
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(window.innerWidth < 768 ? 'list' : 'grid');
   const location = useLocation();
+  const { user } = useAuth();
   
+  // Fetch all genres for the filter
+  const { data: genres = [] } = useQuery({
+    queryKey: ['genres'],
+    queryFn: fetchAllGenres,
+    staleTime: 30 * 60 * 1000, // Cache genres for 30 minutes
+    gcTime: 60 * 60 * 1000,
+  });
+
+  // Smart genre-specific or all beats query
+  const { data: beats = [], isLoading } = useQuery({
+    queryKey: selectedGenre ? ['beats-by-genre', selectedGenre] : ['all-beats-for-genres'],
+    queryFn: () => selectedGenre 
+      ? fetchBeatsByGenre(selectedGenre, 100)
+      : fetchAllBeats({ limit: 100, includeDrafts: false }),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  }) as { data: Beat[], isLoading: boolean };
+
   useEffect(() => {
     // Get genre from URL query parameter if present
     const queryParams = new URLSearchParams(location.search);
@@ -35,13 +60,11 @@ export default function Genres() {
     return () => window.removeEventListener('resize', handleResize);
   }, [location.search]);
 
-  // Extract unique genres from beats
-  const genres = [...new Set(beats.map(beat => beat.genre))].filter(Boolean);
-
-  // Filter beats by selected genre
-  const filteredBeats = selectedGenre 
-    ? beats.filter(beat => beat.genre === selectedGenre)
-    : beats;
+  // Memoized filtered beats (only when showing all beats)
+  const filteredBeats = useMemo(() => {
+    if (selectedGenre) return beats; // Already filtered by query
+    return beats;
+  }, [beats, selectedGenre]);
 
   return (
     <MainLayoutWithPlayer>
@@ -91,7 +114,7 @@ export default function Genres() {
                 isFavorite={isFavorite(beat.id)}
                 isInCart={isInCart(beat.id)}
                 isPurchased={isPurchased(beat.id)}
-                onToggleFavorite={toggleFavorite}
+                onToggleFavorite={user ? toggleFavorite : undefined}
               />
             ))}
             {filteredBeats.length === 0 && (
@@ -109,7 +132,7 @@ export default function Genres() {
                 isFavorite={isFavorite(beat.id)}
                 isInCart={isInCart(beat.id)}
                 isPurchased={isPurchased(beat.id)}
-                onToggleFavorite={toggleFavorite}
+                onToggleFavorite={user ? toggleFavorite : undefined}
               />
             ))}
             {filteredBeats.length === 0 && (
