@@ -1,11 +1,9 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 
 interface ProfileFormProps {
@@ -24,48 +22,39 @@ export function ProfileForm({ initialProducerName, initialBio, initialLocation }
   const { toast } = useToast();
 
   const handleSaveProfile = async () => {
-    if (!user) return;
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update your profile",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       setIsLoading(true);
       
-      const { error } = await supabase
-        .from('users')
-        .update({
-          stage_name: producerName,
-          bio: bio,
-          country: location
-        })
-        .eq('id', user.id);
-        
-      if (error) {
-        console.error('Update error:', error);
-        throw error;
-      }
+      // Use AuthContext updateProfile instead of direct Supabase calls
+      await updateProfile({
+        ...user,
+        producer_name: producerName,
+        bio: bio,
+        country: location
+      });
       
-      if (updateProfile) {
-        await updateProfile({
-          ...user,
-          producer_name: producerName,
-          name: user.name,
-          bio: bio,
-          country: location
-        });
-        
-        // Force refresh user data to update topbar display
-        await forceUserDataRefresh();
-        
-        toast({
-          title: "Success",
-          description: "Profile updated successfully",
-        });
-        setSaveSuccess(true);
-        
-        // Reset success state after 3 seconds
-        setTimeout(() => {
-          setSaveSuccess(false);
-        }, 3000);
-      }
+      // Force refresh user data to update topbar display
+      await forceUserDataRefresh();
+      
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+      setSaveSuccess(true);
+      
+      // Reset success state after 3 seconds
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
     } catch (error: any) {
       console.error('Error updating profile:', error);
       toast({

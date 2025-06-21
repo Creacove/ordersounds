@@ -1,9 +1,7 @@
-
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, Camera } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -31,6 +29,15 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
   
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !e.target.files[0]) return;
+    
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to update your profile picture",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const file = e.target.files[0];
     
@@ -65,20 +72,11 @@ export function ProfilePictureUploader({ avatarUrl, displayName }: ProfilePictur
       console.log('Image uploaded successfully:', imageUrl);
       setPreviewUrl(imageUrl);
       
-      // Update user profile with the storage URL
-      const { error } = await supabase
-        .from('users')
-        .update({ profile_picture: imageUrl })
-        .eq('id', user!.id);
-        
-      if (error) throw error;
-      
-      if (updateProfile) {
-        await updateProfile({
-          ...user!,
-          avatar_url: imageUrl
-        });
-      }
+      // Use AuthContext updateProfile instead of direct Supabase calls
+      await updateProfile({
+        ...user,
+        avatar_url: imageUrl
+      });
       
       toast({
         title: "Success",
