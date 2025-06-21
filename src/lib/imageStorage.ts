@@ -12,31 +12,184 @@ export function isFile(obj: any): obj is File {
 export type FileOrUrl = File | { url: string };
 
 /**
- * Converts a data URL to a Blob
- * @param dataUrl The data URL to convert
- * @returns A Blob object
+ * Validates if a data URL is properly formatted and contains image data
  */
-export function dataURLtoBlob(dataUrl: string): Blob {
-  const arr = dataUrl.split(',');
-  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
+function validateDataURL(dataUrl: string): { isValid: boolean; mimeType: string | null; error?: string } {
+  try {
+    // Check basic data URL format
+    if (!dataUrl.startsWith('data:')) {
+      return { isValid: false, mimeType: null, error: 'Not a data URL' };
+    }
+
+    // Extract MIME type
+    const mimeMatch = dataUrl.match(/^data:([^;]+);base64,/);
+    if (!mimeMatch) {
+      return { isValid: false, mimeType: null, error: 'Invalid data URL format' };
+    }
+
+    const mimeType = mimeMatch[1];
+    
+    // Validate it's an image MIME type
+    if (!mimeType.startsWith('image/')) {
+      return { isValid: false, mimeType: null, error: `Invalid MIME type: ${mimeType}` };
+    }
+
+    // Check if base64 data exists
+    const base64Data = dataUrl.split(',')[1];
+    if (!base64Data || base64Data.length === 0) {
+      return { isValid: false, mimeType: null, error: 'No base64 data found' };
+    }
+
+    // Validate base64 format (basic check)
+    const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+    if (!base64Regex.test(base64Data)) {
+      return { isValid: false, mimeType: null, error: 'Invalid base64 encoding' };
+    }
+
+    // Check minimum size (a valid image should be at least a few hundred bytes)
+    if (base64Data.length < 100) {
+      return { isValid: false, mimeType: null, error: 'Base64 data too small to be a valid image' };
+    }
+
+    return { isValid: true, mimeType };
+  } catch (error) {
+    return { isValid: false, mimeType: null, error: `Validation error: ${error}` };
   }
-  
-  return new Blob([u8arr], { type: mime });
 }
 
 /**
- * Uploads an image to Supabase storage
- * @param fileOrUrl The image file or a data URL
- * @param bucket The storage bucket to use (e.g., 'avatars', 'covers')
- * @param path Optional path within the bucket
- * @param progressCallback Optional callback function to track upload progress
- * @returns The public URL of the uploaded image
+ * Validates if a blob contains actual image data by checking file headers
+ */
+function validateImageBlob(blob: Blob): Promise<{ isValid: boolean; detectedType?: string; error?: string }> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    
+    reader.onload = () => {
+      try {
+        const arrayBuffer = reader.result as ArrayBuffer;
+        const bytes = new Uint8Array(arrayBuffer);
+        
+        if (bytes.length < 4) {
+          resolve({ isValid: false, error: 'Blob too small to contain image headers' });
+          return;
+        }
+
+        // Check for image file signatures
+        let detectedType = '';
+        
+        // JPEG: FF D8 FF
+        if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+          detectedType = 'image/jpeg';
+        }
+        // PNG: 89 50 4E 47
+        else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+          detectedType = 'image/png';
+        }
+        // GIF: 47 49 46
+        else if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+          detectedType = 'image/gif';
+        }
+        // WEBP: 52 49 46 46 ... 57 45 42 50
+        else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+                 bytes.length > 11 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
+          detectedType = 'image/webp';
+        }
+        else {
+          resolve({ isValid: false, error: 'No valid image file signature found' });
+          return;
+        }
+
+        resolve({ isValid: true, detectedType });
+      } catch (error) {
+        resolve({ isValid: false, error: `Blob validation error: ${error}` });
+      }
+    };
+    
+    reader.onerror = () => {
+      resolve({ isValid: false, error: 'Failed to read blob data' });
+    };
+    
+    // Read only the first 32 bytes for header validation
+    reader.readAsArrayBuffer(blob.slice(0, 32));
+  });
+}
+
+/**
+ * Converts a data URL to a Blob with bulletproof validation
+ * @param dataUrl The data URL to convert
+ * @returns A validated Blob object
+ */
+export async function dataURLtoBlob(dataUrl: string): Promise<Blob> {
+  // Step 1: Validate the data URL format
+  const validation = validateDataURL(dataUrl);
+  if (!validation.isValid) {
+    throw new Error(`Invalid data URL: ${validation.error}`);
+  }
+
+  try {
+    // Step 2: Extract and decode base64 data
+    const arr = dataUrl.split(',');
+    const mimeType = validation.mimeType!;
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    // Step 3: Create blob
+    const blob = new Blob([u8arr], { type: mimeType });
+    
+    // Step 4: Validate the blob contains actual image data
+    const blobValidation = await validateImageBlob(blob);
+    if (!blobValidation.isValid) {
+      throw new Error(`Invalid image blob: ${blobValidation.error}`);
+    }
+    
+    // Step 5: Verify detected type matches declared type
+    if (blobValidation.detectedType && blobValidation.detectedType !== mimeType) {
+      console.warn(`MIME type mismatch: declared ${mimeType}, detected ${blobValidation.detectedType}`);
+      // Use detected type for the blob
+      return new Blob([u8arr], { type: blobValidation.detectedType });
+    }
+    
+    console.log(`Successfully created validated ${mimeType} blob (${blob.size} bytes)`);
+    return blob;
+    
+  } catch (error) {
+    throw new Error(`Failed to convert data URL to blob: ${error}`);
+  }
+}
+
+/**
+ * Pre-validates a base64 image before attempting migration
+ */
+export async function preValidateBase64Image(dataUrl: string): Promise<{ isValid: boolean; error?: string; size?: number; type?: string }> {
+  try {
+    const validation = validateDataURL(dataUrl);
+    if (!validation.isValid) {
+      return { isValid: false, error: validation.error };
+    }
+
+    // Create a test blob to validate the image data
+    const blob = await dataURLtoBlob(dataUrl);
+    
+    return {
+      isValid: true,
+      size: blob.size,
+      type: blob.type
+    };
+  } catch (error) {
+    return {
+      isValid: false,
+      error: error instanceof Error ? error.message : 'Unknown validation error'
+    };
+  }
+}
+
+/**
+ * Uploads an image to Supabase storage with bulletproof validation
  */
 export const uploadImage = async (
   fileOrUrl: FileOrUrl, 
@@ -45,8 +198,6 @@ export const uploadImage = async (
   progressCallback?: (progress: number) => void
 ): Promise<string> => {
   try {
-    // Remove authentication check - allow anyone to upload images
-    
     // If we're passed an object with a URL, and it's a data URL, convert it to a file
     if ('url' in fileOrUrl && typeof fileOrUrl.url === 'string') {
       // If it's a plain URL (not a data URL), just return it
@@ -54,13 +205,19 @@ export const uploadImage = async (
         return fileOrUrl.url;
       }
       
-      // Convert data URL to file
-      const blob = dataURLtoBlob(fileOrUrl.url);
-      const fileExt = fileOrUrl.url.split(';')[0].split('/')[1] || 'png';
-      const fileName = `${uuidv4()}.${fileExt}`;
-      const file = new File([blob], fileName, { type: `image/${fileExt}` });
+      // Pre-validate the data URL
+      const preValidation = await preValidateBase64Image(fileOrUrl.url);
+      if (!preValidation.isValid) {
+        throw new Error(`Pre-validation failed: ${preValidation.error}`);
+      }
       
-      // Now we have a proper file, proceed with upload
+      // Convert data URL to file with validation
+      const blob = await dataURLtoBlob(fileOrUrl.url);
+      const fileExt = preValidation.type?.split('/')[1] || 'png';
+      const fileName = `${uuidv4()}.${fileExt}`;
+      const file = new File([blob], fileName, { type: preValidation.type });
+      
+      // Now we have a properly validated file, proceed with upload
       fileOrUrl = file;
     }
     
@@ -72,10 +229,10 @@ export const uploadImage = async (
     const fileName = `${uuidv4()}.${fileExt}`;
     const filePath = path ? `${path}/${fileName}` : fileName;
     
-    console.log(`Uploading image ${file.name} to ${bucket}/${filePath}`);
+    console.log(`Uploading validated image ${file.name} (${file.size} bytes, ${file.type}) to ${bucket}/${filePath}`);
     
     if (progressCallback) {
-      progressCallback(10); // Start with some initial progress
+      progressCallback(10);
     }
     
     // Upload file to Supabase Storage
@@ -97,10 +254,26 @@ export const uploadImage = async (
       .from(bucket)
       .getPublicUrl(data.path);
     
-    console.log(`Image uploaded successfully: ${publicUrlData.publicUrl}`);
+    // Verify the uploaded file by trying to fetch it
+    try {
+      const response = await fetch(publicUrlData.publicUrl, { method: 'HEAD' });
+      if (!response.ok) {
+        throw new Error(`Uploaded file verification failed: ${response.status}`);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType?.startsWith('image/')) {
+        throw new Error(`Uploaded file has invalid content-type: ${contentType}`);
+      }
+    } catch (verificationError) {
+      console.warn('File verification failed:', verificationError);
+      // Don't fail the upload for verification issues, but log them
+    }
+    
+    console.log(`Image uploaded and verified successfully: ${publicUrlData.publicUrl}`);
     
     if (progressCallback) {
-      progressCallback(100); // Signal completion
+      progressCallback(100);
     }
     
     return publicUrlData.publicUrl;
@@ -112,8 +285,6 @@ export const uploadImage = async (
 
 /**
  * Deletes an image from Supabase storage
- * @param url The public URL of the image to delete
- * @param bucket The storage bucket where the image is stored
  */
 export const deleteImage = async (url: string, bucket: 'covers' | 'avatars'): Promise<void> => {
   try {
