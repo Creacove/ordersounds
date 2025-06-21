@@ -80,6 +80,7 @@ export type Database = {
           basic_license_price_local: number | null
           bpm: number | null
           cover_image: string | null
+          cover_image_backup: string | null
           custom_license_price_diaspora: number | null
           custom_license_price_local: number | null
           description: string | null
@@ -113,6 +114,7 @@ export type Database = {
           basic_license_price_local?: number | null
           bpm?: number | null
           cover_image?: string | null
+          cover_image_backup?: string | null
           custom_license_price_diaspora?: number | null
           custom_license_price_local?: number | null
           description?: string | null
@@ -146,6 +148,7 @@ export type Database = {
           basic_license_price_local?: number | null
           bpm?: number | null
           cover_image?: string | null
+          cover_image_backup?: string | null
           custom_license_price_diaspora?: number | null
           custom_license_price_local?: number | null
           description?: string | null
