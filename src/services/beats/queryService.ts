@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Beat } from '@/types';
 import { mapSupabaseBeatToBeat } from './utils';
@@ -7,7 +6,7 @@ import {
   fetchTrendingBeatsOptimized,
   fetchNewBeatsOptimized,
   fetchFeaturedBeatsOptimized,
-  fetchMetricBasedTrendingOptimized
+  getMetricBasedTrendingOptimized
 } from './optimizedQueryService';
 
 interface FetchBeatsOptions {
@@ -143,7 +142,7 @@ export async function fetchTrendingBeats(limit: number = 30): Promise<Beat[]> {
 export async function fetchMetricBasedTrending(limit: number = 100): Promise<Beat[]> {
   try {
     console.log('Fetching metrics-based trending beats using optimized query...');
-    return await fetchMetricBasedTrendingOptimized(limit);
+    return await getMetricBasedTrendingOptimized(limit);
   } catch (error) {
     console.error('Failed to fetch metrics-based trending beats:', error);
     throw error;
